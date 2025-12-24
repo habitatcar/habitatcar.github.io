@@ -142,7 +142,7 @@
       padding: 40px 20px;
     }
     .exito img {
-      width: 95%; /* ✅ AGRANDADO AL 95% */
+      width: 95%;
       max-width: 500px;
       margin-bottom: 20px;
       display: block;
@@ -191,6 +191,21 @@
       flex: 1;
       margin: 0 8px;
     }
+    /* Botón secreto para ti (modo prueba) */
+    #reiniciar-btn {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: #ff9800;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 50px;
+      height: 50px;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 999;
+    }
   </style>
 </head>
 <body>
@@ -210,6 +225,9 @@
 
     <div id="grilla-cupones"></div>
   </div>
+
+  <!-- Botón secreto: solo para vos, en modo prueba -->
+  <button id="reiniciar-btn" onclick="reiniciarPrueba()">🔄</button>
 
   <script>
     const COMERCIOS = [
@@ -275,6 +293,10 @@
         return;
       }
       localStorage.setItem('usuarioHabitatCar', JSON.stringify({ nombre, whatsapp, tipo: 'lead' }));
+      mostrarGrilla();
+    }
+
+    function mostrarGrilla() {
       document.getElementById('formulario-registro').style.display = 'none';
       document.getElementById('grilla-cupones').style.display = 'block';
       renderizarGrilla();
@@ -329,7 +351,7 @@
         grilla.appendChild(cuponHTML);
       });
 
-      // Activar botones ya validados (solo si no están usados)
+      // Activar botones validados y no usados
       document.querySelectorAll('.usar-boton').forEach(btn => {
         const id = btn.dataset.id;
         const usado = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}')[id];
@@ -370,17 +392,102 @@
     }
 
     function usarCupon(comercioId, nombre, beneficio) {
-      const validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
       const usado = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}')[comercioId];
+      const validado = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}')[comercioId];
       
       if (usado) {
         alert("Este beneficio ya fue utilizado.");
         return;
       }
-      
-      if (!validados[comercioId]) {
-        alert("Primero debés validar el comercio escaneando el QR.");
+      if (!validado) {
+        alert("Primero validá con QR.");
         return;
       }
 
       const alerta = document.createElement('div');
+      alerta.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        padding: 20px;
+      `;
+      alerta.innerHTML = `
+        <div class="advertencia">
+          <h3>⚠️ ¡ATENCIÓN!</h3>
+          <p>¿Avisaste al cajero que usarás el cupón de descuento?<br>
+          <strong>Si no le avisaste, perderás la validez del beneficio.</strong></p>
+          <div style="display: flex; gap: 15px; justify-content: center;">
+            <button class="btn-grande" style="background:#d32f2f; color:white;" onclick="confirmarUso('${comercioId}', '${nombre}', '${beneficio}')">
+              SÍ, le avisé
+            </button>
+            <button class="btn-grande" style="background:#666; color:white;" onclick="cerrarAlerta()">
+              Volver
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(alerta);
+    }
+
+    function cerrarAlerta() {
+      const alerta = document.querySelector('div[style*="z-index: 9999"]');
+      if (alerta) alerta.remove();
+    }
+
+    function confirmarUso(comercioId, nombre, beneficio) {
+      cerrarAlerta();
+      let usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
+      usos[comercioId] = true;
+      localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
+
+      // Mostrar éxito
+      document.querySelector('.container').innerHTML = `
+        <div class="exito">
+          <img src="/logo.png" alt="Habitat-Car">
+          <h2>🎉 ¡FELICITACIONES!</h2>
+          <p>Beneficio activado en <strong>${nombre}</strong>.</p>
+          <p>${beneficio}</p>
+          <div class="contador" id="contador">30</div>
+          <p>Válido por 30 segundos.</p>
+        </div>
+      `;
+
+      let contador = 30;
+      const elem = document.getElementById('contador');
+      const interval = setInterval(() => {
+        contador--;
+        elem.textContent = contador;
+        if (contador <= 0) {
+          clearInterval(interval);
+          setTimeout(() => {
+            // ✅ Volver a la grilla, no al formulario
+            mostrarGrilla();
+          }, 1000);
+        }
+      }, 1000);
+    }
+
+    // === BOTÓN SECRETO: solo para vos (modo prueba) ===
+    function reiniciarPrueba() {
+      if (confirm("¿Reiniciar toda la prueba? Se borrarán usos y validaciones.")) {
+        localStorage.removeItem('usosHabitatCar');
+        localStorage.removeItem('validadosHabitatCar');
+        // No se borra el usuario, solo los cupones
+        mostrarGrilla();
+      }
+    }
+
+    // === Al cargar ===
+    if (localStorage.getItem('usuarioHabitatCar')) {
+      mostrarGrilla();
+    }
+  </script>
+</body>
+</html>
