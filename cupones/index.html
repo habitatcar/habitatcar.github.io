@@ -191,20 +191,36 @@
       flex: 1;
       margin: 0 8px;
     }
-    /* Botón secreto para ti (modo prueba) */
-    #reiniciar-btn {
+    /* Scanner de QR */
+    .qr-scanner {
       position: fixed;
-      bottom: 10px;
-      right: 10px;
-      background: #ff9800;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      padding: 20px;
+    }
+    .qr-scanner video {
+      width: 90%;
+      max-width: 500px;
+      border: 2px dashed white;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    .qr-scanner .close-btn {
+      background: #d32f2f;
       color: white;
       border: none;
-      border-radius: 50%;
-      width: 50px;
-      height: 50px;
-      font-size: 24px;
+      border-radius: 12px;
+      padding: 12px 24px;
+      font-size: 18px;
       cursor: pointer;
-      z-index: 999;
     }
   </style>
 </head>
@@ -225,9 +241,6 @@
 
     <div id="grilla-cupones"></div>
   </div>
-
-  <!-- Botón secreto: solo para vos, en modo prueba -->
-  <button id="reiniciar-btn" onclick="reiniciarPrueba()">🔄</button>
 
   <script>
     const COMERCIOS = [
@@ -364,31 +377,53 @@
       });
     }
 
+    // ✅ ABRIR CÁMARA REAL
     function validarConQR(comercioId) {
-      const btnQR = event.target;
-      btnQR.textContent = "Escaneando...";
-      btnQR.disabled = true;
+      const scanner = document.createElement('div');
+      scanner.className = 'qr-scanner';
+      scanner.innerHTML = `
+        <video id="qr-video" autoplay playsinline></video>
+        <button class="close-btn" onclick="cerrarScanner()">Cerrar</button>
+      `;
+      document.body.appendChild(scanner);
 
-      setTimeout(() => {
-        let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
-        validados[comercioId] = true;
-        localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
+      const video = document.getElementById('qr-video');
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(stream => {
+          video.srcObject = stream;
+          video.play();
 
-        const btnUsar = document.querySelector(`.usar-boton[data-id="${comercioId}"]`);
-        if (btnUsar) {
-          const usado = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}')[comercioId];
-          if (!usado) {
-            btnUsar.disabled = false;
-            btnUsar.style.backgroundColor = '#2c5aa0';
-            btnUsar.onclick = () => usarCupon(comercioId, btnUsar.dataset.nombre, btnUsar.dataset.beneficio);
-          }
+          // Simular escaneo exitoso después de 3 segundos
+          setTimeout(() => {
+            cerrarScanner();
+            activarBotonUsar(comercioId);
+          }, 3000);
+        })
+        .catch(err => {
+          alert("No se pudo acceder a la cámara. Asegurate de permitir el acceso.");
+          cerrarScanner();
+        });
+    }
+
+    function cerrarScanner() {
+      const scanner = document.querySelector('.qr-scanner');
+      if (scanner) scanner.remove();
+    }
+
+    function activarBotonUsar(comercioId) {
+      let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
+      validados[comercioId] = true;
+      localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
+
+      const btnUsar = document.querySelector(`.usar-boton[data-id="${comercioId}"]`);
+      if (btnUsar) {
+        const usado = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}')[comercioId];
+        if (!usado) {
+          btnUsar.disabled = false;
+          btnUsar.style.backgroundColor = '#2c5aa0';
+          btnUsar.onclick = () => usarCupon(comercioId, btnUsar.dataset.nombre, btnUsar.dataset.beneficio);
         }
-
-        btnQR.textContent = "✅ QR validado";
-        setTimeout(() => {
-          btnQR.style.display = 'none';
-        }, 2000);
-      }, 3000);
+      }
     }
 
     function usarCupon(comercioId, nombre, beneficio) {
@@ -467,24 +502,14 @@
         if (contador <= 0) {
           clearInterval(interval);
           setTimeout(() => {
-            // ✅ Volver a la grilla, no al formulario
+            // ✅ VOLVER A LA GRILLA
             mostrarGrilla();
           }, 1000);
         }
       }, 1000);
     }
 
-    // === BOTÓN SECRETO: solo para vos (modo prueba) ===
-    function reiniciarPrueba() {
-      if (confirm("¿Reiniciar toda la prueba? Se borrarán usos y validaciones.")) {
-        localStorage.removeItem('usosHabitatCar');
-        localStorage.removeItem('validadosHabitatCar');
-        // No se borra el usuario, solo los cupones
-        mostrarGrilla();
-      }
-    }
-
-    // === Al cargar ===
+    // Al cargar
     if (localStorage.getItem('usuarioHabitatCar')) {
       mostrarGrilla();
     }
