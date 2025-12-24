@@ -73,10 +73,35 @@
       margin: 30px 0;
       box-shadow: 0 5px 18px rgba(0,0,0,0.1);
       text-align: left;
+      position: relative;
     }
     .cupon.inactivo {
-      opacity: 0.6;
-      background: #f0f0f0;
+      background: #e0e0e0 !important;
+      opacity: 1 !important;
+      filter: grayscale(30%) brightness(90%);
+    }
+    .cupon.inactivo::after {
+      content: "🔒";
+      position: absolute;
+      top: 15px;
+      right: 15px;
+      font-size: 24px;
+      color: #b71c1c;
+    }
+    .vence {
+      color: #b71c1c !important;
+      font-size: 22px !important;
+      font-weight: bold !important;
+      text-align: center;
+      margin: 12px 0 !important;
+      background: #ffebee;
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #ffcdd2;
+    }
+    .cupon.inactivo .nombre,
+    .cupon.inactivo .descuento {
+      color: #757575;
     }
     .logo-comercio {
       width: 80px;
@@ -92,12 +117,6 @@
     .descuento {
       font-size: 24px;
       margin: 12px 0;
-      font-weight: bold;
-    }
-    .vence {
-      color: #d32f2f;
-      font-size: 20px;
-      margin: 10px 0;
       font-weight: bold;
     }
     .info {
@@ -253,9 +272,9 @@
         let mensajeVencido = '';
 
         if (usado) {
-          mensajeVencido = `<div class="vence">Beneficio ya utilizado</div>`;
+          mensajeVencido = `<div class="vence">✅ Beneficio ya utilizado</div>`;
         } else if (vencido) {
-          mensajeVencido = `<div class="vence">Beneficio vencido</div>`;
+          mensajeVencido = `<div class="vence">❌ Beneficio vencido</div>`;
         } else if (!esIlimitado) {
           const vence = new Date();
           vence.setDate(hoy.getDate() + vigenciaDias);
@@ -272,7 +291,7 @@
           <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px;">
             ${!usado && !vencido ? 
               `<button class="btn" onclick="usarCupon('${com.id}', '${com.nombre}', '${descuento}')">Usar el beneficio</button>` :
-              `<div style="text-align:center; color:#666; font-weight:bold;">${usado ? 'Beneficio ya usado' : 'Beneficio vencido'}</div>`
+              `<div style="text-align:center; color:#b71c1c; font-weight:bold; font-size:20px; margin-top:12px;">${usado ? '✅ Beneficio ya utilizado' : '❌ Beneficio vencido'}</div>`
             }
             ${com.mapa ? `<a href="${com.mapa}" target="_blank" style="background:#4CAF50; color:white; text-decoration:none; padding:16px; border-radius:16px; font-size:20px; font-weight:bold; text-align:center;">Cómo llegar</a>` : ''}
             ${com.telefono ? `<a href="tel:${com.telefono}" style="background:#E91E63; color:white; text-decoration:none; padding:16px; border-radius:16px; font-size:20px; font-weight:bold; text-align:center;">Llamar ahora</a>` : ''}
@@ -283,6 +302,48 @@
     }
 
     function usarCupon(comercioId, nombre, descuento) {
+      const alerta = document.createElement('div');
+      alerta.style.cssText = `
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0,0,0,0.7);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        padding: 20px;
+      `;
+      alerta.innerHTML = `
+        <div style="background:white; border-radius:20px; padding:30px; text-align:center; max-width:500px; width:90%;">
+          <h3 style="color:#d32f2f; margin:0 0 20px; font-size:24px;">⚠️ ¡Importante!</h3>
+          <p style="font-size:20px; line-height:1.5; margin-bottom:25px;">
+            ¿Avisaste al cajero que utilizarás el cupón de descuento?<br>
+            <strong>Si no le avisaste y continuás, perdés la validez del cupón.</strong>
+          </p>
+          <div style="display:flex; gap:15px; justify-content:center;">
+            <button onclick="confirmarUso('${comercioId}', '${nombre}', '${descuento}')" style="background:#d32f2f; color:white; border:none; border-radius:12px; padding:14px 20px; font-size:18px; font-weight:bold; flex:1;">
+              Sí, le avisé
+            </button>
+            <button onclick="cerrarAlerta()" style="background:#666; color:white; border:none; border-radius:12px; padding:14px 20px; font-size:18px; font-weight:bold; flex:1;">
+              Volver
+            </button>
+          </div>
+        </div>
+      `;
+      document.body.appendChild(alerta);
+    }
+
+    function cerrarAlerta() {
+      const alerta = document.querySelector('div[style*="z-index: 9999"]');
+      if (alerta) alerta.remove();
+    }
+
+    function confirmarUso(comercioId, nombre, descuento) {
+      cerrarAlerta();
+
       let usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
       usos[comercioId] = true;
       localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
