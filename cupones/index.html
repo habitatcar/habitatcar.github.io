@@ -134,7 +134,7 @@
       background: #cccccc;
       cursor: not-allowed;
     }
-    #grilla-cupones {
+    #grilla-cupones, #pantalla-exito {
       display: none;
     }
     .exito {
@@ -226,12 +226,12 @@
 </head>
 <body>
   <div class="container">
-    <div class="logo-container">
-      <img src="/logo.png" alt="Habitat-Car" class="logo">
-      <div class="titulo">🎁 Tus beneficios Habitat-Car</div>
-    </div>
-
-    <div id="formulario-registro" class="formulario-registro">
+    <!-- Sección: Formulario de registro -->
+    <div id="seccion-formulario" class="formulario-registro">
+      <div class="logo-container">
+        <img src="/logo.png" alt="Habitat-Car" class="logo">
+        <div class="titulo">🎁 Tus beneficios Habitat-Car</div>
+      </div>
       <p style="margin-bottom:15px; font-size:18px;">Completá tus datos para activar tus beneficios:</p>
       <input type="text" id="nombre" placeholder="Nombre y Apellido" required>
       <input type="tel" id="whatsapp" placeholder="WhatsApp (sin 54, ej: 3884618228)" required>
@@ -239,7 +239,23 @@
       <button class="btn-form" onclick="registrarUsuario()">Activar beneficios</button>
     </div>
 
-    <div id="grilla-cupones"></div>
+    <!-- Sección: Grilla de cupones -->
+    <div id="seccion-grilla">
+      <div class="logo-container">
+        <img src="/logo.png" alt="Habitat-Car" class="logo">
+        <div class="titulo">🎁 Tus beneficios Habitat-Car</div>
+      </div>
+      <div id="grilla-cupones"></div>
+    </div>
+
+    <!-- Sección: Pantalla de éxito -->
+    <div id="pantalla-exito" class="exito">
+      <img src="/logo.png" alt="Habitat-Car">
+      <h2>🎉 ¡FELICITACIONES!</h2>
+      <p id="exito-texto"></p>
+      <div class="contador" id="contador">30</div>
+      <p>Válido por 30 segundos.</p>
+    </div>
   </div>
 
   <script>
@@ -298,6 +314,21 @@
       }
     ];
 
+    function mostrarSeccion(seccion) {
+      document.getElementById('seccion-formulario').style.display = 'none';
+      document.getElementById('seccion-grilla').style.display = 'none';
+      document.getElementById('pantalla-exito').style.display = 'none';
+      
+      if (seccion === 'formulario') {
+        document.getElementById('seccion-formulario').style.display = 'block';
+      } else if (seccion === 'grilla') {
+        document.getElementById('seccion-grilla').style.display = 'block';
+        renderizarGrilla();
+      } else if (seccion === 'exito') {
+        document.getElementById('pantalla-exito').style.display = 'block';
+      }
+    }
+
     function registrarUsuario() {
       const nombre = document.getElementById('nombre').value.trim();
       const whatsapp = document.getElementById('whatsapp').value.trim().replace(/\D/g, '');
@@ -306,13 +337,7 @@
         return;
       }
       localStorage.setItem('usuarioHabitatCar', JSON.stringify({ nombre, whatsapp, tipo: 'lead' }));
-      mostrarGrilla();
-    }
-
-    function mostrarGrilla() {
-      document.getElementById('formulario-registro').style.display = 'none';
-      document.getElementById('grilla-cupones').style.display = 'block';
-      renderizarGrilla();
+      mostrarSeccion('grilla');
     }
 
     function renderizarGrilla() {
@@ -364,7 +389,6 @@
         grilla.appendChild(cuponHTML);
       });
 
-      // Activar botones validados y no usados
       document.querySelectorAll('.usar-boton').forEach(btn => {
         const id = btn.dataset.id;
         const usado = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}')[id];
@@ -377,7 +401,6 @@
       });
     }
 
-    // ✅ ABRIR CÁMARA REAL
     function validarConQR(comercioId) {
       const scanner = document.createElement('div');
       scanner.className = 'qr-scanner';
@@ -392,15 +415,13 @@
         .then(stream => {
           video.srcObject = stream;
           video.play();
-
-          // Simular escaneo exitoso después de 3 segundos
           setTimeout(() => {
             cerrarScanner();
             activarBotonUsar(comercioId);
           }, 3000);
         })
         .catch(err => {
-          alert("No se pudo acceder a la cámara. Asegurate de permitir el acceso.");
+          alert("No se pudo acceder a la cámara.");
           cerrarScanner();
         });
     }
@@ -482,18 +503,11 @@
       usos[comercioId] = true;
       localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
 
-      // Mostrar éxito
-      document.querySelector('.container').innerHTML = `
-        <div class="exito">
-          <img src="/logo.png" alt="Habitat-Car">
-          <h2>🎉 ¡FELICITACIONES!</h2>
-          <p>Beneficio activado en <strong>${nombre}</strong>.</p>
-          <p>${beneficio}</p>
-          <div class="contador" id="contador">30</div>
-          <p>Válido por 30 segundos.</p>
-        </div>
-      `;
+      // Mostrar pantalla de éxito
+      document.getElementById('exito-texto').textContent = `Beneficio activado en ${nombre}. ${beneficio}`;
+      mostrarSeccion('exito');
 
+      // Contador
       let contador = 30;
       const elem = document.getElementById('contador');
       const interval = setInterval(() => {
@@ -502,8 +516,7 @@
         if (contador <= 0) {
           clearInterval(interval);
           setTimeout(() => {
-            // ✅ VOLVER A LA GRILLA
-            mostrarGrilla();
+            mostrarSeccion('grilla');
           }, 1000);
         }
       }, 1000);
@@ -511,7 +524,9 @@
 
     // Al cargar
     if (localStorage.getItem('usuarioHabitatCar')) {
-      mostrarGrilla();
+      mostrarSeccion('grilla');
+    } else {
+      mostrarSeccion('formulario');
     }
   </script>
 </body>
