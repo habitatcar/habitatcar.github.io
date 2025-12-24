@@ -219,7 +219,22 @@
 
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz5DN_Q8a09_DQLQItkl1d-vkahYJsdz6x4Ey-vHWcA_XcnTW2AzFJYx2tTxzTZX4M1Qw/exec";
-    const COMERCIOS = [{"id":"cafex","nombre":"Cafex","logo":"","beneficio":"10% en medialunas","vigenciaLead":7,"descuentoVip":"10% en medialunas","vigenciaVip":0,"estado":"activo","direccion":"Pje. Suiza 897","telefono":387584856,"mapa":"https://maps.app.goo.gl/EnrwchwaueLCpHWZ6","tokenQR":"TOKEN_CAFEX_559"},{"id":"llavero","nombre":"Llaverito","logo":"","beneficio":0.15,"vigenciaLead":15,"descuentoVip":0.15,"vigenciaVip":0,"estado":"activo","direccion":"Tilcara 319","telefono":6546546665,"mapa":"","tokenQR":"TOKEN_LLAVERO_600"}];
+    const COMERCIOS = [
+      {
+        "id": "cafex",
+        "nombre": "Cafex",
+        "logo": "",
+        "beneficio": "10% en medialunas los viernes",
+        "vigenciaLead": 7,
+        "descuentoVip": "15% + café gratis",
+        "vigenciaVip": 0,
+        "estado": "activo",
+        "direccion": "Pje. Suiza 897, Palpalá",
+        "telefono": "387584856",
+        "mapa": "https://maps.app.goo.gl/EnrwchwaueLCpHWZ6",
+        "tokenQR": "TOKEN_CAFEX_123"
+      }
+    ];
 
     function verificarRegistro() {
       const usuario = JSON.parse(localStorage.getItem('usuarioHabitatCar'));
@@ -278,7 +293,7 @@
         if (com.logo && com.logo.trim() !== '') {
           logoHTML = `<img src="${com.logo}" alt="${com.nombre}" class="logo-comercio">`;
         }
-        let usarBtn = `<button class="btn" disabled onclick="usarCupon('${com.id}', '${com.nombre}', '${beneficio}')">Usar el beneficio</button>`;
+        let usarBtn = `<button class="btn" disabled data-comercio="${com.id}" onclick="usarCupon('${com.id}', '${com.nombre}', '${beneficio}')">Usar el beneficio</button>`;
         cuponHTML.innerHTML = `
           ${logoHTML}
           <div class="nombre">${com.nombre}</div>
@@ -333,12 +348,10 @@
     }
 
     function activarBotonUsar(comercioId, nombre, beneficio) {
-      const botones = document.querySelectorAll('.btn');
+      const botones = document.querySelectorAll(`button[data-comercio="${comercioId}"]`);
       botones.forEach(btn => {
-        if (btn.onclick && btn.onclick.toString().includes(`'${comercioId}'`)) {
-          btn.disabled = false;
-          btn.style.backgroundColor = '#2c5aa0';
-        }
+        btn.disabled = false;
+        btn.style.backgroundColor = '#2c5aa0';
       });
       let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
       validados[comercioId] = true;
@@ -399,19 +412,25 @@
         <div class="exito">
           <img src="/logo.png" alt="Habitat-Car">
           <h2>🎉 ¡FELICITACIONES!</h2>
-          <p>Acabás de recibir tu beneficio en <strong>${com.nombre}</strong>.</p>
+          <p>Acabás de recibir tu beneficio en <strong>${nombre}</strong>.</p>
           <p>${beneficio}</p>
           <div class="contador" id="contador">30</div>
           <p>Válido por 30 segundos.</p>
         </div>
       `;
-      setTimeout(() => {
-        window.location.reload();
-      }, 30000);
+      let contador = 30;
+      const elem = document.getElementById('contador');
+      const interval = setInterval(() => {
+        contador--;
+        elem.textContent = contador;
+        if (contador <= 0) {
+          clearInterval(interval);
+          setTimeout(() => window.location.reload(), 1000);
+        }
+      }, 1000);
     }
 
     verificarRegistro();
   </script>
 </body>
 </html>
-  
