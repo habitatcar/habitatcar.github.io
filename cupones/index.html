@@ -100,7 +100,6 @@
       color: #d32f2f;
       margin: 20px 0;
     }
-    /* Scanner de QR */
     .qr-scanner {
       position: fixed;
       top: 0;
@@ -133,19 +132,12 @@
       cursor: pointer;
       margin-top: 15px;
     }
-    .qr-scanner p {
-      color: white;
-      font-size: 20px;
-      text-align: center;
-      margin-top: 15px;
-      font-weight: bold;
-    }
-    .mensaje-validado {
+    .mensaje-error {
       position: fixed;
       bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
-      background: #4CAF50;
+      background: #f44336;
       color: white;
       padding: 16px 24px;
       border-radius: 14px;
@@ -156,61 +148,22 @@
       max-width: 90%;
       text-align: center;
     }
-    .advertencia-overlay {
+    #reiniciar-btn {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.8);
+      bottom: 15px;
+      right: 15px;
+      width: 50px;
+      height: 50px;
+      background: #ff9800;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 999;
       display: flex;
-      justify-content: center;
       align-items: center;
-      z-index: 9999;
-      padding: 20px;
-    }
-    .advertencia-contenido {
-      background: white;
-      border-radius: 20px;
-      padding: 30px;
-      text-align: center;
-      max-width: 520px;
-      width: 90%;
-    }
-    .advertencia-contenido h3 {
-      color: #d32f2f;
-      font-size: 26px;
-      margin: 0 0 20px;
-      font-weight: bold;
-    }
-    .advertencia-contenido p {
-      font-size: 22px;
-      line-height: 1.5;
-      margin-bottom: 25px;
-      font-weight: bold;
-      color: #333;
-    }
-    .advertencia-btns {
-      display: flex;
-      gap: 15px;
       justify-content: center;
-    }
-    .advertencia-btn {
-      padding: 16px;
-      font-size: 20px;
-      font-weight: bold;
-      border-radius: 12px;
-      flex: 1;
-    }
-    .btn-si {
-      background: #d32f2f;
-      color: white;
-      border: none;
-    }
-    .btn-no {
-      background: #666;
-      color: white;
-      border: none;
     }
   </style>
 </head>
@@ -218,19 +171,10 @@
   <div class="container">
     <img src="/logo.png" alt="Habitat-Car" class="logo">
     <div class="titulo">🎁 Tus beneficios Habitat-Car</div>
-
-    <div id="grilla">
-      <!-- Los comercios se generarán aquí -->
-    </div>
-
-    <div id="exito">
-      <img src="/logo.png" alt="Habitat-Car">
-      <h2>🎉 ¡FELICITACIONES!</h2>
-      <p id="exito-texto"></p>
-      <div id="contador">30</div>
-      <p>Válido por 30 segundos.</p>
-    </div>
+    <div id="grilla"></div>
+    <div id="exito"></div>
   </div>
+  <button id="reiniciar-btn" onclick="reiniciarCupones()">🔄</button>
 
   <script>
     const COMERCIOS = [
@@ -244,12 +188,7 @@
     let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
 
     function mostrarGrilla() {
-      document.getElementById('grilla').style.display = 'block';
-      document.getElementById('exito').style.display = 'none';
-
-      const grilla = document.getElementById('grilla');
-      grilla.innerHTML = '';
-
+      document.getElementById('grilla').innerHTML = '';
       COMERCIOS.forEach(com => {
         const usado = usos[com.id];
         const cupon = document.createElement('div');
@@ -268,7 +207,7 @@
             <button class="btn btn-usar" id="btn-usar-${com.id}" ${usado || !validados[com.id] ? 'disabled' : ''} onclick="usar('${com.id}', '${com.nombre}', '${com.beneficio}')">Usar el beneficio</button>
           </div>
         `;
-        grilla.appendChild(cupon);
+        document.getElementById('grilla').appendChild(cupon);
       });
 
       COMERCIOS.forEach(com => {
@@ -287,8 +226,8 @@
       const scanner = document.createElement('div');
       scanner.className = 'qr-scanner';
       scanner.innerHTML = `
-        <video id="video-qr" style="display:block;"></video>
-        <p>Apuntá la cámara al QR del comercio</p>
+        <video id="video-qr"></video>
+        <p style="color:white; font-size:20px; font-weight:bold;">Apuntá al QR del comercio</p>
         <button class="close-btn" onclick="cerrarCamara()">Cerrar</button>
       `;
       document.body.appendChild(scanner);
@@ -301,36 +240,40 @@
           stream = s;
           video.srcObject = stream;
           video.play();
-          // Escanear continuamente
           codigoQR.decodeFromVideoDevice(undefined, 'video-qr', (result, err) => {
             if (result) {
               if (result.getText() === tokenEsperado) {
                 cerrarCamara();
                 validarCupon(comercioId);
               } else {
-                alert("❌ QR no válido para este comercio.");
                 cerrarCamara();
+                mostrarError("❌ Token no válido para este comercio.");
               }
             }
             if (err && !(err instanceof ZXing.NotFoundException)) {
-              console.error(err);
               cerrarCamara();
             }
           });
         })
         .catch(err => {
-          alert("No se pudo acceder a la cámara.");
           cerrarCamara();
+          mostrarError("❌ No se pudo acceder a la cámara.");
         });
     }
 
     function cerrarCamara() {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
+      if (stream) stream.getTracks().forEach(track => track.stop());
       const scanner = document.querySelector('.qr-scanner');
       if (scanner) scanner.remove();
       if (codigoQR) codigoQR.reset();
+    }
+
+    function mostrarError(mensaje) {
+      const error = document.createElement('div');
+      error.className = 'mensaje-error';
+      error.textContent = mensaje;
+      document.body.appendChild(error);
+      setTimeout(() => error.remove(), 4000);
     }
 
     function validarCupon(comercioId) {
@@ -338,56 +281,34 @@
       localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
       const btn = document.getElementById(`btn-usar-${comercioId}`);
       if (btn) btn.disabled = false;
-
-      const mensaje = document.createElement('div');
-      mensaje.className = 'mensaje-validado';
-      mensaje.textContent = "✅ QR del comercio validado. Ahora podés usar el beneficio.";
-      document.body.appendChild(mensaje);
-
-      setTimeout(() => {
-        if (mensaje.parentNode) mensaje.remove();
-      }, 4000);
+      mostrarError("✅ QR validado. Ya podés usar el beneficio.");
     }
 
     function usar(comercioId, nombre, beneficio) {
       if (!validados[comercioId]) {
-        alert("⚠️ Primero validá el QR en el comercio.");
+        mostrarError("⚠️ Primero validá el QR del comercio.");
         return;
       }
       if (usos[comercioId]) {
-        alert("✅ Ya usaste este beneficio.");
+        mostrarError("✅ Ya usaste este beneficio.");
         return;
       }
 
-      const alerta = document.createElement('div');
-      alerta.className = 'advertencia-overlay';
-      alerta.innerHTML = `
-        <div class="advertencia-contenido">
-          <h3>⚠️ ¡ATENCIÓN!</h3>
-          <p>¿Avisaste al cajero que usarás el cupón de descuento?<br>
-          <strong>Si no le avisaste, perderás la validez del beneficio.</strong></p>
-          <div class="advertencia-btns">
-            <button class="advertencia-btn btn-si" onclick="confirmarUso('${comercioId}', '${nombre}', '${beneficio}')">SÍ, le avisé</button>
-            <button class="advertencia-btn btn-no" onclick="cerrarAdvertencia()">Volver</button>
-          </div>
-        </div>
-      `;
-      document.body.appendChild(alerta);
-    }
+      if (!confirm("¿Avisaste al cajero? Si no, perdés la validez.")) return;
 
-    function cerrarAdvertencia() {
-      const alerta = document.querySelector('.advertencia-overlay');
-      if (alerta) alerta.remove();
-    }
-
-    function confirmarUso(comercioId, nombre, beneficio) {
-      cerrarAdvertencia();
       usos[comercioId] = true;
       localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
 
-      document.getElementById('exito-texto').textContent = `Beneficio activado en ${nombre}. ${beneficio}`;
-      document.getElementById('grilla').style.display = 'none';
-      document.getElementById('exito').style.display = 'block';
+      document.getElementById('grilla').innerHTML = `
+        <div style="text-align:center; padding:40px 20px;">
+          <img src="/logo.png" alt="Habitat-Car" style="width:98%; max-width:520px; margin-bottom:20px;">
+          <h2>🎉 ¡FELICITACIONES!</h2>
+          <p>Beneficio activado en <strong>${nombre}</strong>.</p>
+          <p>${beneficio}</p>
+          <div id="contador" style="font-size:60px; font-weight:bold; color:#d32f2f; margin:20px 0;">30</div>
+          <p>Válido por 30 segundos.</p>
+        </div>
+      `;
 
       let c = 30;
       const int = setInterval(() => {
@@ -395,9 +316,20 @@
         document.getElementById('contador').textContent = c;
         if (c <= 0) {
           clearInterval(int);
-          setTimeout(() => mostrarGrilla(), 1000);
+          usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
+          mostrarGrilla();
         }
       }, 1000);
+    }
+
+    function reiniciarCupones() {
+      if (confirm("¿Reiniciar cupones?")) {
+        localStorage.removeItem('usosHabitatCar');
+        localStorage.removeItem('validadosHabitatCar');
+        usos = {};
+        validados = {};
+        mostrarGrilla();
+      }
     }
 
     mostrarGrilla();
