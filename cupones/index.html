@@ -18,7 +18,7 @@
       margin: 0 auto;
     }
     .logo {
-      width: 98%; /* ✅ Aumentado al 98% */
+      width: 98%;
       max-width: 520px;
       display: block;
       margin: 0 auto 20px;
@@ -130,6 +130,18 @@
       font-size: 18px;
       font-weight: bold;
       cursor: pointer;
+      margin-top: 15px;
+    }
+    .qr-scanner .confirm-btn {
+      background: #4CAF50;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 14px 28px;
+      font-size: 18px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 15px;
     }
     .qr-scanner p {
       color: white;
@@ -138,7 +150,7 @@
       margin-top: 15px;
       font-weight: bold;
     }
-    /* ✅ Mensaje de QR validado */
+    /* Mensaje de QR validado */
     .mensaje-validado {
       position: fixed;
       bottom: 30px;
@@ -155,7 +167,7 @@
       max-width: 90%;
       text-align: center;
     }
-    /* ✅ Advertencia mejorada */
+    /* Advertencia */
     .advertencia-overlay {
       position: fixed;
       top: 0;
@@ -212,24 +224,6 @@
       color: white;
       border: none;
     }
-    /* Botón de reinicio */
-    #reiniciar-btn {
-      position: fixed;
-      bottom: 15px;
-      right: 15px;
-      width: 50px;
-      height: 50px;
-      background: #ff9800;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      font-size: 24px;
-      cursor: pointer;
-      z-index: 999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
   </style>
 </head>
 <body>
@@ -249,8 +243,6 @@
       <p>Válido por 30 segundos.</p>
     </div>
   </div>
-
-  <button id="reiniciar-btn" onclick="reiniciarCupones()">🔄</button>
 
   <script>
     const COMERCIOS = [
@@ -304,8 +296,9 @@
       scanner.className = 'qr-scanner';
       scanner.innerHTML = `
         <video id="video-qr" autoplay playsinline></video>
-        <button class="close-btn" onclick="cerrarCamara()">Cerrar</button>
         <p>Apuntá la cámara al QR del comercio</p>
+        <button class="confirm-btn" onclick="confirmarEscaneo('${comercioId}')">✅ Escaneé el QR del comercio</button>
+        <button class="close-btn" onclick="cerrarCamara()">Cerrar</button>
       `;
       document.body.appendChild(scanner);
 
@@ -314,11 +307,6 @@
         .then(stream => {
           video.srcObject = stream;
           video.play();
-
-          setTimeout(() => {
-            cerrarCamara();
-            validarCupon(comercioId);
-          }, 3000);
         })
         .catch(err => {
           alert("No se pudo acceder a la cámara. Asegurate de permitir el acceso.");
@@ -331,13 +319,17 @@
       if (scanner) scanner.remove();
     }
 
+    function confirmarEscaneo(comercioId) {
+      cerrarCamara();
+      validarCupon(comercioId);
+    }
+
     function validarCupon(comercioId) {
       validados[comercioId] = true;
       localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
       const btn = document.getElementById(`btn-usar-${comercioId}`);
       if (btn) btn.disabled = false;
 
-      // ✅ Mensaje mejorado
       const mensaje = document.createElement('div');
       mensaje.className = 'mensaje-validado';
       mensaje.textContent = "✅ QR del comercio validado. Ahora podés usar el beneficio.";
@@ -358,7 +350,6 @@
         return;
       }
 
-      // ✅ Advertencia mejorada
       const alerta = document.createElement('div');
       alerta.className = 'advertencia-overlay';
       alerta.innerHTML = `
@@ -398,16 +389,6 @@
           setTimeout(() => mostrarGrilla(), 1000);
         }
       }, 1000);
-    }
-
-    function reiniciarCupones() {
-      if (confirm("¿Reiniciar todos los cupones? Se borrarán usos y validaciones.")) {
-        localStorage.removeItem('usosHabitatCar');
-        localStorage.removeItem('validadosHabitatCar');
-        usos = {};
-        validados = {};
-        mostrarGrilla();
-      }
     }
 
     mostrarGrilla();
