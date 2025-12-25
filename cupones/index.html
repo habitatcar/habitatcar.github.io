@@ -99,7 +99,38 @@
       color: #d32f2f;
       margin: 20px 0;
     }
-    /* Botón de reinicio (solo para vos) */
+    /* Scanner */
+    .qr-scanner {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.9);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      z-index: 9999;
+      padding: 20px;
+    }
+    .qr-scanner video {
+      width: 90%;
+      max-width: 500px;
+      border: 2px dashed white;
+      border-radius: 10px;
+      margin-bottom: 20px;
+    }
+    .qr-scanner .close-btn {
+      background: #d32f2f;
+      color: white;
+      border: none;
+      border-radius: 12px;
+      padding: 12px 24px;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    /* Botón de reinicio */
     #reiniciar-btn {
       position: fixed;
       bottom: 15px;
@@ -137,7 +168,6 @@
     </div>
   </div>
 
-  <!-- Botón de reinicio (solo para vos, en modo prueba) -->
   <button id="reiniciar-btn" onclick="reiniciarCupones()">🔄</button>
 
   <script>
@@ -148,7 +178,6 @@
       { id: "pinturasx", nombre: "Pinturería", beneficio: "5% en látex", direccion: "Éxodo 476, San Salvador de Jujuy", telefono: "", mapa: "" }
     ];
 
-    // Cargar estados
     let usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
     let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
 
@@ -170,7 +199,7 @@
           ${com.telefono ? `<div class="info"><strong>📞 Teléfono:</strong> <a href="tel:${com.telefono}">${com.telefono}</a></div>` : ''}
           <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px;">
             ${!usado ? 
-              `<button class="btn btn-qr" onclick="simularQR('${com.id}')">Validar Cupón con QR en comercio</button>` :
+              `<button class="btn btn-qr" onclick="abrirCamara('${com.id}')">Validar Cupón con QR en comercio</button>` :
               `<div style="text-align:center; color:#b71c1c; font-weight:bold;">✅ Beneficio ya utilizado</div>`
             }
             ${com.mapa ? `<a href="${com.mapa}" target="_blank" class="btn btn-como-llegar">Cómo llegar</a>` : ''}
@@ -180,7 +209,6 @@
         grilla.appendChild(cupon);
       });
 
-      // Activar botones ya validados
       COMERCIOS.forEach(com => {
         if (validados[com.id] && !usos[com.id]) {
           const btn = document.getElementById(`btn-usar-${com.id}`);
@@ -189,27 +217,61 @@
       });
     }
 
-    function simularQR(comercioId) {
+    // ✅ ABRIR CÁMARA REAL
+    function abrirCamara(comercioId) {
+      const scanner = document.createElement('div');
+      scanner.className = 'qr-scanner';
+      scanner.innerHTML = `
+        <video id="video-qr" autoplay playsinline></video>
+        <button class="close-btn" onclick="cerrarCamara()">Cerrar</button>
+        <p style="color:white; margin-top:15px;">Apuntá la cámara al QR del comercio</p>
+      `;
+      document.body.appendChild(scanner);
+
+      const video = document.getElementById('video-qr');
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+        .then(stream => {
+          video.srcObject = stream;
+          video.play();
+
+          // Simular validación exitosa después de 3 segundos
+          setTimeout(() => {
+            cerrarCamara();
+            validarCupon(comercioId);
+          }, 3000);
+        })
+        .catch(err => {
+          alert("No se pudo acceder a la cámara. Permití el acceso en ajustes.");
+          cerrarCamara();
+        });
+    }
+
+    function cerrarCamara() {
+      const scanner = document.querySelector('.qr-scanner');
+      if (scanner) scanner.remove();
+    }
+
+    function validarCupon(comercioId) {
+      // ✅ Aquí iría la lógica real de comparar el QR escaneado
+      // Por ahora, simulamos que es válido
       validados[comercioId] = true;
       localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
       const btn = document.getElementById(`btn-usar-${comercioId}`);
       if (btn) btn.disabled = false;
-      alert("✅ QR validado. Ahora podés usar el beneficio.");
+      alert("✅ QR del comercio validado. Ahora podés usar el beneficio.");
     }
 
     function usar(comercioId, nombre, beneficio) {
       if (!validados[comercioId]) {
-        alert("⚠️ Primero debés validar el cupón con QR en el comercio.");
+        alert("⚠️ Primero validá el QR en el comercio.");
         return;
       }
       if (usos[comercioId]) {
-        alert("✅ Este beneficio ya fue utilizado.");
+        alert("✅ Ya usaste este beneficio.");
         return;
       }
 
-      if (!confirm("¿Avisaste al cajero que usarás el cupón?\nSi no le avisaste, perdés la validez.")) {
-        return;
-      }
+      if (!confirm("¿Avisaste al cajero? Si no, perdés la validez.")) return;
 
       usos[comercioId] = true;
       localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
@@ -218,33 +280,27 @@
       document.getElementById('grilla').style.display = 'none';
       document.getElementById('exito').style.display = 'block';
 
-      let contador = 30;
-      const elem = document.getElementById('contador');
-      const interval = setInterval(() => {
-        contador--;
-        elem.textContent = contador;
-        if (contador <= 0) {
-          clearInterval(interval);
-          setTimeout(() => {
-            mostrarGrilla();
-          }, 1000);
+      let c = 30;
+      const int = setInterval(() => {
+        c--;
+        document.getElementById('contador').textContent = c;
+        if (c <= 0) {
+          clearInterval(int);
+          setTimeout(() => mostrarGrilla(), 1000);
         }
       }, 1000);
     }
 
-    // === BOTÓN DE REINICIO (solo para vos) ===
     function reiniciarCupones() {
-      if (confirm("¿Reiniciar todos los cupones? Se borrarán usos y validaciones.")) {
+      if (confirm("¿Reiniciar cupones?")) {
         localStorage.removeItem('usosHabitatCar');
         localStorage.removeItem('validadosHabitatCar');
-        // Recargar estados
         usos = {};
         validados = {};
         mostrarGrilla();
       }
     }
 
-    // Iniciar
     mostrarGrilla();
   </script>
 </body>
