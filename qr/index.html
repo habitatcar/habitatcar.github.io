@@ -1,1 +1,150 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Validar Cupón - Habitat-Car</title>
+  <style>
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #f8f9fa;
+      padding: 20px;
+      text-align: center;
+      margin: 0;
+    }
+    .container {
+      max-width: 500px;
+      margin: 0 auto;
+      background: white;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    }
+    .logo {
+      width: 80%;
+      max-width: 300px;
+      margin: 0 auto 20px;
+      display: block;
+    }
+    h2 {
+      color: #2c5aa0;
+      font-size: 24px;
+      margin: 0 0 20px;
+    }
+    .input-group {
+      margin: 15px 0;
+    }
+    input {
+      width: 100%;
+      padding: 14px;
+      border: 1px solid #ccc;
+      border-radius: 12px;
+      font-size: 18px;
+      margin-top: 8px;
+    }
+    button {
+      width: 100%;
+      padding: 16px;
+      background: #2c5aa0;
+      color: white;
+      border: none;
+      border-radius: 16px;
+      font-size: 20px;
+      font-weight: bold;
+      margin-top: 20px;
+      cursor: pointer;
+    }
+    .mensaje {
+      margin-top: 20px;
+      padding: 15px;
+      border-radius: 12px;
+      font-weight: bold;
+    }
+    .exito {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    .error {
+      background: #ffebee;
+      color: #c62828;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <img src="/logo.png" alt="Habitat-Car" class="logo">
+    <h2>Activá tu cupón de descuento</h2>
+    <div id="formulario">
+      <div class="input-group">
+        <label>Nombre y Apellido</label>
+        <input type="text" id="nombre" placeholder="Ej: María López">
+      </div>
+      <div class="input-group">
+        <label>WhatsApp (sin 54)</label>
+        <input type="tel" id="whatsapp" placeholder="Ej: 3884618228">
+      </div>
+      <button onclick="validarCupon()">Activar cupón</button>
+    </div>
+    <div id="mensaje"></div>
+  </div>
 
+  <script>
+    // Obtener el comercio de la URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const comercioId = urlParams.get('comercio');
+
+    if (!comercioId) {
+      document.getElementById('mensaje').innerHTML = '<div class="mensaje error">❌ Error: comercio no especificado.</div>';
+      document.getElementById('formulario').style.display = 'none';
+    }
+
+    async function validarCupon() {
+      const nombre = document.getElementById('nombre').value.trim();
+      const whatsapp = document.getElementById('whatsapp').value.trim().replace(/\D/g, '');
+
+      if (!nombre || !whatsapp) {
+        mostrarMensaje('⚠️ Completá nombre y WhatsApp.', 'error');
+        return;
+      }
+
+      // Generar token único: comercio + WhatsApp + timestamp
+      const timestamp = Date.now();
+      const token = `TOKEN_${comercioId}_${whatsapp}_${timestamp}`;
+
+      // Guardar en localStorage del lead
+      localStorage.setItem('usuarioHabitatCar', JSON.stringify({ nombre, whatsapp, tipo: 'lead' }));
+      
+      // URL de tu Web App (reemplazá si es diferente)
+      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz5DN_Q8a09_DQLQItkl1d-vkahYJsdz6x4Ey-vHWcA_XcnTW2AzFJYx2tTxzTZX4M1Qw/exec";
+      
+      try {
+        const respuesta = await fetch(`${APPS_SCRIPT_URL}?accion=registrarUso&comercio=${comercioId}&whatsapp=${whatsapp}&nombre=${encodeURIComponent(nombre)}&token=${token}`);
+        const datos = await respuesta.json();
+
+        if (datos.error) {
+          mostrarMensaje('❌ Error al registrar. Intentalo de nuevo.', 'error');
+          return;
+        }
+
+        // Marcar como validado en el celular
+        let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
+        validados[comercioId] = true;
+        localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
+
+        mostrarMensaje('✅ ¡Cupón activado! Redirigiendo...', 'exito');
+        setTimeout(() => {
+          window.location.href = '/cupones/';
+        }, 2000);
+
+      } catch (err) {
+        mostrarMensaje('❌ No se pudo conectar. Verificá tu internet.', 'error');
+      }
+    }
+
+    function mostrarMensaje(texto, clase) {
+      const mensaje = document.getElementById('mensaje');
+      mensaje.innerHTML = `<div class="mensaje ${clase}">${texto}</div>`;
+    }
+  </script>
+</body>
+</html>
