@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Beneficios Habitat-Car</title>
+  <script src="https://unpkg.com/@zxing/library@0.18.3/umd/index.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -132,17 +133,6 @@
       cursor: pointer;
       margin-top: 15px;
     }
-    .qr-scanner .confirm-btn {
-      background: #4CAF50;
-      color: white;
-      border: none;
-      border-radius: 12px;
-      padding: 14px 28px;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      margin-top: 15px;
-    }
     .qr-scanner p {
       color: white;
       font-size: 20px;
@@ -150,7 +140,6 @@
       margin-top: 15px;
       font-weight: bold;
     }
-    /* Mensaje de QR validado */
     .mensaje-validado {
       position: fixed;
       bottom: 30px;
@@ -167,7 +156,6 @@
       max-width: 90%;
       text-align: center;
     }
-    /* Advertencia */
     .advertencia-overlay {
       position: fixed;
       top: 0;
@@ -246,10 +234,10 @@
 
   <script>
     const COMERCIOS = [
-      { id: "cafex", nombre: "Cafex", beneficio: "10% en medialunas", direccion: "Pje. Suiza 897", telefono: "387584856", mapa: "https://maps.app.goo.gl/EnrwchwaueLCpHWZ6" },
-      { id: "llavero", nombre: "Llaverito", beneficio: "15%", direccion: "Tilcara 319", telefono: "6546546665", mapa: "https://maps.app.goo.gl/EnrwchwaueLCpHWZ7" },
-      { id: "fotocopias", nombre: "Fotocopiadora Ely", beneficio: "20%", direccion: "Quintana 226, San Salvador de Jujuy", telefono: "45685534", mapa: "" },
-      { id: "pinturasx", nombre: "Pinturería", beneficio: "5% en látex", direccion: "Éxodo 476, San Salvador de Jujuy", telefono: "", mapa: "" }
+      { id: "cafex", nombre: "Cafex", beneficio: "10% en medialunas", direccion: "Pje. Suiza 897", telefono: "387584856", mapa: "https://maps.app.goo.gl/EnrwchwaueLCpHWZ6", tokenQR: "TOKEN_CAFEX_990" },
+      { id: "llavero", nombre: "Llaverito", beneficio: "15%", direccion: "Tilcara 319", telefono: "6546546665", mapa: "https://maps.app.goo.gl/EnrwchwaueLCpHWZ7", tokenQR: "TOKEN_LLAV_123" },
+      { id: "fotocopias", nombre: "Fotocopiadora Ely", beneficio: "20%", direccion: "Quintana 226, San Salvador de Jujuy", telefono: "45685534", mapa: "", tokenQR: "TOKEN_FOTO_456" },
+      { id: "pinturasx", nombre: "Pinturería", beneficio: "5% en látex", direccion: "Éxodo 476, San Salvador de Jujuy", telefono: "", mapa: "", tokenQR: "TOKEN_PINT_789" }
     ];
 
     let usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
@@ -273,7 +261,7 @@
           ${com.telefono ? `<div class="info"><strong>📞 Teléfono:</strong> <a href="tel:${com.telefono}">${com.telefono}</a></div>` : ''}
           <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px;">
             ${!usado ? 
-              `<button class="btn btn-qr" onclick="abrirCamara('${com.id}')">Validar Cupón con QR en comercio</button>` :
+              `<button class="btn btn-qr" onclick="abrirCamara('${com.id}', '${com.tokenQR}')">Validar Cupón con QR en comercio</button>` :
               `<div style="text-align:center; color:#b71c1c; font-weight:bold;">✅ Beneficio ya utilizado</div>`
             }
             ${com.mapa ? `<a href="${com.mapa}" target="_blank" class="btn btn-como-llegar">Cómo llegar</a>` : ''}
@@ -291,37 +279,58 @@
       });
     }
 
-    function abrirCamara(comercioId) {
+    let codigoQR;
+    let video;
+    let stream;
+
+    function abrirCamara(comercioId, tokenEsperado) {
       const scanner = document.createElement('div');
       scanner.className = 'qr-scanner';
       scanner.innerHTML = `
-        <video id="video-qr" autoplay playsinline></video>
+        <video id="video-qr" style="display:block;"></video>
         <p>Apuntá la cámara al QR del comercio</p>
-        <button class="confirm-btn" onclick="confirmarEscaneo('${comercioId}')">✅ Escaneé el QR del comercio</button>
         <button class="close-btn" onclick="cerrarCamara()">Cerrar</button>
       `;
       document.body.appendChild(scanner);
 
-      const video = document.getElementById('video-qr');
+      video = document.getElementById('video-qr');
+      codigoQR = new ZXing.BrowserMultiFormatReader();
+
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-        .then(stream => {
+        .then(s => {
+          stream = s;
           video.srcObject = stream;
           video.play();
+          // Escanear continuamente
+          codigoQR.decodeFromVideoDevice(undefined, 'video-qr', (result, err) => {
+            if (result) {
+              if (result.getText() === tokenEsperado) {
+                cerrarCamara();
+                validarCupon(comercioId);
+              } else {
+                alert("❌ QR no válido para este comercio.");
+                cerrarCamara();
+              }
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+              console.error(err);
+              cerrarCamara();
+            }
+          });
         })
         .catch(err => {
-          alert("No se pudo acceder a la cámara. Asegurate de permitir el acceso.");
+          alert("No se pudo acceder a la cámara.");
           cerrarCamara();
         });
     }
 
     function cerrarCamara() {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
       const scanner = document.querySelector('.qr-scanner');
       if (scanner) scanner.remove();
-    }
-
-    function confirmarEscaneo(comercioId) {
-      cerrarCamara();
-      validarCupon(comercioId);
+      if (codigoQR) codigoQR.reset();
     }
 
     function validarCupon(comercioId) {
