@@ -99,6 +99,24 @@
       color: #d32f2f;
       margin: 20px 0;
     }
+    /* Botón de reinicio (solo para vos) */
+    #reiniciar-btn {
+      position: fixed;
+      bottom: 15px;
+      right: 15px;
+      width: 50px;
+      height: 50px;
+      background: #ff9800;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
@@ -119,6 +137,9 @@
     </div>
   </div>
 
+  <!-- Botón de reinicio (solo para vos, en modo prueba) -->
+  <button id="reiniciar-btn" onclick="reiniciarCupones()">🔄</button>
+
   <script>
     const COMERCIOS = [
       { id: "cafex", nombre: "Cafex", beneficio: "10% en medialunas", direccion: "Pje. Suiza 897", telefono: "387584856", mapa: "https://maps.app.goo.gl/EnrwchwaueLCpHWZ6" },
@@ -127,7 +148,7 @@
       { id: "pinturasx", nombre: "Pinturería", beneficio: "5% en látex", direccion: "Éxodo 476, San Salvador de Jujuy", telefono: "", mapa: "" }
     ];
 
-    // Estados
+    // Cargar estados
     let usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
     let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
 
@@ -162,16 +183,17 @@
       // Activar botones ya validados
       COMERCIOS.forEach(com => {
         if (validados[com.id] && !usos[com.id]) {
-          document.getElementById(`btn-usar-${com.id}`).disabled = false;
+          const btn = document.getElementById(`btn-usar-${com.id}`);
+          if (btn) btn.disabled = false;
         }
       });
     }
 
     function simularQR(comercioId) {
-      // Simular validación
       validados[comercioId] = true;
       localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
-      document.getElementById(`btn-usar-${comercioId}`).disabled = false;
+      const btn = document.getElementById(`btn-usar-${comercioId}`);
+      if (btn) btn.disabled = false;
       alert("✅ QR validado. Ahora podés usar el beneficio.");
     }
 
@@ -189,16 +211,13 @@
         return;
       }
 
-      // Marcar como usado
       usos[comercioId] = true;
       localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
 
-      // Mostrar éxito
       document.getElementById('exito-texto').textContent = `Beneficio activado en ${nombre}. ${beneficio}`;
       document.getElementById('grilla').style.display = 'none';
       document.getElementById('exito').style.display = 'block';
 
-      // Contador
       let contador = 30;
       const elem = document.getElementById('contador');
       const interval = setInterval(() => {
@@ -207,10 +226,22 @@
         if (contador <= 0) {
           clearInterval(interval);
           setTimeout(() => {
-            mostrarGrilla(); // Vuelve a la grilla
+            mostrarGrilla();
           }, 1000);
         }
       }, 1000);
+    }
+
+    // === BOTÓN DE REINICIO (solo para vos) ===
+    function reiniciarCupones() {
+      if (confirm("¿Reiniciar todos los cupones? Se borrarán usos y validaciones.")) {
+        localStorage.removeItem('usosHabitatCar');
+        localStorage.removeItem('validadosHabitatCar');
+        // Recargar estados
+        usos = {};
+        validados = {};
+        mostrarGrilla();
+      }
     }
 
     // Iniciar
