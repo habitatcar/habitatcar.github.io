@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Beneficios Habitat-Car</title>
+  <script src="https://unpkg.com/@zxing/library@0.18.3/umd/index.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -99,7 +100,6 @@
       color: #d32f2f;
       margin: 20px 0;
     }
-    /* Scanner de QR */
     .qr-scanner {
       position: fixed;
       top: 0;
@@ -130,6 +130,7 @@
       font-size: 18px;
       font-weight: bold;
       cursor: pointer;
+      margin-top: 15px;
     }
     .qr-scanner p {
       color: white;
@@ -138,13 +139,12 @@
       margin-top: 15px;
       font-weight: bold;
     }
-    /* Mensaje de QR validado */
-    .mensaje-validado {
+    .mensaje-error {
       position: fixed;
       bottom: 30px;
       left: 50%;
       transform: translateX(-50%);
-      background: #4CAF50;
+      background: #f44336;
       color: white;
       padding: 16px 24px;
       border-radius: 14px;
@@ -155,7 +155,6 @@
       max-width: 90%;
       text-align: center;
     }
-    /* Advertencia */
     .advertencia-overlay {
       position: fixed;
       top: 0;
@@ -212,39 +211,51 @@
       color: white;
       border: none;
     }
+    /* ✅ BOTÓN DE REINICIO (NO SE ELIMINA) */
+    #reiniciar-btn {
+      position: fixed;
+      bottom: 15px;
+      right: 15px;
+      width: 50px;
+      height: 50px;
+      background: #ff9800;
+      color: white;
+      border: none;
+      border-radius: 50%;
+      font-size: 24px;
+      cursor: pointer;
+      z-index: 999;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <img src="/logo.png" alt="Habitat-Car" class="logo">
     <div class="titulo">🎁 Tus beneficios Habitat-Car</div>
-
-    <div id="grilla">
-      <!-- Los comercios se generarán aquí -->
-    </div>
-
-    <div id="exito">
-      <img src="/logo.png" alt="Habitat-Car">
-      <h2>🎉 ¡FELICITACIONES!</h2>
-      <p id="exito-texto"></p>
-      <div id="contador">30</div>
-      <p>Válido por 30 segundos.</p>
-    </div>
+    <div id="grilla"></div>
+    <div id="exito"></div>
   </div>
 
+  <!-- ✅ BOTÓN DE REINICIO SIEMPRE PRESENTE -->
+  <button id="reiniciar-btn" onclick="reiniciarCupones()">🔄</button>
+
   <script>
-    const COMERCIOS = [{"id":"cafex","nombre":"Cafex","logo":"","beneficio":"10% en medialunas","vigenciaLead":7,"descuentoVip":"10% en medialunas","vigenciaVip":0,"estado":"activo","direccion":"Pje. Suiza 897","telefono":387584856,"mapa":"https://maps.app.goo.gl/EnrwchwaueLCpHWZ6","tokenQR":"TOKEN_CAFEX_27"},{"id":"llavero","nombre":"Llaverito","logo":"","beneficio":"15%","vigenciaLead":15,"descuentoVip":"15%","vigenciaVip":0,"estado":"activo","direccion":"Tilcara 319","telefono":6546546665,"mapa":"https://maps.app.goo.gl/EnrwchwaueLCpHWZ7","tokenQR":"TOKEN_LLAVERO_599"},{"id":"fotocopias","nombre":"Fotocopiadora Ely","logo":"","beneficio":"20%","vigenciaLead":10,"descuentoVip":"20%","vigenciaVip":0,"estado":"activo","direccion":"Quintana 226, San Salvador de Jujuy","telefono":45685534,"mapa":"","tokenQR":"TOKEN_FOTOCOPIAS_887"},{"id":"pinturasx","nombre":"Pinturería","logo":"","beneficio":"5% en látex","vigenciaLead":30,"descuentoVip":"5% en látex","vigenciaVip":0,"estado":"activo","direccion":"Éxodo 476, San Salvador de Jujuy","telefono":"","mapa":"","tokenQR":"TOKEN_PINTURASX_741"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__207"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__388"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__949"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__594"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__567"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__582"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__156"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__829"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__418"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__270"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__251"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__531"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__692"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__287"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__633"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__822"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__204"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__150"},{"id":"","nombre":"","logo":"","beneficio":"","vigenciaLead":30,"descuentoVip":"","vigenciaVip":0,"estado":"activo","direccion":"","telefono":"","mapa":"","tokenQR":"TOKEN__177"}];
+    // ✅ ESTOS VALORES DEBEN COINCIDIR EXACTAMENTE CON TUS TOKENS EN LA HOJA
+    const COMERCIOS = [
+      { id: "cafex", nombre: "Cafex", beneficio: "10% en medialunas", direccion: "Pje. Suiza 897", telefono: "387584856", mapa: "https://maps.app.goo.gl/EnrwchwaueLCpHWZ6", tokenQR: "TOKEN_CAFEX_990" },
+      { id: "llavero", nombre: "Llaverito", beneficio: "15%", direccion: "Tilcara 319", telefono: "6546546665", mapa: "https://maps.app.goo.gl/EnrwchwaueLCpHWZ7", tokenQR: "TOKEN_LLAVERO_990" },
+      { id: "fotocopias", nombre: "Fotocopiadora Ely", beneficio: "20%", direccion: "Quintana 226, San Salvador de Jujuy", telefono: "45685534", mapa: "", tokenQR: "TOKEN_FOTOC_123" }, // ⬅️ ¡CORREGIDO!
+      { id: "pinturasx", nombre: "Pinturería", beneficio: "5% en látex", direccion: "Éxodo 476, San Salvador de Jujuy", telefono: "", mapa: "", tokenQR: "TOKEN_PINT_789" }
+    ];
 
     let usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
     let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
 
     function mostrarGrilla() {
-      document.getElementById('grilla').style.display = 'block';
-      document.getElementById('exito').style.display = 'none';
-
-      const grilla = document.getElementById('grilla');
-      grilla.innerHTML = '';
-
+      document.getElementById('grilla').innerHTML = '';
       COMERCIOS.forEach(com => {
         const usado = usos[com.id];
         const cupon = document.createElement('div');
@@ -256,14 +267,14 @@
           ${com.telefono ? `<div class="info"><strong>📞 Teléfono:</strong> <a href="tel:${com.telefono}">${com.telefono}</a></div>` : ''}
           <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px;">
             ${!usado ? 
-              `<button class="btn btn-qr" onclick="abrirCamara('${com.id}')">Validar Cupón con QR en comercio</button>` :
+              `<button class="btn btn-qr" onclick="abrirCamara('${com.id}', '${com.tokenQR}')">Validar Cupón con QR en comercio</button>` :
               `<div style="text-align:center; color:#b71c1c; font-weight:bold;">✅ Beneficio ya utilizado</div>`
             }
             ${com.mapa ? `<a href="${com.mapa}" target="_blank" class="btn btn-como-llegar">Cómo llegar</a>` : ''}
             <button class="btn btn-usar" id="btn-usar-${com.id}" ${usado || !validados[com.id] ? 'disabled' : ''} onclick="usar('${com.id}', '${com.nombre}', '${com.beneficio}')">Usar el beneficio</button>
           </div>
         `;
-        grilla.appendChild(cupon);
+        document.getElementById('grilla').appendChild(cupon);
       });
 
       COMERCIOS.forEach(com => {
@@ -274,35 +285,64 @@
       });
     }
 
-    function abrirCamara(comercioId) {
+    let codigoQR;
+    let video;
+    let stream;
+
+    function abrirCamara(comercioId, tokenEsperado) {
       const scanner = document.createElement('div');
       scanner.className = 'qr-scanner';
       scanner.innerHTML = `
-        <video id="video-qr" autoplay playsinline></video>
+        <video id="video-qr"></video>
+        <p style="color:white; font-size:20px; font-weight:bold;">Apuntá al QR del comercio</p>
         <button class="close-btn" onclick="cerrarCamara()">Cerrar</button>
-        <p>Apuntá la cámara al QR del comercio</p>
       `;
       document.body.appendChild(scanner);
 
-      const video = document.getElementById('video-qr');
+      video = document.getElementById('video-qr');
+      codigoQR = new ZXing.BrowserMultiFormatReader();
+
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-        .then(stream => {
+        .then(s => {
+          stream = s;
           video.srcObject = stream;
           video.play();
-          setTimeout(() => {
-            cerrarCamara();
-            validarCupon(comercioId);
-          }, 3000);
+          codigoQR.decodeFromVideoDevice(undefined, 'video-qr', (result, err) => {
+            if (result) {
+              const textoLeido = result.getText().trim();
+              // ✅ COMPARA SOLO CON EL TOKEN DEL COMERCIO ACTUAL
+              if (textoLeido === tokenEsperado) {
+                cerrarCamara();
+                validarCupon(comercioId);
+              } else {
+                cerrarCamara();
+                mostrarError("❌ Token no válido para este comercio.");
+              }
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+              cerrarCamara();
+            }
+          });
         })
         .catch(err => {
-          alert("No se pudo acceder a la cámara. Asegurate de permitir el acceso.");
           cerrarCamara();
+          mostrarError("❌ No se pudo acceder a la cámara.");
         });
     }
 
     function cerrarCamara() {
+      if (stream) stream.getTracks().forEach(track => track.stop());
       const scanner = document.querySelector('.qr-scanner');
       if (scanner) scanner.remove();
+      if (codigoQR) codigoQR.reset();
+    }
+
+    function mostrarError(mensaje) {
+      const error = document.createElement('div');
+      error.className = 'mensaje-error';
+      error.textContent = mensaje;
+      document.body.appendChild(error);
+      setTimeout(() => error.remove(), 4000);
     }
 
     function validarCupon(comercioId) {
@@ -310,24 +350,16 @@
       localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
       const btn = document.getElementById(`btn-usar-${comercioId}`);
       if (btn) btn.disabled = false;
-
-      const mensaje = document.createElement('div');
-      mensaje.className = 'mensaje-validado';
-      mensaje.textContent = "✅ QR del comercio validado. Ahora podés usar el beneficio.";
-      document.body.appendChild(mensaje);
-
-      setTimeout(() => {
-        if (mensaje.parentNode) mensaje.remove();
-      }, 4000);
+      mostrarError("✅ QR validado. Ya podés usar el beneficio.");
     }
 
     function usar(comercioId, nombre, beneficio) {
       if (!validados[comercioId]) {
-        alert("⚠️ Primero validá el QR en el comercio.");
+        mostrarError("⚠️ Primero validá el QR del comercio.");
         return;
       }
       if (usos[comercioId]) {
-        alert("✅ Ya usaste este beneficio.");
+        mostrarError("✅ Ya usaste este beneficio.");
         return;
       }
 
@@ -357,9 +389,16 @@
       usos[comercioId] = true;
       localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
 
-      document.getElementById('exito-texto').textContent = `Beneficio activado en ${nombre}. ${beneficio}`;
-      document.getElementById('grilla').style.display = 'none';
-      document.getElementById('exito').style.display = 'block';
+      document.getElementById('grilla').innerHTML = `
+        <div style="text-align:center; padding:40px 20px;">
+          <img src="/logo.png" alt="Habitat-Car" style="width:98%; max-width:520px; margin-bottom:20px;">
+          <h2>🎉 ¡FELICITACIONES!</h2>
+          <p>Beneficio activado en <strong>${nombre}</strong>.</p>
+          <p>${beneficio}</p>
+          <div id="contador" style="font-size:60px; font-weight:bold; color:#d32f2f; margin:20px 0;">30</div>
+          <p>Válido por 30 segundos.</p>
+        </div>
+      `;
 
       let c = 30;
       const int = setInterval(() => {
@@ -367,13 +406,24 @@
         document.getElementById('contador').textContent = c;
         if (c <= 0) {
           clearInterval(int);
-          setTimeout(() => mostrarGrilla(), 1000);
+          usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
+          mostrarGrilla();
         }
       }, 1000);
+    }
+
+    // ✅ BOTÓN DE REINICIO FUNCIONAL
+    function reiniciarCupones() {
+      if (confirm("¿Reiniciar cupones? Se borrarán usos y validaciones.")) {
+        localStorage.removeItem('usosHabitatCar');
+        localStorage.removeItem('validadosHabitatCar');
+        usos = {};
+        validados = {};
+        mostrarGrilla();
+      }
     }
 
     mostrarGrilla();
   </script>
 </body>
 </html>
-  
