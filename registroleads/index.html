@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Registro - Habitat-Car</title>
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8f9fa;padding:20px 16px;font-size:22px;line-height:1.5}.container{max-width:600px;margin:0 auto}.logo{width:98%;max-width:520px;display:block;margin:0 auto 20px}.titulo{color:#2c5aa0;font-size:32px;text-align:center;font-weight:bold;margin-bottom:20px}.aviso-email{background:#fff3e0;color:#e65100;padding:14px;border-radius:12px;font-size:19px;text-align:center;margin:15px 0;font-weight:bold}.formulario{background:white;border-radius:20px;padding:30px;box-shadow:0 5px 18px rgba(0,0,0,0.1)}.formulario input{width:100%;padding:16px;margin:12px 0;border:1px solid #ccc;border-radius:12px;font-size:18px}.btn{width:100%;padding:16px;background:#2c5aa0;color:white;border:none;border-radius:16px;font-size:20px;font-weight:bold;cursor:pointer;margin-top:15px}.mensaje{text-align:center;padding:20px;font-weight:bold;color:#2c5aa0}
+    *{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8f9fa;padding:20px 16px;font-size:22px;line-height:1.5}.container{max-width:600px;margin:0 auto}.logo{width:98%;max-width:520px;display:block;margin:0 auto 20px}.titulo{color:#2c5aa0;font-size:32px;text-align:center;font-weight:bold;margin-bottom:20px}.aviso-email{background:#fff3e0;color:#e65100;padding:14px;border-radius:12px;font-size:19px;text-align:center;margin:15px 0;font-weight:bold}.formulario{background:white;border-radius:20px;padding:30px;box-shadow:0 5px 18px rgba(0,0,0,0.1)}.formulario input{width:100%;padding:16px;margin:12px 0;border:1px solid #ccc;border-radius:12px;font-size:18px}.btn{width:100%;padding:16px;background:#2c5aa0;color:white;border:none;border-radius:16px;font-size:20px;font-weight:bold;cursor:pointer;margin-top:15px}.mensaje-error-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;justify-content:center;align-items:center;z-index:9999}.mensaje-error-contenido{background:white;border-radius:20px;padding:30px;text-align:center;max-width:520px;width:90%}.mensaje-error-contenido h3{color:#d32f2f;font-size:26px;margin:0 0 20px;font-weight:bold}.mensaje-error-contenido p{font-size:22px;line-height:1.5;margin-bottom:25px;font-weight:bold;color:#333}.mensaje-error-btn{padding:16px;font-size:20px;font-weight:bold;border-radius:12px;background:#d32f2f;color:white;border:none;cursor:pointer}
   </style>
 </head>
 <body>
@@ -19,10 +19,9 @@
       <input type="email" id="email" placeholder="Email (opcional)">
       <button class="btn" onclick="registrar()">Activar mis beneficios</button>
     </div>
-    <div id="mensaje"></div>
   </div>
   <script>
-    var URL_WEB_APP = "https://script.google.com/macros/s/AKfycbzK_grcxGSpgqUqqbiJKFbgSRadEoenMt7UDcFKxb-FRUHi8HmbitW6idZsz-mSJuF1/exec";
+    var URL_WEB_APP = "https://script.google.com/macros/s/AKfycbw5Ib_Bjheux6ASI90ejyzIBukqnG3lIrw5jyW-LU9avs9_lBy-mh7r9Bbpw8aFubU2/exec";
 
     (function() {
       var registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
@@ -31,14 +30,28 @@
       }
     })();
 
+    function mostrarErrorModal(mensaje) {
+      const modal = document.createElement('div');
+      modal.className = 'mensaje-error-modal';
+      modal.innerHTML = `
+        <div class="mensaje-error-contenido">
+          <h3>⚠️ Atención</h3>
+          <p>${mensaje}</p>
+          <button class="mensaje-error-btn" onclick="this.parentElement.parentElement.remove()">Aceptar</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
     function registrar() {
       var nombre = document.getElementById('nombre').value.trim();
       var whatsapp = document.getElementById('whatsapp').value.trim().replace(/\D/g, '');
       var email = document.getElementById('email').value.trim();
       if (!nombre || !whatsapp) {
-        alert("Por favor, completá nombre y WhatsApp.");
+        mostrarErrorModal("Por favor, completá nombre y WhatsApp.");
         return;
       }
+
       fetch(URL_WEB_APP + "?accion=registrarLead&nombre=" + encodeURIComponent(nombre) + "&whatsapp=" + whatsapp + "&email=" + encodeURIComponent(email))
         .then(function(resp) { return resp.json(); })
         .then(function(data) {
@@ -50,15 +63,16 @@
               tipo: 'lead',
               fechaRegistro: new Date().toISOString()
             }));
-            document.getElementById('mensaje').innerHTML = '<div class="mensaje">✅ ¡Registro exitoso! Redirigiendo...</div>';
+            mostrarErrorModal("✅ ¡Registro exitoso! Redirigiendo...");
             setTimeout(function() { window.location.replace("/cupones/"); }, 2000);
           } else {
-            document.getElementById('mensaje').innerHTML = '<div class="mensaje" style="color:red;">❌ Número ya registrado</div>';
+            // ✅ VENTANA EMERGENTE CLARA
+            mostrarErrorModal("❌ Número ya registrado");
             localStorage.removeItem('usuarioHabitatCar');
           }
         })
         .catch(function(err) {
-          document.getElementById('mensaje').innerHTML = '<div class="mensaje" style="color:red;">❌ Error de conexión</div>';
+          mostrarErrorModal("❌ Error de conexión");
         });
     }
   </script>
