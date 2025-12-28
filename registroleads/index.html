@@ -13,7 +13,6 @@
     <img src="/logo.png" alt="Habitat-Car" class="logo">
     <div class="titulo">📝 Registro de Beneficios</div>
     
-    <!-- ✅ Mensaje sobre el email -->
     <div class="aviso-email">📧 ¡Ingresá tu email para no perderte nuevos beneficios!</div>
 
     <div class="formulario">
@@ -27,12 +26,8 @@
   <script>
     var URL_WEB_APP = "https://script.google.com/macros/s/AKfycbw5Ib_Bjheux6ASI90ejyzIBukqnG3lIrw5jyW-LU9avs9_lBy-mh7r9Bbpw8aFubU2/exec";
 
-    (function() {
-      var registro = localStorage.getItem('usuarioHabitatCar');
-      if (registro) {
-        window.location.replace("/cupones/");
-      }
-    })();
+    // ✅ NO redirigir automáticamente si ya hay registro
+    // (porque podría ser un registro inválido o duplicado)
 
     function registrar() {
       var nombre = document.getElementById('nombre').value.trim();
@@ -42,10 +37,15 @@
         alert("Por favor, complet\u00e1 nombre y WhatsApp.");
         return;
       }
+
+      // ✅ Mostrar mensaje de "registrando"
+      document.getElementById('mensaje').innerHTML = '<div class="mensaje">Enviando...</div>';
+
       fetch(URL_WEB_APP + "?accion=registrarLead&nombre=" + encodeURIComponent(nombre) + "&whatsapp=" + whatsapp + "&email=" + encodeURIComponent(email))
         .then(function(resp) { return resp.json(); })
         .then(function(data) {
           if (data.success) {
+            // ✅ Registro válido: guardar y redirigir
             localStorage.setItem('usuarioHabitatCar', JSON.stringify({
               nombre: nombre,
               whatsapp: whatsapp,
@@ -56,11 +56,15 @@
             document.getElementById('mensaje').innerHTML = '<div class="mensaje">\u2705 \u00a1Registro exitoso! Redirigiendo...</div>';
             setTimeout(function() { window.location.replace("/cupones/"); }, 2000);
           } else {
+            // ❌ Número ya registrado: NO guardar, NO redirigir
             document.getElementById('mensaje').innerHTML = '<div class="mensaje" style="color:red;">\u274c N\u00famero ya registrado</div>';
+            // ✅ Eliminar cualquier registro previo inválido
+            localStorage.removeItem('usuarioHabitatCar');
           }
         })
         .catch(function(err) {
           document.getElementById('mensaje').innerHTML = '<div class="mensaje" style="color:red;">\u274c Error de conexi\u00f3n</div>';
+          console.error(err);
         });
     }
   </script>
