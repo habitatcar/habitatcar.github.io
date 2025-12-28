@@ -104,11 +104,6 @@
     }
     #grilla, #redes, #tutoriales { display: block; }
     #redes, #tutoriales { display: none; text-align: center; padding: 30px 20px; }
-    #redes h2, #tutoriales h2 {
-      color: #9c27b0;
-      font-size: 32px; /* ✅ Aumentado de 28px a 32px */
-      margin: 20px 0;
-    }
     .video-item {
       background: white;
       border-radius: 16px;
@@ -273,7 +268,6 @@
     let usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
     let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
     let registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
-    let fechasActivacion = JSON.parse(localStorage.getItem('fechasActivacionHabitatCar') || '{}');
 
     function mostrarGrilla() {
       document.getElementById('grilla').style.display = 'block';
@@ -290,7 +284,6 @@
         let esProximo = false;
 
         if (!usado) {
-          // ✅ CAMBIO CLAVE: LA VIGENCIA EMPIEZA DESDE EL REGISTRO
           const fechaActivacion = registro.fechaRegistro ? new Date(registro.fechaRegistro) : hoy;
           const vigenciaDias = registro.tipo === 'vip' ? com.vigenciaVip : com.vigenciaLead;
           const esIlimitado = vigenciaDias === 0;
@@ -337,7 +330,7 @@
       });
     }
 
-    // ✅ FUNCIONES MODIFICADAS
+    // ✅ FUNCIÓN ACTUALIZADA: sin icono, con logo y recuadro
     function mostrarRedes(comercioId) {
       const com = COMERCIOS.find(c => c.id === comercioId);
       if (!com) return;
@@ -352,11 +345,18 @@
         return;
       }
 
-      // ✅ SIN LOGO REPETIDO
+      let encabezado = '';
+      if (com.logo) {
+        encabezado = `<img src="${com.logo}" alt="${com.nombre}" style="max-width:200px; max-height:120px; margin:0 auto 15px; display:block;">`;
+      }
+      encabezado += `<h2 style="font-size:32px; color:#2c5aa0; margin:0; text-align:center;">${com.nombre}</h2>`;
+
       document.getElementById('grilla').style.display = 'none';
       document.getElementById('redes').style.display = 'block';
       document.getElementById('redes').innerHTML = `
-        <h2>📱 ${com.nombre}</h2>
+        <div style="background:white; border-radius:16px; padding:25px; box-shadow:0 4px 12px rgba(0,0,0,0.1); margin-bottom:25px;">
+          ${encabezado}
+        </div>
         <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px;">
           ${enlaces}
           <button class="btn" style="background:#666; color:white;" onclick="mostrarGrilla()">Volver a beneficios</button>
@@ -386,7 +386,7 @@
       document.getElementById('tutoriales').style.display = 'block';
       document.getElementById('tutoriales').innerHTML = `
         <img src="/logo.png" alt="Habitat-Car" class="logo">
-        <h2>🎓 Tutoriales</h2>
+        <h2 style="font-size:32px; color:#2c5aa0; margin:20px 0; text-align:center;">🎓 Tutoriales</h2>
         <div style="margin-top:20px;">
           ${videos}
           <button class="btn" style="background:#666; color:white; margin-top:20px;" onclick="mostrarGrilla()">Volver a beneficios</button>
@@ -421,7 +421,6 @@
               const textoLeido = result.getText().trim();
               if (textoLeido === tokenEsperado) {
                 cerrarCamara();
-                // ✅ NO registramos fecha aquí (la vigencia ya empieza en el registro)
                 validarCupon(comercioId);
               } else {
                 cerrarCamara();
@@ -525,11 +524,9 @@
       if (confirm("¿Reiniciar cupones? Se borrarán usos y validaciones.")) {
         localStorage.removeItem('usosHabitatCar');
         localStorage.removeItem('validadosHabitatCar');
-        localStorage.removeItem('fechasActivacionHabitatCar');
         localStorage.removeItem('usuarioHabitatCar');
         usos = {};
         validados = {};
-        fechasActivacion = {};
         registro = {};
         mostrarGrilla();
       }
