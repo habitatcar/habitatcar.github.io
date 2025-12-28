@@ -43,6 +43,30 @@
     }
     .btn-curioso { background: #ff9800; color: white; }
     .btn-tutorial { background: #03a9f4; color: white; }
+    
+    /* ✅ ESTILO VIP DORADO */
+    body.vip {
+      background: #fffaf0;
+    }
+    body.vip .titulo {
+      color: #d4af37;
+      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+    body.vip .cupon {
+      border: 2px solid #d4af37;
+      background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='2' fill='%23d4af37' opacity='0.2'/%3E%3Ctext x='50' y='60' font-size='40' text-anchor='middle' fill='%23d4af37' opacity='0.1'>%24%3C/text%3E%3C/svg%3E") repeat;
+    }
+    body.vip .btn-conozca, body.vip .btn-como-llegar, body.vip .btn-qr, body.vip .btn-usar {
+      background: #d4af37 !important;
+      color: white !important;
+    }
+    body.vip .vencimiento.normal { background: #fff8e1; color: #5d4037; }
+    body.vip .vencimiento.proximo { background: #ffecb3; color: #e65100; }
+    body.vip .recuadro-comercio {
+      border: 2px solid #d4af37;
+      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
+    }
+    
     .cupon {
       background: white;
       border-radius: 20px;
@@ -58,7 +82,6 @@
       box-shadow: 0 4px 12px rgba(0,0,0,0.1);
       text-align: center;
     }
-    /* ✅ TAMAÑO REDUCIDO (30% menos que el doble) + CENTRADO */
     .recuadro-comercio img {
       max-width: 420px;
       max-height: 252px;
@@ -80,6 +103,7 @@
       font-size: 24px;
       margin: 12px 0;
       font-weight: bold;
+      color: #d4af37; /* Dorado para VIP y Lead */
     }
     .info {
       margin: 12px 0;
@@ -260,7 +284,7 @@
     }
   </style>
 </head>
-<body>
+<body id="body">
   <div class="container">
     <img src="/logo.png" alt="Habitat-Car" class="logo">
     <div class="titulo">🎁 Tus beneficios Habitat-Car</div>
@@ -284,6 +308,28 @@
     let usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
     let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
     let registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
+
+    function verificarTipoUsuario() {
+      if (!registro.whatsapp) {
+        window.location.replace("/registroleads/");
+        return;
+      }
+
+      fetch(APPS_SCRIPT_URL + "?accion=verificarVip&whatsapp=" + registro.whatsapp)
+        .then(resp => resp.json())
+        .then(data => {
+          if (data && data.tipo === 'vip') {
+            registro.tipo = 'vip';
+            localStorage.setItem('usuarioHabitatCar', JSON.stringify(registro));
+            // ✅ Activar estilo VIP
+            document.getElementById('body').className = 'vip';
+          }
+          mostrarGrilla();
+        })
+        .catch(err => {
+          mostrarGrilla();
+        });
+    }
 
     function mostrarGrilla() {
       document.getElementById('grilla').style.display = 'block';
@@ -331,11 +377,13 @@
           recuadroComercio = `<div class="recuadro-comercio"><h2 class="nombre-comercio">${com.nombre}</h2></div>`;
         }
 
+        const beneficioMostrar = registro.tipo === 'vip' ? com.descuentoVip : com.beneficio;
+
         const cupon = document.createElement('div');
         cupon.className = `cupon ${usado || esVencido ? 'inactivo' : ''}`;
         cupon.innerHTML = `
           ${recuadroComercio}
-          <div class="descuento">${com.beneficio}</div>
+          <div class="descuento">${beneficioMostrar}</div>
           ${vencimientoHtml}
           <div class="info"><strong>📍 Dirección:</strong> ${com.direccion}</div>
           ${com.telefono ? `<div class="info"><strong>📞 Teléfono:</strong> <a href="tel:${com.telefono}">${com.telefono}</a></div>` : ''}
@@ -346,13 +394,14 @@
               `<button class="btn btn-qr" onclick="abrirCamara('${com.id}', '${com.tokenQR}')">Validar Cupón con QR en el comercio</button>` :
               `<div style="text-align:center; color:#b71c1c; font-weight:bold;">${usado ? '✅ Beneficio ya utilizado' : '❌ Cupón vencido'}</div>`
             }
-            <button class="btn btn-usar" id="btn-usar-${com.id}" ${usado || esVencido || !validados[com.id] ? 'disabled' : ''} onclick="usar('${com.id}', '${com.nombre}', '${com.beneficio}')">Usar el beneficio</button>
+            <button class="btn btn-usar" id="btn-usar-${com.id}" ${usado || esVencido || !validados[com.id] ? 'disabled' : ''} onclick="usar('${com.id}', '${com.nombre}', '${beneficioMostrar}')">Usar el beneficio</button>
           </div>
         `;
         document.getElementById('grilla').appendChild(cupon);
       });
     }
 
+    // === FUNCIONES EXISTENTES (mostrarRedes, cámara, etc.) ===
     function mostrarRedes(comercioId) {
       const com = COMERCIOS.find(c => c.id === comercioId);
       if (!com) return;
@@ -536,7 +585,7 @@
         if (c <= 0) {
           clearInterval(int);
           usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
-          mostrarGrilla();
+          verificarTipoUsuario();
         }
       }, 1000);
     }
@@ -549,11 +598,11 @@
         usos = {};
         validados = {};
         registro = {};
-        mostrarGrilla();
+        window.location.replace("/registroleads/");
       }
     }
 
-    mostrarGrilla();
+    verificarTipoUsuario();
   </script>
 </body>
 </html>
