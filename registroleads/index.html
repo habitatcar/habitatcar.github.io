@@ -12,9 +12,7 @@
   <div class="container">
     <img src="/logo.png" alt="Habitat-Car" class="logo">
     <div class="titulo">📝 Registro de Beneficios</div>
-    
     <div class="aviso-email">📧 ¡Ingresá tu email para no perderte nuevos beneficios!</div>
-
     <div class="formulario">
       <input type="text" id="nombre" placeholder="Nombre y Apellido" required>
       <input type="tel" id="whatsapp" placeholder="WhatsApp (ej: 3884618228)" required>
@@ -26,26 +24,25 @@
   <script>
     var URL_WEB_APP = "https://script.google.com/macros/s/AKfycbzK_grcxGSpgqUqqbiJKFbgSRadEoenMt7UDcFKxb-FRUHi8HmbitW6idZsz-mSJuF1/exec";
 
-    // ✅ NO redirigir automáticamente si ya hay registro
-    // (porque podría ser un registro inválido o duplicado)
+    (function() {
+      var registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
+      if (registro && registro.whatsapp && registro.nombre && registro.fechaRegistro) {
+        window.location.replace("/cupones/");
+      }
+    })();
 
     function registrar() {
       var nombre = document.getElementById('nombre').value.trim();
       var whatsapp = document.getElementById('whatsapp').value.trim().replace(/\D/g, '');
       var email = document.getElementById('email').value.trim();
       if (!nombre || !whatsapp) {
-        alert("Por favor, complet\u00e1 nombre y WhatsApp.");
+        alert("Por favor, completá nombre y WhatsApp.");
         return;
       }
-
-      // ✅ Mostrar mensaje de "registrando"
-      document.getElementById('mensaje').innerHTML = '<div class="mensaje">Enviando...</div>';
-
       fetch(URL_WEB_APP + "?accion=registrarLead&nombre=" + encodeURIComponent(nombre) + "&whatsapp=" + whatsapp + "&email=" + encodeURIComponent(email))
         .then(function(resp) { return resp.json(); })
         .then(function(data) {
           if (data.success) {
-            // ✅ Registro válido: guardar y redirigir
             localStorage.setItem('usuarioHabitatCar', JSON.stringify({
               nombre: nombre,
               whatsapp: whatsapp,
@@ -53,18 +50,15 @@
               tipo: 'lead',
               fechaRegistro: new Date().toISOString()
             }));
-            document.getElementById('mensaje').innerHTML = '<div class="mensaje">\u2705 \u00a1Registro exitoso! Redirigiendo...</div>';
+            document.getElementById('mensaje').innerHTML = '<div class="mensaje">✅ ¡Registro exitoso! Redirigiendo...</div>';
             setTimeout(function() { window.location.replace("/cupones/"); }, 2000);
           } else {
-            // ❌ Número ya registrado: NO guardar, NO redirigir
-            document.getElementById('mensaje').innerHTML = '<div class="mensaje" style="color:red;">\u274c N\u00famero ya registrado</div>';
-            // ✅ Eliminar cualquier registro previo inválido
+            document.getElementById('mensaje').innerHTML = '<div class="mensaje" style="color:red;">❌ Número ya registrado</div>';
             localStorage.removeItem('usuarioHabitatCar');
           }
         })
         .catch(function(err) {
-          document.getElementById('mensaje').innerHTML = '<div class="mensaje" style="color:red;">\u274c Error de conexi\u00f3n</div>';
-          console.error(err);
+          document.getElementById('mensaje').innerHTML = '<div class="mensaje" style="color:red;">❌ Error de conexión</div>';
         });
     }
   </script>
