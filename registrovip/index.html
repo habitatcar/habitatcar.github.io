@@ -17,18 +17,17 @@
       <input type="text" id="nombre" placeholder="Nombre y Apellido" required>
       <input type="tel" id="whatsapp" placeholder="WhatsApp (ej: 3884618228)" required>
       <input type="email" id="email" placeholder="Email (opcional)">
-      <button class="btn" onclick="registrarVip()">Solicitar acceso VIP</button>
+      <button class="btn" onclick="registrarVip()">Activar mis beneficios VIP</button>
     </div>
   </div>
   <script>
-    var URL_WEB_APP = "https://script.google.com/macros/s/AKfycbxkb6T6DhQkG6Z4gMH5DX_k8FSMlo1n8yqSEz_8BO_JXg79Kyhos4pZVsr-SeWjTZE2EQ/exec";
-
-    (function() {
-      var registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
-      if (registro && registro.whatsapp) {
-        window.location.replace("/cupones/");
-      }
-    })();
+    const URL_WEB_APP = "https://script.google.com/macros/s/AKfycbxkb6T6DhQkG6Z4gMH5DX_k8FSMlo1n8yqSEz_8BO_JXg79Kyhos4pZVsr-SeWjTZE2EQ/exec";
+    const urlParams = new URLSearchParams(window.location.search);
+    const token = urlParams.get('token');
+    if (!token) {
+      alert("Acceso no autorizado. Usa el link de invitación.");
+      window.location.replace("/");
+    }
 
     function mostrarErrorModal(mensaje) {
       const modal = document.createElement('div');
@@ -44,33 +43,32 @@
     }
 
     function registrarVip() {
-      var nombre = document.getElementById('nombre').value.trim();
-      var whatsapp = document.getElementById('whatsapp').value.trim().replace(/\D/g, '');
-      var email = document.getElementById('email').value.trim();
+      const nombre = document.getElementById('nombre').value.trim();
+      const whatsapp = document.getElementById('whatsapp').value.trim().replace(/\D/g, '');
+      const email = document.getElementById('email').value.trim();
       if (!nombre || !whatsapp) {
         mostrarErrorModal("Por favor, completá nombre y WhatsApp.");
         return;
       }
 
-      fetch(URL_WEB_APP + "?accion=registrarVip&nombre=" + encodeURIComponent(nombre) + "&whatsapp=" + whatsapp + "&email=" + encodeURIComponent(email))
-        .then(function(resp) { return resp.json(); })
-        .then(function(data) {
+      fetch(URL_WEB_APP + "?accion=registrarVip&nombre=" + encodeURIComponent(nombre) + "&whatsapp=" + whatsapp + "&email=" + encodeURIComponent(email) + "&token=" + encodeURIComponent(token))
+        .then(resp => resp.json())
+        .then(data => {
           if (data.success) {
             localStorage.setItem('usuarioHabitatCar', JSON.stringify({
               nombre: nombre,
               whatsapp: whatsapp,
               email: email,
-              tipo: 'lead',
+              tipo: 'vip',
               fechaRegistro: new Date().toISOString()
             }));
-            mostrarErrorModal("✅ ¡Solicitud VIP enviada! El equipo te contactará pronto.");
-            setTimeout(function() { window.location.replace("/cupones/"); }, 2000);
+            mostrarErrorModal("✅ ¡Registro VIP exitoso! Redirigiendo...");
+            setTimeout(() => window.location.replace("/cupones/"), 2000);
           } else {
-            mostrarErrorModal("❌ Ya enviaste una solicitud.");
-            localStorage.removeItem('usuarioHabitatCar');
+            mostrarErrorModal(data.mensaje || "❌ Token inválido o ya usado");
           }
         })
-        .catch(function(err) {
+        .catch(err => {
           mostrarErrorModal("❌ Error de conexión");
         });
     }
