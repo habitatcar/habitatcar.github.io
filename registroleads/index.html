@@ -5,7 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Registro - Habitat-Car</title>
   <style>
-    *{box-sizing:border-box;margin:0;padding:0}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8f9fa;padding:20px 16px;font-size:22px;line-height:1.5}.container{max-width:600px;margin:0 auto}.logo{width:98%;max-width:520px;display:block;margin:0 auto 20px}.titulo{color:#2c5aa0;font-size:32px;text-align:center;font-weight:bold;margin-bottom:20px}.aviso-email{background:#fff3e0;color:#e65100;padding:14px;border-radius:12px;font-size:19px;text-align:center;margin:15px 0;font-weight:bold}.formulario{background:white;border-radius:20px;padding:30px;box-shadow:0 5px 18px rgba(0,0,0,0.1)}.formulario input{width:100%;padding:16px;margin:12px 0;border:1px solid #ccc;border-radius:12px;font-size:18px}.terminos{display:flex;align-items:flex-start;margin:15px 0;}.terminos input[type="checkbox"]{margin-right:12px;transform:scale(1.4);margin-top:4px;}.terminos label{font-size:18px;line-height:1.4;}.btn{width:100%;padding:16px;background:#cccccc;color:white;border:none;border-radius:16px;font-size:20px;font-weight:bold;cursor:not-allowed;margin-top:15px}.btn.activo{background:#2c5aa0;cursor:pointer}.mensaje{display:block;padding:16px;margin-top:15px;border-radius:12px;text-align:center;font-weight:bold}.mensaje-exito{background:#e8f5e8;color:#2e7d32}.mensaje-error{background:#ffebee;color:#d32f2f}
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8f9fa;padding:20px 16px;font-size:22px;line-height:1.5}
+    .container{max-width:600px;margin:0 auto}
+    .logo{width:98%;max-width:520px;display:block;margin:0 auto 20px}
+    .titulo{color:#2c5aa0;font-size:32px;text-align:center;font-weight:bold;margin-bottom:20px}
+    .aviso-email{background:#fff3e0;color:#e65100;padding:14px;border-radius:12px;font-size:19px;text-align:center;margin:15px 0;font-weight:bold}
+    .formulario{background:white;border-radius:20px;padding:30px;box-shadow:0 5px 18px rgba(0,0,0,0.1)}
+    .formulario input{width:100%;padding:16px;margin:12px 0;border:1px solid #ccc;border-radius:12px;font-size:18px}
+    .terminos{display:flex;align-items:flex-start;margin:15px 0;}
+    .terminos input[type="checkbox"]{margin-right:12px;transform:scale(1.4);margin-top:4px;}
+    .terminos label{font-size:18px;line-height:1.4;}
+    
+    /* Estilos del botón */
+    .btn {
+      width:100%;
+      padding:16px;
+      background:#cccccc;
+      color:white;
+      border:none;
+      border-radius:16px;
+      font-size:20px;
+      font-weight:bold;
+      cursor:not-allowed;
+      margin-top:15px;
+      transition: background 0.3s ease;
+    }
+    .btn.activo {
+      background:#2c5aa0;
+      cursor:pointer;
+    }
+    
+    .mensaje{display:block;padding:16px;margin-top:15px;border-radius:12px;text-align:center;font-weight:bold}
+    .mensaje-exito{background:#e8f5e8;color:#2e7d32}
+    .mensaje-error{background:#ffebee;color:#d32f2f}
   </style>
 </head>
 <body>
@@ -18,18 +51,28 @@
       <input type="tel" id="whatsapp" placeholder="WhatsApp (ej: 3884618228)" required>
       <input type="email" id="email" placeholder="Email (opcional)">
       <div class="terminos">
-        <input type="checkbox" id="terminos" required>
+        <input type="checkbox" id="terminos">
         <label for="terminos">Acepto los <a href="/legales/" target="_blank" style="color:#2c5aa0;text-decoration:underline;">Términos y Condiciones</a></label>
       </div>
       <button class="btn" id="btn-registro" disabled onclick="registrar()">Activar mis beneficios</button>
     </div>
     <div id="mensaje"></div>
   </div>
+
   <script>
+    // --- LÓGICA PARA ACTIVAR EL BOTÓN ---
     document.getElementById('terminos').addEventListener('change', function() {
-      document.getElementById('btn-registro').className = this.checked ? 'btn activo' : 'btn';
+      const btn = document.getElementById('btn-registro');
+      if (this.checked) {
+        btn.classList.add('activo');
+        btn.disabled = false;
+      } else {
+        btn.classList.remove('activo');
+        btn.disabled = true;
+      }
     });
 
+    // --- VERIFICAR SI YA ESTÁ REGISTRADO ---
     (function() {
       var registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
       if (registro && registro.whatsapp && registro.nombre && registro.fechaRegistro) {
@@ -37,7 +80,9 @@
       }
     })();
 
+    // --- FUNCIÓN DE REGISTRO ---
     function registrar() {
+      // Doble verificación por seguridad
       if (!document.getElementById('terminos').checked) {
         document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">Debés aceptar los Términos y Condiciones.</div>';
         return;
@@ -46,6 +91,7 @@
       var nombre = document.getElementById('nombre').value.trim();
       var whatsapp = document.getElementById('whatsapp').value.trim().replace(/\D/g, '');
       var email = document.getElementById('email').value.trim();
+
       if (!nombre || !whatsapp) {
         document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">Por favor, completá nombre y WhatsApp.</div>';
         return;
