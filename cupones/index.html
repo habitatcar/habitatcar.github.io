@@ -309,7 +309,7 @@
   <script>
     const COMERCIOS = [{"id":"cafex","nombre":"Cafex","logo":"https://habitatcar.github.io/logos/cafex.png","beneficio":"10% en medialunas","vigenciaLead":7,"descuentoVip":"20%","vigenciaVip":14,"estado":"activo","direccion":"Pje. Suiza 897","telefono":387584856,"mapa":"https://maps.app.goo.gl/EnrwchwaueLCpHWZ6","instagram":"https://instagram.com/cafex","facebook":"https://facebook.com/cafex","x":"https://x.com/cafex","tokenQR":"TOKEN_CAFEX_990"},{"id":"llavero","nombre":"Llaverito","logo":"https://habitatcar.github.io/logos/llavero.png","beneficio":"15%","vigenciaLead":15,"descuentoVip":"30%","vigenciaVip":30,"estado":"activo","direccion":"Tilcara 319","telefono":6546546665,"mapa":"https://maps.app.goo.gl/EnrwchwaueLCpHWZ7","instagram":"","facebook":"","x":"","tokenQR":"TOKEN_LLAVERO_990"},{"id":"fotocopias","nombre":"Fotocopiadora Ely","logo":"https://habitatcar.github.io/logos/fotocopias.png","beneficio":"20%","vigenciaLead":10,"descuentoVip":"40%","vigenciaVip":0,"estado":"activo","direccion":"Quintana 226, San Salvador de Jujuy","telefono":45685534,"mapa":"","instagram":"","facebook":"","x":"","tokenQR":"TOKEN_COPIAS_990"},{"id":"pinturasx","nombre":"Pinturería","logo":"","beneficio":"5% en látex","vigenciaLead":30,"descuentoVip":"10% en brochas","vigenciaVip":365,"estado":"activo","direccion":"Éxodo 476, San Salvador de Jujuy","telefono":"","mapa":"","instagram":"","facebook":"","x":"","tokenQR":"TOKEN_PINTURAS_990"},{"id":"panaderia","nombre":"Linda Panadería","logo":"","beneficio":"20% en miñones","vigenciaLead":60,"descuentoVip":"30% en bizcochos","vigenciaVip":150,"estado":"activo","direccion":"Florida 186, San Salvador de Jujuy","telefono":"","mapa":"","instagram":"","facebook":"","x":"","tokenQR":"TOKEN_PAN_12"},{"id":"ferreteria","nombre":"Ferremax","logo":"","beneficio":"10% en herrajes","vigenciaLead":30,"descuentoVip":"20%","vigenciaVip":200,"estado":"activo","direccion":"Tilcara 315","telefono":"San Salvador de Jujuy","mapa":"","instagram":"","facebook":"","x":"","tokenQR":"token_ferreteria_111126"},{"id":"vineriabrown","nombre":"Vinería Almirante Brown","logo":"","beneficio":"5% en espumantes","vigenciaLead":7,"descuentoVip":"10%","vigenciaVip":60,"estado":"activo","direccion":"Almirante Brown esq. Azopardo","telefono":"San Salvador de Jujuy","mapa":"","instagram":"","facebook":"","x":"","tokenQR":"token_vineriabrown_806897"},{"id":"almacen","nombre":"Almacén Los Hermanos","logo":"","beneficio":"10% en bebidas","vigenciaLead":15,"descuentoVip":"30% en todo el rubro","vigenciaVip":90,"estado":"activo","direccion":"Ernesto Romero 118, San Salvador de Jujuy","telefono":"","mapa":"","instagram":"","facebook":"","x":"","tokenQR":"token_almacen_490781"},{"id":"farmacia","nombre":"Farmacia Luján","logo":"","beneficio":"15% en analgésicos, 10% en vendajes y 15% en perfumería","vigenciaLead":30,"descuentoVip":"20% en analgésicos, 120% en vendajes y 20% en perfumería y 5% en los otros productos","vigenciaVip":90,"estado":"activo","direccion":"Exodo 487","telefono":"","mapa":"https://maps.app.goo.gl/rQSqu4XcV51fRMaU6","instagram":"","facebook":"","x":"","tokenQR":"token_farmacia_754687"}];
     const TUTORIALES = [];
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxk0HZAKfD5GQAL-HFDa32jCtK3wQ4ELL2F5pHcAMgtTCxk-4B6RCDJAOS9M_ai9vYA_A/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyznkL4rOleXwD6NxJSzN9J7kTdCSshvW-vZFpN-5G8UbaZnPDeaJ69pVqsO-3acud3HA/exec";
 
     let usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
     let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
@@ -565,6 +565,27 @@
       cerrarAdvertencia();
       usos[comercioId] = true;
       localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
+
+      // ✅ Obtener datos del usuario registrado
+      const registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
+      const whatsapp = registro.whatsapp || "desconocido";
+      const nombreUsuario = registro.nombre || "desconocido";
+      const tipo = registro.tipo || "lead";
+
+      // ✅ Obtener token QR del comercio
+      const com = COMERCIOS.find(c => c.id === comercioId);
+      const tokenQR = com ? com.tokenQR : "token_desconocido";
+
+      // ✅ Enviar a Apps Script para registrar uso
+      fetch(APPS_SCRIPT_URL + "?accion=registrarUso&whatsapp=" + encodeURIComponent(whatsapp) + 
+            "&nombre=" + encodeURIComponent(nombreUsuario) + 
+            "&tipo=" + encodeURIComponent(tipo) + 
+            "&comercioId=" + encodeURIComponent(comercioId) + 
+            "&comercioNombre=" + encodeURIComponent(nombre) + 
+            "&beneficio=" + encodeURIComponent(beneficio) + 
+            "&tokenQR=" + encodeURIComponent(tokenQR))
+        .catch(err => console.log("Error al registrar uso:", err));
+
       document.getElementById('grilla').innerHTML = `
         <div style="text-align:center; padding:40px 20px;">
           <img src="/logo.png" alt="Habitat-Car" style="width:98%; max-width:520px; margin-bottom:20px;">
@@ -603,4 +624,3 @@
   </script>
 </body>
 </html>
-  
