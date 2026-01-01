@@ -60,7 +60,6 @@
   </div>
 
   <script>
-    // --- LÓGICA PARA ACTIVAR EL BOTÓN ---
     document.getElementById('terminos').addEventListener('change', function() {
       const btn = document.getElementById('btn-registro');
       if (this.checked) {
@@ -72,7 +71,6 @@
       }
     });
 
-    // --- VERIFICAR SI YA ESTÁ REGISTRADO ---
     (function() {
       var registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
       if (registro && registro.whatsapp && registro.nombre && registro.fechaRegistro) {
@@ -80,9 +78,7 @@
       }
     })();
 
-    // --- FUNCIÓN DE REGISTRO ---
     function registrar() {
-      // Doble verificación por seguridad
       if (!document.getElementById('terminos').checked) {
         document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">Debés aceptar los Términos y Condiciones.</div>';
         return;
@@ -102,7 +98,10 @@
       const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbza_odRWyS7cdkBOl5qndhkkhajI2Ew4LYpFjOQOzUeu2gcVB_DONjzHic8KFlcDaZCTQ/exec";
       
       fetch(APPS_SCRIPT_URL + "?accion=registrarLead&nombre=" + encodeURIComponent(nombre) + "&whatsapp=" + whatsapp + "&email=" + encodeURIComponent(email))
-        .then(function(resp) { return resp.json(); })
+        .then(function(resp) {
+          if (!resp.ok) throw new Error("Error en la conexión");
+          return resp.json();
+        })
         .then(function(data) {
           if (data.success) {
             localStorage.setItem('usuarioHabitatCar', JSON.stringify({
@@ -120,13 +119,10 @@
           }
         })
         .catch(function(err) {
-          document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">❌ Error de conexión</div>';
+          console.error("Error:", err);
+          document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">❌ No se pudo completar el registro. Intente más tarde.</div>';
         });
     }
   </script>
 </body>
 </html>
-
-if (email) {
-  agregarAListaEmails(email, nombre, "lead");
-}
