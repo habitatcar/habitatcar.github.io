@@ -64,21 +64,19 @@
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     
-    // Verificación de Token
     if (!token) {
       alert("Acceso no autorizado. Usa el link de invitación.");
       window.location.replace("/");
     }
 
-    // --- CORRECCIÓN: Activar el botón físicamente ---
     document.getElementById('terminos').addEventListener('change', function() {
       const btn = document.getElementById('btn-registro');
       if (this.checked) {
         btn.classList.add('activo');
-        btn.disabled = false; // Aquí se habilita el clic
+        btn.disabled = false;
       } else {
         btn.classList.remove('activo');
-        btn.disabled = true; // Aquí se bloquea
+        btn.disabled = true;
       }
     });
 
@@ -113,7 +111,10 @@
       const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbza_odRWyS7cdkBOl5qndhkkhajI2Ew4LYpFjOQOzUeu2gcVB_DONjzHic8KFlcDaZCTQ/exec";
       
       fetch(APPS_SCRIPT_URL + "?accion=registrarVip&nombre=" + encodeURIComponent(nombre) + "&whatsapp=" + whatsapp + "&email=" + encodeURIComponent(email) + "&token=" + encodeURIComponent(token))
-        .then(resp => resp.json())
+        .then(resp => {
+          if (!resp.ok) throw new Error("Error en la conexión");
+          return resp.json();
+        })
         .then(data => {
           if (data.success) {
             localStorage.setItem('usuarioHabitatCar', JSON.stringify({
@@ -130,13 +131,10 @@
           }
         })
         .catch(err => {
-          mostrarErrorModal("❌ Error de conexión");
+          console.error("Error:", err);
+          mostrarErrorModal("❌ No se pudo completar el registro. Intente más tarde.");
         });
     }
   </script>
 </body>
 </html>
-
-if (email) {
-  agregarAListaEmails(email, nombre, "vip");
-}
