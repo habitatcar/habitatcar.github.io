@@ -48,6 +48,16 @@
     
     .btn:disabled { background: #cccccc; cursor: not-allowed; }
 
+    /* ESTILO AVISO VALIDACIÓN (Elegante pero notorio) */
+    .aviso-validado {
+      position: fixed; top: 20%; left: 50%; transform: translateX(-50%);
+      width: 90%; max-width: 450px; background: #2e7d32; color: white;
+      padding: 30px; border-radius: 25px; text-align: center; z-index: 10001;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 4px solid #fff;
+    }
+    .aviso-validado h2 { font-size: 32px; margin-bottom: 10px; }
+    .aviso-validado p { font-size: 22px; }
+
     .qr-scanner { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; padding: 20px; }
     .qr-scanner video { width: 90%; max-width: 500px; border: 2px dashed #fff; border-radius: 12px; }
     .close-btn { background: #d32f2f; color: white; border: none; border-radius: 12px; padding: 14px 28px; font-size: 18px; margin-top: 15px; }
@@ -120,7 +130,7 @@
           
           <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px;">
             <a href="${com.web || '#'}" class="btn btn-conozca" target="_blank">Conozca el comercio</a>
-            <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(com.nombre + ' ' + com.direccion)}" class="btn btn-como-llegar" target="_blank">Cómo llegar</a>
+            <a href="https://www.google.com/maps/search/${encodeURIComponent(com.nombre + ' ' + com.direccion)}" class="btn btn-como-llegar" target="_blank">Cómo llegar</a>
             
             ${!usado ? `
               <button class="btn btn-qr" onclick="abrirCamara('${com.id}', '${com.tokenQR}')">Validar QR en Comercio</button>
@@ -164,7 +174,6 @@
           <p>Mostrá esto en caja:</p>
           <div id="contador" style="font-size:80px; font-weight:bold; color:#d4af37;">30</div>
           <p style="font-size:24px; font-weight:bold;">${beneficio}</p>
-          <p style="margin-top:20px; font-size:18px;">En ${nombre}</p>
         </div>
       `;
 
@@ -191,13 +200,18 @@
         stream=s; document.getElementById('v').srcObject=s; document.getElementById('v').play();
         scanner.decodeFromVideoDevice(undefined,'v',(res)=>{
           if(res && res.getText().trim()===token){ 
-            cerrar(); validados[id]=true; localStorage.setItem('validadosHabitatCar', JSON.stringify(validados)); 
-            alert("✅ Validado. Ya podés usar el beneficio."); cargarComercios();
+            cerrar(); 
+            validados[id]=true; 
+            localStorage.setItem('validadosHabitatCar', JSON.stringify(validados)); 
+            
+            // MENSAJE DE VALIDACIÓN ELEGANTE
+            const msj = document.createElement('div');
+            msj.className = 'aviso-validado';
+            msj.innerHTML = `<h2>✅ ¡VALIDADO!</h2><p>Ya podés presionar el botón azul para usar tu beneficio.</p>`;
+            document.body.appendChild(msj);
+            setTimeout(() => { msj.remove(); cargarComercios(); }, 3500);
           }
         });
-      }).catch(err => {
-        alert("Error al abrir cámara: " + err);
-        cerrar();
       });
     }
     function cerrar(){ if(stream) stream.getTracks().forEach(t=>t.stop()); document.querySelector('.qr-scanner').remove(); }
