@@ -6,22 +6,48 @@
   <title>Registro VIP - Habitat-Car</title>
   <style>
     *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8f9fa;padding:20px 16px;font-size:22px;}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8f9fa;padding:20px 16px;font-size:24px;}
     .container{max-width:600px;margin:0 auto}
     .logo{width:98%;max-width:520px;display:block;margin:0 auto 20px}
-    .titulo{color:#2c5aa0;font-size:32px;text-align:center;font-weight:bold;margin-bottom:20px}
-    .formulario{background:white;border-radius:20px;padding:30px;box-shadow:0 5px 18px rgba(0,0,0,0.1)}
-    .formulario input{width:100%;padding:16px;margin:12px 0;border:1px solid #ccc;border-radius:12px;font-size:18px}
-    .btn{width:100%;padding:16px;background:#6a1b9a;color:white;border:none;border-radius:16px;font-size:20px;font-weight:bold;cursor:pointer;margin-top:15px;}
+    .titulo{color:#2c5aa0;font-size:36px;text-align:center;font-weight:bold;margin-bottom:20px}
+    
+    .formulario{background:white;border-radius:25px;padding:35px;box-shadow:0 8px 25px rgba(0,0,0,0.15)}
+    .formulario input{width:100%;padding:20px;margin:15px 0;border:2px solid #ccc;border-radius:15px;font-size:22px}
+    
+    .btn{width:100%;padding:22px;background:#6a1b9a;color:white;border:none;border-radius:20px;font-size:26px;font-weight:bold;cursor:pointer;margin-top:20px;box-shadow: 0 4px 10px rgba(106, 27, 154, 0.3);}
+    .btn:active {transform: scale(0.98);}
+
+    /* --- ESTILO DEL CARTEL DE ERROR GIGANTE --- */
+    .modal-error {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.95); display: flex; align-items: center; justify-content: center;
+      z-index: 10000; padding: 20px;
+    }
+    .modal-contenido {
+      background: white; border-radius: 30px; padding: 40px; text-align: center;
+      width: 100%; max-width: 500px; border: 8px solid #d32f2f;
+    }
+    .modal-contenido h2 { color: #d32f2f; font-size: 48px; margin-bottom: 20px; font-weight: 900; }
+    .modal-contenido p { font-size: 30px; line-height: 1.3; color: #333; font-weight: bold; margin-bottom: 30px; }
+    .btn-cerrar {
+      background: #d32f2f; color: white; border: none; padding: 25px;
+      font-size: 28px; font-weight: bold; border-radius: 15px; cursor: pointer; width: 100%;
+    }
+
+    /* Estilo Éxito */
+    .modal-exito { border-color: #2e7d32 !important; }
+    .modal-exito h2 { color: #2e7d32 !important; }
+    .btn-exito { background: #2e7d32 !important; }
   </style>
 </head>
 <body>
-  <div class="container">
+  <div class="container" id="main-content">
     <img src="/logo.png" alt="Habitat-Car" class="logo">
-    <div class="titulo">🌟 Registro VIP Exclusivo</div>
+    <div class="titulo">🌟 Registro VIP</div>
     <div class="formulario">
-      <input type="text" id="nombre" placeholder="Nombre y Apellido">
-      <input type="tel" id="whatsapp" placeholder="WhatsApp (ej: 3884618228)">
+      <p style="text-align:center; font-weight:bold; margin-bottom:15px; color:#6a1b9a;">Solo para invitados exclusivos</p>
+      <input type="text" id="nombre" placeholder="Tu Nombre y Apellido">
+      <input type="tel" id="whatsapp" placeholder="Tu WhatsApp">
       <button class="btn" onclick="registrarVip()">Activar mis beneficios VIP</button>
     </div>
   </div>
@@ -30,29 +56,66 @@
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     
-    if (!token) { alert("Link no válido"); window.location.replace("/"); }
+    // Si no hay token al entrar, mostramos el error gigante de inmediato
+    if (!token) { 
+      mostrarPantallaError("¡ACCESO DENEGADO!", "Este link no es válido o ya expiró. Pedí un nuevo link VIP."); 
+    }
+
+    function mostrarPantallaError(titulo, mensaje) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-error';
+      modal.innerHTML = `
+        <div class="modal-contenido">
+          <h2>${titulo}</h2>
+          <p>${mensaje}</p>
+          <button class="btn-cerrar" onclick="window.location.replace('/')">VOLVER AL INICIO</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
+
+    function mostrarPantallaExito(titulo, mensaje) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-error';
+      modal.innerHTML = `
+        <div class="modal-contenido modal-exito">
+          <h2>${titulo}</h2>
+          <p>${mensaje}</p>
+          <button class="btn-cerrar btn-exito">CARGANDO...</button>
+        </div>
+      `;
+      document.body.appendChild(modal);
+    }
 
     function registrarVip() {
       const nombre = document.getElementById('nombre').value.trim();
       const whatsapp = document.getElementById('whatsapp').value.trim().replace(/\D/g, '');
       const APPS_URL = "https://script.google.com/macros/s/AKfycbzxgDElajJ9JFV6WPInb-YMyY7dfd8uRd2SpXpF9CgQU4k0tCxRabbZ_c_L7TkAmAo_uw/exec";
       
+      if (!nombre || !whatsapp) {
+        alert("Por favor, escribí tu nombre y WhatsApp.");
+        return;
+      }
+
       fetch(APPS_URL + "?accion=registrarVip&nombre=" + encodeURIComponent(nombre) + "&whatsapp=" + whatsapp + "&token=" + encodeURIComponent(token))
         .then(resp => resp.json())
         .then(data => {
           if (data.success) {
-            // --- LIMPIEZA DE BLOQUEOS PREVIOS ---
+            // Limpiamos usos viejos por si era un lead antes
             localStorage.removeItem('usosHabitatCar'); 
             localStorage.removeItem('validadosHabitatCar');
-            
             localStorage.setItem('usuarioHabitatCar', JSON.stringify({
               nombre: nombre, whatsapp: whatsapp, tipo: 'vip', fechaRegistro: new Date().toISOString()
             }));
-            alert("✅ ¡Bienvenido al Club VIP!");
-            window.location.replace("/cupones/");
+            
+            mostrarPantallaExito("¡BIENVENIDO!", "Ya sos cliente VIP. Entrando a tus beneficios...");
+            setTimeout(() => window.location.replace("/cupones/"), 3000);
           } else {
-            alert("Error: Link usado o inválido");
+            mostrarPantallaError("LINK INVÁLIDO", "Este link ya se usó o no existe. No podés registrarte como VIP con este acceso.");
           }
+        })
+        .catch(err => {
+          mostrarPantallaError("SIN CONEXIÓN", "Revisá tu internet e intentalo de nuevo.");
         });
     }
   </script>
