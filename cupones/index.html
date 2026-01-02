@@ -27,7 +27,9 @@
     body.vip { background: #fffaf0; }
     body.vip .titulo, body.vip #subtitulo { color: #d4af37; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
     body.vip .cupon { border: 2px solid #d4af37; background: white; }
-    body.vip .btn-conozca, body.vip .btn-como-llegar, body.vip .btn-qr, body.vip .btn-usar { background: #d4af37 !important; color: white !important; }
+    /* El botón se vuelve dorado en VIP solo si no está deshabilitado */
+    body.vip .btn-usar:not(:disabled) { background: #d4af37 !important; color: white !important; }
+    body.vip .btn-conozca, body.vip .btn-como-llegar, body.vip .btn-qr { background: #d4af37 !important; color: white !important; }
 
     .cupon { background: white; border-radius: 20px; padding: 25px 20px; margin: 30px 0; box-shadow: 0 5px 18px rgba(0,0,0,0.1); }
     .recuadro-comercio { background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
@@ -46,9 +48,9 @@
     .btn-qr { background: #E91E63; color: white; }
     .btn-usar { background: #2c5aa0; color: white; }
     
-    .btn:disabled { background: #cccccc; cursor: not-allowed; }
+    /* ESTADO DESHABILITADO (Gris para todos) */
+    .btn:disabled { background: #cccccc !important; color: #666666 !important; cursor: not-allowed; box-shadow: none; }
 
-    /* ESTILO AVISO VALIDACIÓN */
     .aviso-validado {
       position: fixed; top: 20%; left: 50%; transform: translateX(-50%);
       width: 90%; max-width: 450px; background: #2e7d32; color: white;
@@ -116,6 +118,7 @@
       
       COMERCIOS.forEach(com => {
         const usado = usos[com.id];
+        const estaValidado = validados[com.id];
         const beneficioMostrar = registro.tipo === 'vip' ? (com.descuentoVip || com.beneficio) : com.beneficio;
         
         const cupon = document.createElement('div');
@@ -130,11 +133,11 @@
           
           <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px;">
             <a href="${com.web || '#'}" class="btn btn-conozca" target="_blank">Conozca el comercio</a>
-            <a href="http://google.com/maps/search/?api=1&query=${encodeURIComponent(com.nombre + ' ' + com.direccion)}" class="btn btn-como-llegar" target="_blank">Cómo llegar</a>
+            <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(com.nombre + ' ' + com.direccion)}" class="btn btn-como-llegar" target="_blank">Cómo llegar</a>
             
             ${!usado ? `
               <button class="btn btn-qr" onclick="abrirCamara('${com.id}', '${com.tokenQR}')">Validar QR en Comercio</button>
-              <button class="btn btn-usar" id="btn-usar-${com.id}" ${!validados[com.id] ? 'disabled' : ''} onclick="usar('${com.id}', '${com.nombre}', '${beneficioMostrar}')">Usar el beneficio</button>
+              <button class="btn btn-usar" id="btn-usar-${com.id}" ${!estaValidado ? 'disabled' : ''} onclick="usar('${com.id}', '${com.nombre}', '${beneficioMostrar}')">Usar el beneficio</button>
             ` : `
               <div style="text-align:center; color:#b71c1c; font-weight:bold; padding:10px;">✅ Beneficio ya utilizado</div>
             `}
@@ -204,10 +207,9 @@
             validados[id]=true; 
             localStorage.setItem('validadosHabitatCar', JSON.stringify(validados)); 
             
-            // --- NUEVO TEXTO DE VALIDACIÓN ---
             const msj = document.createElement('div');
             msj.className = 'aviso-validado';
-            msj.innerHTML = `<h2>✅ ¡VALIDADO!</h2><p>Ya se activó del botón "Usar el beneficio"</p>`;
+            msj.innerHTML = `<h2>✅ ¡VALIDADO!</h2><p>Ya podés hacer uso del botón "Usar el beneficio"</p>`;
             document.body.appendChild(msj);
             
             setTimeout(() => { 
