@@ -17,6 +17,7 @@
     .terminos input[type="checkbox"]{margin-right:12px;transform:scale(1.4);margin-top:4px;}
     .terminos label{font-size:18px;line-height:1.4;}
     
+    /* Estilos del botón VIP */
     .btn{
       width:100%;
       padding:16px;
@@ -31,7 +32,7 @@
       transition: background 0.3s ease;
     }
     .btn.activo{
-      background:#6a1b9a;
+      background:#6a1b9a; /* Color VIP púrpura */
       cursor:pointer;
     }
 
@@ -39,7 +40,7 @@
     .mensaje-error-contenido{background:white;border-radius:20px;padding:30px;text-align:center;max-width:520px;width:90%}
     .mensaje-error-contenido h3{color:#d32f2f;font-size:26px;margin:0 0 20px;font-weight:bold}
     .mensaje-error-contenido p{font-size:22px;line-height:1.5;margin-bottom:25px;font-weight:bold;color:#333}
-    .mensaje-error-btn{padding:16px;font-size:20px;font-weight:bold;border-radius:12px;background:#2c5aa0;color:white;border:none;cursor:pointer}
+    .mensaje-error-btn{padding:16px;font-size:20px;font-weight:bold;border-radius:12px;background:#d32f2f;color:white;border:none;cursor:pointer}
   </style>
 </head>
 <body>
@@ -63,9 +64,6 @@
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
     
-    // URL DE TU SCRIPT (Asegúrate de que sea la última versión implementada)
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbza_odRWyS7cdkBOl5qndhkkhajI2Ew4LYpFjOQOzUeu2gcVB_DONjzHic8KFlcDaZCTQ/exec";
-
     if (!token) {
       alert("Acceso no autorizado. Usa el link de invitación.");
       window.location.replace("/");
@@ -82,12 +80,12 @@
       }
     });
 
-    function mostrarErrorModal(mensaje, titulo = "⚠️ Atención") {
+    function mostrarErrorModal(mensaje) {
       const modal = document.createElement('div');
       modal.className = 'mensaje-error-modal';
       modal.innerHTML = `
         <div class="mensaje-error-contenido">
-          <h3>${titulo}</h3>
+          <h3>⚠️ Atención</h3>
           <p>${mensaje}</p>
           <button class="mensaje-error-btn" onclick="this.parentElement.parentElement.remove()">Aceptar</button>
         </div>
@@ -109,9 +107,14 @@
         mostrarErrorModal("Por favor, completá nombre y WhatsApp.");
         return;
       }
+
+      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxgDElajJ9JFV6WPInb-YMyY7dfd8uRd2SpXpF9CgQU4k0tCxRabbZ_c_L7TkAmAo_uw/exec";
       
       fetch(APPS_SCRIPT_URL + "?accion=registrarVip&nombre=" + encodeURIComponent(nombre) + "&whatsapp=" + whatsapp + "&email=" + encodeURIComponent(email) + "&token=" + encodeURIComponent(token))
-        .then(resp => resp.json())
+        .then(resp => {
+          if (!resp.ok) throw new Error("Error en la conexión");
+          return resp.json();
+        })
         .then(data => {
           if (data.success) {
             localStorage.setItem('usuarioHabitatCar', JSON.stringify({
@@ -121,16 +124,15 @@
               tipo: 'vip',
               fechaRegistro: new Date().toISOString()
             }));
-            mostrarErrorModal("✅ ¡Registro VIP exitoso! Ya podés disfrutar tus beneficios.", "¡Bienvenido!");
-            setTimeout(() => window.location.replace("/cupones/"), 2500);
+            mostrarErrorModal("✅ ¡Registro VIP exitoso! Redirigiendo...");
+            setTimeout(() => window.location.replace("/cupones/"), 2000);
           } else {
-            // MENSAJE CORREGIDO AQUÍ
-            mostrarErrorModal("Este link de invitación ya fue usado o no es válido.", "Link No Válido");
+            mostrarErrorModal(data.mensaje || "❌ Token inválido o ya usado");
           }
         })
         .catch(err => {
           console.error("Error:", err);
-          mostrarErrorModal("No se pudo conectar con el sistema. Reintentá en unos momentos.");
+          mostrarErrorModal("❌ No se pudo completar el registro. Intente más tarde.");
         });
     }
   </script>
