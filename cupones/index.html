@@ -62,26 +62,33 @@
 
     .mensaje-error {
       position: fixed;
-      bottom: 30px;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
-      background: #f44336;
+      transform: translate(-50%, -50%);
+      background: #d32f2f;
       color: white;
-      padding: 16px 24px;
-      border-radius: 14px;
+      padding: 20px 24px;
+      border-radius: 16px;
       font-size: 20px;
       font-weight: bold;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      z-index: 9998;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+      z-index: 9999;
       max-width: 90%;
       text-align: center;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .mensaje-error::before {
+      content: "❌";
+      font-size: 28px;
     }
 
-    .qr-scanner { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; padding: 20px; }
+    .qr-scanner { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9998; padding: 20px; }
     .qr-scanner video { width: 90%; max-width: 500px; border: 2px dashed #fff; border-radius: 12px; }
     .close-btn { background: #d32f2f; color: white; border: none; border-radius: 12px; padding: 14px 28px; font-size: 18px; margin-top: 15px; }
 
-    .advertencia-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 9999; padding: 20px; }
+    .advertencia-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 9997; padding: 20px; }
     .advertencia-contenido { background: white; border-radius: 20px; padding: 30px; text-align: center; max-width: 520px; width: 90%; }
   </style>
 </head>
@@ -211,40 +218,55 @@
     }
 
     let stream;
+    let scanning = false; // 🔒 Evita múltiples escaneos simultáneos
+
     function abrirCamara(id, tokenEsperado) {
-      const sc = document.createElement('div'); sc.className='qr-scanner';
-      sc.innerHTML = `<video id="v"></video><button class="close-btn" onclick="cerrar()">Cerrar</button>`;
+      if (scanning) return; // ❌ Ya hay una cámara activa
+      scanning = true;
+
+      const sc = document.createElement('div'); 
+      sc.className = 'qr-scanner';
+      sc.innerHTML = `<video id="v"></video><button class="close-btn" onclick="cerrarCamara()">Cerrar</button>`;
       document.body.appendChild(sc);
+      
+      const video = document.getElementById('v');
       const scanner = new ZXing.BrowserMultiFormatReader();
-      navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}}).then(s=>{
-        stream=s; document.getElementById('v').srcObject=s; document.getElementById('v').play();
-        scanner.decodeFromVideoDevice(undefined,'v',(result, err)=>{
-          if(result) {
-            const textoLeido = result.getText().trim();
-            cerrar();
-            // ✅ VALIDAR EL TOKEN EN EL SERVIDOR
-            validarTokenConComercio(id, textoLeido, tokenEsperado);
-          }
-          if (err && !(err instanceof ZXing.NotFoundException)) {
-            cerrar();
-          }
+      
+      navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}})
+        .then(s => {
+          stream = s;
+          video.srcObject = s;
+          video.play();
+          
+          scanner.decodeFromVideoDevice(undefined, 'v', (result, err) => {
+            if (result) {
+              const textoLeido = result.getText().trim();
+              cerrarCamara(); // ✅ Cerrar antes de validar
+              validarTokenConComercio(id, textoLeido, tokenEsperado);
+            }
+            if (err && !(err instanceof ZXing.NotFoundException)) {
+              cerrarCamara();
+            }
+          });
+        })
+        .catch(() => {
+          cerrarCamara();
+          mostrarError("❌ No se pudo acceder a la cámara.");
         });
-      }).catch(() => {
-        cerrar();
-        mostrarError("❌ No se pudo acceder a la cámara.");
-      });
     }
 
-    function cerrar(){ 
-      if(stream) stream.getTracks().forEach(t=>t.stop()); 
+    function cerrarCamara() {
+      scanning = false;
+      if (stream) {
+        stream.getTracks().forEach(t => t.stop());
+        stream = null;
+      }
       const scanner = document.querySelector('.qr-scanner');
-      if (scanner) scanner.remove(); 
+      if (scanner) scanner.remove();
     }
 
     function validarTokenConComercio(comercioId, tokenEscaneado, tokenEsperado) {
-      // Primero, validar localmente para agilizar
       if (tokenEscaneado === tokenEsperado) {
-        // ✅ Token local correcto: validar en servidor
         fetch(APPS_SCRIPT_URL + "?accion=validarToken&comercioId=" + encodeURIComponent(comercioId) + "&token=" + encodeURIComponent(tokenEscaneado))
           .then(resp => resp.json())
           .then(data => {
@@ -254,32 +276,39 @@
               
               const msj = document.createElement('div');
               msj.className = 'aviso-validado';
-              msj.innerHTML = `<h2>✅ ¡VALIDADO!</h2><p>Ya podés hacer uso del botón "Usar el beneficio"</p>`;
+              msj.innerHTML = `<h2>✅ ¡VALIDADO!</h2><p>Ya podés usar el beneficio</p>`;
               document.body.appendChild(msj);
               
               setTimeout(() => { 
-                msj.remove(); 
+                if (msj.parentNode) msj.parentNode.removeChild(msj); 
                 cargarComercios(); 
               }, 3500);
             } else {
-              mostrarError("❌ Token no válido para este comercio.");
+              mostrarError("Token no válido para este comercio.");
             }
           })
           .catch(() => {
-            mostrarError("❌ Error al validar el QR.");
+            mostrarError("Error al validar el QR.");
           });
       } else {
-        // ❌ Token local incorrecto
-        mostrarError("❌ Token no válido para este comercio.");
+        mostrarError("Token no válido para este comercio.");
       }
     }
 
     function mostrarError(mensaje) {
+      // ✅ Eliminar mensaje anterior si existe
+      const existing = document.querySelector('.mensaje-error');
+      if (existing) existing.remove();
+      
       const error = document.createElement('div');
       error.className = 'mensaje-error';
       error.textContent = mensaje;
       document.body.appendChild(error);
-      setTimeout(() => error.remove(), 4000);
+      
+      // ✅ Desaparece en 3 segundos
+      setTimeout(() => {
+        if (error.parentNode) error.parentNode.removeChild(error);
+      }, 3000);
     }
 
     verificarTipoUsuario();
