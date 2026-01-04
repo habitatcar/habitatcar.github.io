@@ -1,70 +1,3 @@
-const SHEET_ID = "12FhkfYkKM67zifEeBwlAzHSJExXpB0tuq1ey-CyUzHU";
-
-function generarHTMLFacil() {
-  const sheet = SpreadsheetApp.openById(SHEET_ID);
-  
-  const comerciosSheet = sheet.getSheetByName("Comercios");
-  const datosComercios = comerciosSheet.getDataRange().getValues();
-  let comercios = [];
-  for (let i = 1; i < datosComercios.length; i++) {
-    const fila = datosComercios[i];
-    const id = fila[0] || "";
-    const nombre = fila[1] || "";
-    const logo = fila[2] || "";
-    const beneficioLead = fila[3] || "";
-    const vigenciaLead = parseInt(fila[4]) || 30;
-    const beneficioVip = fila[5] || beneficioLead;
-    const vigenciaVip = parseInt(fila[6]) || 0;
-    const estado = fila[7] ? fila[7].toString().toLowerCase().trim() : "";
-    const direccion = fila[8] || "";
-    const telefono = fila[9] || "";
-    const mapa = fila[10] || "";
-    const instagram = fila[12] || "";
-    const facebook = fila[13] || "";
-    const x = fila[14] || "";
-    
-    let tokenQR = fila[11];
-    if (!tokenQR && id) {
-      const numeroAleatorio = Math.floor(Math.random() * 900000) + 100000;
-      tokenQR = "token_" + id.toLowerCase() + "_" + numeroAleatorio;
-      comerciosSheet.getRange(i + 1, 12).setValue(tokenQR);
-    }
-    
-    if (estado === "activo") {
-      comercios.push({
-        id: id,
-        nombre: nombre,
-        logo: logo,
-        beneficio: beneficioLead,
-        vigenciaLead: vigenciaLead,
-        descuentoVip: beneficioVip,
-        vigenciaVip: vigenciaVip,
-        estado: "activo",
-        direccion: direccion,
-        telefono: telefono,
-        mapa: mapa,
-        instagram: instagram,
-        facebook: facebook,
-        x: x,
-        tokenQR: tokenQR
-      });
-    }
-  }
-
-  const tutorialesSheet = sheet.getSheetByName("Tutoriales");
-  const datosTutoriales = tutorialesSheet.getDataRange().getValues();
-  let tutoriales = [];
-  for (let i = 1; i < datosTutoriales.length; i++) {
-    const fila = datosTutoriales[i];
-    const titulo = fila[0] || "";
-    const descripcion = fila[1] || "";
-    const url = fila[2] || "";
-    if (titulo && url) {
-      tutoriales.push({ titulo, descripcion, url });
-    }
-  }
-
-  const htmlCode = `
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -73,6 +6,7 @@ function generarHTMLFacil() {
   <title>Beneficios Habitat-Car</title>
   <script src="https://unpkg.com/@zxing/library@0.18.3/umd/index.min.js"></script>
   <style>
+    /* RESET Y BASES */
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
@@ -81,282 +15,89 @@ function generarHTMLFacil() {
       font-size: 22px;
       line-height: 1.5;
     }
-    .container {
-      max-width: 600px;
-      margin: 0 auto;
-    }
-    .logo {
-      width: 98%;
-      max-width: 520px;
-      display: block;
-      margin: 0 auto 20px;
-    }
-    .titulo {
-      color: #2c5aa0;
-      font-size: 32px;
-      text-align: center;
-      font-weight: bold;
-      margin-bottom: 10px;
-    }
-    #subtitulo {
-      text-align: center;
-      color: #d4af37;
-      font-size: 22px;
-      font-weight: bold;
-      margin-bottom: 15px;
-      display: none;
-    }
-    .botones-superiores {
-      display: flex;
-      gap: 15px;
-      margin-bottom: 25px;
-    }
-    .botones-superiores .btn {
-      flex: 1;
-      padding: 14px;
-      font-size: 18px;
-    }
+    .container { max-width: 600px; margin: 0 auto; }
+    .logo { width: 98%; max-width: 520px; display: block; margin: 0 auto 20px; }
+    .titulo { color: #2c5aa0; font-size: 32px; text-align: center; font-weight: bold; margin-bottom: 10px; }
+    #subtitulo { text-align: center; color: #d4af37; font-size: 22px; font-weight: bold; margin-bottom: 15px; display: none; }
+    
+    /* BOTONES SUPERIORES */
+    .botones-superiores { display: flex; gap: 15px; margin-bottom: 25px; }
+    .botones-superiores .btn { flex: 1; padding: 14px; font-size: 18px; }
     .btn-curioso { background: #ff9800; color: white; }
     .btn-tutorial { background: #03a9f4; color: white; }
-    body.vip {
-      background: #fffaf0;
-    }
-    body.vip .titulo, body.vip #subtitulo {
-      color: #d4af37;
-      text-shadow: 1px 1px 2px rgba(0,0,0,0.1);
-    }
-    body.vip .cupon {
-      border: 2px solid #d4af37;
-      background: white url("image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='2' fill='%23d4af37' opacity='0.2'/%3E%3Ctext x='50' y='60' font-size='40' text-anchor='middle' fill='%23d4af37' opacity='0.1'>%24%3C/text%3E%3C/svg%3E") repeat;
-    }
-    body.vip .btn-conozca, body.vip .btn-como-llegar, body.vip .btn-qr, body.vip .btn-usar {
-      background: #d4af37 !important;
-      color: white !important;
-    }
-    body.vip .vencimiento.normal { background: #fff8e1; color: #5d4037; }
-    body.vip .vencimiento.proximo { background: #ffecb3; color: #e65100; }
-    body.vip .recuadro-comercio {
-      border: 2px solid #d4af37;
-      box-shadow: 0 4px 12px rgba(212, 175, 55, 0.2);
-    }
-    .cupon {
-      background: white;
-      border-radius: 20px;
-      padding: 25px 20px;
-      margin: 30px 0;
-      box-shadow: 0 5px 18px rgba(0,0,0,0.1);
-    }
-    .recuadro-comercio {
-      background: white;
-      border-radius: 16px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-      text-align: center;
-    }
-    .recuadro-comercio img {
-      max-width: 420px;
-      max-height: 252px;
-      margin: 0 auto 15px;
-      display: block;
-    }
-    .recuadro-comercio .nombre-comercio {
-      font-size: 28px;
-      font-weight: bold;
-      color: #2c5aa0;
-      margin: 0;
-    }
-    .cupon.inactivo {
-      background: #e0e0e0 !important;
-      opacity: 1 !important;
-      filter: grayscale(30%) brightness(90%);
-    }
-    .descuento {
-      font-size: 24px;
-      margin: 12px 0;
-      font-weight: bold;
-      color: #2c5aa0;
-    }
-    body.vip .descuento {
-      color: #d4af37;
-    }
-    .info {
-      margin: 12px 0;
-      font-size: 20px;
-      line-height: 1.4;
-    }
-    .vencimiento {
-      font-size: 20px;
-      font-weight: bold;
-      margin: 12px 0;
-      padding: 10px;
-      border-radius: 10px;
-      text-align: center;
-    }
-    .normal { background: #e3f2fd; color: #1976d2; }
-    .proximo { background: #fff3e0; color: #f57c00; }
-    .vencido { background: #ffebee; color: #d32f2f; }
-    .btn {
-      display: block;
-      width: 100%;
-      padding: 16px;
-      border-radius: 16px;
-      font-size: 20px;
-      font-weight: bold;
-      text-align: center;
-      text-decoration: none;
-      cursor: pointer;
-      margin-top: 12px;
-      border: none;
-    }
+
+    /* ESTILOS VIP */
+    body.vip { background: #fffaf0; }
+    body.vip .titulo, body.vip #subtitulo { color: #d4af37; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
+    body.vip .cupon { border: 2px solid #d4af37; background: white; }
+    body.vip .btn-usar:not(:disabled) { background: #d4af37 !important; color: white !important; }
+    body.vip .btn-conozca, body.vip .btn-como-llegar, body.vip .btn-qr { background: #d4af37 !important; color: white !important; }
+
+    /* TARJETA DE CUPÓN */
+    .cupon { background: white; border-radius: 20px; padding: 25px 20px; margin: 30px 0; box-shadow: 0 5px 18px rgba(0,0,0,0.1); }
+    .recuadro-comercio { background: white; border-radius: 16px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); text-align: center; }
+    .recuadro-comercio img { max-width: 100%; height: auto; margin: 0 auto 15px; display: block; }
+    .recuadro-comercio .nombre-comercio { font-size: 28px; font-weight: bold; color: #2c5aa0; margin: 0; }
+    
+    .cupon.inactivo { background: #e0e0e0 !important; opacity: 1 !important; filter: grayscale(30%) brightness(90%); }
+    .descuento { font-size: 24px; margin: 12px 0; font-weight: bold; color: #2c5aa0; text-align: center; }
+    body.vip .descuento { color: #d4af37; }
+    
+    .info { margin: 12px 0; font-size: 20px; line-height: 1.4; }
+    .btn { display: block; width: 100%; padding: 16px; border-radius: 16px; font-size: 20px; font-weight: bold; text-align: center; text-decoration: none; cursor: pointer; margin-top: 12px; border: none; }
+    
     .btn-conozca { background: #9c27b0; color: white; }
     .btn-como-llegar { background: #4CAF50; color: white; }
     .btn-qr { background: #E91E63; color: white; }
     .btn-usar { background: #2c5aa0; color: white; }
-    .btn:disabled {
-      background: #cccccc;
-      cursor: not-allowed;
+    
+    .btn:disabled { background: #cccccc !important; color: #666666 !important; cursor: not-allowed; box-shadow: none; }
+
+    /* CARTELES DE VALIDACIÓN Y ERROR */
+    .aviso-validado {
+      position: fixed; top: 20%; left: 50%; transform: translateX(-50%);
+      width: 90%; max-width: 450px; background: #2e7d32; color: white;
+      padding: 30px; border-radius: 25px; text-align: center; z-index: 10001;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3); border: 4px solid #fff;
     }
-    #grilla, #redes, #tutoriales { display: block; }
-    #redes, #tutoriales { display: none; text-align: center; padding: 30px 20px; }
-    .video-item {
-      background: white;
-      border-radius: 16px;
-      padding: 20px;
-      margin: 15px 0;
-      box-shadow: 0 3px 10px rgba(0,0,0,0.1);
-      text-align: left;
-    }
-    .video-item h3 {
-      font-size: 20px;
-      margin: 0 0 10px;
-      color: #03a9f4;
-    }
-    .video-item p {
-      font-size: 18px;
-      margin: 0 0 15px;
-      color: #555;
-    }
-    .qr-scanner {
+    .aviso-validado h2 { font-size: 32px; margin-bottom: 10px; }
+    .aviso-validado p { font-size: 24px; font-weight: bold; line-height: 1.3; }
+
+    #mensaje-error-global {
       position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.95);
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-      padding: 20px;
-    }
-    .qr-scanner video {
-      width: 90%;
-      max-width: 500px;
-      border: 2px dashed #fff;
-      border-radius: 12px;
-      margin-bottom: 25px;
-    }
-    .qr-scanner .close-btn {
-      background: #d32f2f;
-      color: white;
-      border: none;
-      border-radius: 12px;
-      padding: 14px 28px;
-      font-size: 18px;
-      font-weight: bold;
-      cursor: pointer;
-      margin-top: 15px;
-    }
-    .qr-scanner p {
-      color: white;
-      font-size: 20px;
-      text-align: center;
-      margin-top: 15px;
-      font-weight: bold;
-    }
-    .mensaje-error {
-      position: fixed;
-      bottom: 30px;
+      top: 50%;
       left: 50%;
-      transform: translateX(-50%);
-      background: #f44336;
+      transform: translate(-50%, -50%);
+      background: #1976d2; 
+      border: 4px solid #d32f2f; 
       color: white;
-      padding: 16px 24px;
-      border-radius: 14px;
-      font-size: 20px;
-      font-weight: bold;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-      z-index: 9998;
-      max-width: 90%;
-      text-align: center;
-    }
-    .advertencia-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: rgba(0,0,0,0.8);
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      z-index: 9999;
-      padding: 20px;
-    }
-    .advertencia-contenido {
-      background: white;
+      padding: 24px 30px;
       border-radius: 20px;
-      padding: 30px;
-      text-align: center;
-      max-width: 520px;
-      width: 90%;
-    }
-    .advertencia-contenido h3 {
-      color: #d32f2f;
-      font-size: 26px;
-      margin: 0 0 20px;
-      font-weight: bold;
-    }
-    .advertencia-contenido p {
       font-size: 22px;
-      line-height: 1.5;
-      margin-bottom: 25px;
       font-weight: bold;
-      color: #333;
+      text-align: center;
+      z-index: 10000;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      display: none;
+      max-width: 90%;
     }
-    .advertencia-btns {
-      display: flex;
-      gap: 15px;
-      justify-content: center;
+    #mensaje-error-global::before {
+      content: "❌";
+      display: block;
+      font-size: 52px;
+      color: #d32f2f; 
+      text-shadow: 0 0 8px white;
+      margin-bottom: 14px;
+      line-height: 1;
     }
-    .advertencia-btn {
-      padding: 16px;
-      font-size: 20px;
-      font-weight: bold;
-      border-radius: 12px;
-      flex: 1;
-    }
-    .btn-si { background: #d32f2f; color: white; border: none; }
-    .btn-no { background: #666; color: white; border: none; }
-    #reiniciar-btn {
-      position: fixed;
-      bottom: 15px;
-      right: 15px;
-      width: 50px;
-      height: 50px;
-      background: #ff9800;
-      color: white;
-      border: none;
-      border-radius: 50%;
-      font-size: 24px;
-      cursor: pointer;
-      z-index: 999;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
+
+    /* SCANNER Y MODALES */
+    .qr-scanner { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; padding: 20px; }
+    .qr-scanner video { width: 90%; max-width: 500px; border: 2px dashed #fff; border-radius: 12px; }
+    .close-btn { background: #d32f2f; color: white; border: none; border-radius: 12px; padding: 14px 28px; font-size: 18px; margin-top: 15px; }
+
+    .advertencia-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 9998; padding: 20px; }
+    .advertencia-contenido { background: white; border-radius: 20px; padding: 30px; text-align: center; max-width: 520px; width: 90%; }
   </style>
 </head>
 <body id="body">
@@ -364,688 +105,195 @@ function generarHTMLFacil() {
     <img src="/logo.png" alt="Habitat-Car" class="logo">
     <div class="titulo">🎁 Tus beneficios Habitat-Car</div>
     <div id="subtitulo"></div>
+    
     <div class="botones-superiores">
-      <button class="btn btn-curioso" onclick="alert('Próximamente: información sobre Habitat-Car.')">Soy curioso</button>
-      <button class="btn btn-tutorial" onclick="mostrarTutoriales()">Tutorial</button>
+      <button class="btn btn-curioso" onclick="alert('Próximamente más info.')">Soy curioso</button>
+      <button class="btn btn-tutorial" onclick="alert('Próximamente tutorial.')">Tutorial</button>
     </div>
+
     <div id="grilla"></div>
     <div id="redes"></div>
-    <div id="tutoriales"></div>
   </div>
-  <button id="reiniciar-btn" onclick="reiniciarCupones()">🔄</button>
+
+  <div id="mensaje-error-global"></div>
+
   <script>
-    const COMERCIOS = ${JSON.stringify(comercios)};
-    const TUTORIALES = ${JSON.stringify(tutoriales)};
-    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyznkL4rOleXwD6NxJSzN9J7kTdCSshvW-vZFpN-5G8UbaZnPDeaJ69pVqsO-3acud3HA/exec";
+    const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxgDElajJ9JFV6WPInb-YMyY7dfd8uRd2SpXpF9CgQU4k0tCxRabbZ_c_L7TkAmAo_uw/exec";
 
     let usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
     let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
     let registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
+    let scanning = false;
 
     function verificarTipoUsuario() {
-      if (!registro.whatsapp) {
-        window.location.replace("/registroleads/");
-        return;
-      }
-
-      if (registro.tipo === 'vip') {
-        document.getElementById('body').className = 'vip';
-        document.getElementById('subtitulo').style.display = 'block';
-        document.getElementById('subtitulo').textContent = 'Clientes VIP';
-        mostrarGrilla();
-        return;
-      }
-
+      if (!registro.whatsapp) { window.location.replace("/registroleads/"); return; }
       fetch(APPS_SCRIPT_URL + "?accion=verificarVip&whatsapp=" + registro.whatsapp)
         .then(resp => resp.json())
         .then(data => {
-          if (data && data.tipo === 'vip') {
-            registro.tipo = 'vip';
-            localStorage.setItem('usuarioHabitatCar', JSON.stringify(registro));
+          registro.tipo = (data && data.tipo === 'vip') ? 'vip' : 'lead';
+          localStorage.setItem('usuarioHabitatCar', JSON.stringify(registro));
+          if (registro.tipo === 'vip') {
             document.getElementById('body').className = 'vip';
             document.getElementById('subtitulo').style.display = 'block';
             document.getElementById('subtitulo').textContent = 'Clientes VIP';
-          } else {
-            document.getElementById('subtitulo').style.display = 'none';
           }
-          mostrarGrilla();
-        })
-        .catch(err => {
-          mostrarGrilla();
+          cargarComercios();
         });
     }
 
-    function mostrarGrilla() {
-      document.getElementById('grilla').style.display = 'block';
-      document.getElementById('redes').style.display = 'none';
-      document.getElementById('tutoriales').style.display = 'none';
-      document.getElementById('grilla').innerHTML = '';
-      const hoy = new Date();
+    function cargarComercios() {
+      fetch(APPS_SCRIPT_URL + "?accion=obtenerComercios")
+        .then(resp => resp.json())
+        .then(comercios => mostrarGrilla(comercios));
+    }
+
+    function mostrarGrilla(COMERCIOS) {
+      const grilla = document.getElementById('grilla');
+      grilla.innerHTML = '';
       COMERCIOS.forEach(com => {
         const usado = usos[com.id];
-        let vencimientoHtml = '';
-        let esVencido = false;
-        let esProximo = false;
-        if (!usado) {
-          const fechaActivacion = registro.fechaRegistro ? new Date(registro.fechaRegistro) : hoy;
-          const vigenciaDias = registro.tipo === 'vip' ? com.vigenciaVip : com.vigenciaLead;
-          const esIlimitado = vigenciaDias === 0;
-          if (!esIlimitado) {
-            const fechaVencimiento = new Date(fechaActivacion);
-            fechaVencimiento.setDate(fechaActivacion.getDate() + vigenciaDias);
-            const diffTime = fechaVencimiento - hoy;
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-            if (diffDays <= 0) {
-              esVencido = true;
-              vencimientoHtml = \`<div class="vencimiento vencido">❌ Cupón vencido</div>\`;
-            } else if (diffDays <= 3) {
-              esProximo = true;
-              vencimientoHtml = \`<div class="vencimiento proximo">⚠️ Cupón de \${com.nombre} próximo a vencer</div>\`;
-            } else {
-              vencimientoHtml = \`<div class="vencimiento normal">Vence en \${diffDays} días</div>\`;
-            }
-          } else {
-            vencimientoHtml = \`<div class="vencimiento normal">✅ Vigencia ilimitada</div>\`;
-          }
-        }
-        let recuadroComercio = '';
-        if (com.logo) {
-          recuadroComercio = \`<div class="recuadro-comercio"><img src="\${com.logo}" alt="\${com.nombre}"><h2 class="nombre-comercio">\${com.nombre}</h2></div>\`;
-        } else {
-          recuadroComercio = \`<div class="recuadro-comercio"><h2 class="nombre-comercio">\${com.nombre}</h2></div>\`;
-        }
+        const estaValidado = validados[com.id];
         const beneficioMostrar = registro.tipo === 'vip' ? (com.descuentoVip || com.beneficio) : com.beneficio;
         const cupon = document.createElement('div');
-        cupon.className = \`cupon \${usado || esVencido ? 'inactivo' : ''}\`;
-        cupon.innerHTML = \`
-          \${recuadroComercio}
-          <div class="descuento">\${beneficioMostrar}</div>
-          \${vencimientoHtml}
-          <div class="info"><strong>📍 Dirección:</strong> \${com.direccion}</div>
-          \${com.telefono ? \`<div class="info"><strong>📞 Teléfono:</strong> <a href="tel:\${com.telefono}">\${com.telefono}</a></div>\` : ''}
+        cupon.className = `cupon ${usado ? 'inactivo' : ''}`;
+        cupon.innerHTML = `
+          <div class="recuadro-comercio">
+            ${com.logo ? `<img src="${com.logo}">` : ''}
+            <h2 class="nombre-comercio">${com.nombre}</h2>
+          </div>
+          <div class="descuento">${beneficioMostrar}</div>
+          <div class="info"><strong>📍 Dirección:</strong> ${com.direccion}</div>
           <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px;">
-            <button class="btn btn-conozca" onclick="mostrarRedes('\${com.id}')">Conozca el Comercio</button>
-            \${com.mapa ? \`<a href="\${com.mapa}" target="_blank" class="btn btn-como-llegar">Cómo llegar</a>\` : ''}
-            \${!usado && !esVencido ? 
-              \`<button class="btn btn-qr" onclick="abrirCamara('\${com.id}', '\${com.tokenQR}')">Validar Cupón con QR en el comercio</button>\` :
-              \`<div style="text-align:center; color:#b71c1c; font-weight:bold;">\${usado ? '✅ Beneficio ya utilizado' : '❌ Cupón vencido'}</div>\`
-            }
-            <button class="btn btn-usar" id="btn-usar-\${com.id}" \${usado || esVencido || !validados[com.id] ? 'disabled' : ''} onclick="usar('\${com.id}', '\${com.nombre}', '\${beneficioMostrar}')">Usar el beneficio</button>
+            <a href="${com.web || '#'}" class="btn btn-conozca" target="_blank">Conozca el comercio</a>
+            <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(com.nombre + ' ' + com.direccion)}" class="btn btn-como-llegar" target="_blank">Cómo llegar</a>
+            ${!usado ? `
+              <button class="btn btn-qr" onclick="abrirCamara('${com.id}', '${com.tokenQR}')">Validar QR en Comercio</button>
+              <button class="btn btn-usar" id="btn-usar-${com.id}" ${!estaValidado ? 'disabled' : ''} onclick="usar('${com.id}', '${com.nombre}', '${beneficioMostrar}')">Usar el beneficio</button>
+            ` : `
+              <div style="text-align:center; color:#b71c1c; font-weight:bold; padding:10px;">✅ Beneficio ya utilizado</div>
+            `}
           </div>
-        \`;
-        document.getElementById('grilla').appendChild(cupon);
+        `;
+        grilla.appendChild(cupon);
       });
-    }
-
-    function mostrarRedes(comercioId) {
-      const com = COMERCIOS.find(c => c.id === comercioId);
-      if (!com) return;
-      let enlaces = '';
-      if (com.instagram) enlaces += \`<a href="\${com.instagram}" target="_blank" class="btn btn-conozca">Instagram</a>\`;
-      if (com.facebook) enlaces += \`<a href="\${com.facebook}" target="_blank" class="btn btn-conozca">Facebook</a>\`;
-      if (com.x) enlaces += \`<a href="\${com.x}" target="_blank" class="btn btn-conozca">X (Twitter)</a>\`;
-      if (!enlaces) {
-        alert("Este comercio no tiene redes sociales registradas.");
-        return;
-      }
-      let recuadroComercio = '';
-      if (com.logo) {
-        recuadroComercio = \`<div class="recuadro-comercio"><img src="\${com.logo}" alt="\${com.nombre}"><h2 class="nombre-comercio">\${com.nombre}</h2></div>\`;
-      } else {
-        recuadroComercio = \`<div class="recuadro-comercio"><h2 class="nombre-comercio">\${com.nombre}</h2></div>\`;
-      }
-      document.getElementById('grilla').style.display = 'none';
-      document.getElementById('redes').style.display = 'block';
-      document.getElementById('redes').innerHTML = \`
-        \${recuadroComercio}
-        <div style="margin-top:20px; display:flex; flex-direction:column; gap:12px;">
-          \${enlaces}
-          <button class="btn" style="background:#666; color:white;" onclick="mostrarGrilla()">Volver a beneficios</button>
-        </div>
-      \`;
-    }
-
-    function mostrarTutoriales() {
-      if (TUTORIALES.length === 0) {
-        alert("No hay tutoriales disponibles.");
-        return;
-      }
-      let videos = '';
-      TUTORIALES.forEach(tut => {
-        videos += \`
-          <div class="video-item">
-            <h3>\${tut.titulo}</h3>
-            <p>\${tut.descripcion}</p>
-            <a href="\${tut.url}" target="_blank" class="btn" style="background:#03a9f4; color:white;">Ver video</a>
-          </div>
-        \`;
-      });
-      document.getElementById('grilla').style.display = 'none';
-      document.getElementById('redes').style.display = 'none';
-      document.getElementById('tutoriales').style.display = 'block';
-      document.getElementById('tutoriales').innerHTML = \`
-        <img src="/logo.png" alt="Habitat-Car" class="logo">
-        <h2 style="font-size:32px; color:#2c5aa0; margin:20px 0; text-align:center;">🎓 Tutoriales</h2>
-        <div style="margin-top:20px;">
-          \${videos}
-          <button class="btn" style="background:#666; color:white; margin-top:20px;" onclick="mostrarGrilla()">Volver a beneficios</button>
-        </div>
-      \`;
-    }
-
-    let codigoQR;
-    let video;
-    let stream;
-
-    function abrirCamara(comercioId, tokenEsperado) {
-      const scanner = document.createElement('div');
-      scanner.className = 'qr-scanner';
-      scanner.innerHTML = \`
-        <video id="video-qr"></video>
-        <p style="color:white; font-size:20px; font-weight:bold;">Apuntá al QR del comercio</p>
-        <button class="close-btn" onclick="cerrarCamara()">Cerrar</button>
-      \`;
-      document.body.appendChild(scanner);
-      video = document.getElementById('video-qr');
-      codigoQR = new ZXing.BrowserMultiFormatReader();
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-        .then(s => {
-          stream = s;
-          video.srcObject = stream;
-          video.play();
-          codigoQR.decodeFromVideoDevice(undefined, 'video-qr', (result, err) => {
-            if (result) {
-              const textoLeido = result.getText().trim();
-              if (textoLeido === tokenEsperado) {
-                cerrarCamara();
-                validarCupon(comercioId);
-              } else {
-                cerrarCamara();
-                mostrarError("❌ Token no válido para este comercio.");
-              }
-            }
-            if (err && !(err instanceof ZXing.NotFoundException)) {
-              cerrarCamara();
-            }
-          });
-        })
-        .catch(err => {
-          cerrarCamara();
-          mostrarError("❌ No se pudo acceder a la cámara.");
-        });
-    }
-
-    function cerrarCamara() {
-      if (stream) stream.getTracks().forEach(track => track.stop());
-      const scanner = document.querySelector('.qr-scanner');
-      if (scanner) scanner.remove();
-      if (codigoQR) codigoQR.reset();
-    }
-
-    function mostrarError(mensaje) {
-      const error = document.createElement('div');
-      error.className = 'mensaje-error';
-      error.textContent = mensaje;
-      document.body.appendChild(error);
-      setTimeout(() => error.remove(), 4000);
-    }
-
-    function validarCupon(comercioId) {
-      validados[comercioId] = true;
-      localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
-      const btn = document.getElementById(\`btn-usar-\${comercioId}\`);
-      if (btn) btn.disabled = false;
-      mostrarError("✅ QR validado. Ya podés usar el beneficio.");
     }
 
     function usar(comercioId, nombre, beneficio) {
-      if (!validados[comercioId]) {
-        mostrarError("⚠️ Primero validá el QR en el comercio.");
-        return;
-      }
-      if (usos[comercioId]) {
-        mostrarError("✅ Ya usaste este beneficio.");
-        return;
-      }
       const alerta = document.createElement('div');
       alerta.className = 'advertencia-overlay';
-      alerta.innerHTML = \`
+      alerta.innerHTML = `
         <div class="advertencia-contenido">
           <h3>⚠️ ¡ATENCIÓN!</h3>
-          <p>¿Avisaste al cajero que usarás el cupón de descuento?<br>
-          <strong>Si no le avisaste, perderás la validez del beneficio.</strong></p>
-          <div class="advertencia-btns">
-            <button class="advertencia-btn btn-si" onclick="confirmarUso('\${comercioId}', '\${nombre}', '\${beneficio}')">SÍ, le avisé</button>
-            <button class="advertencia-btn btn-no" onclick="cerrarAdvertencia()">Volver</button>
-          </div>
+          <p>¿Avisaste al cajero? Si no avisás ahora, perdés el beneficio.</p>
+          <button class="btn btn-usar" onclick="confirmarUso('${comercioId}', '${nombre}', '${beneficio}')">SÍ, AVISÉ</button>
+          <button class="btn" style="background:#666; color:white;" onclick="this.parentElement.parentElement.remove()">VOLVER</button>
         </div>
-      \`;
+      `;
       document.body.appendChild(alerta);
     }
 
-    function cerrarAdvertencia() {
-      const alerta = document.querySelector('.advertencia-overlay');
-      if (alerta) alerta.remove();
-    }
-
     function confirmarUso(comercioId, nombre, beneficio) {
-      cerrarAdvertencia();
-      usos[comercioId] = true;
-      localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
-
-      const registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
-      const whatsapp = registro.whatsapp || "desconocido";
-      const nombreUsuario = registro.nombre || "desconocido";
-      const tipo = registro.tipo || "lead";
-
-      const com = COMERCIOS.find(c => c.id === comercioId);
-      const tokenQR = com ? com.tokenQR : "token_desconocido";
-
-      fetch(APPS_SCRIPT_URL + "?accion=registrarUso&whatsapp=" + encodeURIComponent(whatsapp) + 
-            "&nombre=" + encodeURIComponent(nombreUsuario) + 
-            "&tipo=" + encodeURIComponent(tipo) + 
-            "&comercioId=" + encodeURIComponent(comercioId) + 
-            "&comercioNombre=" + encodeURIComponent(nombre) + 
-            "&beneficio=" + encodeURIComponent(beneficio) + 
-            "&tokenQR=" + encodeURIComponent(tokenQR))
-        .catch(err => console.log("Error al registrar uso:", err));
-
-      document.getElementById('grilla').innerHTML = \`
-        <div style="text-align:center; padding:40px 20px;">
-          <img src="/logo.png" alt="Habitat-Car" style="width:98%; max-width:520px; margin-bottom:20px;">
-          <h2>🎉 ¡FELICITACIONES!</h2>
-          <p>Beneficio activado en <strong>\${nombre}</strong>.</p>
-          <p>\${beneficio}</p>
-          <div id="contador" style="font-size:60px; font-weight:bold; color:#d32f2f; margin:20px 0;">30</div>
-          <p>Válido por 30 segundos.</p>
+      document.querySelector('.advertencia-overlay').remove();
+      if (registro.tipo !== 'vip') {
+        usos[comercioId] = true;
+        localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
+      }
+      fetch(APPS_SCRIPT_URL + "?accion=registrarUso&whatsapp=" + registro.whatsapp + "&comercioNombre=" + encodeURIComponent(nombre) + "&tipo=" + registro.tipo);
+      document.getElementById('grilla').innerHTML = `
+        <div style="text-align:center; padding:40px 20px; background:white; border-radius:20px;">
+          <h2>🎉 ¡BENEFICIO ACTIVADO!</h2>
+          <p>Mostrá esto en caja:</p>
+          <div id="contador" style="font-size:80px; font-weight:bold; color:#d4af37;">30</div>
+          <p style="font-size:24px; font-weight:bold;">${beneficio}</p>
         </div>
-      \`;
+      `;
       let c = 30;
       const int = setInterval(() => {
         c--;
-        document.getElementById('contador').textContent = c;
+        if(document.getElementById('contador')) document.getElementById('contador').textContent = c;
         if (c <= 0) {
           clearInterval(int);
-          usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
-          verificarTipoUsuario();
+          validados[comercioId] = false; 
+          localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
+          location.reload();
         }
       }, 1000);
     }
 
-    function reiniciarCupones() {
-      if (confirm("¿Reiniciar cupones? Se borrarán usos y validaciones.")) {
-        localStorage.removeItem('usosHabitatCar');
-        localStorage.removeItem('validadosHabitatCar');
-        localStorage.removeItem('usuarioHabitatCar');
-        usos = {};
-        validados = {};
-        registro = {};
-        window.location.replace("/registroleads/");
+    let stream;
+    function abrirCamara(id, tokenEsperado) {
+      if (scanning) return;
+      scanning = true;
+      const sc = document.createElement('div'); 
+      sc.className = 'qr-scanner';
+      sc.innerHTML = `<video id="v" playsinline></video><button class="close-btn" onclick="cerrarCamara()">Cerrar</button>`;
+      document.body.appendChild(sc);
+      const video = document.getElementById('v');
+      const scanner = new ZXing.BrowserMultiFormatReader();
+      navigator.mediaDevices.getUserMedia({video: {facingMode: "environment"}})
+        .then(streamObj => {
+          stream = streamObj;
+          video.srcObject = streamObj;
+          video.play();
+          scanner.decodeFromVideoDevice(undefined, 'v', (result, err) => {
+            if (result) {
+              const textoLeido = result.getText().trim();
+              cerrarCamara();
+              validarTokenConComercio(id, textoLeido, tokenEsperado);
+            }
+          });
+        })
+        .catch(() => {
+          cerrarCamara();
+          mostrarErrorGlobal("No se pudo acceder a la cámara.");
+        });
+    }
+
+    function cerrarCamara() {
+      scanning = false;
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        stream = null;
       }
+      const scanner = document.querySelector('.qr-scanner');
+      if (scanner) scanner.remove();
+    }
+
+    function validarTokenConComercio(comercioId, tokenEscaneado, tokenEsperado) {
+      if (tokenEscaneado === tokenEsperado) {
+        fetch(APPS_SCRIPT_URL + "?accion=validarToken&comercioId=" + encodeURIComponent(comercioId) + "&token=" + encodeURIComponent(tokenEscaneado))
+          .then(resp => resp.json())
+          .then(data => {
+            if (data.valido) {
+              validados[comercioId] = true;
+              localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
+              const msj = document.createElement('div');
+              msj.className = 'aviso-validado';
+              msj.innerHTML = `<h2>✅ ¡VALIDADO!</h2><p>Ya podés usar el beneficio</p>`;
+              document.body.appendChild(msj);
+              setTimeout(() => { if (msj.parentNode) msj.parentNode.removeChild(msj); cargarComercios(); }, 3000);
+            } else {
+              mostrarErrorGlobal("Token no válido para este comercio.");
+            }
+          })
+          .catch(() => mostrarErrorGlobal("Error al validar el QR."));
+      } else {
+        mostrarErrorGlobal("Token no válido para este comercio.");
+      }
+    }
+
+    let errorTimeout = null;
+    function mostrarErrorGlobal(mensaje) {
+      const errorDiv = document.getElementById('mensaje-error-global');
+      if (errorTimeout) clearTimeout(errorTimeout);
+      errorDiv.innerHTML = mensaje; 
+      errorDiv.style.display = 'block';
+      errorTimeout = setTimeout(() => {
+        errorDiv.style.display = 'none';
+      }, 3000); // 3 SEGUNDOS EXACTOS
     }
 
     verificarTipoUsuario();
   </script>
 </body>
 </html>
-  `;
-
-  const output = HtmlService.createHtmlOutput(
-    '<pre style="white-space: pre-wrap; font-family: monospace; font-size: 14px; background: #f5f5f5; padding: 20px; border: 1px solid #ddd; overflow: auto; height: 600px;">' +
-    htmlCode.replace(/</g, '&lt;').replace(/>/g, '&gt;') +
-    '</pre>' +
-    '<div style="margin-top: 20px; text-align: center;"><button onclick="copyCode()" style="padding: 10px 20px; background: #2c5aa0; color: white; border: none; border-radius: 5px; cursor: pointer;">Copiar todo el código</button></div>' +
-    '<script>function copyCode() { navigator.clipboard.writeText(document.querySelector("pre").textContent); alert("Código copiado al portapapeles"); }</script>'
-  ).setTitle("HTML Generado - Habitat-Car");
-
-  SpreadsheetApp.getUi().showModalDialog(output, "HTML Generado - Habitat-Car");
-}
-
-function enviarAlertaVencimiento(whatsapp, email, comercioId, comercioNombre, dias) {
-  const sheet = SpreadsheetApp.openById(SHEET_ID);
-  const alertasSheet = sheet.getSheetByName("Alertas Enviadas");
-  const datos = alertasSheet.getDataRange().getValues();
-  let yaEnviado = false;
-  for (let i = 1; i < datos.length; i++) {
-    if (datos[i][0] == whatsapp && datos[i][1] == comercioId && datos[i][2] == "vencimiento") {
-      yaEnviado = true;
-      break;
-    }
-  }
-  if (!yaEnviado && email) {
-    const asunto = "Tu cupón de Habitat-Car está por vencer";
-    const cuerpo = `Hola,\n\nTu cupón de **${comercioNombre}** vence en **${dias} días**.\n¡Aprovechalo antes de que sea tarde!\n\n- Equipo Habitat-Car`;
-    MailApp.sendEmail(email, asunto, cuerpo, { name: "Habitat-Car" });
-    alertasSheet.appendRow([whatsapp, comercioId, "vencimiento", new Date()]);
-  }
-}
-
-function registrarLead(nombre, whatsapp, email) {
-  const sheet = SpreadsheetApp.openById(SHEET_ID);
-  const leadsSheet = sheet.getSheetByName("Leads");
-  const datos = leadsSheet.getDataRange().getValues();
-  for (let i = 1; i < datos.length; i++) {
-    if (datos[i][0] == whatsapp) {
-      return false;
-    }
-  }
-  leadsSheet.appendRow([
-    whatsapp, nombre, email, new Date(), "", "", "", "", "activo", "no"
-  ]);
-  if (email) {
-    agregarAListaEmails(email, nombre, "lead");
-    enviarEmailBienvenida(email, nombre, "lead");
-  }
-  return true;
-}
-
-function registrarVip(nombre, whatsapp, email, token) {
-  const sheet = SpreadsheetApp.openById(SHEET_ID);
-  const tokensSheet = sheet.getSheetByName("TokensVIP");
-  if (!tokensSheet) {
-    return { success: false, mensaje: "Hoja TokensVIP no existe" };
-  }
-  
-  const tokensData = tokensSheet.getDataRange().getValues();
-  let tokenValido = false;
-  let tokenRow = -1;
-  
-  for (let i = 1; i < tokensData.length; i++) {
-    if (tokensData[i][0] === token && tokensData[i][1] === "activo" && !tokensData[i][2]) {
-      tokenValido = true;
-      tokenRow = i + 1;
-      break;
-    }
-  }
-  
-  if (!tokenValido) {
-    return { success: false, mensaje: "Token inválido o ya usado" };
-  }
-  
-  const leadsSheet = sheet.getSheetByName("Leads");
-  const leadsData = leadsSheet.getDataRange().getValues();
-  let leadExiste = false;
-  for (let i = 1; i < leadsData.length; i++) {
-    if (leadsData[i][0] == whatsapp) {
-      leadExiste = true;
-      break;
-    }
-  }
-  if (!leadExiste) {
-    leadsSheet.appendRow([
-      whatsapp, nombre, email, new Date(), "", "", "", "", "activo", "no"
-    ]);
-  }
-  
-  const vipSheet = sheet.getSheetByName("ClientesVIP");
-  if (!vipSheet) {
-    return { success: false, mensaje: "Hoja ClientesVIP no existe" };
-  }
-  vipSheet.appendRow([
-    whatsapp, nombre, email, "", new Date(), "", "", "", "", "activo"
-  ]);
-  
-  tokensSheet.getRange(tokenRow, 3).setValue(whatsapp);
-  tokensSheet.getRange(tokenRow, 4).setValue(new Date());
-  
-  if (email) {
-    agregarAListaEmails(email, nombre, "vip");
-    enviarEmailBienvenida(email, nombre, "vip");
-  }
-  
-  return { success: true };
-}
-
-function verificarVip(whatsapp) {
-  const sheet = SpreadsheetApp.openById(SHEET_ID);
-  const vipSheet = sheet.getSheetByName("ClientesVIP");
-  if (!vipSheet) return { tipo: "lead" };
-
-  const datos = vipSheet.getDataRange().getValues();
-  for (let i = 1; i < datos.length; i++) {
-    if (datos[i][0] == whatsapp && datos[i][9] === "activo") {
-      return { tipo: "vip" };
-    }
-  }
-  return { tipo: "lead" };
-}
-
-function obtenerTextoLegal() {
-  const sheet = SpreadsheetApp.openById(SHEET_ID);
-  const legalesSheet = sheet.getSheetByName("Legales");
-  if (!legalesSheet) return "Términos y condiciones no disponibles.";
-  
-  const datos = legalesSheet.getDataRange().getValues();
-  if (datos.length < 2) return "Términos y condiciones no disponibles.";
-  
-  const ultimaFila = datos.length - 1;
-  const textoLegal = datos[ultimaFila][2];
-  
-  return textoLegal || "Términos y condiciones no disponibles.";
-}
-
-function onEdit(e) {
-  const sheet = e.source.getActiveSheet();
-  const range = e.range;
-  if (sheet.getName() !== "TokensVIP" || range.getColumn() !== 2) return;
-  
-  const row = range.getRow();
-  const estado = range.getValue();
-  if (estado === "activo") {
-    const tokenCell = sheet.getRange(row, 1);
-    const linkCell = sheet.getRange(row, 6);
-    
-    if (!tokenCell.getValue()) {
-      const token = "vip_" + Math.random().toString(36).substring(2, 15);
-      tokenCell.setValue(token);
-      const link = "https://habitatcar.github.io/registrovip/?token=" + token;
-      linkCell.setValue(link);
-      sheet.getRange(row, 7).setValue("Copiar link")
-           .setFontColor("#2c5aa0")
-           .setFontWeight("bold");
-    }
-  }
-}
-
-function doGet(e) {
-  if (e.parameter.accion === "verificarVip") {
-    const resultado = verificarVip(e.parameter.whatsapp);
-    return ContentService.createTextOutput(JSON.stringify(resultado))
-                          .setMimeType(ContentService.MimeType.JSON);
-  }
-  if (e.parameter.accion === "enviarAlertaVencimiento") {
-    enviarAlertaVencimiento(e.parameter.whatsapp, e.parameter.email, e.parameter.comercioId, e.parameter.comercioNombre, e.parameter.dias);
-    return ContentService.createTextOutput(JSON.stringify({ success: true }))
-                          .setMimeType(ContentService.MimeType.JSON);
-  }
-  if (e.parameter.accion === "registrarLead") {
-    const ok = registrarLead(e.parameter.nombre, e.parameter.whatsapp, e.parameter.email || "");
-    return ContentService.createTextOutput(JSON.stringify({ success: ok }))
-                          .setMimeType(ContentService.MimeType.JSON);
-  }
-  if (e.parameter.accion === "registrarVip") {
-    const ok = registrarVip(
-      e.parameter.nombre,
-      e.parameter.whatsapp,
-      e.parameter.email || "",
-      e.parameter.token || ""
-    );
-    return ContentService.createTextOutput(JSON.stringify(ok))
-                          .setMimeType(ContentService.MimeType.JSON);
-  }
-  if (e.parameter.accion === "obtenerTextoLegal") {
-    const texto = obtenerTextoLegal();
-    return ContentService.createTextOutput(JSON.stringify({ texto: texto }))
-                          .setMimeType(ContentService.MimeType.JSON);
-  }
-  if (e.parameter.accion === "registrarUso") {
-    const sheet = SpreadsheetApp.openById(SHEET_ID);
-    const statsSheet = sheet.getSheetByName("Estadísticas de Uso");
-    
-    if (!statsSheet) {
-      const newSheet = sheet.insertSheet("Estadísticas de Uso");
-      newSheet.appendRow(["Fecha y hora", "WhatsApp", "Nombre", "Tipo", "Comercio", "Beneficio", "Token QR"]);
-    }
-    
-    const stats = sheet.getSheetByName("Estadísticas de Uso");
-    stats.appendRow([
-      new Date(),
-      e.parameter.whatsapp || "desconocido",
-      e.parameter.nombre || "desconocido",
-      e.parameter.tipo || "lead",
-      e.parameter.comercioNombre || e.parameter.comercioId,
-      e.parameter.beneficio || "beneficio desconocido",
-      e.parameter.tokenQR || "token desconocido"
-    ]);
-    return ContentService.createTextOutput(JSON.stringify({ success: true }))
-                          .setMimeType(ContentService.MimeType.JSON);
-  }
-  return ContentService.createTextOutput("OK");
-}
-
-// === ✅ AGREGAR A LISTA DE EMAILS ===
-function agregarAListaEmails(email, nombre, tipo) {
-  if (!email || !email.trim()) return;
-  
-  const sheet = SpreadsheetApp.openById(SHEET_ID);
-  const listaSheet = sheet.getSheetByName("ListaEmails");
-  if (!listaSheet) {
-    listaSheet = sheet.insertSheet("ListaEmails");
-    listaSheet.appendRow(["Email", "Nombre", "Tipo", "Fecha alta", "Activo"]);
-  }
-  
-  const datos = listaSheet.getDataRange().getValues();
-  let emailExiste = false;
-  
-  for (let i = 1; i < datos.length; i++) {
-    if (datos[i][0] === email) {
-      emailExiste = true;
-      if (datos[i][4] !== "sí") {
-        listaSheet.getRange(i + 1, 5).setValue("sí");
-      }
-      break;
-    }
-  }
-  
-  if (!emailExiste) {
-    listaSheet.appendRow([email, nombre, tipo, new Date(), "sí"]);
-  }
-}
-
-// === ✅ ENVIAR EMAIL DE BIENVENIDA ===
-function enviarEmailBienvenida(email, nombre, tipo) {
-  if (!email || !email.trim()) return;
-
-  const logoUrl = "https://habitatcar.github.io/logo.png";
-
-  let asunto = "¡Bienvenido a Habitat-Car!";
-  let htmlBody = "";
-
-  if (tipo === "vip") {
-    htmlBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-        <div style="background: #d4af37; padding: 20px; text-align: center;">
-          <img src="${logoUrl}" alt="Habitat-Car" style="max-width: 200px; height: auto;">
-          <h1 style="color: white; margin: 10px 0; font-size: 28px;">🌟 ¡Sos VIP!</h1>
-        </div>
-        <div style="padding: 25px; background: #fffaf0;">
-          <p style="font-size: 18px; line-height: 1.5;">Hola <strong>${nombre}</strong>,</p>
-          <p style="font-size: 18px; line-height: 1.5;">¡Gracias por unirte como <strong>socio VIP</strong> de Habitat-Car!</p>
-          <div style="text-align: center; margin: 25px 0;">
-            <a href="https://habitatcar.github.io/cupones/" 
-               style="display: inline-block; background: #d4af37; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px;">
-              🎁 Acceder a mis beneficios
-            </a>
-          </div>
-          <p style="font-size: 16px; color: #555;">Equipo Habitat-Car</p>
-        </div>
-      </div>
-    `;
-  } else {
-    htmlBody = `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e0e0e0; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.1);">
-        <div style="background: #2c5aa0; padding: 20px; text-align: center;">
-          <img src="${logoUrl}" alt="Habitat-Car" style="max-width: 200px; height: auto;">
-          <h1 style="color: white; margin: 10px 0; font-size: 28px;">¡Bienvenido!</h1>
-        </div>
-        <div style="padding: 25px;">
-          <p style="font-size: 18px; line-height: 1.5;">Hola <strong>${nombre}</strong>,</p>
-          <p style="font-size: 18px; line-height: 1.5;">¡Gracias por registrarte en Habitat-Car!</p>
-          <div style="text-align: center; margin: 25px 0;">
-            <a href="https://habitatcar.github.io/cupones/" 
-               style="display: inline-block; background: #2c5aa0; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 18px;">
-              🎁 Acceder a mis beneficios
-            </a>
-          </div>
-          <p style="font-size: 16px; color: #555;">Pronto recibirás novedades y promociones exclusivas.</p>
-          <p style="font-size: 16px; color: #555;">Equipo Habitat-Car</p>
-        </div>
-      </div>
-    `;
-  }
-
-  GmailApp.sendEmail(email, asunto, "", {
-    htmlBody: htmlBody,
-    name: "Habitat-Car"
-  });
-}
-
-// === ✅ MENÚ PERSONALIZADO EN GOOGLE SHEETS ===
-function onOpen() {
-  const ui = SpreadsheetApp.getUi();
-  ui.createMenu('Habitat-Car')
-    .addItem('📧 Enviar email masivo', 'mostrarFormularioEmail')
-    .addToUi();
-}
-
-function mostrarFormularioEmail() {
-  const html = `
-    <form onsubmit="google.script.run.enviarEmailMasivo(this); return false;">
-      <p><label>Asunto:<br><input name="asunto" style="width:100%" required></label></p>
-      <p><label>Cuerpo del mensaje:<br><textarea name="cuerpo" rows="6" style="width:100%" required></textarea></label></p>
-      <p><label>Tipo de destinatarios:<br>
-        <select name="tipo" style="width:100%">
-          <option value="todos">Todos</option>
-          <option value="lead">Solo Leads</option>
-          <option value="vip">Solo VIPs</option>
-        </select>
-      </label></p>
-      <button type="submit" style="background:#2c5aa0;color:white;padding:10px;border:none;border-radius:5px;font-size:16px;">Enviar ahora</button>
-    </form>
-  `;
-  SpreadsheetApp.getUi().showModalDialog(HtmlService.createHtmlOutput(html), "Enviar email masivo");
-}
-
-function enviarEmailMasivo(form) {
-  const sheet = SpreadsheetApp.openById(SHEET_ID);
-  const listaSheet = sheet.getSheetByName("ListaEmails");
-  if (!listaSheet) {
-    SpreadsheetApp.getUi().alert("No existe la hoja 'ListaEmails'");
-    return;
-  }
-  
-  const datos = listaSheet.getDataRange().getValues();
-  let enviados = 0;
-  
-  for (let i = 1; i < datos.length; i++) {
-    const email = datos[i][0];
-    const nombre = datos[i][1];
-    const tipo = datos[i][2];
-    const activo = datos[i][4];
-    
-    if (email && activo === "sí") {
-      let enviar = false;
-      if (form.tipo === "todos") enviar = true;
-      if (form.tipo === "lead" && tipo === "lead") enviar = true;
-      if (form.tipo === "vip" && tipo === "vip") enviar = true;
-      
-      if (enviar) {
-        const cuerpoPersonalizado = form.cuerpo.replace("{nombre}", nombre);
-        MailApp.sendEmail(email, form.asunto, cuerpoPersonalizado, { name: "Habitat-Car" });
-        enviados++;
-      }
-    }
-  }
-  
-  SpreadsheetApp.getUi().alert(`✅ Emails enviados: ${enviados}`);
-}
