@@ -27,7 +27,6 @@
     body.vip { background: #fffaf0; }
     body.vip .titulo, body.vip #subtitulo { color: #d4af37; text-shadow: 1px 1px 2px rgba(0,0,0,0.1); }
     body.vip .cupon { border: 2px solid #d4af37; background: white; }
-    /* El botón se vuelve dorado en VIP solo si no está deshabilitado */
     body.vip .btn-usar:not(:disabled) { background: #d4af37 !important; color: white !important; }
     body.vip .btn-conozca, body.vip .btn-como-llegar, body.vip .btn-qr { background: #d4af37 !important; color: white !important; }
 
@@ -48,7 +47,6 @@
     .btn-qr { background: #E91E63; color: white; }
     .btn-usar { background: #2c5aa0; color: white; }
     
-    /* ESTADO DESHABILITADO (Gris para todos) */
     .btn:disabled { background: #cccccc !important; color: #666666 !important; cursor: not-allowed; box-shadow: none; }
 
     .aviso-validado {
@@ -60,35 +58,35 @@
     .aviso-validado h2 { font-size: 32px; margin-bottom: 10px; }
     .aviso-validado p { font-size: 24px; font-weight: bold; line-height: 1.3; }
 
-    .mensaje-error {
+    /* ✅ ESTILO CORREGIDO DEL MENSAJE DE ERROR */
+    #mensaje-error-global {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       background: #d32f2f;
       color: white;
-      padding: 20px 24px;
-      border-radius: 16px;
-      font-size: 20px;
+      padding: 22px 30px;
+      border-radius: 18px;
+      font-size: 22px;
       font-weight: bold;
-      box-shadow: 0 6px 20px rgba(0,0,0,0.4);
-      z-index: 9999;
-      max-width: 90%;
       text-align: center;
-      display: flex;
-      align-items: center;
-      gap: 12px;
+      z-index: 10000;
+      box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+      display: none;
     }
-    .mensaje-error::before {
+    #mensaje-error-global::before {
       content: "❌";
-      font-size: 28px;
+      display: block;
+      font-size: 48px;
+      margin-bottom: 12px;
     }
 
-    .qr-scanner { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9998; padding: 20px; }
+    .qr-scanner { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; padding: 20px; }
     .qr-scanner video { width: 90%; max-width: 500px; border: 2px dashed #fff; border-radius: 12px; }
     .close-btn { background: #d32f2f; color: white; border: none; border-radius: 12px; padding: 14px 28px; font-size: 18px; margin-top: 15px; }
 
-    .advertencia-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 9997; padding: 20px; }
+    .advertencia-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); display: flex; justify-content: center; align-items: center; z-index: 9998; padding: 20px; }
     .advertencia-contenido { background: white; border-radius: 20px; padding: 30px; text-align: center; max-width: 520px; width: 90%; }
   </style>
 </head>
@@ -107,12 +105,16 @@
     <div id="redes"></div>
   </div>
 
+  <!-- ✅ MENSAJE DE ERROR GLOBAL (SIEMPRE DISPONIBLE) -->
+  <div id="mensaje-error-global"></div>
+
   <script>
     const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxgDElajJ9JFV6WPInb-YMyY7dfd8uRd2SpXpF9CgQU4k0tCxRabbZ_c_L7TkAmAo_uw/exec";
 
     let usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
     let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
     let registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
+    let scanning = false; // 🔒 Bloquea múltiples escaneos
 
     function verificarTipoUsuario() {
       if (!registro.whatsapp) { window.location.replace("/registroleads/"); return; }
@@ -171,6 +173,7 @@
       });
     }
 
+    // === FUNCIONES DE USO ===
     function usar(comercioId, nombre, beneficio) {
       const alerta = document.createElement('div');
       alerta.className = 'advertencia-overlay';
@@ -217,11 +220,9 @@
       }, 1000);
     }
 
-    let stream;
-    let scanning = false; // 🔒 Evita múltiples escaneos simultáneos
-
+    // === CÁMARA QR ===
     function abrirCamara(id, tokenEsperado) {
-      if (scanning) return; // ❌ Ya hay una cámara activa
+      if (scanning) return;
       scanning = true;
 
       const sc = document.createElement('div'); 
@@ -232,16 +233,17 @@
       const video = document.getElementById('v');
       const scanner = new ZXing.BrowserMultiFormatReader();
       
-      navigator.mediaDevices.getUserMedia({video:{facingMode:"environment"}})
-        .then(s => {
-          stream = s;
-          video.srcObject = s;
+      navigator.mediaDevices.getUserMedia({video: {facingMode: "environment"}})
+        .then(streamObj => {
+          const localStream = streamObj;
+          stream = localStream;
+          video.srcObject = localStream;
           video.play();
           
           scanner.decodeFromVideoDevice(undefined, 'v', (result, err) => {
             if (result) {
               const textoLeido = result.getText().trim();
-              cerrarCamara(); // ✅ Cerrar antes de validar
+              cerrarCamara(); // ✅ Cerrar ANTES de cualquier validación
               validarTokenConComercio(id, textoLeido, tokenEsperado);
             }
             if (err && !(err instanceof ZXing.NotFoundException)) {
@@ -251,20 +253,21 @@
         })
         .catch(() => {
           cerrarCamara();
-          mostrarError("❌ No se pudo acceder a la cámara.");
+          mostrarErrorGlobal("No se pudo acceder a la cámara.");
         });
     }
 
     function cerrarCamara() {
       scanning = false;
       if (stream) {
-        stream.getTracks().forEach(t => t.stop());
+        stream.getTracks().forEach(track => track.stop());
         stream = null;
       }
       const scanner = document.querySelector('.qr-scanner');
       if (scanner) scanner.remove();
     }
 
+    // === VALIDACIÓN DE QR ===
     function validarTokenConComercio(comercioId, tokenEscaneado, tokenEsperado) {
       if (tokenEscaneado === tokenEsperado) {
         fetch(APPS_SCRIPT_URL + "?accion=validarToken&comercioId=" + encodeURIComponent(comercioId) + "&token=" + encodeURIComponent(tokenEscaneado))
@@ -284,31 +287,26 @@
                 cargarComercios(); 
               }, 3500);
             } else {
-              mostrarError("Token no válido para este comercio.");
+              mostrarErrorGlobal("Token no válido para este comercio.");
             }
           })
           .catch(() => {
-            mostrarError("Error al validar el QR.");
+            mostrarErrorGlobal("Error al validar el QR.");
           });
       } else {
-        mostrarError("Token no válido para este comercio.");
+        mostrarErrorGlobal("Token no válido para este comercio.");
       }
     }
 
-    function mostrarError(mensaje) {
-      // ✅ Eliminar mensaje anterior si existe
-      const existing = document.querySelector('.mensaje-error');
-      if (existing) existing.remove();
+    // ✅ FUNCIÓN ÚNICA DE ERROR (SIEMPRE LIMPIA)
+    function mostrarErrorGlobal(mensaje) {
+      const errorDiv = document.getElementById('mensaje-error-global');
+      errorDiv.textContent = mensaje;
+      errorDiv.style.display = 'block';
       
-      const error = document.createElement('div');
-      error.className = 'mensaje-error';
-      error.textContent = mensaje;
-      document.body.appendChild(error);
-      
-      // ✅ Desaparece en 3 segundos
       setTimeout(() => {
-        if (error.parentNode) error.parentNode.removeChild(error);
-      }, 3000);
+        errorDiv.style.display = 'none';
+      }, 2500);
     }
 
     verificarTipoUsuario();
