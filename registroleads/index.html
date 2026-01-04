@@ -1,131 +1,146 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Registro - Habitat-Car</title>
-  <style>
-    *{box-sizing:border-box;margin:0;padding:0}
-    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f8f9fa;padding:20px 16px;font-size:22px;line-height:1.5}
-    .container{max-width:600px;margin:0 auto}
-    .logo{width:98%;max-width:520px;display:block;margin:0 auto 20px}
-    .titulo{color:#2c5aa0;font-size:32px;text-align:center;font-weight:bold;margin-bottom:20px}
-    .aviso-email{background:#fff3e0;color:#e65100;padding:14px;border-radius:12px;font-size:19px;text-align:center;margin:15px 0;font-weight:bold}
-    .formulario{background:white;border-radius:20px;padding:30px;box-shadow:0 5px 18px rgba(0,0,0,0.1)}
-    .formulario input{width:100%;padding:16px;margin:12px 0;border:1px solid #ccc;border-radius:12px;font-size:18px}
-    .terminos{display:flex;align-items:flex-start;margin:15px 0;}
-    .terminos input[type="checkbox"]{margin-right:12px;transform:scale(1.4);margin-top:4px;}
-    .terminos label{font-size:18px;line-height:1.4;}
-    
-    /* Estilos del botón */
-    .btn {
-      width:100%;
-      padding:16px;
-      background:#cccccc;
-      color:white;
-      border:none;
-      border-radius:16px;
-      font-size:20px;
-      font-weight:bold;
-      cursor:not-allowed;
-      margin-top:15px;
-      transition: background 0.3s ease;
+const SHEET_ID = "12FhkfYkKM67zifEeBwlAzHSJExXpB0tuq1ey-CyUzHU";
+
+// --- 1. GESTIÓN DE TOKENS ---
+function onEdit(e) {
+  const sheet = e.source.getActiveSheet();
+  const range = e.range;
+  const sheetName = sheet.getName();
+  const row = range.getRow();
+  const col = range.getColumn();
+  const value = e.value ? e.value.toString().toLowerCase() : "";
+
+  if (sheetName === "TokensVIP" && col === 2 && value === "activo") {
+    const cellToken = sheet.getRange(row, 1);
+    if (cellToken.getValue() === "") {
+      const randomToken = "vip_" + Math.random().toString(36).substring(2, 12);
+      cellToken.setValue(randomToken);
     }
-    .btn.activo {
-      background:#2c5aa0;
-      cursor:pointer;
+    const token = cellToken.getValue();
+    sheet.getRange(row, 6).setValue("https://habitatcar.github.io/registrovip/?token=" + token); 
+    sheet.getRange(row, 7).setValue("📋 Copiar link"); 
+  }
+
+  if (sheetName === "Comercios" && col === 8 && value === "activo") {
+    const idCom = sheet.getRange(row, 1).getValue(); 
+    const cellTokenQR = sheet.getRange(row, 12); 
+    if (cellTokenQR.getValue() === "" && idCom !== "") {
+      const randomNum = Math.floor(Math.random() * 900000) + 100000;
+      cellTokenQR.setValue("token_" + idCom.toString().toLowerCase().trim() + "_" + randomNum);
     }
+  }
+}
+
+// --- 2. API (RECEPCIÓN DE DATOS) ---
+function doGet(e) {
+  const acc = e.parameter.accion;
+  const waInput = e.parameter.whatsapp ? e.parameter.whatsapp.toString().replace(/\D/g, "") : "";
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+
+  // ACCIÓN: REGISTRO NORMAL (LEAD)
+  if (acc === "registrarLead") {
+    const hojaLeads = ss.getSheetByName("Leads");
+    hojaLeads.appendRow([waInput, e.parameter.nombre, e.parameter.email, "", new Date(), "activo"]);
+    return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+  }
+
+  // ACCIÓN: REGISTRO VIP
+  if (acc === "registrarVip") {
+    const tokenRecibido = e.parameter.token;
+    const hojaTokens = ss.getSheetByName("TokensVIP");
+    const datosTokens = hojaTokens.getDataRange().getValues();
     
-    .mensaje{display:block;padding:16px;margin-top:15px;border-radius:12px;text-align:center;font-weight:bold}
-    .mensaje-exito{background:#e8f5e8;color:#2e7d32}
-    .mensaje-error{background:#ffebee;color:#d32f2f}
-  </style>
-</head>
-<body>
-  <div class="container">
-    <img src="/logo.png" alt="Habitat-Car" class="logo">
-    <div class="titulo">📝 Registro de Beneficios</div>
-    <div class="aviso-email">📧 ¡Ingresá tu email para no perderte nuevos beneficios!</div>
-    <div class="formulario">
-      <input type="text" id="nombre" placeholder="Nombre y Apellido" required>
-      <input type="tel" id="whatsapp" placeholder="WhatsApp (ej: 3884618228)" required>
-      <input type="email" id="email" placeholder="Email (opcional)">
-      <div class="terminos">
-        <input type="checkbox" id="terminos">
-        <label for="terminos">Acepto los <a href="/legales/" target="_blank" style="color:#2c5aa0;text-decoration:underline;">Términos y Condiciones</a></label>
-      </div>
-      <button class="btn" id="btn-registro" disabled onclick="registrar()">Activar mis beneficios</button>
-    </div>
-    <div id="mensaje"></div>
-  </div>
-
-  <script>
-    // Manejo del checkbox de términos
-    document.getElementById('terminos').addEventListener('change', function() {
-      const btn = document.getElementById('btn-registro');
-      if (this.checked) {
-        btn.classList.add('activo');
-        btn.disabled = false;
-      } else {
-        btn.classList.remove('activo');
-        btn.disabled = true;
+    let tokenValido = false;
+    for (let i = 1; i < datosTokens.length; i++) {
+      if (datosTokens[i][0] === tokenRecibido && datosTokens[i][1].toString().toLowerCase() === "activo") {
+        tokenValido = true;
+        break;
       }
-    });
+    }
 
-    // Redirección automática si ya está registrado
-    (function() {
-      var registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
-      if (registro && registro.whatsapp && registro.nombre && registro.fechaRegistro) {
-        window.location.replace("/cupones/");
+    if (!tokenValido) {
+      return ContentService.createTextOutput(JSON.stringify({success: false, mensaje: "QR o Token inválido o ya usado"})).setMimeType(ContentService.MimeType.JSON);
+    }
+
+    const hojaVip = ss.getSheetByName("ClientesVIP");
+    const hojaLeads = ss.getSheetByName("Leads");
+    if (hojaLeads) {
+      const datosLeads = hojaLeads.getDataRange().getValues();
+      for (let i = 1; i < datosLeads.length; i++) {
+        if (datosLeads[i][0].toString().replace(/\D/g, "") === waInput) {
+          hojaLeads.getRange(i + 1, 10).setValue("sí");
+          break;
+        }
       }
-    })();
+    }
+    hojaVip.appendRow([waInput, e.parameter.nombre, e.parameter.email, "", new Date(), "", "", "", "", "activo"]);
+    return ContentService.createTextOutput(JSON.stringify({success: true})).setMimeType(ContentService.MimeType.JSON);
+  }
 
-    function registrar() {
-      if (!document.getElementById('terminos').checked) {
-        document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">Debés aceptar los Términos y Condiciones.</div>';
-        return;
+  // ACCIÓN: REGISTRAR USO (CON VALIDACIÓN DE TOKEN COMERCIO)
+  if (acc === "registrarUso") {
+    const tokenQR = e.parameter.tokenQR;
+    const comercio = e.parameter.comercio;
+    const hojaCom = ss.getSheetByName("Comercios");
+    const datosCom = hojaCom.getDataRange().getValues();
+    
+    let esValido = false;
+    for (let i = 1; i < datosCom.length; i++) {
+      if (datosCom[i][1] === comercio && datosCom[i][11] === tokenQR) {
+        esValido = true;
+        break;
       }
+    }
 
-      var nombre = document.getElementById('nombre').value.trim();
-      var whatsapp = document.getElementById('whatsapp').value.trim().replace(/\D/g, '');
-      var email = document.getElementById('email').value.trim();
+    if (!esValido) {
+      return ContentService.createTextOutput(JSON.stringify({success: false, mensaje: "QR incorrecto para este comercio"})).setMimeType(ContentService.MimeType.JSON);
+    }
 
-      if (!nombre || !whatsapp) {
-        document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">Por favor, completá nombre y WhatsApp.</div>';
-        return;
-      }
-
-      document.getElementById('mensaje').innerHTML = '<div class="mensaje">Enviando...</div>';
-
-      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxgDElajJ9JFV6WPInb-YMyY7dfd8uRd2SpXpF9CgQU4k0tCxRabbZ_c_L7TkAmAo_uw/exec";
-      
-      fetch(APPS_SCRIPT_URL + "?accion=registrarLead&nombre=" + encodeURIComponent(nombre) + "&whatsapp=" + whatsapp + "&email=" + encodeURIComponent(email))
-        .then(function(resp) {
-          if (!resp.ok) throw new Error("Error en la conexión");
-          return resp.json();
-        })
-        .then(function(data) {
-          if (data.success) {
-            // GUARDAMOS EL REGISTRO COMO TIPO 'LEAD'
-            localStorage.setItem('usuarioHabitatCar', JSON.stringify({
-              nombre: nombre,
-              whatsapp: whatsapp,
-              email: email,
-              tipo: 'lead',
-              fechaRegistro: new Date().toISOString()
-            }));
-            
-            document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-exito">✅ ¡Registro exitoso! Redirigiendo...</div>';
-            setTimeout(function() { window.location.replace("/cupones/"); }, 2000);
-          } else {
-            document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">❌ Número ya registrado o error en servidor</div>';
+    const st = ss.getSheetByName("Estadísticas de Uso");
+    let nombreEncontrado = "Usuario Desconocido";
+    const hojas = ["ClientesVIP", "Leads"];
+    for (let h = 0; h < hojas.length; h++) {
+      let hoja = ss.getSheetByName(hojas[h]);
+      if (hoja) {
+        let datos = hoja.getDataRange().getValues();
+        for (let i = 1; i < datos.length; i++) {
+          if (datos[i][0].toString().replace(/\D/g, "") === waInput) {
+            nombreEncontrado = datos[i][1];
+            break;
           }
-        })
-        .catch(function(err) {
-          console.error("Error:", err);
-          document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">❌ No se pudo completar el registro. Intente más tarde.</div>';
-        });
+        }
+      }
+      if (nombreEncontrado !== "Usuario Desconocido") break;
     }
-  </script>
-</body>
-</html>
+    st.appendRow([new Date(), waInput, nombreEncontrado, e.parameter.tipo, comercio]);
+    actualizarTablaRecuento();
+    return ContentService.createTextOutput(JSON.stringify({success: true, nombre: nombreEncontrado})).setMimeType(ContentService.MimeType.JSON);
+  }
+}
+
+function actualizarTablaRecuento() {
+  const ss = SpreadsheetApp.openById(SHEET_ID);
+  const hojaEst = ss.getSheetByName("Estadísticas de Uso");
+  if (!hojaEst) return;
+  const datos = hojaEst.getDataRange().getValues();
+  if (datos.length < 2) return;
+  let conteo = {};
+  for (let i = 1; i < datos.length; i++) {
+    if (!datos[i][0]) continue;
+    let clave = (datos[i][4] || "General") + "|" + (datos[i][2] || "Desconocido") + "|" + (datos[i][3] || "lead");
+    conteo[clave] = (conteo[clave] || 0) + 1;
+  }
+  let tabla = [["COMERCIO", "USUARIO", "TIPO", "USOS"]];
+  for (let k in conteo) {
+    let p = k.split("|");
+    tabla.push([p[0], p[1], p[2], conteo[k]]);
+  }
+  hojaEst.getRange("I:L").clearContent();
+  hojaEst.getRange(1, 9, tabla.length, 4).setValues(tabla);
+  hojaEst.getRange(1, 9, 1, 4).setBackground("#2c5aa0").setFontColor("white").setFontWeight("bold");
+}
+
+function onOpen() {
+  SpreadsheetApp.getUi().createMenu('Habitat-Car')
+    .addItem('Actualizar Tabla Recuento', 'actualizarTablaRecuento')
+    .addToUi();
+}
