@@ -505,36 +505,75 @@
       setTimeout(() => exito.remove(), 4000);
     }
 
-    function usar(comercioId, nombre, beneficio) {
-      if (!validados[comercioId]) { mostrarError("⚠️ Primero validá el QR en el comercio."); return; }
+    function usar(comercioId, nombreComercio, beneficio) {
+      if (!validados[comercioId]) {
+        mostrarError("⚠️ Primero validá el QR en el comercio.");
+        return;
+      }
       const alerta = document.createElement('div');
       alerta.className = 'advertencia-overlay';
-      alerta.innerHTML = `<div class="advertencia-contenido"><h3>⚠️ ¡ATENCIÓN!</h3><p>¿Avisaste al cajero que usarás el cupón de descuento?<br><strong>Si no le avisaste, perderás la validez del beneficio.</strong></p><div class="advertencia-btns"><button class="advertencia-btn btn-si" onclick="confirmarUso('${comercioId}', '${nombre}', '${beneficio}')">SÍ, le avisé</button><button class="advertencia-btn btn-no" onclick="cerrarAdvertencia()">Volver</button></div></div>`;
+      alerta.innerHTML = `
+        <div class="advertencia-contenido">
+          <h3>⚠️ ¡ATENCIÓN!</h3>
+          <p>¿Avisaste al cajero que usarás el cupón de descuento?<br>
+          <strong>Si no le avisaste, perderás la validez del beneficio.</strong></p>
+          <div class="advertencia-btns">
+            <button class="advertencia-btn btn-si" onclick="confirmarUso('${comercioId}', '${nombreComercio}', '${beneficio}')">SÍ, le avisé</button>
+            <button class="advertencia-btn btn-no" onclick="cerrarAdvertencia()">Volver</button>
+          </div>
+        </div>
+      `;
       document.body.appendChild(alerta);
     }
 
-    function cerrarAdvertencia() { const al = document.querySelector('.advertencia-overlay'); if (al) al.remove(); }
+    function cerrarAdvertencia() {
+      const al = document.querySelector('.advertencia-overlay');
+      if (al) al.remove();
+    }
 
-    function confirmarUso(comercioId, nombre, beneficio) {
-      cerrarAdvertencia(); usos[comercioId] = true;
+    function confirmarUso(comercioId, nombreComercio, beneficio) {
+      cerrarAdvertencia();
+      usos[comercioId] = true;
       localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
       const reg = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
       
-      // ✅ ✅ ✅ LLAMADA CORREGIDA A registrarUso ✅ ✅ ✅
+      // ✅ TODO CORRECTO: se envía el nombre del COMERCIO
       fetch(APPS_SCRIPT_URL + "?accion=registrarUso&whatsapp=" + encodeURIComponent(reg.whatsapp || "") +
             "&nombre=" + encodeURIComponent(reg.nombre || "") +
             "&tipo=" + encodeURIComponent(reg.tipo || "lead") +
-            "&comercio=" + encodeURIComponent(nombre) +
+            "&comercio=" + encodeURIComponent(nombreComercio) +          // ← nombre del comercio
             "&beneficio=" + encodeURIComponent(beneficio) +
             "&tokenQR=" + encodeURIComponent(COMERCIOS.find(c => c.id === comercioId)?.tokenQR || "token_desconocido"))
         .catch(err => console.log("Error al registrar uso:", err));
 
-      document.getElementById('grilla').innerHTML = `<div style="text-align:center; padding:40px 20px;"><img src="/logo.png" alt="Habitat-Car" style="width:98%; max-width:520px; margin-bottom:20px;"><h2>🎉 ¡FELICITACIONES!</h2><p>Beneficio activado en <strong>${nombre}</strong>.</p><p>${beneficio}</p><div id="contador" style="font-size:60px; font-weight:bold; color:#d32f2f; margin:20px 0;">30</div><p>Válido por 30 segundos.</p></div>`;
+      document.getElementById('grilla').innerHTML = `
+        <div style="text-align:center; padding:40px 20px;">
+          <img src="/logo.png" alt="Habitat-Car" style="width:98%; max-width:520px; margin-bottom:20px;">
+          <h2>🎉 ¡FELICITACIONES!</h2>
+          <p>Beneficio activado en <strong>${nombreComercio}</strong>.</p>
+          <p>${beneficio}</p>
+          <div id="contador" style="font-size:60px; font-weight:bold; color:#d32f2f; margin:20px 0;">30</div>
+          <p>Válido por 30 segundos.</p>
+        </div>
+      `;
       let c = 30;
-      const int = setInterval(() => { c--; document.getElementById('contador').textContent = c; if (c <= 0) { clearInterval(int); verificarTipoUsuario(); } }, 1000);
+      const int = setInterval(() => {
+        c--;
+        document.getElementById('contador').textContent = c;
+        if (c <= 0) {
+          clearInterval(int);
+          verificarTipoUsuario();
+        }
+      }, 1000);
     }
 
-    function reiniciarCupones() { if (confirm("¿Reiniciar cupones?")) { localStorage.clear(); window.location.replace("/registroleads/"); } }
+    function reiniciarCupones() {
+      if (confirm("¿Reiniciar cupones?")) {
+        localStorage.clear();
+        window.location.replace("/registroleads/");
+      }
+    }
+
     verificarTipoUsuario();
   </script>
 </body>
