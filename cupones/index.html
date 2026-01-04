@@ -58,7 +58,6 @@
     .aviso-validado h2 { font-size: 32px; margin-bottom: 10px; }
     .aviso-validado p { font-size: 24px; font-weight: bold; line-height: 1.3; }
 
-    /* ✅ DISEÑO DE ERROR CONFIRMADO */
     #mensaje-error-global {
       position: fixed;
       top: 50%;
@@ -247,7 +246,25 @@
             if (result) {
               const textoLeido = result.getText().trim();
               cerrarCamara();
-              validarTokenConComercio(id, textoLeido, tokenEsperado);
+              // ✅ VALIDAR SIEMPRE EN EL SERVIDOR (sin validación local)
+              fetch(APPS_SCRIPT_URL + "?accion=validarToken&comercioId=" + encodeURIComponent(id) + "&token=" + encodeURIComponent(textoLeido))
+                .then(resp => resp.json())
+                .then(data => {
+                  if (data.valido) {
+                    validados[id] = true;
+                    localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
+                    const msj = document.createElement('div');
+                    msj.className = 'aviso-validado';
+                    msj.innerHTML = `<h2>✅ ¡VALIDADO!</h2><p>Ya podés usar el beneficio</p>`;
+                    document.body.appendChild(msj);
+                    setTimeout(() => { if (msj.parentNode) msj.parentNode.removeChild(msj); cargarComercios(); }, 3500);
+                  } else {
+                    mostrarErrorGlobal("Token no válido para este comercio.");
+                  }
+                })
+                .catch(() => {
+                  mostrarErrorGlobal("Error al validar el QR.");
+                });
             }
             if (err && !(err instanceof ZXing.NotFoundException)) {
               cerrarCamara();
@@ -270,53 +287,13 @@
       if (scanner) scanner.remove();
     }
 
-    function validarTokenConComercio(comercioId, tokenEscaneado, tokenEsperado) {
-      if (tokenEscaneado === tokenEsperado) {
-        fetch(APPS_SCRIPT_URL + "?accion=validarToken&comercioId=" + encodeURIComponent(comercioId) + "&token=" + encodeURIComponent(tokenEscaneado))
-          .then(resp => resp.json())
-          .then(data => {
-            if (data.valido) {
-              validados[comercioId] = true;
-              localStorage.setItem('validadosHabitatCar', JSON.stringify(validados));
-              
-              const msj = document.createElement('div');
-              msj.className = 'aviso-validado';
-              msj.innerHTML = `<h2>✅ ¡VALIDADO!</h2><p>Ya podés usar el beneficio</p>`;
-              document.body.appendChild(msj);
-              
-              setTimeout(() => { 
-                if (msj.parentNode) msj.parentNode.removeChild(msj); 
-                cargarComercios(); 
-              }, 3500);
-            } else {
-              mostrarErrorGlobal("Token no válido para este comercio.");
-            }
-          })
-          .catch(() => {
-            mostrarErrorGlobal("Error al validar el QR.");
-          });
-      } else {
-        mostrarErrorGlobal("Token no válido para este comercio.");
-      }
-    }
-
-    // ✅ ✅ ✅ CORRECCIÓN DEFINITIVA: SIEMPRE DESAPARECE EN 2.5 SEGUNDOS ✅ ✅ ✅
+    // ✅ FUNCIÓN CORREGIDA: SIEMPRE LIMPIA Y DESAPARECE
     function mostrarErrorGlobal(mensaje) {
       const errorDiv = document.getElementById('mensaje-error-global');
-      
-      // Cancelar cualquier temporizador anterior
-      if (window.errorTimeout) {
-        clearTimeout(window.errorTimeout);
-      }
-      
-      // Mostrar mensaje
+      if (window.errorTimeout) clearTimeout(window.errorTimeout);
       errorDiv.textContent = mensaje;
       errorDiv.style.display = 'block';
-      
-      // Programar desaparición en 2500 ms (2.5 segundos)
-      window.errorTimeout = setTimeout(() => {
-        errorDiv.style.display = 'none';
-      }, 2500);
+      window.errorTimeout = setTimeout(() => { errorDiv.style.display = 'none'; }, 2500);
     }
 
     verificarTipoUsuario();
