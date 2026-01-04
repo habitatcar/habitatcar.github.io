@@ -58,28 +58,33 @@
     .aviso-validado h2 { font-size: 32px; margin-bottom: 10px; }
     .aviso-validado p { font-size: 24px; font-weight: bold; line-height: 1.3; }
 
-    /* ✅ ESTILO CORREGIDO DEL MENSAJE DE ERROR */
+    /* ✅ NUEVO DISEÑO DE ERROR: AZUL + ROJO + CRUZ VISIBLE */
     #mensaje-error-global {
       position: fixed;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      background: #d32f2f;
+      background: #1976d2; /* fondo azul */
+      border: 4px solid #d32f2f; /* borde rojo */
       color: white;
-      padding: 22px 30px;
-      border-radius: 18px;
+      padding: 24px 30px;
+      border-radius: 20px;
       font-size: 22px;
       font-weight: bold;
       text-align: center;
       z-index: 10000;
-      box-shadow: 0 8px 25px rgba(0,0,0,0.5);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
       display: none;
+      max-width: 90%;
     }
     #mensaje-error-global::before {
       content: "❌";
       display: block;
-      font-size: 48px;
-      margin-bottom: 12px;
+      font-size: 52px;
+      color: #d32f2f; /* cruz roja */
+      text-shadow: 0 0 8px white, 0 0 12px white; /* sombra blanca */
+      margin-bottom: 14px;
+      line-height: 1;
     }
 
     .qr-scanner { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.95); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 9999; padding: 20px; }
@@ -105,7 +110,7 @@
     <div id="redes"></div>
   </div>
 
-  <!-- ✅ MENSAJE DE ERROR GLOBAL (SIEMPRE DISPONIBLE) -->
+  <!-- ✅ MENSAJE DE ERROR GLOBAL (DISEÑO NUEVO) -->
   <div id="mensaje-error-global"></div>
 
   <script>
@@ -114,7 +119,7 @@
     let usos = JSON.parse(localStorage.getItem('usosHabitatCar') || '{}');
     let validados = JSON.parse(localStorage.getItem('validadosHabitatCar') || '{}');
     let registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
-    let scanning = false; // 🔒 Bloquea múltiples escaneos
+    let scanning = false;
 
     function verificarTipoUsuario() {
       if (!registro.whatsapp) { window.location.replace("/registroleads/"); return; }
@@ -173,7 +178,6 @@
       });
     }
 
-    // === FUNCIONES DE USO ===
     function usar(comercioId, nombre, beneficio) {
       const alerta = document.createElement('div');
       alerta.className = 'advertencia-overlay';
@@ -220,7 +224,7 @@
       }, 1000);
     }
 
-    // === CÁMARA QR ===
+    let stream;
     function abrirCamara(id, tokenEsperado) {
       if (scanning) return;
       scanning = true;
@@ -243,7 +247,7 @@
           scanner.decodeFromVideoDevice(undefined, 'v', (result, err) => {
             if (result) {
               const textoLeido = result.getText().trim();
-              cerrarCamara(); // ✅ Cerrar ANTES de cualquier validación
+              cerrarCamara();
               validarTokenConComercio(id, textoLeido, tokenEsperado);
             }
             if (err && !(err instanceof ZXing.NotFoundException)) {
@@ -267,7 +271,6 @@
       if (scanner) scanner.remove();
     }
 
-    // === VALIDACIÓN DE QR ===
     function validarTokenConComercio(comercioId, tokenEscaneado, tokenEsperado) {
       if (tokenEscaneado === tokenEsperado) {
         fetch(APPS_SCRIPT_URL + "?accion=validarToken&comercioId=" + encodeURIComponent(comercioId) + "&token=" + encodeURIComponent(tokenEscaneado))
@@ -298,13 +301,20 @@
       }
     }
 
-    // ✅ FUNCIÓN ÚNICA DE ERROR (SIEMPRE LIMPIA)
+    // ✅ FUNCIÓN MEJORADA: SIN PARPADEO, SIEMPRE LIMPIA
+    let errorTimeout = null;
     function mostrarErrorGlobal(mensaje) {
       const errorDiv = document.getElementById('mensaje-error-global');
+      
+      // Cancelar timeout anterior si existe
+      if (errorTimeout) {
+        clearTimeout(errorTimeout);
+      }
+      
       errorDiv.textContent = mensaje;
       errorDiv.style.display = 'block';
       
-      setTimeout(() => {
+      errorTimeout = setTimeout(() => {
         errorDiv.style.display = 'none';
       }, 2500);
     }
