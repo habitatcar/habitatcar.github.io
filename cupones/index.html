@@ -353,38 +353,47 @@
 
     // ✅ FUNCIÓN CORREGIDA: verifica VIP siempre si viene de link
     function verificarTipoUsuario() {
-      const urlParams = new URLSearchParams(window.location.search);
-      const forzarVerificacion = urlParams.has('vip_check');
+  const urlParams = new URLSearchParams(window.location.search);
+  const actualizarTipo = urlParams.has('actualizar_tipo');
 
-      if (!registro.whatsapp) {
-        window.location.replace("/registroleads/");
-        return;
-      }
+  if (!registro.whatsapp) {
+    window.location.replace("/registroleads/");
+    return;
+  }
 
-      if (registro.tipo !== 'vip' || forzarVerificacion) {
-        fetch(APPS_SCRIPT_URL + "?accion=verificarVip&whatsapp=" + registro.whatsapp)
-          .then(resp => resp.json())
-          .then(data => {
-            registro.tipo = (data && data.tipo === 'vip') ? 'vip' : 'lead';
-            localStorage.setItem('usuarioHabitatCar', JSON.stringify(registro));
-            if (registro.tipo === 'vip') {
-              document.getElementById('body').className = 'vip';
-              document.getElementById('subtitulo').style.display = 'block';
-              document.getElementById('subtitulo').textContent = 'Clientes VIP';
-            } else {
-              document.getElementById('subtitulo').style.display = 'none';
-            }
-            mostrarGrilla();
-          })
-          .catch(err => { mostrarGrilla(); });
-      } else {
-        document.getElementById('body').className = 'vip';
-        document.getElementById('subtitulo').style.display = 'block';
-        document.getElementById('subtitulo').textContent = 'Clientes VIP';
+  // Si viene con ?actualizar_tipo=true, borrar el tipo local y consultar al servidor
+  if (actualizarTipo) {
+    delete registro.tipo;
+    localStorage.removeItem('usuarioHabitatCar');
+  }
+
+  // Si no tiene tipo definido o es lead, verificar en el servidor
+  if (!registro.tipo || registro.tipo === 'lead') {
+    fetch(APPS_SCRIPT_URL + "?accion=verificarVip&whatsapp=" + registro.whatsapp)
+      .then(resp => resp.json())
+      .then(data => {
+        registro.tipo = (data && data.tipo === 'vip') ? 'vip' : 'lead';
+        localStorage.setItem('usuarioHabitatCar', JSON.stringify(registro));
+        if (registro.tipo === 'vip') {
+          document.getElementById('body').className = 'vip';
+          document.getElementById('subtitulo').style.display = 'block';
+          document.getElementById('subtitulo').textContent = 'Clientes VIP';
+        } else {
+          document.getElementById('subtitulo').style.display = 'none';
+        }
         mostrarGrilla();
-      }
-    }
-
+      })
+      .catch(err => {
+        mostrarGrilla();
+      });
+  } else {
+    // Ya es VIP, mostrar directamente
+    document.getElementById('body').className = 'vip';
+    document.getElementById('subtitulo').style.display = 'block';
+    document.getElementById('subtitulo').textContent = 'Clientes VIP';
+    mostrarGrilla();
+  }
+}
     function mostrarGrilla() {
       document.getElementById('grilla').style.display = 'block';
       document.getElementById('redes').style.display = 'none';
