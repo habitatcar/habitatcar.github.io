@@ -16,8 +16,26 @@
     .terminos{display:flex;align-items:flex-start;margin:15px 0;}
     .terminos input[type="checkbox"]{margin-right:12px;transform:scale(1.4);margin-top:4px;}
     .terminos label{font-size:18px;line-height:1.4;}
-    .btn{width:100%;padding:16px;background:#cccccc;color:white;border:none;border-radius:16px;font-size:20px;font-weight:bold;cursor:not-allowed;margin-top:15px;transition: background 0.3s ease;}
-    .btn.activo{background:#2c5aa0;cursor:pointer;}
+    
+    /* Estilos del botón */
+    .btn {
+      width:100%;
+      padding:16px;
+      background:#cccccc;
+      color:white;
+      border:none;
+      border-radius:16px;
+      font-size:20px;
+      font-weight:bold;
+      cursor:not-allowed;
+      margin-top:15px;
+      transition: background 0.3s ease;
+    }
+    .btn.activo {
+      background:#2c5aa0;
+      cursor:pointer;
+    }
+    
     .mensaje{display:block;padding:16px;margin-top:15px;border-radius:12px;text-align:center;font-weight:bold}
     .mensaje-exito{background:#e8f5e8;color:#2e7d32}
     .mensaje-error{background:#ffebee;color:#d32f2f}
@@ -40,40 +58,69 @@
     </div>
     <div id="mensaje"></div>
   </div>
+
   <script>
-    // ✅ VERIFICAR SI YA ESTÁ REGISTRADO AL CARGAR LA PÁGINA
+    document.getElementById('terminos').addEventListener('change', function() {
+      const btn = document.getElementById('btn-registro');
+      if (this.checked) {
+        btn.classList.add('activo');
+        btn.disabled = false;
+      } else {
+        btn.classList.remove('activo');
+        btn.disabled = true;
+      }
+    });
+
     (function() {
-      const registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
-      if (registro && registro.whatsapp) {
+      var registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
+      if (registro && registro.whatsapp && registro.nombre && registro.fechaRegistro) {
         window.location.replace("/cupones/");
-        return;
       }
     })();
 
-    document.getElementById('terminos').addEventListener('change', function() {
-      const btn = document.getElementById('btn-registro');
-      if (this.checked) { btn.classList.add('activo'); btn.disabled = false; }
-      else { btn.classList.remove('activo'); btn.disabled = true; }
-    });
-
     function registrar() {
-      const nombre = document.getElementById('nombre').value.trim();
-      const whatsapp = document.getElementById('whatsapp').value.trim().replace(/\D/g, '');
-      const email = document.getElementById('email').value.trim();
-      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxgDElajJ9JFV6WPInb-YMyY7dfd8uRd2SpXpF9CgQU4k0tCxRabbZ_c_L7TkAmAo_uw/exec";
+      if (!document.getElementById('terminos').checked) {
+        document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">Debés aceptar los Términos y Condiciones.</div>';
+        return;
+      }
 
+      var nombre = document.getElementById('nombre').value.trim();
+      var whatsapp = document.getElementById('whatsapp').value.trim().replace(/\D/g, '');
+      var email = document.getElementById('email').value.trim();
+
+      if (!nombre || !whatsapp) {
+        document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">Por favor, completá nombre y WhatsApp.</div>';
+        return;
+      }
+
+      document.getElementById('mensaje').innerHTML = '<div class="mensaje">Enviando...</div>';
+
+      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbza_odRWyS7cdkBOl5qndhkkhajI2Ew4LYpFjOQOzUeu2gcVB_DONjzHic8KFlcDaZCTQ/exec";
+      
       fetch(APPS_SCRIPT_URL + "?accion=registrarLead&nombre=" + encodeURIComponent(nombre) + "&whatsapp=" + whatsapp + "&email=" + encodeURIComponent(email))
-        .then(resp => resp.json())
-        .then(data => {
+        .then(function(resp) {
+          if (!resp.ok) throw new Error("Error en la conexión");
+          return resp.json();
+        })
+        .then(function(data) {
           if (data.success) {
-            localStorage.setItem('usuarioHabitatCar', JSON.stringify({nombre, whatsapp, email, tipo: 'lead', fechaRegistro: new Date().toISOString()}));
+            localStorage.setItem('usuarioHabitatCar', JSON.stringify({
+              nombre: nombre,
+              whatsapp: whatsapp,
+              email: email,
+              tipo: 'lead',
+              fechaRegistro: new Date().toISOString()
+            }));
             document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-exito">✅ ¡Registro exitoso! Redirigiendo...</div>';
-            setTimeout(() => window.location.replace("/cupones/"), 2000);
+            setTimeout(function() { window.location.replace("/cupones/"); }, 2000);
           } else {
             document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">❌ Número ya registrado</div>';
+            localStorage.removeItem('usuarioHabitatCar');
           }
-        }).catch(err => {
-          document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">❌ Error de conexión</div>';
+        })
+        .catch(function(err) {
+          console.error("Error:", err);
+          document.getElementById('mensaje').innerHTML = '<div class="mensaje mensaje-error">❌ No se pudo completar el registro. Intente más tarde.</div>';
         });
     }
   </script>

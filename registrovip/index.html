@@ -16,8 +16,26 @@
     .terminos{display:flex;align-items:flex-start;margin:15px 0;}
     .terminos input[type="checkbox"]{margin-right:12px;transform:scale(1.4);margin-top:4px;}
     .terminos label{font-size:18px;line-height:1.4;}
-    .btn{width:100%;padding:16px;background:#cccccc;color:white;border:none;border-radius:16px;font-size:20px;font-weight:bold;cursor:not-allowed;margin-top:15px;transition: background 0.3s ease;}
-    .btn.activo{background:#6a1b9a;cursor:pointer;}
+    
+    /* Estilos del botón VIP */
+    .btn{
+      width:100%;
+      padding:16px;
+      background:#cccccc;
+      color:white;
+      border:none;
+      border-radius:16px;
+      font-size:20px;
+      font-weight:bold;
+      cursor:not-allowed;
+      margin-top:15px;
+      transition: background 0.3s ease;
+    }
+    .btn.activo{
+      background:#6a1b9a; /* Color VIP púrpura */
+      cursor:pointer;
+    }
+
     .mensaje-error-modal{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.8);display:flex;justify-content:center;align-items:center;z-index:9999}
     .mensaje-error-contenido{background:white;border-radius:20px;padding:30px;text-align:center;max-width:520px;width:90%}
     .mensaje-error-contenido h3{color:#d32f2f;font-size:26px;margin:0 0 20px;font-weight:bold}
@@ -41,50 +59,81 @@
       <button class="btn" id="btn-registro" disabled onclick="registrarVip()">Activar mis beneficios VIP</button>
     </div>
   </div>
+
   <script>
     const urlParams = new URLSearchParams(window.location.search);
     const token = urlParams.get('token');
-    if (!token) { alert("Acceso no autorizado. Usa el link de invitación."); window.location.replace("/"); }
-
-    // ✅ VERIFICAR SI YA ESTÁ REGISTRADO AL CARGAR LA PÁGINA
-    (function() {
-      const registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
-      if (registro && registro.whatsapp) {
-        window.location.replace("/cupones/");
-        return;
-      }
-    })();
+    
+    if (!token) {
+      alert("Acceso no autorizado. Usa el link de invitación.");
+      window.location.replace("/");
+    }
 
     document.getElementById('terminos').addEventListener('change', function() {
       const btn = document.getElementById('btn-registro');
-      if (this.checked) { btn.classList.add('activo'); btn.disabled = false; }
-      else { btn.classList.remove('activo'); btn.disabled = true; }
+      if (this.checked) {
+        btn.classList.add('activo');
+        btn.disabled = false;
+      } else {
+        btn.classList.remove('activo');
+        btn.disabled = true;
+      }
     });
 
     function mostrarErrorModal(mensaje) {
       const modal = document.createElement('div');
       modal.className = 'mensaje-error-modal';
-      modal.innerHTML = `<div class="mensaje-error-contenido"><h3>⚠️ Atención</h3><p>${mensaje}</p><button class="mensaje-error-btn" onclick="this.parentElement.parentElement.remove()">Aceptar</button></div>`;
+      modal.innerHTML = `
+        <div class="mensaje-error-contenido">
+          <h3>⚠️ Atención</h3>
+          <p>${mensaje}</p>
+          <button class="mensaje-error-btn" onclick="this.parentElement.parentElement.remove()">Aceptar</button>
+        </div>
+      `;
       document.body.appendChild(modal);
     }
 
     function registrarVip() {
+      if (!document.getElementById('terminos').checked) {
+        mostrarErrorModal("Debés aceptar los Términos y Condiciones.");
+        return;
+      }
+
       const nombre = document.getElementById('nombre').value.trim();
       const whatsapp = document.getElementById('whatsapp').value.trim().replace(/\D/g, '');
       const email = document.getElementById('email').value.trim();
-      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzxgDElajJ9JFV6WPInb-YMyY7dfd8uRd2SpXpF9CgQU4k0tCxRabbZ_c_L7TkAmAo_uw/exec  ";
 
+      if (!nombre || !whatsapp) {
+        mostrarErrorModal("Por favor, completá nombre y WhatsApp.");
+        return;
+      }
+
+      const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbza_odRWyS7cdkBOl5qndhkkhajI2Ew4LYpFjOQOzUeu2gcVB_DONjzHic8KFlcDaZCTQ/exec";
+      
       fetch(APPS_SCRIPT_URL + "?accion=registrarVip&nombre=" + encodeURIComponent(nombre) + "&whatsapp=" + whatsapp + "&email=" + encodeURIComponent(email) + "&token=" + encodeURIComponent(token))
-        .then(resp => resp.json())
+        .then(resp => {
+          if (!resp.ok) throw new Error("Error en la conexión");
+          return resp.json();
+        })
         .then(data => {
           if (data.success) {
-            localStorage.setItem('usuarioHabitatCar', JSON.stringify({nombre, whatsapp, email, tipo: 'vip', fechaRegistro: new Date().toISOString()}));
-            mostrarErrorModal("✅ ¡Registro VIP exitoso!");
-            setTimeout(() => window.location.replace("/cupones/?actualizar_tipo=true"), 2000);
+            localStorage.setItem('usuarioHabitatCar', JSON.stringify({
+              nombre: nombre,
+              whatsapp: whatsapp,
+              email: email,
+              tipo: 'vip',
+              fechaRegistro: new Date().toISOString()
+            }));
+            mostrarErrorModal("✅ ¡Registro VIP exitoso! Redirigiendo...");
+            setTimeout(() => window.location.replace("/cupones/"), 2000);
           } else {
-            mostrarErrorModal(data.mensaje || "❌ Token inválido");
+            mostrarErrorModal(data.mensaje || "❌ Token inválido o ya usado");
           }
-        }).catch(err => mostrarErrorModal("❌ Error de conexión"));
+        })
+        .catch(err => {
+          console.error("Error:", err);
+          mostrarErrorModal("❌ No se pudo completar el registro. Intente más tarde.");
+        });
     }
   </script>
 </body>
