@@ -356,19 +356,12 @@
         window.location.replace("/registroleads/");
         return;
       }
-      if (registro.tipo === 'vip') {
-        document.getElementById('body').className = 'vip';
-        document.getElementById('subtitulo').style.display = 'block';
-        document.getElementById('subtitulo').textContent = 'Clientes VIP';
-        mostrarGrilla();
-        return;
-      }
       fetch(APPS_SCRIPT_URL + "?accion=verificarVip&whatsapp=" + registro.whatsapp)
         .then(resp => resp.json())
         .then(data => {
-          if (data && data.tipo === 'vip') {
-            registro.tipo = 'vip';
-            localStorage.setItem('usuarioHabitatCar', JSON.stringify(registro));
+          registro.tipo = (data && data.tipo === 'vip') ? 'vip' : 'lead';
+          localStorage.setItem('usuarioHabitatCar', JSON.stringify(registro));
+          if (registro.tipo === 'vip') {
             document.getElementById('body').className = 'vip';
             document.getElementById('subtitulo').style.display = 'block';
             document.getElementById('subtitulo').textContent = 'Clientes VIP';
@@ -387,7 +380,8 @@
       document.getElementById('grilla').innerHTML = '';
       const hoy = new Date();
       COMERCIOS.forEach(com => {
-        const usado = usos[com.id];
+        // ✅ VIP: nunca se marca como usado (no se grisa)
+        const usado = registro.tipo === 'vip' ? false : (usos[com.id] || false);
         let vencimientoHtml = '';
         let esVencido = false;
         if (!usado) {
@@ -533,15 +527,18 @@
 
     function confirmarUso(comercioId, nombreComercio, beneficio) {
       cerrarAdvertencia();
-      usos[comercioId] = true;
-      localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
-      const reg = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
       
-      // ✅ TODO CORRECTO: se envía el nombre del COMERCIO
-      fetch(APPS_SCRIPT_URL + "?accion=registrarUso&whatsapp=" + encodeURIComponent(reg.whatsapp || "") +
-            "&nombre=" + encodeURIComponent(reg.nombre || "") +
-            "&tipo=" + encodeURIComponent(reg.tipo || "lead") +
-            "&comercio=" + encodeURIComponent(nombreComercio) +          // ← nombre del comercio
+      // ✅ SOLO LOS LEADS marcan el cupón como usado
+      if (registro.tipo !== 'vip') {
+        usos[comercioId] = true;
+        localStorage.setItem('usosHabitatCar', JSON.stringify(usos));
+      }
+
+      // ✅ Registrar uso en el servidor
+      fetch(APPS_SCRIPT_URL + "?accion=registrarUso&whatsapp=" + encodeURIComponent(registro.whatsapp || "") +
+            "&nombre=" + encodeURIComponent(registro.nombre || "") +
+            "&tipo=" + encodeURIComponent(registro.tipo || "lead") +
+            "&comercio=" + encodeURIComponent(nombreComercio) +
             "&beneficio=" + encodeURIComponent(beneficio) +
             "&tokenQR=" + encodeURIComponent(COMERCIOS.find(c => c.id === comercioId)?.tokenQR || "token_desconocido"))
         .catch(err => console.log("Error al registrar uso:", err));
