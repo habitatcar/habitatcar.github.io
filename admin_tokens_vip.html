@@ -79,6 +79,10 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             margin-bottom: 20px;
             flex-shrink: 0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
         }
 
         .btn-main {
@@ -91,6 +95,17 @@
             font-weight: bold;
             cursor: pointer;
             transition: 0.3s;
+        }
+
+        .btn-danger-all {
+            background: var(--borravino);
+            color: white;
+            padding: 8px 15px;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.8em;
+            cursor: pointer;
+            margin-top: 5px;
         }
 
         .table-container {
@@ -121,6 +136,17 @@
 
         .btn-copy {
             background: var(--celeste-habitat);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin-right: 5px;
+        }
+
+        .btn-delete {
+            background: var(--rojo);
             color: white;
             border: none;
             padding: 8px 12px;
@@ -160,8 +186,9 @@
 
     <div class="container">
         <div class="card-top">
-            <h2 style="margin:0 0 10px 0;">Generador de Invitaciones VIP</h2>
+            <h2 style="margin:0;">Generador de Invitaciones VIP</h2>
             <button class="btn-main" onclick="generarToken()">✨ GENERAR NUEVO TOKEN VIP</button>
+            <button class="btn-danger-all" onclick="eliminarTodosTokens()">Eliminar todos los tokens</button>
         </div>
 
         <div class="table-container">
@@ -174,7 +201,7 @@
                         <th>SOCIO</th>
                         <th>USO</th>
                         <th>LINK DE INVITACIÓN</th>
-                        <th>ACCIÓN</th>
+                        <th>ACCIONES</th>
                     </tr>
                 </thead>
                 <tbody id="lista-tokens"></tbody>
@@ -184,7 +211,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -205,7 +232,7 @@
             lista.innerHTML = "";
             snap.forEach(d => {
                 const t = d.data();
-                // CORRECCIÓN AQUÍ: Se usa el nombre correcto del archivo y comillas invertidas
+                const id = d.id;
                 const fullLink = `https://habitatcar.github.io/usuarios_registro_vip.html?t=${t.token}`;
                 
                 lista.innerHTML += `
@@ -217,7 +244,8 @@
                         <td>${t.fechaUso ? new Date(t.fechaUso).toLocaleDateString() : '-'}</td>
                         <td><span class="link-text">${fullLink}</span></td>
                         <td>
-                            <button class="btn-copy" onclick="copyLink('${fullLink}')">COPIAR LINK</button>
+                            <button class="btn-copy" onclick="copyLink('${fullLink}')">COPIAR</button>
+                            <button class="btn-delete" onclick="eliminarToken('${id}')">ELIMINAR</button>
                         </td>
                     </tr>
                 `;
@@ -239,9 +267,28 @@
             } catch (e) { console.error(e); }
         };
 
+        window.eliminarToken = async (id) => {
+            if(confirm("¿Estás seguro de eliminar este token?")) {
+                try {
+                    await deleteDoc(doc(db, "tokens_vip", id));
+                } catch (e) { console.error(e); }
+            }
+        };
+
+        window.eliminarTodosTokens = async () => {
+            if(confirm("¡ATENCIÓN! Se eliminarán TODOS los tokens generados. ¿Continuar?")) {
+                try {
+                    const querySnapshot = await getDocs(collection(db, "tokens_vip"));
+                    querySnapshot.forEach(async (documento) => {
+                        await deleteDoc(doc(db, "tokens_vip", documento.id));
+                    });
+                } catch (e) { console.error(e); }
+            }
+        };
+
         window.copyLink = (link) => {
             navigator.clipboard.writeText(link).then(() => {
-                alert("Link de invitación copiado al portapapeles ✅");
+                alert("Link de invitación copiado ✅");
             });
         };
     </script>
