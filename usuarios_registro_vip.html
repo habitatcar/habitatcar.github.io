@@ -197,7 +197,8 @@
         const db = getFirestore(app);
 
         const urlParams = new URLSearchParams(window.location.search);
-        const tokenInterno = urlParams.get('token');
+        // CORRECCIÓN: El parámetro en la URL es 't', no 'token'
+        const tokenInterno = urlParams.get('t');
         let idDocumentoToken = "";
 
         async function validarTokenInterno() {
@@ -211,7 +212,8 @@
             }
 
             try {
-                const q = query(collection(db, "tokens_vip"), where("codigo", "==", tokenInterno), where("estado", "==", "disponible"));
+                // CORRECCIÓN: El campo en Firestore es 'token', no 'codigo'
+                const q = query(collection(db, "tokens_vip"), where("token", "==", tokenInterno), where("estado", "==", "disponible"));
                 const snap = await getDocs(q);
 
                 if (!snap.empty) {
@@ -220,11 +222,12 @@
                     btn.disabled = false;
                     idDocumentoToken = snap.docs[0].id;
                 } else {
-                    msg.innerText = "❌ Este código ya fue utilizado.";
+                    msg.innerText = "❌ Este código no existe o ya fue utilizado.";
                     msg.className = "invalido";
                 }
             } catch (e) {
                 msg.innerText = "Error de conexión.";
+                console.error(e);
             }
         }
 
@@ -232,8 +235,9 @@
             const btn = document.getElementById('btnRegistro');
             const tel = document.getElementById('whatsapp').value.trim();
             const mail = document.getElementById('email').value.trim();
+            const nom = document.getElementById('nombres').value.trim();
 
-            if(!tel || !mail || !document.getElementById('nombres').value) {
+            if(!tel || !mail || !nom) {
                 alert("Por favor, complete todos los campos.");
                 return;
             }
@@ -243,7 +247,7 @@
 
             try {
                 await addDoc(collection(db, "vips"), {
-                    nombres: document.getElementById('nombres').value,
+                    nombres: nom,
                     apellido: document.getElementById('apellido').value,
                     whatsapp: tel,
                     email: mail,
@@ -254,7 +258,8 @@
 
                 await updateDoc(doc(db, "tokens_vip", idDocumentoToken), {
                     estado: "usado",
-                    usadoPor: tel,
+                    whatsapp: tel, // Guardamos el whatsapp en el token para historial
+                    nombreVip: nom, // Guardamos el nombre en el token para historial
                     fechaUso: Date.now()
                 });
 
@@ -263,7 +268,9 @@
 
             } catch (e) {
                 alert("Error al registrar.");
+                console.error(e);
                 btn.disabled = false;
+                btn.innerText = "Activar Membresía VIP";
             }
         };
 
