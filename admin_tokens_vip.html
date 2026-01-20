@@ -28,6 +28,7 @@
             overflow: hidden;
         }
 
+        /* HEADER FIJO */
         .header {
             background: var(--azul-medio);
             padding: 15px 25px;
@@ -57,8 +58,10 @@
             font-size: 11px;
             text-transform: uppercase;
         }
+        /* BOTÓN ACTIVO EN ROJO */
         .nav-link.active { background: var(--rojo); box-shadow: 0 0 10px rgba(220,53,69,0.5); }
 
+        /* CONTENEDOR PRINCIPAL */
         .container { 
             max-width: 1400px; 
             margin: 0 auto; 
@@ -79,10 +82,6 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             margin-bottom: 20px;
             flex-shrink: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
         }
 
         .btn-main {
@@ -97,17 +96,20 @@
             transition: 0.3s;
         }
 
-        .btn-danger-all {
+        /* BOTÓN ELIMINAR TODOS */
+        .btn-delete-all {
             background: var(--borravino);
             color: white;
-            padding: 8px 15px;
+            padding: 10px 20px;
             border: none;
-            border-radius: 6px;
-            font-size: 0.8em;
+            border-radius: 8px;
+            font-weight: bold;
             cursor: pointer;
-            margin-top: 5px;
+            margin-top: 10px;
+            font-size: 0.9em;
         }
 
+        /* TABLA CON ENCABEZADO FIJO */
         .table-container {
             background: var(--azul-medio);
             border-radius: 15px;
@@ -142,7 +144,7 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 0.9em;
-            margin-right: 5px;
+            margin-bottom: 5px;
         }
 
         .btn-delete {
@@ -186,9 +188,10 @@
 
     <div class="container">
         <div class="card-top">
-            <h2 style="margin:0;">Generador de Invitaciones VIP</h2>
+            <h2 style="margin:0 0 10px 0;">Generador de Invitaciones VIP</h2>
             <button class="btn-main" onclick="generarToken()">✨ GENERAR NUEVO TOKEN VIP</button>
-            <button class="btn-danger-all" onclick="eliminarTodosTokens()">Eliminar todos los tokens</button>
+            <br>
+            <button class="btn-delete-all" onclick="eliminarTodos()">ELIMINAR TODOS LOS TOKENS</button>
         </div>
 
         <div class="table-container">
@@ -201,7 +204,7 @@
                         <th>SOCIO</th>
                         <th>USO</th>
                         <th>LINK DE INVITACIÓN</th>
-                        <th>ACCIONES</th>
+                        <th>ACCIÓN</th>
                     </tr>
                 </thead>
                 <tbody id="lista-tokens"></tbody>
@@ -232,7 +235,7 @@
             lista.innerHTML = "";
             snap.forEach(d => {
                 const t = d.data();
-                const id = d.id;
+                const idDoc = d.id;
                 const fullLink = `https://habitatcar.github.io/usuarios_registro_vip.html?t=${t.token}`;
                 
                 lista.innerHTML += `
@@ -244,8 +247,8 @@
                         <td>${t.fechaUso ? new Date(t.fechaUso).toLocaleDateString() : '-'}</td>
                         <td><span class="link-text">${fullLink}</span></td>
                         <td>
-                            <button class="btn-copy" onclick="copyLink('${fullLink}')">COPIAR</button>
-                            <button class="btn-delete" onclick="eliminarToken('${id}')">ELIMINAR</button>
+                            <button class="btn-copy" onclick="copyLink('${fullLink}')">COPIAR LINK</button>
+                            <button class="btn-delete" onclick="eliminarUno('${idDoc}')">ELIMINAR</button>
                         </td>
                     </tr>
                 `;
@@ -267,28 +270,30 @@
             } catch (e) { console.error(e); }
         };
 
-        window.eliminarToken = async (id) => {
-            if(confirm("¿Estás seguro de eliminar este token?")) {
+        // Función para eliminar uno por uno
+        window.eliminarUno = async (id) => {
+            if (confirm("¿Seguro que quieres eliminar este token?")) {
                 try {
                     await deleteDoc(doc(db, "tokens_vip", id));
-                } catch (e) { console.error(e); }
+                } catch (e) { console.error("Error al eliminar:", e); }
             }
         };
 
-        window.eliminarTodosTokens = async () => {
-            if(confirm("¡ATENCIÓN! Se eliminarán TODOS los tokens generados. ¿Continuar?")) {
+        // Función para eliminar todos
+        window.eliminarTodos = async () => {
+            if (confirm("¿Seguro que quieres borrar TODOS los tokens? Esta acción no se puede deshacer.")) {
                 try {
                     const querySnapshot = await getDocs(collection(db, "tokens_vip"));
                     querySnapshot.forEach(async (documento) => {
                         await deleteDoc(doc(db, "tokens_vip", documento.id));
                     });
-                } catch (e) { console.error(e); }
+                } catch (e) { console.error("Error al eliminar todos:", e); }
             }
         };
 
         window.copyLink = (link) => {
             navigator.clipboard.writeText(link).then(() => {
-                alert("Link de invitación copiado ✅");
+                alert("Link de invitación copiado al portapapeles ✅");
             });
         };
     </script>
