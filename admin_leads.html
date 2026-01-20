@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Leads | Hábitat-Car</title>
+    <style>
+        :root {
+            --azul-oscuro: #0a192f;
+            --azul-medio: #334766; 
+            --azul-claro: #415a77;
+            --celeste-habitat: #004a99;
+            --blanco-suave: #e6f1ff;
+            --oro: #ffc107;
+            --rojo: #dc3545;
+            --verde: #28a745;
+            --naranja: #ff9800;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--azul-oscuro);
+            color: var(--blanco-suave);
+            margin: 0;
+            padding: 0;
+        }
+
+        /* HEADER & NAV UNIFICADO */
+        .header {
+            background: var(--azul-medio);
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 4px solid var(--celeste-habitat);
+        }
+        .logo { height: 120px; width: auto; } 
+
+        .nav-menu { display: flex; gap: 8px; flex-wrap: wrap; }
+        .nav-link {
+            padding: 8px 14px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: white;
+            font-weight: bold;
+            background: var(--azul-claro);
+            font-size: 11px;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+        /* BOTÓN ACTIVO EN ROJO SEGÚN SOLICITUD */
+        .nav-link.active { background: var(--rojo); box-shadow: 0 0 10px rgba(220,53,69,0.5); }
+
+        .container { max-width: 1300px; margin: 30px auto; padding: 0 20px; }
+        
+        /* BARRA DE BÚSQUEDA */
+        .search-bar {
+            background: var(--azul-medio);
+            padding: 15px 25px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+        .search-bar input {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px solid var(--azul-claro);
+            background: var(--azul-oscuro);
+            color: white;
+        }
+
+        /* TABLA */
+        .card-table {
+            background: var(--azul-medio);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        }
+        table { width: 100%; border-collapse: collapse; }
+        th { background: rgba(0,0,0,0.2); color: var(--oro); padding: 15px; text-align: left; }
+        td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        tr:hover { background: rgba(255,255,255,0.02); }
+
+        /* ESTADOS Y BOTONES */
+        .status { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
+        .status-activo { background: var(--verde); color: white; }
+        .status-suspendido { background: var(--naranja); color: white; }
+
+        .btn-action {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            margin-right: 5px;
+            transition: 0.2s;
+        }
+        .btn-vip { background: var(--oro); color: black; }
+        .btn-suspend { background: var(--naranja); }
+        .btn-del { background: var(--rojo); }
+        .btn-action:hover { filter: brightness(1.2); }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
+        <nav class="nav-menu">
+            <a href="admin_comercios.html" class="nav-link">Comercios</a>
+            <a href="admin_leads.html" class="nav-link active">Leads</a>
+            <a href="admin_vips.html" class="nav-link">Vips</a>
+            <a href="admin_tokens_vip.html" class="nav-link">Tokens Vip</a>
+            <a href="admin_curioso.html" class="nav-link">Curioso</a>
+            <a href="admin_estadisticas.html" class="nav-link">Estadísticas</a>
+            <a href="admin_logs.html" class="nav-link">Log</a>
+            <a href="admin_tutoriales.html" class="nav-link">Tutoriales</a>
+            <a href="index.html" class="nav-link">Panel de Ingreso</a>
+            <a href="admin_legales.html" class="nav-link">Legales</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <div class="search-bar">
+            <input type="text" id="buscador" placeholder="Buscar por apellido, nombre o WhatsApp..." onkeyup="filtrarLeads()">
+            <div id="contador-total" style="font-weight: bold; color: var(--oro);">Total: 0</div>
+        </div>
+
+        <div class="card-table">
+            <table>
+                <thead>
+                    <tr>
+                        <th>FECHA</th>
+                        <th>APELLIDO Y NOMBRE</th>
+                        <th>WHATSAPP</th>
+                        <th>ESTADO</th>
+                        <th>ACCIONES</th>
+                    </tr>
+                </thead>
+                <tbody id="lista-leads">
+                    </tbody>
+            </table>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+            authDomain: "habitatcar-pro.firebaseapp.com",
+            projectId: "habitatcar-pro",
+            storageBucket: "habitatcar-pro.firebasestorage.app",
+            messagingSenderId: "311691258694",
+            appId: "1:311691258694:web:17a09051dcea7707af9347"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let todosLosLeads = [];
+
+        const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
+        
+        onSnapshot(q, (snap) => {
+            todosLosLeads = [];
+            snap.forEach(d => todosLosLeads.push({id: d.id, ...d.data()}));
+            renderizar(todosLosLeads);
+        });
+
+        function renderizar(datos) {
+            const lista = document.getElementById('lista-leads');
+            lista.innerHTML = "";
+            document.getElementById('contador-total').innerText = `Total: ${datos.length}`;
+
+            datos.forEach(l => {
+                const fecha = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
+                lista.innerHTML += `
+                    <tr>
+                        <td>${fecha}</td>
+                        <td><b>${l.apellido}, ${l.nombres}</b></td>
+                        <td>${l.whatsapp}</td>
+                        <td><span class="status status-${l.estado || 'activo'}">${(l.estado || 'activo').toUpperCase()}</span></td>
+                        <td>
+                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido}')" title="Convertir a VIP">💎 VIP</button>
+                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}')">🚫</button>
+                            <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.filtrarLeads = () => {
+            const busqueda = document.getElementById('buscador').value.toLowerCase();
+            const filtrados = todosLosLeads.filter(l => 
+                l.apellido.toLowerCase().includes(busqueda) || 
+                l.nombres.toLowerCase().includes(busqueda) || 
+                l.whatsapp.includes(busqueda)
+            );
+            renderizar(filtrados);
+        };
+
+        window.hacerVIP = async (id, apellido) => {
+            if(confirm(`¿Convertir a ${apellido} en Miembro VIP?`)) {
+                await updateDoc(doc(db, "leads", id), { 
+                    convertidoVIP: true, 
+                    fechaVIP: Date.now(),
+                    estado: "activo" 
+                });
+                await addDoc(collection(db, "logs"), {
+                    fecha: Date.now(),
+                    tipo: "alta_vip",
+                    accion: "CONVERSIÓN VIP",
+                    detalle: `Lead ${apellido} convertido a VIP`
+                });
+            }
+        };
+
+        window.toggleEstado = async (id, estadoActual) => {
+            const nuevo = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
+            await updateDoc(doc(db, "leads", id), { estado: nuevo });
+        };
+
+        window.borrarLead = async (id) => {
+            if(confirm("¿Eliminar este lead permanentemente?")) {
+                await deleteDoc(doc(db, "leads", id));
+            }
+        };
+    </script>
+</body>
+</html>

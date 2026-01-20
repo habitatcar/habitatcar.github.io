@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Soy Curioso | Hábitat-Car</title>
+    <style>
+        :root {
+            --azul-habitat: #004a99;
+            --oro: #d4af37;
+            --blanco: #ffffff;
+            --gris-fondo: #f4f7f9;
+        }
+
+        body { 
+            margin: 0; font-family: 'Segoe UI', sans-serif; 
+            background-color: var(--gris-fondo); color: #333; 
+            padding-bottom: 80px; /* Espacio para el pie fijo */
+        }
+
+        .header { 
+            background: white; padding: 40px 20px; text-align: center; 
+            border-bottom: 5px solid var(--azul-habitat); 
+        }
+        
+        /* LOGO CON AUMENTO DEL 25% (400px) */
+        .logo { width: 400px; max-width: 95%; height: auto; }
+
+        .container { max-width: 800px; margin: 20px auto; padding: 0 20px; }
+
+        .intro { text-align: center; margin-bottom: 40px; }
+        .intro h1 { color: var(--azul-habitat); text-transform: uppercase; margin-top: 20px; margin-bottom: 10px; }
+        .intro p { font-size: 1.2em; color: #666; font-style: italic; }
+
+        .btn-volver {
+            display: inline-block; padding: 15px 45px; background: var(--azul-habitat);
+            color: white; text-decoration: none; border-radius: 50px; font-weight: bold;
+            margin-top: 15px; cursor: pointer; border: none; font-size: 16px;
+            text-transform: uppercase; transition: 0.3s;
+        }
+        .btn-volver:hover { background: #003366; transform: scale(1.05); }
+
+        /* FEED DE NOVEDADES */
+        .news-card {
+            background: white; border-radius: 20px; overflow: hidden;
+            margin-bottom: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            transition: 0.3s; border: 1px solid #eee;
+        }
+        .news-card:hover { transform: translateY(-5px); box-shadow: 0 15px 35px rgba(0,0,0,0.15); }
+        .news-img { width: 100%; height: 350px; object-fit: cover; }
+        .news-content { padding: 30px; }
+        .news-date { color: var(--azul-habitat); font-weight: bold; font-size: 0.9em; display: block; margin-bottom: 10px; }
+        .news-title { margin: 0 0 15px 0; font-size: 1.8em; color: #111; line-height: 1.2; }
+        .news-text { line-height: 1.7; color: #444; font-size: 1.1em; text-align: justify; white-space: pre-wrap; }
+
+        /* PIE DE PÁGINA FIJO */
+        .footer-identificacion {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-top: 4px solid var(--azul-habitat);
+            padding: 10px 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            z-index: 900;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+        }
+        .footer-link {
+            text-decoration: none;
+            color: var(--azul-habitat);
+            font-weight: bold;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        @media (max-width: 600px) {
+            .logo { width: 300px; }
+            .news-title { font-size: 1.5em; }
+            .news-img { height: 220px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
+    </div>
+
+    <div class="container">
+        <div class="intro">
+            <h1>Ecosistema Hábitat-Car</h1>
+            <p>Novedades, curiosidades y todo lo que pasa en el mundo <b>inmobiliario y automotor</b>.</p>
+            
+            <button onclick="volverInteligente()" class="btn-volver">VOLVER</button>
+        </div>
+
+        <div id="feed-curioso">
+            </div>
+    </div>
+
+    <footer class="footer-identificacion">
+        <a href="https://www.habitatcar.com.ar" class="footer-link" target="_blank">www.habitatcar.com.ar</a>
+        <a href="https://wa.me/543884618228" class="footer-link" target="_blank">Cel: 388-4618228</a>
+    </footer>
+
+    <script>
+        function volverInteligente() {
+            if (document.referrer.includes('usuarios_cupones_vips.html')) {
+                window.location.href = 'usuarios_cupones_vips.html';
+            } else if (document.referrer.includes('usuarios_cupones_leads.html')) {
+                window.location.href = 'usuarios_cupones_leads.html';
+            } else if (window.history.length > 1) {
+                window.history.back();
+            } else {
+                window.location.href = 'usuarios_cupones_leads.html';
+            }
+        }
+    </script>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, orderBy, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+            authDomain: "habitatcar-pro.firebaseapp.com",
+            projectId: "habitatcar-pro",
+            storageBucket: "habitatcar-pro.firebasestorage.app",
+            messagingSenderId: "311691258694",
+            appId: "1:311691258694:web:17a09051dcea7707af9347"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const q = query(collection(db, "curioso_novedades"), orderBy("fecha", "desc"));
+        onSnapshot(q, (snap) => {
+            const container = document.getElementById('feed-curioso');
+            if (snap.empty) {
+                container.innerHTML = "<p style='text-align:center; color:#888;'>Próximamente nuevas curiosidades...</p>";
+                return;
+            }
+            
+            container.innerHTML = "";
+            snap.forEach(doc => {
+                const n = doc.data();
+                const fecha = new Date(n.fecha).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' });
+                
+                container.innerHTML += `
+                    <div class="news-card">
+                        ${n.imagen ? `<img src="${n.imagen}" class="news-img">` : ''}
+                        <div class="news-content">
+                            <span class="news-date">${fecha}</span>
+                            <h2 class="news-title">${n.titulo}</h2>
+                            <p class="news-text">${n.contenido}</p>
+                        </div>
+                    </div>`;
+            });
+        });
+    </script>
+</body>
+</html>

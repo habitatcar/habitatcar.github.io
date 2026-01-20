@@ -1,0 +1,460 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v6.3</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        :root { 
+            --azul-oscuro: #0a192f;
+            --azul-medio: #334766; 
+            --azul-claro: #415a77;
+            --celeste-habitat: #004a99;
+            --blanco-suave: #e6f1ff;
+            --borravino: #800020; 
+            --verde: #28a745; 
+            --rojo: #dc3545; 
+            --oro: #ffc107; 
+        }
+
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            background-color: var(--azul-oscuro); 
+            color: var(--blanco-suave);
+            margin: 0; 
+            padding: 0; 
+        }
+
+        /* REDUCCIÓN 25%: Padding de 20px a 15px, Logo de 120px a 90px */
+        .header {
+            background: var(--azul-medio);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 4px solid var(--celeste-habitat);
+            position: sticky;
+            top: 0;
+            z-index: 1100;
+        }
+        .logo { height: 90px; width: auto; } 
+
+        .nav-menu { display: flex; gap: 8px; flex-wrap: wrap; }
+        .nav-link {
+            padding: 8px 15px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: white;
+            font-weight: bold;
+            background: var(--azul-claro);
+            transition: 0.3s;
+            font-size: 12px;
+        }
+        .nav-link.active { background: var(--rojo); box-shadow: 0 0 10px rgba(220, 53, 69, 0.5); }
+
+        /* REDUCCIÓN 25%: Padding de 15px a 11px. Top ajustado a la nueva altura del header (124px) */
+        .tools-faja {
+            position: sticky;
+            top: 124px; 
+            z-index: 1000;
+            background: #ffffff; 
+            padding: 11px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .search-container { position: relative; flex: 1; max-width: 350px; }
+        .search-input { 
+            width: 100%; padding: 10px 12px 10px 45px; 
+            border: 2px solid var(--borravino); 
+            border-radius: 25px; outline: none; font-size: 1em;
+            color: #1a1a1a; 
+            font-weight: 600;
+            background: #fff;
+        }
+        .search-icon { position: absolute; left: 18px; top: 12px; color: var(--borravino); font-size: 1.1em; }
+
+        .btn-tool { 
+            padding: 8px 12px; border: 2px solid var(--borravino); 
+            background: white; color: var(--borravino); 
+            cursor: pointer; border-radius: 8px; font-weight: bold; transition: 0.2s; font-size: 0.9em;
+        }
+        .btn-tool.active { background: var(--borravino); color: white; }
+
+        .stat-badge { padding: 6px 12px; border-radius: 20px; color: white; font-weight: bold; font-size: 0.8em; display: flex; align-items: center; gap: 5px; }
+
+        .wrapper { max-width: 1600px; margin: 20px auto; display: grid; grid-template-columns: 420px 1fr; gap: 35px; padding: 0 25px; align-items: start; }
+
+        /* Posición del formulario ajustada a la nueva altura compacta */
+        .card-form { 
+            background: var(--azul-medio); 
+            padding: 30px; 
+            border-radius: 20px; 
+            border: 1px solid rgba(255,255,255,0.1);
+            position: fixed; 
+            width: 360px;   
+            top: 210px;     
+            box-shadow: 0 10px 30px rgba(0,0,0,0.4);
+            max-height: calc(100vh - 240px); 
+            overflow-y: auto; 
+            z-index: 900;
+        }
+
+        .card-form::-webkit-scrollbar { width: 8px; }
+        .card-form::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 10px; }
+        .card-form::-webkit-scrollbar-thumb { background: var(--azul-claro); border-radius: 10px; }
+
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .full { grid-column: span 2; }
+        
+        input, select { 
+            width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--azul-claro); 
+            background: var(--azul-oscuro); 
+            color: #ffffff; 
+            box-sizing: border-box; 
+            font-size: 0.95em;
+        }
+
+        .read-only { background: #000 !important; color: var(--oro) !important; font-weight: bold; border: 2px solid var(--oro) !important; }
+        
+        .btn-submit { 
+            width: 100%; background: var(--verde); color: white; border: none; padding: 18px; 
+            border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 1.1em; margin-top: 20px;
+        }
+
+        .comercio-card { 
+            background: var(--azul-medio); 
+            border-radius: 20px; 
+            margin-bottom: 30px; 
+            border-left: 15px solid var(--borravino); 
+            display: flex; 
+            overflow: hidden;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.3);
+            transition: 0.3s;
+        }
+
+        .comercio-card.inactive { background: #121b29; border-left-color: #333; }
+        .visual-side { width: 160px; background: rgba(0,0,0,0.15); display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 25px; border-right: 1px solid rgba(255,255,255,0.05); }
+        .img-preview { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; background: white; border: 3px solid var(--azul-claro); cursor: zoom-in; }
+        .info-side { flex: 1; padding: 25px; }
+        .comercio-title { font-size: 2.2em; color: var(--oro); margin: 0 0 15px 0; font-weight: 900; }
+        .data-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
+        .data-box b { display: block; color: #cbd5e0; font-size: 0.8em; text-transform: uppercase; margin-bottom: 5px; }
+        .data-box span { font-size: 1.1em; color: white; font-weight: 600; }
+        .benefit-box { grid-column: span 2; background: rgba(0,0,0,0.25); padding: 12px; border-radius: 10px; border-left: 4px solid var(--borravino); }
+        .highlight-ben { color: var(--verde) !important; font-size: 1.3em !important; font-weight: 800 !important; }
+        
+        .btn-group { margin-top: 25px; display: flex; gap: 12px; flex-wrap: wrap; align-items: center; }
+        .btn-op { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; font-size: 0.9em; transition: 0.3s; }
+
+        .social-inline { display: flex; gap: 15px; margin-left: 10px; flex-wrap: wrap; }
+        .social-inline a { color: var(--oro); text-decoration: none; font-size: 0.85em; font-weight: bold; white-space: nowrap; }
+        .social-inline a:hover { text-decoration: underline; }
+
+        #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 5000; justify-content: center; align-items: center; }
+        #modal-img { max-width: 90%; max-height: 90%; border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <header class="header">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
+        <nav class="nav-menu">
+            <a href="admin_comercios.html" class="nav-link active">COMERCIOS</a>
+            <a href="admin_leads.html" class="nav-link">LEADS</a>
+            <a href="admin_vips.html" class="nav-link">VIPS</a>
+            <a href="admin_tokens_vip.html" class="nav-link">TOKENS VIP</a>
+            <a href="admin_curioso.html" class="nav-link">CURIOSO</a>
+            <a href="admin_estadisticas.html" class="nav-link">ESTADÍSTICAS</a>
+            <a href="admin_logs.html" class="nav-link">LOG</a>
+            <a href="admin_tutoriales.html" class="nav-link">TUTORIALES</a>
+            <a href="index.html" class="nav-link">PANEL DE INGRESO</a>
+            <a href="admin_legales.html" class="nav-link">LEGALES</a>
+        </nav>
+    </header>
+
+    <div class="tools-faja">
+        <div class="search-container">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="masterSearch" class="search-input" placeholder="Buscar comercio..." oninput="window.render()">
+        </div>
+        <div style="display: flex; gap: 10px;">
+            <div class="stat-badge" style="background:#4a5568">TOTAL: <span id="count-total">0</span></div>
+            <div class="stat-badge" style="background:var(--verde)">ACTIVOS: <span id="count-act">0</span></div>
+            <div class="stat-badge" style="background:var(--rojo)">INACTIVOS: <span id="count-inact">0</span></div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button id="fil-todos" class="btn-tool active" onclick="window.cambiarFiltro('todos', 'fil-todos')">Ver Todos</button>
+            <button id="fil-inact" class="btn-tool" onclick="window.cambiarFiltro('inactivo', 'fil-inact')">Ver Inactivos</button>
+        </div>
+    </div>
+
+    <div class="wrapper">
+        <aside class="sidebar">
+            <div class="card-form">
+                <h3 id="titulo-form" style="margin-top:0; color:var(--oro); font-size: 1.5em; text-align: center; margin-bottom: 25px;">➕ REGISTRAR COMERCIO</h3>
+                <input type="hidden" id="edit-id">
+                <div class="form-grid">
+                    <input type="text" id="nombre-input" class="full" placeholder="Nombre Fantasía" oninput="genID()">
+                    <input type="text" id="id-input" class="read-only" placeholder="ID SISTEMA" readonly>
+                    <input type="text" id="token-input" class="read-only" placeholder="TOKEN QR" readonly>
+                    <input type="text" id="logo-input" class="full" placeholder="URL Logotipo">
+                    
+                    <input type="number" id="val-lead" placeholder="Desc. Lead %">
+                    <input type="number" id="vig-lead" placeholder="Vigencia Lead (Días)">
+                    <input type="text" id="txt-lead" class="full" placeholder="Detalle Lead (Ej: En servicios)">
+                    
+                    <input type="number" id="val-vip" placeholder="Desc. VIP %">
+                    <input type="number" id="vig-vip" placeholder="Vigencia VIP (Días)">
+                    <input type="text" id="txt-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
+                    
+                    <input type="text" id="direccion-input" class="full" placeholder="Dirección">
+                    <input type="text" id="ciudad-input" placeholder="Ciudad">
+                    <input type="text" id="telefono-input" placeholder="WhatsApp (Número)">
+                    
+                    <input type="text" id="facebook-input" class="full" placeholder="URL FACEBOOK">
+                    <input type="text" id="instagram-input" class="full" placeholder="URL INSTAGRAM">
+                    <input type="text" id="web-input" class="full" placeholder="URL X (TWITTER)">
+                    <input type="text" id="sitio-web-input" class="full" placeholder="Sitio Web (URL)">
+
+                    <input type="text" id="email-input" class="full" placeholder="Email Dueño">
+                    <select id="reporte-input" class="full">
+                        <option value="Semanal">Reporte Semanal</option>
+                        <option value="Quincenal">Reporte Quincenal</option>
+                        <option value="Mensual">Reporte Mensual</option>
+                    </select>
+                </div>
+                <button class="btn-submit" onclick="guardar()">GUARDAR COMERCIO ✅</button>
+                <button id="btn-cancel-edit" class="btn-op" style="display:none; width:100%; margin-top:10px; background:#666" onclick="window.clear()">CANCELAR EDICIÓN</button>
+            </div>
+        </aside>
+
+        <main id="lista-comercios"></main>
+    </div>
+
+    <div id="modal" onclick="this.style.display='none'">
+        <img id="modal-img" src="">
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+            authDomain: "habitatcar-pro.firebaseapp.com",
+            projectId: "habitatcar-pro",
+            storageBucket: "habitatcar-pro.firebasestorage.app",
+            messagingSenderId: "311691258694",
+            appId: "1:311691258694:web:17a09051dcea7707af9347"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        let COMERCIOS = [];
+        let FILTRO_ESTADO = 'todos';
+
+        onSnapshot(collection(db, "comercios"), (snap) => {
+            COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+            window.render();
+        });
+
+        const registrarLog = async (accion, detalle) => {
+            try {
+                await addDoc(collection(db, "logs_admin"), {
+                    fecha: serverTimestamp(),
+                    accion: accion,
+                    detalle: detalle,
+                    modulo: "COMERCIOS"
+                });
+            } catch (e) { console.error("Error log:", e); }
+        };
+
+        window.render = () => {
+            const term = document.getElementById('masterSearch').value.toLowerCase();
+            const box = document.getElementById('lista-comercios');
+            box.innerHTML = "";
+            
+            let filtrados = COMERCIOS.filter(c => {
+                const searchStr = ((c.nombre || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase();
+                const matchesSearch = searchStr.includes(term);
+                const matchesFiltro = FILTRO_ESTADO === 'todos' || (FILTRO_ESTADO === 'inactivo' && c.estado !== 'activo');
+                return matchesSearch && matchesFiltro;
+            });
+
+            filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
+
+            filtrados.forEach(c => {
+                const estaActivo = c.estado === 'activo';
+                const displayID = c.idComercio || c.id || "SIN-ID";
+                const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
+                
+                const waLink = c.telefono ? (c.telefono.includes('http') ? c.telefono : `https://wa.me/${c.telefono.replace(/[^0-9]/g, '')}`) : null;
+                const igLink = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/${c.instagram.replace('@','')}`) : null;
+                const fbLink = c.facebook ? (c.facebook.includes('http') ? c.facebook : `https://facebook.com/${c.facebook}`) : null;
+                const twLink = c.web ? (c.web.includes('http') ? c.web : `https://x.com/${c.web.replace('@','')}`) : null;
+                const webPropia = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : null;
+
+                box.innerHTML += `
+                <div class="comercio-card ${estaActivo ? '' : 'inactive'}">
+                    <div class="visual-side">
+                        <img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
+                        <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
+                    </div>
+                    <div class="info-side">
+                        <h2 class="comercio-title">${c.nombre || 'Sin Nombre'}</h2>
+                        <div class="data-grid">
+                            <div class="data-box"><b>ID SISTEMA</b><span>${displayID}</span></div>
+                            <div class="data-box"><b>Token QR</b><span>${c.tokenQR || '-'}</span></div>
+                            <div class="data-box"><b>Reporte</b><span>${c.frecuenciaReporte || 'Semanal'}</span></div>
+                            <div class="data-box"><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
+                            
+                            <div class="data-box" style="grid-column: span 2"><b>Dirección</b><span>${c.direccion || '-'}</span></div>
+                            <div class="data-box" style="grid-column: span 2"><b>Ciudad</b><span>${c.ciudad || '-'}</span></div>
+
+                            <div class="data-box benefit-box">
+                                <b>Lead</b><span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span>
+                            </div>
+                            <div class="data-box benefit-box">
+                                <b>VIP</b><span class="highlight-ben" style="color:var(--oro)!important">${c.valVip || 0}% ${c.txtVip || ''}</span>
+                            </div>
+                        </div>
+
+                        <div class="btn-group">
+                            <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
+                            <button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
+                                ${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
+                            </button>
+                            <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
+                            
+                            <div class="social-inline">
+                                ${webPropia ? `<a href="${webPropia}" target="_blank">🌐 SITIO WEB</a>` : ''}
+                                ${fbLink ? `<a href="${fbLink}" target="_blank">🔵 FACEBOOK</a>` : ''}
+                                ${igLink ? `<a href="${igLink}" target="_blank">📸 INSTAGRAM</a>` : ''}
+                                ${twLink ? `<a href="${twLink}" target="_blank">⚫ X (TWITTER)</a>` : ''}
+                                ${waLink ? `<a href="${waLink}" target="_blank">🟢 WHATSAPP</a>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            });
+            document.getElementById('count-total').innerText = COMERCIOS.length;
+            document.getElementById('count-act').innerText = COMERCIOS.filter(x => x.estado === 'activo').length;
+            document.getElementById('count-inact').innerText = COMERCIOS.filter(x => x.estado !== 'activo').length;
+        };
+
+        window.edit = (event, id) => {
+            if(event) event.preventDefault();
+            const c = COMERCIOS.find(x => x.fbId === id);
+            if(!c) return;
+
+            document.getElementById('edit-id').value = id;
+            document.getElementById('nombre-input').value = c.nombre || "";
+            let idExistente = c.idComercio || c.id || (c.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+            document.getElementById('id-input').value = idExistente;
+            document.getElementById('token-input').value = c.tokenQR || "";
+            document.getElementById('logo-input').value = c.logoUrl || "";
+            document.getElementById('val-lead').value = c.valLead || "";
+            document.getElementById('txt-lead').value = c.txtLead || "";
+            document.getElementById('vig-lead').value = c.vigenciaLead || c.vigencia || "";
+            document.getElementById('val-vip').value = c.valVip || "";
+            document.getElementById('txt-vip').value = c.txtVip || "";
+            document.getElementById('vig-vip').value = c.vigenciaVip || "";
+            document.getElementById('direccion-input').value = c.direccion || "";
+            document.getElementById('ciudad-input').value = c.ciudad || "";
+            document.getElementById('telefono-input').value = c.telefono || "";
+            document.getElementById('facebook-input').value = c.facebook || "";
+            document.getElementById('instagram-input').value = c.instagram || "";
+            document.getElementById('web-input').value = c.web || "";
+            document.getElementById('sitio-web-input').value = c.sitioWeb || "";
+            document.getElementById('email-input').value = c.emailDueno || "";
+            document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
+            
+            document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
+            document.getElementById('btn-cancel-edit').style.display = "block";
+        };
+
+        window.guardar = async () => {
+            const eid = document.getElementById('edit-id').value;
+            const d = { 
+                nombre: document.getElementById('nombre-input').value, 
+                idComercio: document.getElementById('id-input').value, 
+                tokenQR: document.getElementById('token-input').value, 
+                logoUrl: document.getElementById('logo-input').value, 
+                valLead: document.getElementById('val-lead').value, 
+                txtLead: document.getElementById('txt-lead').value, 
+                vigenciaLead: document.getElementById('vig-lead').value, 
+                valVip: document.getElementById('val-vip').value, 
+                txtVip: document.getElementById('txt-vip').value, 
+                vigenciaVip: document.getElementById('vig-vip').value, 
+                direccion: document.getElementById('direccion-input').value, 
+                ciudad: document.getElementById('ciudad-input').value, 
+                telefono: document.getElementById('telefono-input').value,
+                facebook: document.getElementById('facebook-input').value,
+                instagram: document.getElementById('instagram-input').value,
+                web: document.getElementById('web-input').value,
+                sitioWeb: document.getElementById('sitio-web-input').value,
+                emailDueno: document.getElementById('email-input').value, 
+                frecuenciaReporte: document.getElementById('reporte-input').value
+            };
+
+            if(eid) {
+                await updateDoc(doc(db, "comercios", eid), d);
+                await registrarLog("EDICIÓN", `Se actualizó el comercio: ${d.nombre}`);
+            } else {
+                d.estado = "activo";
+                d.fechaCarga = Date.now();
+                d.lastSubmission = null;
+                await addDoc(collection(db, "comercios"), d);
+                await registrarLog("REGISTRO", `Nuevo comercio creado: ${d.nombre}`);
+            }
+            window.clear();
+        };
+
+        window.clear = () => {
+            document.getElementById('edit-id').value = "";
+            document.querySelectorAll('.sidebar input').forEach(i => i.value = "");
+            document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
+            document.getElementById('btn-cancel-edit').style.display = "none";
+        };
+
+        window.genID = () => {
+            if(document.getElementById('edit-id').value) return;
+            const n = document.getElementById('nombre-input').value;
+            const id = n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+            document.getElementById('id-input').value = id;
+            document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000 + Math.random() * 899999) : "";
+        };
+
+        window.toggleEstado = async (event, id, est, nom) => { 
+            if(event) event.preventDefault();
+            const nuevoEstado = est === 'activo' ? 'inactivo' : 'activo';
+            await updateDoc(doc(db, "comercios", id), { estado: nuevoEstado }); 
+            await registrarLog("ESTADO", `Comercio ${nom} marcado como ${nuevoEstado}`);
+        };
+        
+        window.del = async (event, id, nom) => { 
+            if(event) event.preventDefault();
+            if(confirm("¿Eliminar comercio?")) {
+                await deleteDoc(doc(db, "comercios", id)); 
+                await registrarLog("ELIMINACIÓN", `Se eliminó el comercio: ${nom}`);
+            }
+        };
+        
+        window.zoom = (u) => { document.getElementById('modal-img').src = u; document.getElementById('modal').style.display='flex'; };
+        
+        window.cambiarFiltro = (f, id) => {
+            FILTRO_ESTADO = f;
+            document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
+            window.render();
+        };
+    </script>
+</body>
+</html>
