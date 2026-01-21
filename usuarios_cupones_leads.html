@@ -216,20 +216,16 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // PERSISTENCIA DE REGISTRO: Si ya está registrado, evitar que vuelva al formulario
-        if (!localStorage.getItem('habitat_user_registrado')) {
-            // Si no existe la marca y estamos en la página de cupones, 
-            // marcamos como registrado (esto ocurre la primera vez que entra tras registrarse)
-            localStorage.setItem('habitat_user_registrado', 'true');
-        }
-
-        // Bloqueo de retroceso a la página de registro
-        window.addEventListener('load', () => {
-            window.history.pushState(null, "", window.location.href);
-            window.onpopstate = function () {
-                window.history.pushState(null, "", window.location.href);
+        // --- BLOQUEO ESTRICTO DE RETROCESO ---
+        (function() {
+            window.history.pushState(null, null, window.location.href);
+            window.onpopstate = function() {
+                window.history.pushState(null, null, window.location.href);
             };
-        });
+            // Marcar registro exitoso para la redirección desde la otra página
+            localStorage.setItem('habitat_registrado', 'true');
+        })();
+        // -------------------------------------
 
         let scanner = null;
         let idEnProceso = "";
