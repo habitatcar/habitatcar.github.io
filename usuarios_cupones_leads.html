@@ -216,26 +216,26 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // PERSISTENCIA DE REGISTRO: Si ya está registrado, evitar que vuelva al formulario
+        if (!localStorage.getItem('habitat_user_registrado')) {
+            // Si no existe la marca y estamos en la página de cupones, 
+            // marcamos como registrado (esto ocurre la primera vez que entra tras registrarse)
+            localStorage.setItem('habitat_user_registrado', 'true');
+        }
+
+        // Bloqueo de retroceso a la página de registro
+        window.addEventListener('load', () => {
+            window.history.pushState(null, "", window.location.href);
+            window.onpopstate = function () {
+                window.history.pushState(null, "", window.location.href);
+            };
+        });
+
         let scanner = null;
         let idEnProceso = "";
         let tokenEsperado = "";
         
-        // ✅ NUEVA LÓGICA: verificar si ya está registrado
-        const verificarRegistro = () => {
-            const registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
-            if (!registro.whatsapp) {
-                window.location.replace("/registroleads/");
-                return false;
-            }
-            return true;
-        };
-
-        // ✅ Ejecutar verificación al cargar
-        if (!verificarRegistro()) {
-            throw new Error("Redirigiendo a registro...");
-        }
-
-        const getUsados = () => JSON.parse(localStorage.getItem('usosHabitatCar') || "[]");
+        const getUsados = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
         const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
 
         onSnapshot(collection(db, "comercios"), (snap) => {
@@ -257,7 +257,6 @@
                 let diasRestantes = vigenciaTotal;
                 let mostrarReloj = vigenciaTotal > 0;
 
-                // Lógica de activación al abrir
                 if (mostrarReloj) {
                     if (!inicios[id]) {
                         inicios[id] = Date.now();
@@ -268,7 +267,7 @@
                     diasRestantes = vigenciaTotal - diasPasados;
                 }
 
-                if (mostrarReloj && diasRestantes < 0) return; // Cupón expirado oculto
+                if (mostrarReloj && diasRestantes < 0) return;
 
                 const logo = c.logoUrl || ""; 
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
@@ -345,7 +344,7 @@
                 let s = 30;
                 const t = setInterval(() => {
                     s--; document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { clearInterval(t); const u = getUsados(); u.push(id); localStorage.setItem('usosHabitatCar', JSON.stringify(u)); location.reload(); }
+                    if(s <= 0) { clearInterval(t); const u = getUsados(); u.push(id); localStorage.setItem('usados_v16_ok', JSON.stringify(u)); location.reload(); }
                 }, 1000);
             } catch(e) { alert("Error"); }
         };
