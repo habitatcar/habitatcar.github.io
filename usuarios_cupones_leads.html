@@ -220,15 +220,22 @@
         let idEnProceso = "";
         let tokenEsperado = "";
         
-        // Función de Persistencia para evitar que el usuario vuelva al registro
-        const marcarComoRegistrado = () => {
-            localStorage.setItem('habitat_cupones_activo', 'true');
+        // ✅ NUEVA LÓGICA: verificar si ya está registrado
+        const verificarRegistro = () => {
+            const registro = JSON.parse(localStorage.getItem('usuarioHabitatCar') || '{}');
+            if (!registro.whatsapp) {
+                window.location.replace("/registroleads/");
+                return false;
+            }
+            return true;
         };
 
-        // Al cargar la página, marcamos que ya está aquí
-        marcarComoRegistrado();
+        // ✅ Ejecutar verificación al cargar
+        if (!verificarRegistro()) {
+            throw new Error("Redirigiendo a registro...");
+        }
 
-        const getUsados = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
+        const getUsados = () => JSON.parse(localStorage.getItem('usosHabitatCar') || "[]");
         const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
 
         onSnapshot(collection(db, "comercios"), (snap) => {
@@ -250,6 +257,7 @@
                 let diasRestantes = vigenciaTotal;
                 let mostrarReloj = vigenciaTotal > 0;
 
+                // Lógica de activación al abrir
                 if (mostrarReloj) {
                     if (!inicios[id]) {
                         inicios[id] = Date.now();
@@ -260,7 +268,7 @@
                     diasRestantes = vigenciaTotal - diasPasados;
                 }
 
-                if (mostrarReloj && diasRestantes < 0) return;
+                if (mostrarReloj && diasRestantes < 0) return; // Cupón expirado oculto
 
                 const logo = c.logoUrl || ""; 
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
@@ -337,7 +345,7 @@
                 let s = 30;
                 const t = setInterval(() => {
                     s--; document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { clearInterval(t); const u = getUsados(); u.push(id); localStorage.setItem('usados_v16_ok', JSON.stringify(u)); location.reload(); }
+                    if(s <= 0) { clearInterval(t); const u = getUsados(); u.push(id); localStorage.setItem('usosHabitatCar', JSON.stringify(u)); location.reload(); }
                 }, 1000);
             } catch(e) { alert("Error"); }
         };
