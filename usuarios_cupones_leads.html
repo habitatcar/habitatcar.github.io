@@ -39,7 +39,6 @@
             background: rgba(255,255,255,0.1);
         }
         
-        /* CAMPO BUSCAR CON LUPA */
         .search-wrapper {
             position: relative;
             flex: 1;
@@ -77,14 +76,19 @@
             padding-bottom: 20px;
         }
 
-        /* EFECTO PARPADEO SUAVE PARA 3 DIAS */
-        @keyframes parpadeoSuave {
-            0% { box-shadow: 0 0 5px rgba(255,0,0,0.2); border: 2px solid transparent; }
-            50% { box-shadow: 0 0 20px rgba(255,0,0,0.6); border: 2px solid var(--rojo-cupon); }
-            100% { box-shadow: 0 0 5px rgba(255,0,0,0.2); border: 2px solid transparent; }
+        /* EFECTO PULSANTE SUAVE PARA EL RECUADRO DE 3 DIAS */
+        @keyframes pulsoRecuadro {
+            0% { border-color: rgba(255,0,0,0.2); box-shadow: 0 0 2px rgba(255,0,0,0.1); }
+            50% { border-color: rgba(255,0,0,1); box-shadow: 0 0 10px rgba(255,0,0,0.4); }
+            100% { border-color: rgba(255,0,0,0.2); box-shadow: 0 0 2px rgba(255,0,0,0.1); }
         }
-        .vence-critico {
-            animation: parpadeoSuave 3s infinite ease-in-out;
+
+        .box-vence-3 {
+            display: inline-block;
+            padding: 5px 10px;
+            border: 2px solid var(--rojo-cupon);
+            border-radius: 8px;
+            animation: pulsoRecuadro 3s infinite ease-in-out;
         }
 
         .card.usado { filter: grayscale(1); opacity: 0.7; pointer-events: none; }
@@ -103,7 +107,6 @@
         .nombre-c { font-weight: 900; font-size: 24px; color: var(--negro); margin: 10px 0; text-transform: uppercase; }
         .beneficio-c { color: var(--rojo-cupon); font-size: 28px; font-weight: 900; margin: 10px 0; }
 
-        /* ICONOS 50% MAS GRANDES Y FUENTE GRANDE */
         .info-txt { display: block; font-size: 18px; color: #444; margin: 12px 0; font-weight: 600; }
         .ico-large { font-size: 27px; vertical-align: middle; margin-right: 8px; }
 
@@ -241,16 +244,20 @@
                 const web = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : "";
 
                 const tieneRedes = (ig !== "" || web !== "");
-                const esCritico = (vigencia === 3);
+                
+                // Aplicar clase de recuadro pulsante solo si es 3
+                const infoVencimiento = (vigencia === 3) 
+                    ? `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${vigencia} días</span>`
+                    : `<span class="ico-large">⏳</span>Vencimiento: ${vigencia} días`;
 
                 html += `
-                    <div class="card ${esUsado ? 'usado' : ''} ${esCritico ? 'vence-critico' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${vigencia}">
+                    <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${vigencia}">
                         <div class="logo-container">
                             <img src="${logo}" class="logo-c" onerror="this.style.display='none'">
                         </div>
                         <div class="nombre-c">${nombre}</div>
                         <div class="beneficio-c">${beneficio}</div>
-                        <span class="info-txt"><span class="ico-large">⏳</span>Vencimiento: ${vigencia} días</span>
+                        <span class="info-txt">${infoVencimiento}</span>
                         ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
                         <div class="btn-stack">
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
@@ -263,6 +270,7 @@
             contenedor.innerHTML = html;
         });
 
+        // (Resto de funciones JS se mantienen iguales para no modificar lo que no pediste)
         window.abrirPopup = (nom, ig, web) => {
             document.getElementById('pop-nombre').innerText = nom;
             document.getElementById('lnk-ig').href = ig || "#";
@@ -271,12 +279,9 @@
             document.getElementById('lnk-web').style.display = web ? 'block' : 'none';
             document.getElementById('popup-redes').style.display = 'flex';
         };
-
         window.cerrarPopup = () => document.getElementById('popup-redes').style.display = 'none';
-
         window.abrirQR = (id, token) => {
-            idEnProceso = id;
-            tokenEsperado = token;
+            idEnProceso = id; tokenEsperado = token;
             document.getElementById('modal-qr').style.display = 'flex';
             scanner = new Html5Qrcode("reader");
             scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
@@ -287,43 +292,27 @@
                 } else { alert("QR Incorrecto"); }
             }).catch(e => console.error(e));
         };
-
         window.cerrarScanner = () => {
             document.getElementById('modal-qr').style.display = 'none';
             if(scanner) scanner.stop().then(() => scanner.clear());
         };
-
         window.finalizar = async (id, nom) => {
             try {
                 const ref = doc(db, "comercios", id);
-                await updateDoc(ref, { 
-                    totalUsos: increment(1), usosHoy: increment(1), 
-                    usosSemana: increment(1), usosMes: increment(1), usosAnio: increment(1) 
-                });
-                await addDoc(collection(db, "logs"), { 
-                    fecha: Date.now(), tipo: "canje", detalle: `Canje en ${nom}` 
-                });
-
+                await updateDoc(ref, { totalUsos: increment(1), usosHoy: increment(1), usosSemana: increment(1), usosMes: increment(1), usosAnio: increment(1) });
+                await addDoc(collection(db, "logs"), { fecha: Date.now(), tipo: "canje", detalle: `Canje en ${nom}` });
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('pantalla-exito').style.display = 'flex';
                 let s = 30;
                 const t = setInterval(() => {
-                    s--;
-                    document.getElementById('countdown').innerText = s;
-                    if(s <= 0) {
-                        clearInterval(t);
-                        const u = getUsados(); u.push(id);
-                        localStorage.setItem('usados_v16_ok', JSON.stringify(u));
-                        location.reload();
-                    }
+                    s--; document.getElementById('countdown').innerText = s;
+                    if(s <= 0) { clearInterval(t); const u = getUsados(); u.push(id); localStorage.setItem('usados_v16_ok', JSON.stringify(u)); location.reload(); }
                 }, 1000);
             } catch(e) { alert("Error"); }
         };
-
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
             const vencimiento = document.getElementById('filtroVence').value;
-            
             document.querySelectorAll('.card').forEach(c => {
                 const nombreMatch = c.dataset.nombre.includes(texto);
                 const venceMatch = (vencimiento === "todos" || c.dataset.vence === vencimiento);
