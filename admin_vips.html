@@ -154,7 +154,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, onSnapshot, doc, updateDoc, deleteDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -170,8 +170,8 @@
 
         let todosLosVips = [];
 
-        // Escuchar solo los que son VIP
-        const q = query(collection(db, "leads"), where("convertidoVIP", "==", true));
+        // CORRECCIÓN: Escuchar la colección "vips" que es donde se registran ahora
+        const q = query(collection(db, "vips"));
         
         onSnapshot(q, (snap) => {
             todosLosVips = [];
@@ -185,17 +185,17 @@
             document.getElementById('contador-total').innerText = `Total VIPs: ${datos.length}`;
 
             datos.forEach(v => {
-                const fecha = v.fechaVIP ? new Date(v.fechaVIP).toLocaleDateString() : '---';
+                // Ajuste a fechaRegistro que es el campo usado en el formulario
+                const fecha = v.fechaRegistro ? new Date(v.fechaRegistro).toLocaleDateString() : '---';
                 lista.innerHTML += `
                     <tr>
                         <td>${fecha}</td>
-                        <td><b>${v.apellido}, ${v.nombres}</b></td>
+                        <td><b>${v.apellido || ''}, ${v.nombres}</b></td>
                         <td>${v.whatsapp}</td>
                         <td><span class="status status-${v.estado || 'activo'}">${(v.estado || 'activo').toUpperCase()}</span></td>
                         <td>
-                            <button class="btn-action btn-leads" onclick="quitarVIP('${v.id}', '${v.apellido}')" title="Quitar Rango VIP">👤 LEADS</button>
-                            <button class="btn-action btn-suspend" onclick="toggleEstado('${v.id}', '${v.estado}')">🚫</button>
-                            <button class="btn-action btn-del" onclick="borrarVip('${v.id}')">🗑️</button>
+                            <button class="btn-action btn-suspend" onclick="toggleEstado('${v.id}', '${v.estado}')" title="Suspender/Activar">🚫</button>
+                            <button class="btn-action btn-del" onclick="borrarVip('${v.id}')" title="Eliminar">🗑️</button>
                         </td>
                     </tr>
                 `;
@@ -205,33 +205,36 @@
         window.filtrarVips = () => {
             const busqueda = document.getElementById('buscador').value.toLowerCase();
             const filtrados = todosLosVips.filter(v => 
-                v.apellido.toLowerCase().includes(busqueda) || 
-                v.nombres.toLowerCase().includes(busqueda) || 
-                v.whatsapp.includes(busqueda)
+                (v.apellido && v.apellido.toLowerCase().includes(busqueda)) || 
+                (v.nombres && v.nombres.toLowerCase().includes(busqueda)) || 
+                (v.whatsapp && v.whatsapp.includes(busqueda))
             );
             renderizar(filtrados);
         };
 
-        window.quitarVIP = async (id, apellido) => {
-            if(confirm(`¿Deseas quitar el rango VIP a ${apellido}? Volverá a la lista de Leads.`)) {
-                await updateDoc(doc(db, "leads", id), { convertidoVIP: false });
-                await addDoc(collection(db, "logs"), {
-                    fecha: Date.now(),
-                    tipo: "baja_vip",
-                    accion: "QUITAR VIP",
-                    detalle: `Socio ${apellido} volvió a ser Lead normal`
-                });
-            }
-        };
-
         window.toggleEstado = async (id, estadoActual) => {
             const nuevo = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
-            await updateDoc(doc(db, "leads", id), { estado: nuevo });
+            await updateDoc(doc(db, "vips", id), { estado: nuevo });
+            
+            // Registro en Log
+            await addDoc(collection(db, "logs"), {
+                fecha: Date.now(),
+                tipo: "MODIFICACION VIP",
+                detalle: `Estado de socio cambiado a ${nuevo}`,
+                usuario: "Admin"
+            });
         };
 
         window.borrarVip = async (id) => {
-            if(confirm("¿Eliminar este socio permanentemente de la base de datos?")) {
-                await deleteDoc(doc(db, "leads", id));
+            if(confirm("¿Eliminar este socio permanentemente de la base de datos VIP?")) {
+                await deleteDoc(doc(db, "vips", id));
+                
+                await addDoc(collection(db, "logs"), {
+                    fecha: Date.now(),
+                    tipo: "BAJA VIP",
+                    detalle: `Socio eliminado permanentemente`,
+                    usuario: "Admin"
+                });
             }
         };
     </script>
