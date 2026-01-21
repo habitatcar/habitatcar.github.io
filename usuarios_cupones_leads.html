@@ -38,7 +38,30 @@
             gap: 10px;
             background: rgba(255,255,255,0.1);
         }
-        .filtro-container input, .filtro-container select {
+        
+        /* CAMPO BUSCAR CON LUPA */
+        .search-wrapper {
+            position: relative;
+            flex: 1;
+        }
+        .search-wrapper::before {
+            content: "🔍";
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+        .search-wrapper input {
+            width: 100%;
+            padding: 12px 12px 12px 35px;
+            border-radius: 8px;
+            border: none;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .filtro-container select {
             flex: 1; padding: 12px; border-radius: 8px; border: none; font-size: 16px;
         }
 
@@ -52,6 +75,16 @@
             box-shadow: 0 10px 20px rgba(0,0,0,0.3);
             text-align: center;
             padding-bottom: 20px;
+        }
+
+        /* EFECTO PARPADEO SUAVE PARA 3 DIAS */
+        @keyframes parpadeoSuave {
+            0% { box-shadow: 0 0 5px rgba(255,0,0,0.2); border: 2px solid transparent; }
+            50% { box-shadow: 0 0 20px rgba(255,0,0,0.6); border: 2px solid var(--rojo-cupon); }
+            100% { box-shadow: 0 0 5px rgba(255,0,0,0.2); border: 2px solid transparent; }
+        }
+        .vence-critico {
+            animation: parpadeoSuave 3s infinite ease-in-out;
         }
 
         .card.usado { filter: grayscale(1); opacity: 0.7; pointer-events: none; }
@@ -70,8 +103,9 @@
         .nombre-c { font-weight: 900; font-size: 24px; color: var(--negro); margin: 10px 0; text-transform: uppercase; }
         .beneficio-c { color: var(--rojo-cupon); font-size: 28px; font-weight: 900; margin: 10px 0; }
 
-        /* ESTILO AJUSTADO PARA VENCIMIENTO Y DIRECCIÓN */
-        .info-txt { display: block; font-size: 18px; color: #444; margin: 8px 0; font-weight: 600; }
+        /* ICONOS 50% MAS GRANDES Y FUENTE GRANDE */
+        .info-txt { display: block; font-size: 18px; color: #444; margin: 12px 0; font-weight: 600; }
+        .ico-large { font-size: 27px; vertical-align: middle; margin-right: 8px; }
 
         .btn-stack { padding: 0 15px; display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
         .btn-act {
@@ -126,7 +160,9 @@
     </div>
 
     <div class="filtro-container">
-        <input type="text" id="filtroNombre" placeholder="Buscar local..." onkeyup="filtrar()">
+        <div class="search-wrapper">
+            <input type="text" id="filtroNombre" placeholder="Buscar local..." onkeyup="filtrar()">
+        </div>
         <select id="filtroVence" onchange="filtrar()">
             <option value="todos">Vence en...</option>
             <option value="3">3 días</option>
@@ -196,7 +232,7 @@
 
                 const esUsado = usados.includes(id);
                 const nombre = c.nombre || "Local";
-                const vigencia = c.vigenciaLead || 7;
+                const vigencia = parseInt(c.vigenciaLead) || 7;
                 
                 const logo = c.logoUrl || ""; 
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
@@ -205,16 +241,17 @@
                 const web = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : "";
 
                 const tieneRedes = (ig !== "" || web !== "");
+                const esCritico = (vigencia === 3);
 
                 html += `
-                    <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${vigencia}">
+                    <div class="card ${esUsado ? 'usado' : ''} ${esCritico ? 'vence-critico' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${vigencia}">
                         <div class="logo-container">
                             <img src="${logo}" class="logo-c" onerror="this.style.display='none'">
                         </div>
                         <div class="nombre-c">${nombre}</div>
                         <div class="beneficio-c">${beneficio}</div>
-                        <span class="info-txt">⏳ Vencimiento: ${vigencia} días</span>
-                        ${c.direccion ? `<span class="info-txt">📍 ${c.direccion}</span>` : ""}
+                        <span class="info-txt"><span class="ico-large">⏳</span>Vencimiento: ${vigencia} días</span>
+                        ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
                         <div class="btn-stack">
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
                             <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
