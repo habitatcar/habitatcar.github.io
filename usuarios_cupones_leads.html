@@ -216,20 +216,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- BLOQUEO DE RETROCESO MEDIANTE ESTADO ---
-        (function() {
-            // Marcamos que ya estamos en la sección de cupones
-            localStorage.setItem('habitat_auth', 'true');
-            
-            // Reemplazamos el historial actual
-            window.history.replaceState(null, null, window.location.href);
-            window.history.pushState(null, null, window.location.href);
-            
-            window.onpopstate = function() {
-                window.history.pushState(null, null, window.location.href);
-            };
-        })();
-
         let scanner = null;
         let idEnProceso = "";
         let tokenEsperado = "";
@@ -256,6 +242,7 @@
                 let diasRestantes = vigenciaTotal;
                 let mostrarReloj = vigenciaTotal > 0;
 
+                // Lógica de activación al abrir
                 if (mostrarReloj) {
                     if (!inicios[id]) {
                         inicios[id] = Date.now();
@@ -266,7 +253,7 @@
                     diasRestantes = vigenciaTotal - diasPasados;
                 }
 
-                if (mostrarReloj && diasRestantes < 0) return;
+                if (mostrarReloj && diasRestantes < 0) return; // Cupón expirado oculto
 
                 const logo = c.logoUrl || ""; 
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
