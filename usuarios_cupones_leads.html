@@ -76,7 +76,6 @@
             padding-bottom: 20px;
         }
 
-        /* EFECTO PULSANTE SUAVE PARA EL RECUADRO DE 3 DIAS */
         @keyframes pulsoRecuadro {
             0% { border-color: rgba(255,0,0,0.2); box-shadow: 0 0 2px rgba(255,0,0,0.1); }
             50% { border-color: rgba(255,0,0,1); box-shadow: 0 0 10px rgba(255,0,0,0.4); }
@@ -168,9 +167,9 @@
         </div>
         <select id="filtroVence" onchange="filtrar()">
             <option value="todos">Vence en...</option>
-            <option value="3">3 días</option>
-            <option value="7">7 días</option>
-            <option value="15">15 días</option>
+            <option value="3">3 días o menos</option>
+            <option value="7">7 días o menos</option>
+            <option value="15">15 días o menos</option>
         </select>
     </div>
 
@@ -222,11 +221,14 @@
         let tokenEsperado = "";
         
         const getUsados = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
+        const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
 
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-cupones');
             const usados = getUsados();
+            const inicios = getInicios();
             let html = "";
+            let huboCambioInicio = false;
 
             snap.forEach(docSnap => {
                 const c = docSnap.data();
@@ -235,23 +237,42 @@
 
                 const esUsado = usados.includes(id);
                 const nombre = c.nombre || "Local";
-                const vigencia = parseInt(c.vigenciaLead) || 7;
+                const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
                 
+                let diasRestantes = vigenciaTotal;
+                let mostrarReloj = vigenciaTotal > 0;
+
+                // Lógica de activación al abrir
+                if (mostrarReloj) {
+                    if (!inicios[id]) {
+                        inicios[id] = Date.now();
+                        huboCambioInicio = true;
+                    }
+                    const transcurrido = Date.now() - inicios[id];
+                    const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
+                    diasRestantes = vigenciaTotal - diasPasados;
+                }
+
+                if (mostrarReloj && diasRestantes < 0) return; // Cupón expirado oculto
+
                 const logo = c.logoUrl || ""; 
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
                 const token = c.tokenQR || "";
                 const ig = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/${c.instagram.replace('@','')}`) : "";
                 const web = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : "";
-
                 const tieneRedes = (ig !== "" || web !== "");
                 
-                // Aplicar clase de recuadro pulsante solo si es 3
-                const infoVencimiento = (vigencia === 3) 
-                    ? `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${vigencia} días</span>`
-                    : `<span class="ico-large">⏳</span>Vencimiento: ${vigencia} días`;
+                let infoVencimiento = "";
+                if (!mostrarReloj) {
+                    infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)`;
+                } else if (diasRestantes <= 3) {
+                    infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>`;
+                } else {
+                    infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
+                }
 
                 html += `
-                    <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${vigencia}">
+                    <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
                         <div class="logo-container">
                             <img src="${logo}" class="logo-c" onerror="this.style.display='none'">
                         </div>
@@ -267,10 +288,13 @@
                         </div>
                     </div>`;
             });
+
+            if (huboCambioInicio) {
+                localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
+            }
             contenedor.innerHTML = html;
         });
 
-        // (Resto de funciones JS se mantienen iguales para no modificar lo que no pediste)
         window.abrirPopup = (nom, ig, web) => {
             document.getElementById('pop-nombre').innerText = nom;
             document.getElementById('lnk-ig').href = ig || "#";
@@ -315,7 +339,11 @@
             const vencimiento = document.getElementById('filtroVence').value;
             document.querySelectorAll('.card').forEach(c => {
                 const nombreMatch = c.dataset.nombre.includes(texto);
-                const venceMatch = (vencimiento === "todos" || c.dataset.vence === vencimiento);
+                const dias = parseInt(c.dataset.vence);
+                let venceMatch = true;
+                if (vencimiento !== "todos") {
+                    venceMatch = (dias > 0 && dias <= parseInt(vencimiento));
+                }
                 c.style.display = (nombreMatch && venceMatch) ? 'block' : 'none';
             });
         };
