@@ -49,11 +49,11 @@
         h2 { color: var(--oro-vip); margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px; }
 
         #msg-validacion {
-            padding: 14px;
+            padding: 12px;
             margin-bottom: 20px;
             border-radius: 8px;
             font-weight: bold;
-            font-size: 1.1em;
+            font-size: 0.95em;
         }
         .valido { background: rgba(40, 167, 69, 0.2); color: #28a745; border: 1px solid #28a745; }
         .invalido { background: rgba(220, 53, 69, 0.2); color: #dc3545; border: 1px solid #dc3545; }
@@ -91,22 +91,22 @@
         }
         .btn-vip:disabled { background: #444; color: #888; cursor: not-allowed; filter: grayscale(1); }
 
-        /* POPUP REFINADO */
+        /* POPUP SOLICITADO */
         #notificacion {
             display: none;
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            background: var(--oro-vip); 
-            color: black;
+            background: #000000;
+            color: var(--oro-vip);
             padding: 30px 50px;
             border-radius: 20px;
             z-index: 1000;
             text-align: center;
             font-weight: bold;
-            border: 2px solid white;
-            font-size: 1.2em; 
+            border: 2px solid var(--oro-vip);
+            font-size: 1.2em;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
         }
 
@@ -138,7 +138,11 @@
 </head>
 <body>
 
-    <div id="notificacion"><span style="font-size: 1.5em;">💎</span><br>¡BIENVENIDO AL CLUB VIP!<br><span style="font-size: 0.8em; font-weight: normal;">Activando cuenta...</span></div>
+    <div id="notificacion">
+        <span style="font-size: 1.5em;">💎</span><br>
+        <strong>¡BIENVENIDO AL CLUB VIP!</strong><br>
+        <span style="font-size: 0.8em; font-weight: normal;">Activando cuenta...</span>
+    </div>
 
     <div class="container">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
@@ -182,7 +186,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, where, getDocs, updateDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -220,7 +224,7 @@
                     btn.disabled = false;
                     idDocumentoToken = snap.docs[0].id;
                 } else {
-                    msg.innerText = "❌ Token ya utilizado -- usa este código q anda bien....";
+                    msg.innerText = "❌ Este código no existe o ya fue utilizado.";
                     msg.className = "invalido";
                 }
             } catch (e) {
@@ -234,7 +238,6 @@
             const tel = document.getElementById('whatsapp').value.trim();
             const mail = document.getElementById('email').value.trim();
             const nom = document.getElementById('nombres').value.trim();
-            const ape = document.getElementById('apellido').value.trim();
 
             if(!tel || !mail || !nom) {
                 alert("Por favor, complete todos los campos.");
@@ -247,7 +250,7 @@
             try {
                 await addDoc(collection(db, "vips"), {
                     nombres: nom,
-                    apellido: ape,
+                    apellido: document.getElementById('apellido').value,
                     whatsapp: tel,
                     email: mail,
                     tokenUsado: tokenInterno,
@@ -262,16 +265,8 @@
                     fechaUso: Date.now()
                 });
 
-                await addDoc(collection(db, "logs_vip"), {
-                    comercio: "ALTA VIP PREMIUM",
-                    usuario: nom + " " + ape,
-                    detalle: "Registro mediante token: " + tokenInterno,
-                    fecha: serverTimestamp(),
-                    tipo: "Registro"
-                });
-
                 document.getElementById('notificacion').style.display = 'block';
-                // REDIRECCIÓN CORREGIDA:
+                // CORRECCIÓN DE LINK: usuarios_cupones_vip.html (sin la S final)
                 setTimeout(() => { window.location.href = "usuarios_cupones_vip.html"; }, 2500);
 
             } catch (e) {
