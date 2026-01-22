@@ -4,6 +4,12 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Beneficios Leads | Hábitat-Car</title>
+
+    <link rel="apple-touch-icon" href="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true">
+    <link rel="icon" href="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Hábitat-Car">
+
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
         :root {
@@ -231,7 +237,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        const LOGO_FALLBACK = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
         let scanner = null;
         let idEnProceso = "";
         let tokenEsperado = "";
@@ -270,7 +275,15 @@
 
                 if (mostrarReloj && diasRestantes < 0) return;
 
-                const logo = c.logoUrl || LOGO_FALLBACK; 
+                // SI NO HAY LOGO, NO SE GENERA EL HTML DEL CONTENEDOR
+                let htmlLogo = "";
+                if (c.logoUrl) {
+                    htmlLogo = `
+                        <div class="logo-container">
+                            <img src="${c.logoUrl}" class="logo-c">
+                        </div>`;
+                }
+
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
                 const token = c.tokenQR || "";
                 const ig = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/${c.instagram.replace('@','')}`) : "";
@@ -288,9 +301,7 @@
 
                 html += `
                     <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
-                        <div class="logo-container">
-                            <img src="${logo}" class="logo-c" onerror="this.src='${LOGO_FALLBACK}'">
-                        </div>
+                        ${htmlLogo}
                         <div class="nombre-c">${nombre}</div>
                         <div class="beneficio-c">${beneficio}</div>
                         <span class="info-txt">${infoVencimiento}</span>
