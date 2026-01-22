@@ -42,7 +42,6 @@
             background: rgba(0,0,0,0.5); text-transform: uppercase;
         }
 
-        /* AJUSTE DE BUSCADOR Y FILTRO PARA QUE NO SE SALGAN */
         .search-area { 
             padding: 0 15px 15px; 
             display: flex; 
@@ -184,6 +183,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        const LOGO_FALLBACK = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
         let scanner = null;
         let idEnProceso = "";
         const getConteoUso = (id) => parseInt(localStorage.getItem('uso_vip_' + id) || "0");
@@ -195,23 +195,27 @@
                 const c = d.data();
                 const id = d.id;
                 if (c.estado && c.estado.toLowerCase() === "inactivo") return;
+                
                 const nUso = getConteoUso(id);
+                const logo = c.logoUrl || c.logo || LOGO_FALLBACK;
                 const diasVence = c.dias_vence || "Recurrente";
                 let vigencia = c.dias_vence ? `Vence en ${c.dias_vence} días` : "Beneficio VIP Recurrente";
 
                 html += `
                     <div class="card-vip" data-nombre="${c.nombre ? c.nombre.toLowerCase() : ''}" data-vence="${diasVence}">
-                        <div class="logo-container"><img src="${c.logo}" class="logo-c" onerror="this.src='https://via.placeholder.com/150?text=LOGO'"></div>
+                        <div class="logo-container">
+                            <img src="${logo}" class="logo-c" onerror="this.src='${LOGO_FALLBACK}'">
+                        </div>
                         <div class="nombre-c">${c.nombre || ''}</div>
                         <div class="beneficio-c">${c.beneficio_vip || ''}</div>
-                        <div class="desc-c">${c.beneficio || ''}</div>
+                        <div class="desc-c" style="color:#aaa; font-style:italic;">${c.beneficio || ''}</div>
                         <span class="vence-vip">★ ${vigencia} ★</span>
                         <div class="info-line">📍 <b>Dirección:</b> ${c.direccion || ''}</div>
                         <div class="info-line">🏙️ <b>Ciudad:</b> ${c.ciudad || ''}</div>
                         <div class="btn-stack">
                             ${(c.web || c.instagram || c.facebook || c.whatsapp) ? `<button class="btn-act btn-conozca" onclick="abrirRedes('${id}')">Conozca el comercio</button>` : ''}
                             <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || ''))}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar" onclick="abrirQR('${id}')">Validar cupón con QR en el comercio</button>
+                            <button class="btn-act btn-validar" onclick="abrirQR('${id}')">Validar cupón con QR</button>
                             <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="finalizar('${id}', '${c.nombre}')">
                                 Usar beneficio <span class="contador-nube">${nUso}</span>
                             </button>
