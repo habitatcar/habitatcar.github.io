@@ -52,7 +52,6 @@
             font-size: 11px;
             text-transform: uppercase;
         }
-        /* BOTÓN ACTIVO EN ROJO SEGÚN SOLICITUD */
         .nav-link.active { background: var(--rojo); box-shadow: 0 0 10px rgba(220,53,69,0.5); }
 
         /* CONTENEDOR PRINCIPAL */
@@ -78,6 +77,18 @@
             align-items: center;
             flex-shrink: 0;
             border: 1px solid var(--azul-claro);
+            gap: 15px;
+        }
+
+        /* BUSCADOR */
+        .search-box {
+            flex-grow: 1;
+            padding: 10px 15px;
+            border-radius: 5px;
+            border: 1px solid var(--azul-claro);
+            background: var(--azul-oscuro);
+            color: white;
+            font-size: 0.9em;
         }
 
         /* TABLA CON ENCABEZADO FIJO */
@@ -105,6 +116,7 @@
         .badge-baja_vip { background: var(--rojo); color: white; }
         .badge-admin { background: var(--oro); color: black; }
         .badge-sistema { background: var(--celeste-habitat); color: white; }
+        .badge-canje { background: var(--verde); color: white; }
 
         .date-col { color: #8892b0; font-family: monospace; font-size: 0.9em; }
 
@@ -144,8 +156,9 @@
 
     <div class="container">
         <div class="filter-bar">
-            <h2 style="margin:0; color:var(--oro); font-size: 1.2rem;">Registro de Actividad (Logs)</h2>
-            <button onclick="limpiarLogs()" style="background:var(--rojo); color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 0.8em;">🗑️ BORRAR TODO EL HISTORIAL</button>
+            <h2 style="margin:0; color:var(--oro); font-size: 1.2rem; min-width: fit-content;">Registro de Actividad</h2>
+            <input type="text" id="buscadorLogs" class="search-box" placeholder="🔍 Buscar por comercio, acción o detalle..." onkeyup="filtrarLogs()">
+            <button onclick="limpiarLogs()" style="background:var(--rojo); color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 0.8em; min-width: fit-content;">🗑️ BORRAR TODO</button>
         </div>
 
         <div class="table-container">
@@ -160,8 +173,7 @@
                         <th>ELIMINAR</th>
                     </tr>
                 </thead>
-                <tbody id="lista-logs">
-                    </tbody>
+                <tbody id="lista-logs"></tbody>
             </table>
         </div>
     </div>
@@ -182,8 +194,8 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Escuchar los últimos 100 eventos
-        const q = query(collection(db, "logs"), orderBy("fecha", "desc"), limit(100));
+        // Escuchar los últimos 200 eventos de la colección principal "logs"
+        const q = query(collection(db, "logs"), orderBy("fecha", "desc"), limit(200));
         
         onSnapshot(q, (snap) => {
             const lista = document.getElementById('lista-logs');
@@ -191,26 +203,45 @@
             
             snap.forEach(d => {
                 const log = d.data();
-                const fecha = new Date(log.fecha).toLocaleString();
                 
-                lista.innerHTML += `
-                    <tr>
-                        <td class="date-col">${fecha}</td>
-                        <td style="font-weight:bold;">${log.modulo || 'GENERAL'}</td>
-                        <td>${log.accion || 'SIN ACCIÓN'}</td>
-                        <td style="font-size: 0.9em; max-width: 350px;">${log.detalle || '-'}</td>
-                        <td>
-                            <span class="badge badge-${log.tipo || 'sistema'}">
-                                ${(log.tipo || 'sistema').toUpperCase()}
-                            </span>
-                        </td>
-                        <td>
-                            <button class="btn-del-log" onclick="borrarLog('${d.id}')">🗑️</button>
-                        </td>
-                    </tr>
+                // Manejo flexible de fecha (soporta Timestamp de Firebase o milisegundos)
+                let fechaRaw = log.fecha;
+                if (fechaRaw && fechaRaw.seconds) fechaRaw = fechaRaw.seconds * 1000;
+                const fecha = fechaRaw ? new Date(fechaRaw).toLocaleString() : 'S/F';
+                
+                const tr = document.createElement('tr');
+                tr.className = "log-row";
+                // Guardamos el texto para el buscador
+                const contenidoBusqueda = `${log.modulo} ${log.accion} ${log.detalle} ${log.tipo}`.toLowerCase();
+                tr.setAttribute('data-search', contenidoBusqueda);
+
+                tr.innerHTML = `
+                    <td class="date-col">${fecha}</td>
+                    <td style="font-weight:bold;">${log.modulo || 'GENERAL'}</td>
+                    <td>${log.accion || 'SIN ACCIÓN'}</td>
+                    <td style="font-size: 0.9em; max-width: 350px;">${log.detalle || '-'}</td>
+                    <td>
+                        <span class="badge badge-${log.tipo || 'sistema'}">
+                            ${(log.tipo || 'sistema').toUpperCase()}
+                        </span>
+                    </td>
+                    <td>
+                        <button class="btn-del-log" onclick="borrarLog('${d.id}')">🗑️</button>
+                    </td>
                 `;
+                lista.appendChild(tr);
             });
         });
+
+        // Función del buscador
+        window.filtrarLogs = () => {
+            const term = document.getElementById('buscadorLogs').value.toLowerCase();
+            const rows = document.querySelectorAll('.log-row');
+            rows.forEach(row => {
+                const text = row.getAttribute('data-search');
+                row.style.display = text.includes(term) ? '' : 'none';
+            });
+        };
 
         // Borrar un log individual
         window.borrarLog = async (id) => {
