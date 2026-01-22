@@ -34,12 +34,30 @@
         }
 
         .header-white { 
-            padding: 40px 15px; 
+            padding: 30px 15px; 
             text-align: center; 
             background: white; 
             border-bottom: 6px solid var(--rojo-cupon);
         }
-        .header-white img { width: 100%; max-width: 350px; height: auto; }
+        .header-white img { width: 100%; max-width: 300px; height: auto; display: block; margin: 0 auto; }
+
+        /* Estilo Botón Instalación */
+        #btn-instalar-pwa {
+            display: none;
+            margin: 15px auto 5px;
+            padding: 12px 25px;
+            background: var(--azul-habitat);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-weight: 900;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            cursor: pointer;
+            width: 85%;
+            max-width: 300px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
 
         .filtro-container {
             padding: 15px;
@@ -173,6 +191,7 @@
 
     <div class="header-white">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true">
+        <button id="btn-instalar-pwa">Instalar APP Habitat-Car</button>
     </div>
 
     <div class="filtro-container">
@@ -240,6 +259,25 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // --- LÓGICA INSTALACIÓN PWA ---
+        let deferredPrompt;
+        const btnInstalar = document.getElementById('btn-instalar-pwa');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            btnInstalar.style.display = 'block';
+        });
+
+        btnInstalar.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') btnInstalar.style.display = 'none';
+                deferredPrompt = null;
+            }
+        });
+
         let scanner = null;
         let idEnProceso = "";
         let tokenEsperado = "";
@@ -278,8 +316,9 @@
 
                 if (mostrarReloj && diasRestantes < 0) return;
 
+                // CORRECCIÓN LOGO: Solo se muestra si logoUrl existe y no está vacío
                 let htmlLogo = "";
-                if (c.logoUrl) {
+                if (c.logoUrl && c.logoUrl.trim() !== "") {
                     htmlLogo = `
                         <div class="logo-container">
                             <img src="${c.logoUrl}" class="logo-c">
