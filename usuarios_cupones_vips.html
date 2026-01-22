@@ -33,7 +33,7 @@
             padding-bottom: 80px; 
         }
 
-        .header-vip { padding: 30px 15px; text-align: center; background: var(--negro-fondo); border-bottom: 2px solid var(--dorado); }
+        .header-vip { padding: 20px 15px; text-align: center; background: var(--negro-fondo); border-bottom: 2px solid var(--dorado); }
         .logo-box { 
             display: inline-block; 
             border: 3px solid var(--dorado); 
@@ -42,7 +42,23 @@
             background: #000; 
             overflow: hidden; 
         }
-        .logo-box img { width: 100%; max-width: 280px; height: auto; display: block; }
+        .logo-box img { width: 100%; max-width: 250px; height: auto; display: block; }
+
+        /* Estilo Botón Instalar */
+        #btn-instalar-pwa {
+            display: none;
+            margin: 10px auto 0;
+            padding: 5px 20px;
+            background: var(--dorado);
+            color: black;
+            border: none;
+            border-radius: 20px;
+            font-weight: bold;
+            font-size: 0.75em;
+            text-transform: uppercase;
+            cursor: pointer;
+            width: fit-content;
+        }
 
         .top-nav { display: flex; gap: 10px; padding: 15px 20px; }
         .btn-top {
@@ -136,6 +152,7 @@
         <div class="logo-box">
             <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" alt="Habitat Car">
         </div>
+        <button id="btn-instalar-pwa">Instalar ícono Habitat-Car</button>
     </div>
 
     <div class="top-nav">
@@ -178,6 +195,34 @@
     </footer>
 
     <script>
+        // Lógica PWA y ocultar botón
+        let deferredPrompt;
+        const installBtn = document.getElementById('btn-instalar-pwa');
+
+        if (!localStorage.getItem('pwa_instalada')) {
+            window.addEventListener('beforeinstallprompt', (e) => {
+                e.preventDefault();
+                deferredPrompt = e;
+                installBtn.style.display = 'block';
+            });
+        }
+
+        installBtn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    localStorage.setItem('pwa_instalada', 'true');
+                    installBtn.style.display = 'none';
+                }
+                deferredPrompt = null;
+            } else {
+                // Si no hay prompt nativo, igual lo ocultamos tras el clic para cumplir regla de "usar una vez"
+                localStorage.setItem('pwa_instalada', 'true');
+                installBtn.style.display = 'none';
+            }
+        });
+
         if ('serviceWorker' in navigator) {
             window.addEventListener('load', () => {
                 const swCode = "self.addEventListener('fetch', (e) => {});";
@@ -219,10 +264,10 @@
                 const diasVence = c.dias_vence || "Recurrente";
                 let vigencia = c.dias_vence ? `Vence en ${c.dias_vence} días` : "Beneficio VIP Recurrente";
 
-                // LOGICA DE LOGOS RESTAURADA
+                // LOGICA DE LOGOS CORREGIDA
                 let htmlLogo = "";
                 if (c.logo) {
-                    htmlLogo = `<div class="logo-container"><img src="${c.logo}" class="logo-c"></div>`;
+                    htmlLogo = `<div class="logo-container"><img src="${c.logo}" class="logo-c" onerror="this.src='https://github.com/habitatcar/habitatcar.github.io/blob/main/logo_redondo.png?raw=true'"></div>`;
                 }
 
                 html += `
@@ -236,7 +281,7 @@
                         <div class="info-line">🏙️ <b>Ciudad:</b> ${c.ciudad || ''}</div>
                         <div class="btn-stack">
                             ${(c.web || c.instagram || c.facebook || c.whatsapp) ? `<button class="btn-act btn-conozca" onclick="abrirRedes('${id}')">Conozca el comercio</button>` : ''}
-                            <button class="btn-act btn-llegar" onclick="window.open('http://google.com/maps?q=' + encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '')))">Cómo llegar</button>
+                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '')))">Cómo llegar</button>
                             <button class="btn-act btn-validar" onclick="abrirQR('${id}')">Validar cupón con QR en el comercio</button>
                             <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="finalizar('${id}', '${c.nombre}')">
                                 Usar beneficio <span class="contador-nube">${nUso}</span>
