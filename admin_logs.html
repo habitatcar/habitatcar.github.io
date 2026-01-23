@@ -110,7 +110,7 @@
         .badge-canje { background: var(--verde); color: white; }
         .badge-sistema { background: var(--celeste-habitat); color: white; }
         .badge-inscripcion { background: #6f42c1; color: white; }
-        .badge-admin { background: var(--oro); color: black; }
+        .badge-vip { background: var(--oro); color: black; }
 
         .date-col { color: #8892b0; font-family: monospace; font-size: 0.9em; }
 
@@ -147,7 +147,7 @@
     <div class="container">
         <div class="filter-bar">
             <h2 style="margin:0; color:var(--oro); font-size: 1.2rem;">Registro de Actividad</h2>
-            <input type="text" id="buscadorLogs" class="search-box" placeholder="🔍 Buscar inscripciones, canjes, nombres..." onkeyup="filtrarLogs()">
+            <input type="text" id="buscadorLogs" class="search-box" placeholder="🔍 Buscar inscripciones, canjes, VIPs..." onkeyup="filtrarLogs()">
             <button onclick="limpiarLogs()" style="background:var(--rojo); color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 0.8em;">🗑️ BORRAR HISTORIAL</button>
         </div>
 
@@ -183,59 +183,71 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Función para renderizar la tabla unificada
-        const actualizarTabla = () => {
-            const lista = document.getElementById('lista-logs');
-            const logsData = [];
+        let masterData = [];
 
-            // 1. Obtener logs de la colección 'logs' (Canjes)
+        const actualizarTabla = () => {
+            // Limpiar datos previos antes de suscribir
+            masterData = [];
+
+            // 1. Escuchar 'logs' (Canjes)
             const qLogs = query(collection(db, "logs"), orderBy("fecha", "desc"), limit(100));
             onSnapshot(qLogs, (snap) => {
-                snap.forEach(d => {
-                    const data = d.data();
-                    logsData.push({
-                        id: d.id,
-                        coleccion: 'logs',
-                        fecha: data.fecha,
-                        modulo: data.modulo || 'USUARIO',
-                        accion: data.accion || 'CANJE',
-                        detalle: data.detalle || 'Canje de cupón',
-                        tipo: data.tipo || 'canje'
-                    });
-                });
-                renderizar(logsData);
+                const logs = snap.docs.map(d => ({
+                    id: d.id,
+                    coleccion: 'logs',
+                    fecha: d.data().fecha,
+                    modulo: d.data().modulo || 'USUARIO',
+                    accion: d.data().accion || 'CANJE',
+                    detalle: d.data().detalle || 'Canje de cupón',
+                    tipo: d.data().tipo || 'canje'
+                }));
+                mezclarYRenderizar('logs', logs);
             });
 
-            // 2. Obtener logs de la colección 'leads' (Nuevas inscripciones)
+            // 2. Escuchar 'leads' (Inscripciones Lead)
             const qLeads = query(collection(db, "leads"), orderBy("fechaRegistro", "desc"), limit(50));
             onSnapshot(qLeads, (snap) => {
-                snap.forEach(d => {
-                    const data = d.data();
-                    logsData.push({
-                        id: d.id,
-                        coleccion: 'leads',
-                        fecha: data.fechaRegistro,
-                        modulo: 'LEADS',
-                        accion: 'INSCRIPCIÓN',
-                        detalle: `Nuevo Lead: ${data.nombres} ${data.apellido} (WA: ${data.whatsapp})`,
-                        tipo: 'inscripcion'
-                    });
-                });
-                renderizar(logsData);
+                const leads = snap.docs.map(d => ({
+                    id: d.id,
+                    coleccion: 'leads',
+                    fecha: d.data().fechaRegistro,
+                    modulo: 'LEADS',
+                    accion: 'INSCRIPCIÓN',
+                    detalle: `Nuevo Lead: ${d.data().nombres} ${d.data().apellido} (WA: ${d.data().whatsapp})`,
+                    tipo: 'inscripcion'
+                }));
+                mezclarYRenderizar('leads', leads);
+            });
+
+            // 3. Escuchar 'vips' (Inscripciones VIP)
+            const qVips = query(collection(db, "vips"), orderBy("fechaRegistro", "desc"), limit(50));
+            onSnapshot(qVips, (snap) => {
+                const vips = snap.docs.map(d => ({
+                    id: d.id,
+                    coleccion: 'vips',
+                    fecha: d.data().fechaRegistro,
+                    modulo: 'VIPS',
+                    accion: 'ALTA VIP',
+                    detalle: `Nuevo VIP: ${d.data().nombres} ${d.data().apellido} (WA: ${d.data().whatsapp})`,
+                    tipo: 'vip'
+                }));
+                mezclarYRenderizar('vips', vips);
             });
         };
 
-        const renderizar = (data) => {
+        const mezclarYRenderizar = (origen, nuevosDatos) => {
+            // Filtramos masterData para quitar los que venían del mismo origen y actualizamos
+            masterData = masterData.filter(item => item.origen !== origen);
+            nuevosDatos.forEach(nd => nd.origen = origen);
+            masterData = [...masterData, ...nuevosDatos];
+
+            // Ordenar por fecha desc
+            masterData.sort((a, b) => (b.fecha || 0) - (a.fecha || 0));
+
             const lista = document.getElementById('lista-logs');
             lista.innerHTML = "";
-            
-            // Ordenar por fecha descendente (mezclando ambas fuentes)
-            data.sort((a, b) => b.fecha - a.fecha);
 
-            // Eliminar duplicados por ID (por si el onSnapshot repite)
-            const uniqueData = data.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
-
-            uniqueData.forEach(log => {
+            masterData.forEach(log => {
                 const fecha = log.fecha ? new Date(log.fecha).toLocaleString() : '---';
                 const tr = document.createElement('tr');
                 tr.className = "log-row";
@@ -247,7 +259,7 @@
                     <td style="font-size: 0.9em;">${log.detalle}</td>
                     <td><span class="badge badge-${log.tipo}">${log.tipo.toUpperCase()}</span></td>
                     <td>
-                        ${log.coleccion === 'logs' ? `<button class="btn-del-log" onclick="borrarLog('${log.id}')">🗑️</button>` : '<small>Registro Base</small>'}
+                        ${log.coleccion === 'logs' ? `<button class="btn-del-log" onclick="borrarLog('${log.id}')">🗑️</button>` : '<small style="opacity:0.5">DB Base</small>'}
                     </td>
                 `;
                 lista.appendChild(tr);
@@ -264,11 +276,11 @@
         };
 
         window.borrarLog = async (id) => {
-            if(confirm("¿Eliminar registro de actividad?")) await deleteDoc(doc(db, "logs", id));
+            if(confirm("¿Eliminar este registro del log?")) await deleteDoc(doc(db, "logs", id));
         };
 
         window.limpiarLogs = async () => {
-            if(confirm("¿BORRAR TODO EL HISTORIAL DE ACTIVIDAD? (No borra los leads, solo los registros de canje)")) {
+            if(confirm("¿BORRAR EL HISTORIAL DE CANJES? (Los datos de Leads y Vips permanecerán intactos en sus bases)")) {
                 const snap = await getDocs(collection(db, "logs"));
                 const batch = snap.docs.map(d => deleteDoc(doc(db, "logs", d.id)));
                 await Promise.all(batch);
