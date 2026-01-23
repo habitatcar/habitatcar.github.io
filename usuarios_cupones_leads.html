@@ -16,7 +16,7 @@
             --rojo-cupon: #ff0000;
             --naranja-conozca: #ff9800;
             --celeste-llegar: #03a9f4;
-            --azul-validar: #1a237e; /* Azul profundo en lugar de negro */
+            --azul-validar: #1a237e;
             --gris-usar: #cccccc;
             --verde-activo: #4caf50;
             --gris-volver: #757575;
@@ -74,7 +74,6 @@
         .nombre-c { font-weight: 900; font-size: 22px; color: #000; margin: 10px 0; text-transform: uppercase; }
         .beneficio-c { color: var(--rojo-cupon); font-size: 26px; font-weight: 900; margin: 5px 0; }
         
-        /* ESTILO DE BOTONES RESTAURADO */
         .btn-stack { padding: 0 10px; display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
         .btn-act { 
             width: 100%; padding: 14px; border: none; border-radius: 5px; 
@@ -87,25 +86,31 @@
         .btn-usar { background-color: var(--gris-usar); color: white; pointer-events: none; }
         .btn-usar.activo { background-color: var(--verde-activo); pointer-events: auto; }
 
-        /* Cartel Advertencia Compacto */
-        .advertencia-overlay {
+        /* MODALES PERSONALIZADOS (REEMPLAZO DE ALERT) */
+        .custom-alert-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 5000; padding: 20px;
+            background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 7000;
         }
-        .advertencia-contenido {
-            background: white; border-radius: 20px; padding: 25px; text-align: center; max-width: 350px; width: 95%;
+        .custom-alert-box {
+            background: white; border-radius: 20px; padding: 30px; text-align: center;
+            max-width: 320px; width: 90%; border: 4px solid var(--azul-habitat);
         }
-        .advertencia-btns { display: flex; gap: 10px; margin-top: 20px; }
-        .btn-si { background: #d32f2f; color: white; flex: 1; padding: 15px; border-radius: 10px; border: none; font-weight: bold; }
-        .btn-no { background: var(--gris-volver); color: white; flex: 1; padding: 15px; border-radius: 10px; border: none; font-weight: bold; }
 
-        /* Pantalla Éxito */
+        /* PANTALLA ÉXITO MEJORADA */
         .success-page {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: white; z-index: 6000; display: none; flex-direction: column;
             align-items: center; justify-content: center; text-align: center; padding: 20px;
         }
-        .timer-circle { font-size: 110px; font-weight: 900; color: #d32f2f; margin: 10px 0; }
+        .success-card {
+            border: 8px solid var(--azul-habitat); border-radius: 30px; padding: 40px 20px;
+            width: 95%; max-width: 400px; box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        .timer-container {
+            margin: 20px auto; width: 150px; height: 150px; border-radius: 50%;
+            border: 10px solid var(--rojo-cupon); display: flex; align-items: center; justify-content: center;
+        }
+        .timer-circle { font-size: 70px; font-weight: 900; color: var(--rojo-cupon); }
 
         .modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -146,12 +151,18 @@
     </div>
 
     <div id="pantalla-exito" class="success-page">
-        <h1>🥳 ¡FELICITACIONES!</h1>
-        <p>Beneficio activado en <strong id="exito-comercio"></strong></p>
-        <p id="exito-beneficio" style="font-size:22px; color:var(--rojo-cupon); font-weight:bold;"></p>
-        <div class="timer-circle" id="countdown">30</div>
-        <p>Válido por 30 segundos.</p>
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="width:120px; margin-top:20px">
+        <div class="success-card">
+            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="width:240px; margin-bottom:20px;">
+            <h1 style="color:var(--azul-habitat); margin:0;">🥳 ¡FELICITACIONES!</h1>
+            <p style="font-size:18px;">Beneficio activado en:</p>
+            <p id="exito-comercio" style="font-weight:bold; font-size:20px; margin:5px 0;"></p>
+            <p id="exito-beneficio" style="font-size:24px; color:var(--rojo-cupon); font-weight:900;"></p>
+            
+            <div class="timer-container">
+                <div class="timer-circle" id="countdown">30</div>
+            </div>
+            <p style="font-weight:bold; color:#555;">Válido por 30 segundos.</p>
+        </div>
     </div>
 
     <footer>
@@ -166,7 +177,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -182,7 +193,6 @@
         let scanner = null;
         const getUsados = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
 
-        // MEMORIA DE SCROLL: Restaurar posición al cargar
         window.addEventListener('load', () => {
             const pos = localStorage.getItem('last_scroll_pos');
             if(pos) { window.scrollTo(0, parseInt(pos)); localStorage.removeItem('last_scroll_pos'); }
@@ -192,7 +202,6 @@
             const contenedor = document.getElementById('contenedor-cupones');
             const usados = getUsados();
             let html = "";
-
             snap.forEach(docSnap => {
                 const c = docSnap.data();
                 const id = docSnap.id;
@@ -207,8 +216,8 @@
                         <div class="nombre-c">${nombre}</div>
                         <div class="beneficio-c">${beneficio}</div>
                         <div class="btn-stack">
-                            <button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${c.instagram}', '${c.sitioWeb}')">Conozca el comercio</button>
-                            <button class="btn-act btn-llegar" onclick="window.open('http://maps.google.com/?q=${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
+                            <button class="btn-act btn-conozca">Conozca el comercio</button>
+                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar Cupón con QR</button>
                             <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajero('${id}', '${nombre}', '${beneficio}')">Usar el Beneficio</button>
                         </div>
@@ -216,6 +225,20 @@
             });
             contenedor.innerHTML = html;
         });
+
+        // REEMPLAZO DE ALERT POR MODAL LINDO
+        window.mostrarAlertaLina = (mensaje, icono = "✅") => {
+            const overlay = document.createElement('div');
+            overlay.className = 'custom-alert-overlay';
+            overlay.innerHTML = `
+                <div class="custom-alert-box">
+                    <div style="font-size: 50px; margin-bottom: 10px;">${icono}</div>
+                    <p style="font-size: 18px; font-weight: bold; color: var(--azul-habitat);">${mensaje}</p>
+                    <button onclick="this.parentElement.parentElement.remove()" style="background: var(--azul-habitat); color: white; border: none; padding: 10px 30px; border-radius: 8px; font-weight: bold; margin-top: 15px;">ENTENDIDO</button>
+                </div>
+            `;
+            document.body.appendChild(overlay);
+        };
 
         window.abrirQR = (id, token) => {
             document.getElementById('modal-qr').style.display = 'flex';
@@ -225,8 +248,10 @@
                     cerrarScanner();
                     document.getElementById(`btn-usar-${id}`).classList.add('activo');
                     document.getElementById(`btn-val-${id}`).style.display = 'none';
-                    alert("✅ Validado. Ya puedes usar tu beneficio.");
-                } else { alert("❌ QR Incorrecto."); }
+                    mostrarAlertaLina("QR Validado", "📱");
+                } else {
+                    mostrarAlertaLina("QR Incorrecto", "❌");
+                }
             }).catch(e => console.error(e));
         };
 
@@ -240,9 +265,9 @@
             alerta.className = 'advertencia-overlay';
             alerta.id = 'alerta-cajero';
             alerta.innerHTML = `
-                <div class="advertencia-contenido">
-                    <h3 style="color:red;">⚠️ ¡ATENCIÓN!</h3>
-                    <p>¿Avisaste al cajero que usarás el cupón de descuento?<br><br>
+                <div class="advertencia-contenido" style="border: 4px solid var(--rojo-cupon);">
+                    <h3 style="color:red; font-size:24px;">⚠️ ¡ATENCIÓN!</h3>
+                    <p style="font-size:16px;">¿Avisaste al cajero que usarás el cupón de descuento?<br><br>
                     <strong>Si no le avisaste, perderás la validez del beneficio.</strong></p>
                     <div class="advertencia-btns">
                         <button class="btn-si" onclick="finalizarCanje('${id}', '${nombre}', '${beneficio}')">SÍ, le avisé</button>
@@ -253,7 +278,7 @@
         };
 
         window.finalizarCanje = async (id, nom, ben) => {
-            localStorage.setItem('last_scroll_pos', window.scrollY); // Guardar posición antes de recargar
+            localStorage.setItem('last_scroll_pos', window.scrollY);
             document.getElementById('alerta-cajero').remove();
             document.getElementById('exito-comercio').innerText = nom;
             document.getElementById('exito-beneficio').innerText = ben;
@@ -262,7 +287,6 @@
             try {
                 const ref = doc(db, "comercios", id);
                 await updateDoc(ref, { totalUsos: increment(1) });
-                
                 let s = 30;
                 const t = setInterval(() => {
                     s--;
