@@ -27,7 +27,7 @@
         body { 
             margin: 0; padding: 0; 
             background-color: var(--azul-habitat); 
-            font-family: 'Segoe UI', Arial, sans-serif; 
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; 
             padding-bottom: 120px;
             width: 100%;
             overflow-x: hidden;
@@ -91,8 +91,9 @@
             background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 7000;
         }
         .custom-alert-box {
-            background: white; border-radius: 20px; padding: 30px; text-align: center;
-            max-width: 320px; width: 90%; border: 4px solid var(--azul-habitat);
+            background: white; border-radius: 20px; padding: 35px 20px; text-align: center;
+            max-width: 320px; width: 90%; border: 5px solid var(--azul-habitat);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
         }
 
         .success-page {
@@ -106,9 +107,10 @@
         }
         .timer-container {
             margin: 20px auto; width: 150px; height: 150px; border-radius: 50%;
-            border: 10px solid var(--rojo-cupon); display: flex; align-items: center; justify-content: center;
+            border: 12px solid var(--rojo-cupon); display: flex; align-items: center; justify-content: center;
+            background: #fff5f5;
         }
-        .timer-circle { font-size: 70px; font-weight: 900; color: var(--rojo-cupon); }
+        .timer-circle { font-size: 80px; font-weight: 900; color: var(--rojo-cupon); }
 
         .modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -116,6 +118,17 @@
             align-items: center; justify-content: center; z-index: 1000;
         }
         #reader { width: 300px; background: white; border-radius: 10px; overflow: hidden; }
+
+        .advertencia-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: flex; justify-content: center; align-items: center; z-index: 5000; padding: 20px;
+        }
+        .advertencia-contenido {
+            background: white; border-radius: 20px; padding: 25px; text-align: center; max-width: 350px; width: 95%;
+        }
+        .advertencia-btns { display: flex; gap: 10px; margin-top: 20px; }
+        .btn-si { background: #d32f2f; color: white; flex: 1; padding: 15px; border-radius: 10px; border: none; font-weight: bold; }
+        .btn-no { background: var(--gris-volver); color: white; flex: 1; padding: 15px; border-radius: 10px; border: none; font-weight: bold; }
 
         footer {
             position: fixed; bottom: 0; width: 100%; background: white; 
@@ -151,15 +164,15 @@
     <div id="pantalla-exito" class="success-page">
         <div class="success-card">
             <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="width:240px; margin-bottom:20px;">
-            <h1 style="color:var(--azul-habitat); margin:0;">🥳 ¡FELICITACIONES!</h1>
-            <p style="font-size:18px;">Beneficio activado en:</p>
-            <p id="exito-comercio" style="font-weight:bold; font-size:20px; margin:5px 0;"></p>
-            <p id="exito-beneficio" style="font-size:24px; color:var(--rojo-cupon); font-weight:900;"></p>
+            <h1 style="color:var(--azul-habitat); margin:0; font-size: 28px;">🥳 ¡FELICITACIONES!</h1>
+            <p style="font-size:18px; margin-top: 15px;">Beneficio activado en:</p>
+            <p id="exito-comercio" style="font-weight:900; font-size:22px; margin:5px 0; color: #000;"></p>
+            <p id="exito-beneficio" style="font-size:26px; color:var(--rojo-cupon); font-weight:900;"></p>
             
             <div class="timer-container">
                 <div class="timer-circle" id="countdown">30</div>
             </div>
-            <p style="font-weight:bold; color:#555;">Válido por 30 segundos.</p>
+            <p style="font-weight:bold; color:#555; font-size: 16px;">Válido por 30 segundos.</p>
         </div>
     </div>
 
@@ -224,14 +237,14 @@
             contenedor.innerHTML = html;
         });
 
-        window.mostrarAlertaLina = (mensaje, icono = "🔳") => {
+        window.mostrarAlertaLina = (mensaje) => {
             const overlay = document.createElement('div');
             overlay.className = 'custom-alert-overlay';
             overlay.innerHTML = `
                 <div class="custom-alert-box">
-                    <div style="font-size: 50px; margin-bottom: 10px;">${icono}</div>
-                    <p style="font-size: 18px; font-weight: bold; color: var(--azul-habitat);">${mensaje}</p>
-                    <p style="font-size: 14px; color: #555;">Ahora puede usar el beneficio.</p>
+                    <div style="font-size: 60px; color: #4caf50; margin-bottom: 15px;">✅</div>
+                    <p style="font-size: 22px; font-weight: 900; color: var(--azul-habitat); margin: 0; line-height: 1.2;">${mensaje}</p>
+                    <p style="font-size: 16px; color: #333; font-weight: 600; margin-top: 10px;">Ahora puede usar el beneficio.</p>
                 </div>
             `;
             document.body.appendChild(overlay);
@@ -245,11 +258,15 @@
                 if (text.trim() === token.trim()) {
                     cerrarScanner();
                     const btnUsar = document.getElementById(`btn-usar-${id}`);
-                    btnUsar.classList.add('activo');
+                    btnUsar.classList.add('activo'); // Esto activa visualmente y funcionalmente el botón
                     document.getElementById(`btn-val-${id}`).style.display = 'none';
-                    mostrarAlertaLina("QR Validado");
+                    mostrarAlertaLina("QR VALIDADO");
                 } else {
-                    mostrarAlertaLina("QR Incorrecto", "❌");
+                    const overlay = document.createElement('div');
+                    overlay.className = 'custom-alert-overlay';
+                    overlay.innerHTML = `<div class="custom-alert-box"><div style="font-size: 60px; margin-bottom: 10px;">❌</div><p style="font-size: 20px; font-weight: bold;">QR INCORRECTO</p></div>`;
+                    document.body.appendChild(overlay);
+                    setTimeout(() => { overlay.remove(); }, 2000);
                 }
             }).catch(e => console.error(e));
         };
@@ -260,6 +277,9 @@
         };
 
         window.preguntarCajero = (id, nombre, beneficio) => {
+            // Aseguramos que solo funcione si el botón tiene la clase 'activo'
+            if (!document.getElementById(`btn-usar-${id}`).classList.contains('activo')) return;
+
             const alerta = document.createElement('div');
             alerta.className = 'advertencia-overlay';
             alerta.id = 'alerta-cajero';
@@ -278,7 +298,9 @@
 
         window.finalizarCanje = async (id, nom, ben) => {
             localStorage.setItem('last_scroll_pos', window.scrollY);
-            document.getElementById('alerta-cajero').remove();
+            const alertCajero = document.getElementById('alerta-cajero');
+            if(alertCajero) alertCajero.remove();
+            
             document.getElementById('exito-comercio').innerText = nom;
             document.getElementById('exito-beneficio').innerText = ben;
             document.getElementById('pantalla-exito').style.display = 'flex';
