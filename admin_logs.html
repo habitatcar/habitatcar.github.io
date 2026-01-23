@@ -109,6 +109,7 @@
         .badge { padding: 4px 8px; border-radius: 4px; font-size: 0.75em; font-weight: bold; }
         .badge-canje { background: var(--verde); color: white; }
         .badge-sistema { background: var(--celeste-habitat); color: white; }
+        .badge-inscripcion { background: #6f42c1; color: white; }
         .badge-admin { background: var(--oro); color: black; }
 
         .date-col { color: #8892b0; font-family: monospace; font-size: 0.9em; }
@@ -146,7 +147,7 @@
     <div class="container">
         <div class="filter-bar">
             <h2 style="margin:0; color:var(--oro); font-size: 1.2rem;">Registro de Actividad</h2>
-            <input type="text" id="buscadorLogs" class="search-box" placeholder="🔍 Buscar canjes, comercios o detalles..." onkeyup="filtrarLogs()">
+            <input type="text" id="buscadorLogs" class="search-box" placeholder="🔍 Buscar inscripciones, canjes, nombres..." onkeyup="filtrarLogs()">
             <button onclick="limpiarLogs()" style="background:var(--rojo); color:white; border:none; padding:8px 15px; border-radius:5px; cursor:pointer; font-weight:bold; font-size: 0.8em;">🗑️ BORRAR HISTORIAL</button>
         </div>
 
@@ -182,37 +183,78 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Se escuchan tanto 'logs' como 'logs_vip' para asegurar que nada se pierda
-        // Pero el foco principal es 'logs' donde caen los canjes
-        const q = query(collection(db, "logs"), orderBy("fecha", "desc"), limit(300));
-        
-        onSnapshot(q, (snap) => {
+        // Función para renderizar la tabla unificada
+        const actualizarTabla = () => {
+            const lista = document.getElementById('lista-logs');
+            const logsData = [];
+
+            // 1. Obtener logs de la colección 'logs' (Canjes)
+            const qLogs = query(collection(db, "logs"), orderBy("fecha", "desc"), limit(100));
+            onSnapshot(qLogs, (snap) => {
+                snap.forEach(d => {
+                    const data = d.data();
+                    logsData.push({
+                        id: d.id,
+                        coleccion: 'logs',
+                        fecha: data.fecha,
+                        modulo: data.modulo || 'USUARIO',
+                        accion: data.accion || 'CANJE',
+                        detalle: data.detalle || 'Canje de cupón',
+                        tipo: data.tipo || 'canje'
+                    });
+                });
+                renderizar(logsData);
+            });
+
+            // 2. Obtener logs de la colección 'leads' (Nuevas inscripciones)
+            const qLeads = query(collection(db, "leads"), orderBy("fechaRegistro", "desc"), limit(50));
+            onSnapshot(qLeads, (snap) => {
+                snap.forEach(d => {
+                    const data = d.data();
+                    logsData.push({
+                        id: d.id,
+                        coleccion: 'leads',
+                        fecha: data.fechaRegistro,
+                        modulo: 'LEADS',
+                        accion: 'INSCRIPCIÓN',
+                        detalle: `Nuevo Lead: ${data.nombres} ${data.apellido} (WA: ${data.whatsapp})`,
+                        tipo: 'inscripcion'
+                    });
+                });
+                renderizar(logsData);
+            });
+        };
+
+        const renderizar = (data) => {
             const lista = document.getElementById('lista-logs');
             lista.innerHTML = "";
             
-            snap.forEach(d => {
-                const log = d.data();
-                const fecha = log.fecha ? new Date(log.fecha).toLocaleString() : '---';
-                
-                // Mapeo dinámico para que se vea bien aunque falten campos
-                const moduloAccion = log.modulo ? `${log.modulo} / ${log.accion}` : (log.tipo === 'canje' ? 'USUARIO / CANJE' : 'SISTEMA');
-                const detalle = log.detalle || 'Sin detalle';
-                const tipo = log.tipo || 'sistema';
+            // Ordenar por fecha descendente (mezclando ambas fuentes)
+            data.sort((a, b) => b.fecha - a.fecha);
 
+            // Eliminar duplicados por ID (por si el onSnapshot repite)
+            const uniqueData = data.filter((v, i, a) => a.findIndex(t => t.id === v.id) === i);
+
+            uniqueData.forEach(log => {
+                const fecha = log.fecha ? new Date(log.fecha).toLocaleString() : '---';
                 const tr = document.createElement('tr');
                 tr.className = "log-row";
-                tr.setAttribute('data-search', `${moduloAccion} ${detalle} ${tipo}`.toLowerCase());
+                tr.setAttribute('data-search', `${log.modulo} ${log.accion} ${log.detalle} ${log.tipo}`.toLowerCase());
 
                 tr.innerHTML = `
                     <td class="date-col">${fecha}</td>
-                    <td style="font-weight:bold;">${moduloAccion}</td>
-                    <td style="font-size: 0.9em;">${detalle}</td>
-                    <td><span class="badge badge-${tipo}">${tipo.toUpperCase()}</span></td>
-                    <td><button class="btn-del-log" onclick="borrarLog('${d.id}')">🗑️</button></td>
+                    <td style="font-weight:bold;">${log.modulo} / ${log.accion}</td>
+                    <td style="font-size: 0.9em;">${log.detalle}</td>
+                    <td><span class="badge badge-${log.tipo}">${log.tipo.toUpperCase()}</span></td>
+                    <td>
+                        ${log.coleccion === 'logs' ? `<button class="btn-del-log" onclick="borrarLog('${log.id}')">🗑️</button>` : '<small>Registro Base</small>'}
+                    </td>
                 `;
                 lista.appendChild(tr);
             });
-        });
+        };
+
+        actualizarTabla();
 
         window.filtrarLogs = () => {
             const term = document.getElementById('buscadorLogs').value.toLowerCase();
@@ -222,15 +264,15 @@
         };
 
         window.borrarLog = async (id) => {
-            if(confirm("¿Eliminar registro?")) await deleteDoc(doc(db, "logs", id));
+            if(confirm("¿Eliminar registro de actividad?")) await deleteDoc(doc(db, "logs", id));
         };
 
         window.limpiarLogs = async () => {
-            if(confirm("¿BORRAR TODO EL HISTORIAL?")) {
+            if(confirm("¿BORRAR TODO EL HISTORIAL DE ACTIVIDAD? (No borra los leads, solo los registros de canje)")) {
                 const snap = await getDocs(collection(db, "logs"));
                 const batch = snap.docs.map(d => deleteDoc(doc(db, "logs", d.id)));
                 await Promise.all(batch);
-                alert("Historial limpio");
+                location.reload();
             }
         };
     </script>
