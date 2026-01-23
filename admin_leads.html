@@ -23,18 +23,24 @@
             color: var(--blanco-suave);
             margin: 0;
             padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
         }
 
-        /* HEADER & NAV UNIFICADO */
+        /* HEADER FIJO */
         .header {
             background: var(--azul-medio);
-            padding: 20px 30px;
+            padding: 15px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 4px solid var(--celeste-habitat);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
         }
-        .logo { height: 120px; width: auto; } 
+        .logo { height: 80px; width: auto; } 
 
         .nav-menu { display: flex; gap: 8px; flex-wrap: wrap; }
         .nav-link {
@@ -48,20 +54,29 @@
             transition: 0.3s;
             text-transform: uppercase;
         }
-        /* BOTÓN ACTIVO EN ROJO SEGÚN SOLICITUD */
         .nav-link.active { background: var(--rojo); box-shadow: 0 0 10px rgba(220,53,69,0.5); }
 
-        .container { max-width: 1300px; margin: 30px auto; padding: 0 20px; }
+        /* CONTENEDOR PRINCIPAL */
+        .container { 
+            max-width: 1300px; 
+            margin: 0 auto; 
+            padding: 20px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden; /* Evita scroll en el body */
+        }
         
-        /* BARRA DE BÚSQUEDA */
+        /* BARRA DE BÚSQUEDA FIJA */
         .search-bar {
             background: var(--azul-medio);
             padding: 15px 25px;
             border-radius: 12px;
-            margin-bottom: 25px;
+            margin-bottom: 20px;
             display: flex;
             gap: 15px;
             align-items: center;
+            flex-shrink: 0;
         }
         .search-bar input {
             flex: 1;
@@ -72,19 +87,31 @@
             color: white;
         }
 
-        /* TABLA */
+        /* TABLA CON SCROLL INTERNO */
         .card-table {
             background: var(--azul-medio);
             border-radius: 15px;
-            overflow: hidden;
+            overflow-y: auto; /* El scroll sucede aquí */
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            flex: 1;
         }
         table { width: 100%; border-collapse: collapse; }
-        th { background: rgba(0,0,0,0.2); color: var(--oro); padding: 15px; text-align: left; }
+        
+        /* ENCABEZADOS DE TABLA FIJOS */
+        th { 
+            background: #1a2a3a; 
+            color: var(--oro); 
+            padding: 15px; 
+            text-align: left; 
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            box-shadow: 0 2px 2px rgba(0,0,0,0.3);
+        }
+        
         td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         tr:hover { background: rgba(255,255,255,0.02); }
 
-        /* ESTADOS Y BOTONES */
         .status { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
         .status-activo { background: var(--verde); color: white; }
         .status-suspendido { background: var(--naranja); color: white; }
@@ -140,8 +167,7 @@
                         <th>ACCIONES</th>
                     </tr>
                 </thead>
-                <tbody id="lista-leads">
-                    </tbody>
+                <tbody id="lista-leads"></tbody>
             </table>
         </div>
     </div>
@@ -169,6 +195,10 @@
         onSnapshot(q, (snap) => {
             todosLosLeads = [];
             snap.forEach(d => todosLosLeads.push({id: d.id, ...d.data()}));
+            
+            // ORDENAR POR FECHA (MÁS RECIENTE ARRIBA)
+            todosLosLeads.sort((a, b) => (b.fechaRegistro || 0) - (a.fechaRegistro || 0));
+            
             renderizar(todosLosLeads);
         });
 
