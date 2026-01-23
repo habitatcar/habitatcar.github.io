@@ -23,6 +23,7 @@
             --azul-lindo: #0056b3;
             --verde: #2e7d32;
             --rosa: #c2185b;
+            --gris-volver: #757575;
         }
 
         body { 
@@ -107,12 +108,69 @@
             color: white; font-size: 1.05em; font-weight: 800; cursor: pointer; text-transform: uppercase;
         }
         
+        .btn-conozca { background-color: var(--azul-lindo); }
         .btn-llegar { background-color: var(--verde); }
         .btn-validar { background-color: var(--rosa); }
         .btn-usar { background-color: #222; color: #555; border-color: #444; pointer-events: none; }
         .btn-usar.activo { background: #000; color: var(--dorado-brillante); pointer-events: auto; border: 3px solid var(--dorado); }
 
         .contador-nube { background: var(--dorado); color: black; padding: 4px 12px; border-radius: 10px; margin-left: 10px; font-size: 1.2em; font-weight: 900; }
+
+        /* ALERTAS PERSONALIZADAS */
+        .custom-alert-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 7000;
+        }
+        .custom-alert-box {
+            background: white; border-radius: 20px; padding: 35px 20px; text-align: center;
+            max-width: 320px; width: 90%; border: 5px solid var(--dorado);
+        }
+
+        /* PANTALLA EXITO VIP */
+        .success-page {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: #000; z-index: 6000; display: none; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center; padding: 20px;
+        }
+        .success-card {
+            border: 6px solid var(--dorado); border-radius: 30px; padding: 40px 20px;
+            width: 95%; max-width: 400px; background: #111;
+        }
+        .timer-container {
+            margin: 20px auto; width: 150px; height: 150px; border-radius: 50%;
+            border: 10px solid var(--dorado); display: flex; align-items: center; justify-content: center;
+        }
+        .timer-circle { font-size: 80px; font-weight: 900; color: var(--dorado); }
+
+        .aviso-cajero-vip {
+            margin-top: 25px; padding: 15px; font-size: 20px; font-weight: 900; 
+            color: var(--dorado-brillante); border-radius: 12px;
+            animation: parpadeoVIP 1.5s infinite;
+        }
+        @keyframes parpadeoVIP {
+            0% { background-color: rgba(212, 175, 55, 0); }
+            50% { background-color: rgba(212, 175, 55, 0.2); }
+            100% { background-color: rgba(212, 175, 55, 0); }
+        }
+
+        /* MODAL QR */
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95); display: none; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 1000;
+        }
+        #reader { width: 300px; background: white; border-radius: 15px; overflow: hidden; border: 4px solid var(--dorado); }
+
+        /* ADVERTENCIA CAJERO */
+        .advertencia-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 5000; padding: 20px;
+        }
+        .advertencia-contenido {
+            background: white; border-radius: 20px; padding: 25px; text-align: center; max-width: 350px; width: 95%; color: #000;
+        }
+        .btn-si { background: #d32f2f; color: white; flex: 1; padding: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
+        .btn-no { background: var(--gris-volver); color: white; flex: 1; padding: 15px; border-radius: 10px; border: none; font-weight: bold; cursor: pointer; }
 
         .footer-identificacion {
             position: fixed; bottom: 0; left: 0; width: 100%; background: white; border-top: 4px solid var(--dorado);
@@ -148,6 +206,23 @@
 
     <div class="grilla" id="contenedor-vip"></div>
 
+    <div id="modal-qr" class="modal">
+        <h2 style="color:var(--dorado)">Escanee el QR del local</h2>
+        <div id="reader"></div>
+        <button onclick="cerrarScanner()" style="margin-top:20px; padding:12px 25px; background:var(--dorado); border:none; border-radius:10px; font-weight:bold; color:black;">CANCELAR</button>
+    </div>
+
+    <div id="pantalla-exito" class="success-page">
+        <div class="success-card">
+            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="width:200px; margin-bottom:20px;">
+            <h1 style="color:var(--dorado); margin:0; font-size: 26px;">👑 VIP ACTIVADO</h1>
+            <p id="exito-comercio" style="font-weight:900; font-size:22px; margin:15px 0; color: #fff;"></p>
+            <p id="exito-beneficio" style="font-size:26px; color:var(--dorado-brillante); font-weight:900;"></p>
+            <div class="timer-container"><div class="timer-circle" id="countdown">30</div></div>
+            <div class="aviso-cajero-vip">Mostrale esta pantalla al cajero</div>
+        </div>
+    </div>
+
     <footer class="footer-identificacion">
         <a href="https://www.habitatcar.com.ar" class="footer-link">www.habitatcar.com.ar</a>
         <a href="https://wa.me/543884618228" class="footer-link">WA: 388-4618228</a>
@@ -155,7 +230,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, addDoc, serverTimestamp, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -168,6 +243,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        let scanner = null;
         const getConteoUso = (id) => parseInt(localStorage.getItem('uso_vip_' + id) || "0");
 
         onSnapshot(collection(db, "comercios"), (snap) => {
@@ -176,29 +252,22 @@
             snap.forEach(d => {
                 const c = d.data();
                 if (c.estado === "inactivo") return;
-                
                 const id = d.id;
                 const nUso = getConteoUso(id);
-                
-                // CORRECCIÓN: Si no hay logoUrl, no se genera el HTML del logo-container
-                let htmlLogo = "";
-                if (c.logoUrl && c.logoUrl.trim() !== "") {
-                    htmlLogo = `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>`;
-                }
+                const imgLogo = c.logoUrl || 'https://github.com/habitatcar/habitatcar.github.io/blob/main/logo_redondo.png?raw=true';
                 
                 html += `
                     <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}" data-vence="${c.vigenciaVip || 'Recurrente'}">
-                        ${htmlLogo}
+                        <div class="logo-container"><img src="${imgLogo}" class="logo-c"></div>
                         <div class="nombre-c">${c.nombre || ''}</div>
                         <div class="beneficio-c">${c.valVip || 0}% OFF</div>
                         <div class="desc-c" style="font-weight:bold; color:#fff; margin-bottom:10px;">${c.txtVip || ''}</div>
                         <span class="vence-vip">★ Vence en ${c.vigenciaVip || 'X'} días ★</span>
                         <div class="info-line">📍 <b>${c.direccion || ''}</b></div>
-                        <div class="info-line">🏙️ <b>${c.ciudad || ''}</b></div>
                         <div class="btn-stack">
                             <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || ''))}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar" onclick="abrirQR('${id}')">Validar con QR</button>
-                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="finalizar('${id}', '${c.nombre}')">
+                            <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
+                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajeroVIP('${id}', '${c.nombre}', '${c.valVip}% OFF')">
                                 Usar beneficio <span class="contador-nube">${nUso}</span>
                             </button>
                         </div>
@@ -207,19 +276,76 @@
             contenedor.innerHTML = html;
         });
 
-        window.abrirQR = (id) => {
-            const btn = document.getElementById(`btn-usar-${id}`);
-            if(btn) {
-                btn.classList.add('activo');
-                btn.innerHTML = `CONFIRMAR USO <span class="contador-nube">${getConteoUso(id)}</span>`;
-            }
+        window.mostrarAlertaVIP = (mensaje) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'custom-alert-overlay';
+            overlay.innerHTML = `
+                <div class="custom-alert-box">
+                    <div style="font-size: 60px; color: #4caf50; margin-bottom: 15px;">✅</div>
+                    <p style="font-size: 24px; font-weight: 900; color: #000; margin: 0;">${mensaje}</p>
+                    <p style="font-size: 19px; color: #333; font-weight: 600; margin-top: 12px;">Ahora puede usar el beneficio.</p>
+                </div>`;
+            document.body.appendChild(overlay);
+            setTimeout(() => { overlay.remove(); }, 3000);
         };
 
-        window.finalizar = async (id, nom) => {
-            const nuevoConteo = getConteoUso(id) + 1;
-            await addDoc(collection(db, "logs_vip"), { comercio: nom, fecha: serverTimestamp(), uso_nro: nuevoConteo });
-            localStorage.setItem('uso_vip_' + id, nuevoConteo);
-            location.reload();
+        window.abrirQR = (id, token) => {
+            document.getElementById('modal-qr').style.display = 'flex';
+            scanner = new Html5Qrcode("reader");
+            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+                if (text.trim() === token.trim()) {
+                    cerrarScanner();
+                    document.getElementById(`btn-usar-${id}`).classList.add('activo');
+                    document.getElementById(`btn-val-${id}`).style.display = 'none';
+                    mostrarAlertaVIP("QR VALIDADO");
+                }
+            }).catch(e => console.error(e));
+        };
+
+        window.cerrarScanner = () => {
+            document.getElementById('modal-qr').style.display = 'none';
+            if(scanner) scanner.stop().then(() => scanner.clear());
+        };
+
+        window.preguntarCajeroVIP = (id, nombre, beneficio) => {
+            if (!document.getElementById(`btn-usar-${id}`).classList.contains('activo')) return;
+            const alerta = document.createElement('div');
+            alerta.className = 'advertencia-overlay';
+            alerta.id = 'alerta-cajero';
+            alerta.innerHTML = `
+                <div class="advertencia-contenido" style="border: 4px solid var(--dorado);">
+                    <h3 style="color:red; font-size:26px; margin-bottom: 15px;">⚠️ ¡ATENCIÓN!</h3>
+                    <p style="font-size:19px; line-height: 1.4;">¿Avisaste al cajero que usarás el cupón <b>VIP</b>?<br><br>
+                    <strong>Si no le avisaste, perderás el beneficio.</strong></p>
+                    <div style="display:flex; gap:10px; margin-top:20px;">
+                        <button class="btn-si" onclick="finalizarVIP('${id}', '${nombre}', '${beneficio}')">SÍ, le avisé</button>
+                        <button class="btn-no" onclick="document.getElementById('alerta-cajero').remove()">Volver</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(alerta);
+        };
+
+        window.finalizarVIP = async (id, nom, ben) => {
+            document.getElementById('alerta-cajero').remove();
+            document.getElementById('exito-comercio').innerText = nom;
+            document.getElementById('exito-beneficio').innerText = ben;
+            document.getElementById('pantalla-exito').style.display = 'flex';
+            
+            try {
+                const nuevoConteo = getConteoUso(id) + 1;
+                await addDoc(collection(db, "logs_vip"), { comercio: nom, fecha: serverTimestamp(), uso_nro: nuevoConteo });
+                localStorage.setItem('uso_vip_' + id, nuevoConteo);
+
+                let s = 30;
+                const t = setInterval(() => {
+                    s--;
+                    document.getElementById('countdown').innerText = s;
+                    if(s <= 0) {
+                        clearInterval(t);
+                        location.reload();
+                    }
+                }, 1000);
+            } catch(e) { console.error(e); }
         };
 
         window.filtrar = () => {
