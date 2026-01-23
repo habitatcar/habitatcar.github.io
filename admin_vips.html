@@ -17,54 +17,59 @@
             --naranja: #ff9800;
         }
 
-        body {
+        /* Ajuste para pantalla completa y scroll interno */
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
             font-family: 'Segoe UI', sans-serif;
             background-color: var(--azul-oscuro);
             color: var(--blanco-suave);
-            margin: 0;
-            padding: 0;
         }
 
-        /* HEADER & NAV UNIFICADO */
+        body {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* HEADER FIJO */
         .header {
             background: var(--azul-medio);
-            padding: 15px 25px;
+            padding: 20px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
             border-bottom: 4px solid var(--celeste-habitat);
-            flex-wrap: wrap;
-            gap: 15px;
+            flex-shrink: 0;
         }
-        .logo { height: 80px; width: auto; } 
+        .logo { height: 120px; width: auto; } 
 
-        .nav-menu { 
-            display: flex; 
-            gap: 8px; 
-            flex-wrap: wrap;
-        }
+        .nav-menu { display: flex; gap: 8px; flex-wrap: wrap; }
         .nav-link {
-            padding: 8px 12px;
+            padding: 8px 14px;
             border-radius: 6px;
             text-decoration: none;
             color: white;
             font-weight: bold;
             background: var(--azul-claro);
-            transition: 0.3s;
             font-size: 11px;
+            transition: 0.3s;
             text-transform: uppercase;
         }
-        /* BOTÓN ACTIVO EN ROJO */
         .nav-link.active { background: var(--rojo); box-shadow: 0 0 10px rgba(220,53,69,0.5); }
 
-        .container { max-width: 1300px; margin: 30px auto; padding: 0 20px; }
-        
-        /* BARRA DE BÚSQUEDA */
+        /* BUSCADOR FIJO - ANCHO COMPLETO */
+        .search-area {
+            padding: 20px 30px;
+            flex-shrink: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
         .search-bar {
             background: var(--azul-medio);
             padding: 15px 25px;
             border-radius: 12px;
-            margin-bottom: 25px;
             display: flex;
             gap: 15px;
             align-items: center;
@@ -78,19 +83,38 @@
             color: white;
         }
 
-        /* TABLA */
+        /* CONTENEDOR DE TABLA - ANCHO COMPLETO */
+        .table-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 30px 30px 30px;
+            box-sizing: border-box;
+        }
+
         .card-table {
             background: var(--azul-medio);
             border-radius: 15px;
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            width: 100%; /* Asegura el ancho total */
         }
+
         table { width: 100%; border-collapse: collapse; }
-        th { background: rgba(0,0,0,0.2); color: var(--oro); padding: 15px; text-align: left; }
+
+        /* ENCABEZADO DE TABLA FIJO */
+        thead th {
+            position: sticky;
+            top: 0;
+            background: #25334a; 
+            color: var(--oro);
+            padding: 15px;
+            text-align: left;
+            z-index: 10;
+        }
+
         td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         tr:hover { background: rgba(255,255,255,0.02); }
 
-        /* ESTADOS Y BOTONES */
         .status { padding: 4px 8px; border-radius: 4px; font-size: 0.8em; font-weight: bold; }
         .status-activo { background: var(--verde); color: white; }
         .status-suspendido { background: var(--naranja); color: white; }
@@ -105,7 +129,6 @@
             margin-right: 5px;
             transition: 0.2s;
         }
-        .btn-leads { background: var(--blanco-suave); color: black; }
         .btn-suspend { background: var(--naranja); }
         .btn-del { background: var(--rojo); }
         .btn-action:hover { filter: brightness(1.2); }
@@ -129,12 +152,14 @@
         </nav>
     </header>
 
-    <div class="container">
+    <div class="search-area">
         <div class="search-bar">
             <input type="text" id="buscador" placeholder="Buscar por apellido, nombre o WhatsApp..." onkeyup="filtrarVips()">
             <div id="contador-total" style="font-weight: bold; color: var(--oro);">Total VIPs: 0</div>
         </div>
+    </div>
 
+    <div class="table-wrapper">
         <div class="card-table">
             <table>
                 <thead>
@@ -146,8 +171,7 @@
                         <th>ACCIONES</th>
                     </tr>
                 </thead>
-                <tbody id="lista-vips">
-                </tbody>
+                <tbody id="lista-vips"></tbody>
             </table>
         </div>
     </div>
@@ -170,12 +194,15 @@
 
         let todosLosVips = [];
 
-        // CORRECCIÓN: Escuchar la colección "vips" que es donde se registran ahora
         const q = query(collection(db, "vips"));
         
         onSnapshot(q, (snap) => {
             todosLosVips = [];
             snap.forEach(d => todosLosVips.push({id: d.id, ...d.data()}));
+            
+            // ORDENAR POR FECHA (MÁS RECIENTE ARRIBA)
+            todosLosVips.sort((a, b) => (b.fechaRegistro || 0) - (a.fechaRegistro || 0));
+            
             renderizar(todosLosVips);
         });
 
@@ -185,7 +212,6 @@
             document.getElementById('contador-total').innerText = `Total VIPs: ${datos.length}`;
 
             datos.forEach(v => {
-                // Ajuste a fechaRegistro que es el campo usado en el formulario
                 const fecha = v.fechaRegistro ? new Date(v.fechaRegistro).toLocaleDateString() : '---';
                 lista.innerHTML += `
                     <tr>
@@ -216,7 +242,6 @@
             const nuevo = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
             await updateDoc(doc(db, "vips", id), { estado: nuevo });
             
-            // Registro en Log
             await addDoc(collection(db, "logs"), {
                 fecha: Date.now(),
                 tipo: "MODIFICACION VIP",
