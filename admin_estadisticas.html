@@ -36,6 +36,7 @@
             align-items: center;
             border-bottom: 3px solid var(--celeste-habitat);
             flex-shrink: 0;
+            z-index: 100;
         }
         .logo { height: 60px; width: auto; }
 
@@ -52,7 +53,7 @@
         }
         .nav-link.active { background: var(--rojo); }
 
-        /* FAJA NEGRA */
+        /* FAJA NEGRA FIJA */
         .faja-stats {
             background: var(--negro-faja);
             padding: 15px 25px;
@@ -61,11 +62,12 @@
             justify-content: space-between;
             border-bottom: 2px solid var(--azul-claro);
             flex-shrink: 0;
+            position: sticky;
+            top: 0;
+            z-index: 90;
         }
 
         .stat-group { display: flex; gap: 10px; align-items: center; }
-        
-        /* Grupo de la derecha (Usuarios + Tiempos) */
         .right-stats { display: flex; gap: 25px; align-items: center; }
 
         .btn-stat-com { background: #1a1a1a; border: 1px solid var(--azul-claro); padding: 8px 12px; border-radius: 5px; font-size: 0.8em; font-weight: bold; }
@@ -75,7 +77,6 @@
         .btn-stat-user { border: 2px solid #ff5722; color: #ff5722; padding: 8px 12px; border-radius: 5px; font-weight: bold; font-size: 0.8em; }
         .total-users { background: var(--celeste-habitat); border: 2px solid white; color: white; }
 
-        /* Desglose Temporal Centrado */
         .temporal-group { display: flex; flex-direction: column; align-items: center; min-width: 220px; }
         .temporal-labels { 
             display: grid; 
@@ -95,15 +96,27 @@
         }
         .val-box { border: 1px solid var(--rojo); padding: 4px 0; border-radius: 4px; font-weight: bold; text-align: center; font-size: 0.9em; }
 
-        /* BUSCADOR */
-        .search-bar { background: var(--azul-medio); padding: 12px 25px; display: flex; }
+        .search-bar { background: var(--azul-medio); padding: 12px 25px; display: flex; flex-shrink: 0; }
         .search-input { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid var(--azul-claro); background: var(--azul-oscuro); color: white; }
 
         .table-container { flex: 1; padding: 0 25px 25px 25px; overflow-y: auto; }
-        table { width: 100%; border-collapse: collapse; background: var(--azul-medio); border-radius: 8px; overflow: hidden; }
-        th { background: #0d1b2a; color: #8892b0; padding: 12px; text-align: left; font-size: 0.8em; text-transform: uppercase; }
-        td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em; }
+        table { width: 100%; border-collapse: collapse; background: var(--azul-medio); border-radius: 8px; }
         
+        /* CABECERA TABLA FIJA */
+        thead th { 
+            position: sticky; 
+            top: 0; 
+            background: #0d1b2a; 
+            color: #8892b0; 
+            padding: 12px; 
+            text-align: left; 
+            font-size: 0.8em; 
+            text-transform: uppercase; 
+            z-index: 80;
+            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+        }
+        
+        td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em; }
         .mail-freq { background: #0a192f; color: var(--oro); border: 1px solid var(--oro); padding: 4px; border-radius: 4px; }
     </style>
 </head>
@@ -222,12 +235,23 @@
                 const c = d.data();
                 tCom++;
                 
-                // Sumatoria total (Leads + Vips)
-                const totalComercio = (c.totalUsos || 0) + (c.totalVip || 0);
-                const hoyComercio = (c.usosHoy || 0) + (c.vipHoy || 0);
-                const semComercio = (c.usosSemana || 0) + (c.vipSemana || 0);
-                const mesComercio = (c.usosMes || 0) + (c.vipMes || 0);
-                const anioComercio = (c.usosAnio || 0) + (c.vipAnio || 0);
+                // Asegurar que los valores sean números para evitar fallos de conteo
+                const lHist = Number(c.totalUsos || 0);
+                const vHist = Number(c.totalVip || 0);
+                const lHoy = Number(c.usosHoy || 0);
+                const vHoy = Number(c.vipHoy || 0);
+                const lSem = Number(c.usosSemana || 0);
+                const vSem = Number(c.vipSemana || 0);
+                const lMes = Number(c.usosMes || 0);
+                const vMes = Number(c.vipMes || 0);
+                const lAnio = Number(c.usosAnio || 0);
+                const vAnio = Number(c.vipAnio || 0);
+
+                const totalComercio = lHist + vHist;
+                const hoyComercio = lHoy + vHoy;
+                const semComercio = lSem + vSem;
+                const mesComercio = lMes + vMes;
+                const anioComercio = lAnio + vAnio;
 
                 tUsos += totalComercio;
                 tHoy += hoyComercio;
@@ -239,8 +263,8 @@
                     <tr class="com-row">
                         <td><b>${c.nombre}</b></td>
                         <td>${totalComercio}</td>
-                        <td style="color:var(--oro)">${c.totalUsos || 0}</td>
-                        <td style="color:var(--oro)">${c.totalVip || 0}</td>
+                        <td style="color:var(--oro)">${lHist}</td>
+                        <td style="color:var(--oro)">${vHist}</td>
                         <td style="color:var(--verde)">${hoyComercio}</td>
                         <td>${semComercio}</td>
                         <td>${mesComercio}</td>
