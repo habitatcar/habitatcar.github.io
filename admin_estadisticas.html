@@ -53,7 +53,6 @@
         }
         .nav-link.active { background: var(--rojo); }
 
-        /* FAJA FIJA */
         .faja-stats {
             background: var(--negro-faja);
             padding: 15px 25px;
@@ -62,6 +61,8 @@
             justify-content: space-between;
             border-bottom: 2px solid var(--azul-claro);
             flex-shrink: 0;
+            position: sticky;
+            top: 0;
             z-index: 900;
         }
 
@@ -114,12 +115,10 @@
             font-size: 0.75em;
             font-weight: bold;
         }
-        .btn-sort:hover { background: var(--celeste-habitat); }
 
-        .table-container { flex: 1; padding: 0 25px 25px 25px; overflow-y: auto; position: relative; }
+        .table-container { flex: 1; padding: 0 25px 25px 25px; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; background: var(--azul-medio); border-radius: 8px; }
         
-        /* CABECERA FIJA */
         thead th { 
             position: sticky; 
             top: 0; 
@@ -187,8 +186,8 @@
 
     <div class="search-bar">
         <input type="text" id="buscador" class="search-input" placeholder="🔍 Buscar comercios..." onkeyup="filtrarTabla()">
-        <button class="btn-sort" onclick="ordenarComercios('nombre')">ORDEN A-Z</button>
-        <button class="btn-sort" onclick="ordenarComercios('creacion')">ORDEN CREACIÓN</button>
+        <button class="btn-sort" onclick="ordenarYRender('nombre')">ORDEN A-Z</button>
+        <button class="btn-sort" onclick="ordenarYRender('creacion')">ORDEN CREACIÓN</button>
     </div>
 
     <div class="table-container">
@@ -225,7 +224,7 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        let comerciosData = [];
+        let listaComercios = [];
 
         async function cargarStatsUsuarios() {
             const snapLeads = await getDocs(collection(db, "leads"));
@@ -247,9 +246,9 @@
         }
 
         onSnapshot(collection(db, "comercios"), (snap) => {
-            comerciosData = [];
+            listaComercios = [];
             snap.forEach(d => {
-                comerciosData.push({ id: d.id, ...d.data() });
+                listaComercios.push({ id: d.id, ...d.data() });
             });
             renderTabla();
         });
@@ -259,42 +258,47 @@
             body.innerHTML = "";
             let tCom = 0, tUsos = 0, tHoy = 0, tSem = 0, tMes = 0, tAnio = 0;
 
-            comerciosData.forEach(c => {
+            listaComercios.forEach(c => {
                 tCom++;
                 
+                // Estos son los nombres que el código busca. Si en Firebase se llaman distinto, darán 0.
                 const lHist = Number(c.totalUsos || 0);
                 const vHist = Number(c.totalVip || 0);
+                
                 const lHoy = Number(c.usosHoy || 0);
                 const vHoy = Number(c.vipHoy || 0);
+                
                 const lSem = Number(c.usosSemana || 0);
                 const vSem = Number(c.vipSemana || 0);
+                
                 const lMes = Number(c.usosMes || 0);
                 const vMes = Number(c.vipMes || 0);
+                
                 const lAnio = Number(c.usosAnio || 0);
                 const vAnio = Number(c.vipAnio || 0);
 
-                const totalComercio = lHist + vHist;
-                const hoyComercio = lHoy + vHoy;
-                const semComercio = lSem + vSem;
-                const mesComercio = lMes + vMes;
-                const anioComercio = lAnio + vAnio;
+                const totalCom = lHist + vHist;
+                const hoyCom = lHoy + vHoy;
+                const semCom = lSem + vSem;
+                const mesCom = lMes + vMes;
+                const anioCom = lAnio + vAnio;
 
-                tUsos += totalComercio;
-                tHoy += hoyComercio;
-                tSem += semComercio;
-                tMes += mesComercio;
-                tAnio += anioComercio;
+                tUsos += totalCom;
+                tHoy += hoyCom;
+                tSem += semCom;
+                tMes += mesCom;
+                tAnio += anioCom;
 
                 body.innerHTML += `
                     <tr class="com-row">
                         <td><b>${c.nombre}</b></td>
-                        <td>${totalComercio}</td>
+                        <td>${totalCom}</td>
                         <td style="color:var(--oro)">${lHist}</td>
                         <td style="color:var(--oro)">${vHist}</td>
-                        <td style="color:var(--verde)">${hoyComercio}</td>
-                        <td>${semComercio}</td>
-                        <td>${mesComercio}</td>
-                        <td>${anioComercio}</td>
+                        <td style="color:var(--verde)">${hoyCom}</td>
+                        <td>${semCom}</td>
+                        <td>${mesCom}</td>
+                        <td>${anioCom}</td>
                         <td>
                             <select class="mail-freq" onchange="updateFreq('${c.id}', this.value)">
                                 <option value="nunca" ${c.frecuenciaMail === 'nunca' ? 'selected' : ''}>Nunca</option>
@@ -315,12 +319,11 @@
             document.getElementById('count-c-anio').innerText = tAnio;
         }
 
-        window.ordenarComercios = (criterio) => {
+        window.ordenarYRender = (criterio) => {
             if (criterio === 'nombre') {
-                comerciosData.sort((a, b) => a.nombre.localeCompare(b.nombre));
-            } else if (criterio === 'creacion') {
-                // Si tienes un campo fechaRegistro úsalo, si no, se queda con el orden original
-                comerciosData.sort((a, b) => (b.fechaRegistro || 0) - (a.fechaRegistro || 0));
+                listaComercios.sort((a, b) => a.nombre.localeCompare(b.nombre));
+            } else {
+                listaComercios.sort((a, b) => (b.fechaRegistro || 0) - (a.fechaRegistro || 0));
             }
             renderTabla();
         };
