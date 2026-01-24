@@ -96,12 +96,12 @@
             border-radius: 15px;
             overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            width: 100%; /* Asegura el ancho total */
+            width: 100%; 
         }
 
         table { width: 100%; border-collapse: collapse; }
 
-        /* ENCABEZADO DE TABLA FIJO */
+        /* ENCABEZADO DE TABLA FIJO Y CLICKEABLE */
         thead th {
             position: sticky;
             top: 0;
@@ -110,7 +110,11 @@
             padding: 15px;
             text-align: left;
             z-index: 10;
+            cursor: pointer;
+            user-select: none;
         }
+        thead th:hover { background: #2d3e5a; }
+        thead th:last-child { cursor: default; }
 
         td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         tr:hover { background: rgba(255,255,255,0.02); }
@@ -164,10 +168,10 @@
             <table>
                 <thead>
                     <tr>
-                        <th>FECHA VIP</th>
-                        <th>APELLIDO Y NOMBRE</th>
-                        <th>WHATSAPP</th>
-                        <th>ESTADO</th>
+                        <th onclick="ordenar('fechaRegistro')">FECHA VIP <span id="sort-fecha"></span></th>
+                        <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE <span id="sort-apellido"></span></th>
+                        <th onclick="ordenar('whatsapp')">WHATSAPP <span id="sort-whatsapp"></span></th>
+                        <th onclick="ordenar('estado')">ESTADO <span id="sort-estado"></span></th>
                         <th>ACCIONES</th>
                     </tr>
                 </thead>
@@ -193,18 +197,45 @@
         const db = getFirestore(app);
 
         let todosLosVips = [];
+        let ordenActual = { campo: 'fechaRegistro', asc: false };
 
         const q = query(collection(db, "vips"));
         
         onSnapshot(q, (snap) => {
             todosLosVips = [];
             snap.forEach(d => todosLosVips.push({id: d.id, ...d.data()}));
-            
-            // ORDENAR POR FECHA (MÁS RECIENTE ARRIBA)
-            todosLosVips.sort((a, b) => (b.fechaRegistro || 0) - (a.fechaRegistro || 0));
-            
-            renderizar(todosLosVips);
+            aplicarOrdenYRender();
         });
+
+        function aplicarOrdenYRender() {
+            const { campo, asc } = ordenActual;
+            todosLosVips.sort((a, b) => {
+                let valA = a[campo] || '';
+                let valB = b[campo] || '';
+                
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
+
+                if (valA < valB) return asc ? -1 : 1;
+                if (valA > valB) return asc ? 1 : -1;
+                return 0;
+            });
+            renderizar(todosLosVips);
+        }
+
+        window.ordenar = (campo) => {
+            if (ordenActual.campo === campo) {
+                ordenActual.asc = !ordenActual.asc;
+            } else {
+                ordenActual.campo = campo;
+                ordenActual.asc = true;
+            }
+            const icon = ordenActual.asc ? ' ↑' : ' ↓';
+            document.querySelectorAll('thead th span').forEach(s => s.innerText = '');
+            const idMap = { 'fechaRegistro': 'sort-fecha', 'apellido': 'sort-apellido', 'whatsapp': 'sort-whatsapp', 'estado': 'sort-estado' };
+            if(idMap[campo]) document.getElementById(idMap[campo]).innerText = icon;
+            aplicarOrdenYRender();
+        };
 
         function renderizar(datos) {
             const lista = document.getElementById('lista-vips');
@@ -253,7 +284,6 @@
         window.borrarVip = async (id) => {
             if(confirm("¿Eliminar este socio permanentemente de la base de datos VIP?")) {
                 await deleteDoc(doc(db, "vips", id));
-                
                 await addDoc(collection(db, "logs"), {
                     fecha: Date.now(),
                     tipo: "BAJA VIP",
