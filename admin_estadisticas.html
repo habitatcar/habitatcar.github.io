@@ -36,7 +36,7 @@
             align-items: center;
             border-bottom: 3px solid var(--celeste-habitat);
             flex-shrink: 0;
-            z-index: 100;
+            z-index: 1000;
         }
         .logo { height: 60px; width: auto; }
 
@@ -53,7 +53,7 @@
         }
         .nav-link.active { background: var(--rojo); }
 
-        /* FAJA NEGRA FIJA */
+        /* FAJA FIJA */
         .faja-stats {
             background: var(--negro-faja);
             padding: 15px 25px;
@@ -62,9 +62,7 @@
             justify-content: space-between;
             border-bottom: 2px solid var(--azul-claro);
             flex-shrink: 0;
-            position: sticky;
-            top: 0;
-            z-index: 90;
+            z-index: 900;
         }
 
         .stat-group { display: flex; gap: 10px; align-items: center; }
@@ -96,13 +94,32 @@
         }
         .val-box { border: 1px solid var(--rojo); padding: 4px 0; border-radius: 4px; font-weight: bold; text-align: center; font-size: 0.9em; }
 
-        .search-bar { background: var(--azul-medio); padding: 12px 25px; display: flex; flex-shrink: 0; }
+        .search-bar { 
+            background: var(--azul-medio); 
+            padding: 12px 25px; 
+            display: flex; 
+            gap: 10px;
+            flex-shrink: 0; 
+            align-items: center;
+        }
         .search-input { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid var(--azul-claro); background: var(--azul-oscuro); color: white; }
+        
+        .btn-sort { 
+            padding: 8px 12px; 
+            background: var(--azul-claro); 
+            color: white; 
+            border: 1px solid var(--celeste-habitat); 
+            border-radius: 4px; 
+            cursor: pointer; 
+            font-size: 0.75em;
+            font-weight: bold;
+        }
+        .btn-sort:hover { background: var(--celeste-habitat); }
 
-        .table-container { flex: 1; padding: 0 25px 25px 25px; overflow-y: auto; }
+        .table-container { flex: 1; padding: 0 25px 25px 25px; overflow-y: auto; position: relative; }
         table { width: 100%; border-collapse: collapse; background: var(--azul-medio); border-radius: 8px; }
         
-        /* CABECERA TABLA FIJA */
+        /* CABECERA FIJA */
         thead th { 
             position: sticky; 
             top: 0; 
@@ -112,8 +129,8 @@
             text-align: left; 
             font-size: 0.8em; 
             text-transform: uppercase; 
-            z-index: 80;
-            box-shadow: 0 2px 2px -1px rgba(0, 0, 0, 0.4);
+            z-index: 100;
+            box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
         }
         
         td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em; }
@@ -170,6 +187,8 @@
 
     <div class="search-bar">
         <input type="text" id="buscador" class="search-input" placeholder="🔍 Buscar comercios..." onkeyup="filtrarTabla()">
+        <button class="btn-sort" onclick="ordenarComercios('nombre')">ORDEN A-Z</button>
+        <button class="btn-sort" onclick="ordenarComercios('creacion')">ORDEN CREACIÓN</button>
     </div>
 
     <div class="table-container">
@@ -206,6 +225,7 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        let comerciosData = [];
 
         async function cargarStatsUsuarios() {
             const snapLeads = await getDocs(collection(db, "leads"));
@@ -227,15 +247,21 @@
         }
 
         onSnapshot(collection(db, "comercios"), (snap) => {
+            comerciosData = [];
+            snap.forEach(d => {
+                comerciosData.push({ id: d.id, ...d.data() });
+            });
+            renderTabla();
+        });
+
+        function renderTabla() {
             const body = document.getElementById('tabla-body');
             body.innerHTML = "";
             let tCom = 0, tUsos = 0, tHoy = 0, tSem = 0, tMes = 0, tAnio = 0;
 
-            snap.forEach(d => {
-                const c = d.data();
+            comerciosData.forEach(c => {
                 tCom++;
                 
-                // Asegurar que los valores sean números para evitar fallos de conteo
                 const lHist = Number(c.totalUsos || 0);
                 const vHist = Number(c.totalVip || 0);
                 const lHoy = Number(c.usosHoy || 0);
@@ -270,7 +296,7 @@
                         <td>${mesComercio}</td>
                         <td>${anioComercio}</td>
                         <td>
-                            <select class="mail-freq" onchange="updateFreq('${d.id}', this.value)">
+                            <select class="mail-freq" onchange="updateFreq('${c.id}', this.value)">
                                 <option value="nunca" ${c.frecuenciaMail === 'nunca' ? 'selected' : ''}>Nunca</option>
                                 <option value="diario" ${c.frecuenciaMail === 'diario' ? 'selected' : ''}>Diario</option>
                                 <option value="semanal" ${c.frecuenciaMail === 'semanal' ? 'selected' : ''}>Semanal</option>
@@ -287,7 +313,17 @@
             document.getElementById('count-c-sem').innerText = tSem;
             document.getElementById('count-c-mes').innerText = tMes;
             document.getElementById('count-c-anio').innerText = tAnio;
-        });
+        }
+
+        window.ordenarComercios = (criterio) => {
+            if (criterio === 'nombre') {
+                comerciosData.sort((a, b) => a.nombre.localeCompare(b.nombre));
+            } else if (criterio === 'creacion') {
+                // Si tienes un campo fechaRegistro úsalo, si no, se queda con el orden original
+                comerciosData.sort((a, b) => (b.fechaRegistro || 0) - (a.fechaRegistro || 0));
+            }
+            renderTabla();
+        };
 
         window.updateFreq = async (id, val) => {
             await updateDoc(doc(db, "comercios", id), { frecuenciaMail: val });
