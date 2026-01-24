@@ -113,14 +113,11 @@
             cursor: pointer; 
             font-size: 0.75em;
             font-weight: bold;
-            transition: 0.3s;
         }
-        .btn-sort:hover { background: var(--celeste-habitat); border-color: white; }
 
         .table-container { flex: 1; padding: 0 25px 25px 25px; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; background: var(--azul-medio); border-radius: 8px; }
         
-        /* CABECERA FIJA DE LA TABLA */
         thead th { 
             position: sticky; 
             top: 0; 
@@ -262,14 +259,20 @@
 
             listaComercios.forEach(c => {
                 tCom++;
+                
+                // BUSQUEDA DE CAMPOS FLEXIBLE PARA VIP
                 const lHist = Number(c.totalUsos || 0);
-                const vHist = Number(c.totalVip || 0);
+                const vHist = Number(c.totalVip || c.canjesVip || c.vipsTotal || 0);
+                
                 const lHoy = Number(c.usosHoy || 0);
                 const vHoy = Number(c.vipHoy || 0);
+                
                 const lSem = Number(c.usosSemana || 0);
                 const vSem = Number(c.vipSemana || 0);
+                
                 const lMes = Number(c.usosMes || 0);
                 const vMes = Number(c.vipMes || 0);
+                
                 const lAnio = Number(c.usosAnio || 0);
                 const vAnio = Number(c.vipAnio || 0);
 
@@ -319,12 +322,11 @@
             if (criterio === 'nombre') {
                 listaComercios.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
             } else if (criterio === 'creacion') {
-                // Ordenar por fechaRegistro descendente (más nuevo primero)
-                // Si no existe fechaRegistro, usa el ID (los IDs de Firebase son cronológicos)
+                // Firebase usa IDs cronológicos, si no hay fecha, el ID sirve para ordenar por creación
                 listaComercios.sort((a, b) => {
                     const valA = a.fechaRegistro || a.id;
                     const valB = b.fechaRegistro || b.id;
-                    return valB > valA ? 1 : -1;
+                    return valB > valA ? -1 : 1; 
                 });
             }
             renderTabla();
