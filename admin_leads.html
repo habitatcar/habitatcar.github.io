@@ -71,6 +71,7 @@
             color: white;
         }
 
+        /* CONTENEDOR CON SCROLL */
         .table-wrapper {
             flex: 1;
             overflow-y: auto;
@@ -84,9 +85,10 @@
             width: 100%;
         }
 
+        /* border-collapse separate para que sticky funcione bien */
         table { width: 100%; border-collapse: separate; border-spacing: 0; }
 
-        /* ENCABEZADO FIJO Y CLICKEABLE */
+        /* ENCABEZADO FIJO */
         thead th {
             position: sticky;
             top: 0;
@@ -97,7 +99,6 @@
             z-index: 20;
             cursor: pointer;
             user-select: none;
-            transition: background 0.2s;
             border-bottom: 2px solid var(--celeste-habitat);
         }
         thead th:hover { background: #2d3e5a; }
@@ -190,6 +191,7 @@
         let todosLosLeads = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
+        // Filtramos solo los que NO son VIP
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
         
         onSnapshot(q, (snap) => {
@@ -203,10 +205,8 @@
             todosLosLeads.sort((a, b) => {
                 let valA = a[campo] || '';
                 let valB = b[campo] || '';
-                
                 if (typeof valA === 'string') valA = valA.toLowerCase();
                 if (typeof valB === 'string') valB = valB.toLowerCase();
-
                 if (valA < valB) return asc ? -1 : 1;
                 if (valA > valB) return asc ? 1 : -1;
                 return 0;
@@ -215,17 +215,11 @@
         }
 
         window.ordenar = (campo) => {
-            if (ordenActual.campo === campo) {
-                ordenActual.asc = !ordenActual.asc;
-            } else {
-                ordenActual.campo = campo;
-                ordenActual.asc = true;
-            }
-            const icon = ordenActual.asc ? ' ↑' : ' ↓';
+            ordenActual.asc = (ordenActual.campo === campo) ? !ordenActual.asc : true;
+            ordenActual.campo = campo;
             document.querySelectorAll('thead th span').forEach(s => s.innerText = '');
             const idMap = { 'fechaRegistro': 'sort-fecha', 'apellido': 'sort-apellido', 'whatsapp': 'sort-whatsapp', 'estado': 'sort-estado' };
-            if (idMap[campo]) document.getElementById(idMap[campo]).innerText = icon;
-            
+            if(idMap[campo]) document.getElementById(idMap[campo]).innerText = ordenActual.asc ? ' ↑' : ' ↓';
             aplicarOrdenYRender();
         };
 
@@ -245,7 +239,7 @@
                         <td>
                             <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido}')" title="Convertir a VIP">💎 VIP</button>
                             <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}')">🚫</button>
-                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido}')" title="Restablecer Cupones">🔄 RESTABLECER</button>
+                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido}')">🔄 RESTABLECER</button>
                             <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
                         </td>
                     </tr>
@@ -263,19 +257,47 @@
             renderizar(filtrados);
         };
 
+        window.restablecerCupones = async (id, apellido) => {
+            if(confirm(`¿Restablecer cupones para ${apellido}?`)) {
+                try {
+                    // Actualizamos todos los nombres posibles del campo de cupones
+                    await updateDoc(doc(db, "leads", id), { 
+                        usados: [],
+                        cupones_usados: [],
+                        canjes: []
+                    });
+                    alert("Cupones restablecidos correctamente.");
+                } catch (e) {
+                    console.error("Error al restablecer:", e);
+                    alert("No se pudo restablecer. Revisa la consola.");
+                }
+            }
+        };
+
+        window.restablecerTodos = async () => {
+            if(confirm("¿ESTÁ SEGURO? Se restablecerán los cupones de TODOS los leads.")) {
+                try {
+                    const batch = writeBatch(db);
+                    todosLosLeads.forEach(l => {
+                        const ref = doc(db, "leads", l.id);
+                        batch.update(ref, { 
+                            usados: [],
+                            cupones_usados: [],
+                            canjes: []
+                        });
+                    });
+                    await batch.commit();
+                    alert("Todos los leads han sido restablecidos.");
+                } catch (e) {
+                    console.error("Error masivo:", e);
+                }
+            }
+        };
+
         window.hacerVIP = async (id, apellido) => {
             if(confirm(`¿Convertir a ${apellido} en Miembro VIP?`)) {
-                await updateDoc(doc(db, "leads", id), { 
-                    convertidoVIP: true, 
-                    fechaVIP: Date.now(),
-                    estado: "activo" 
-                });
-                await addDoc(collection(db, "logs"), {
-                    fecha: Date.now(),
-                    tipo: "alta_vip",
-                    accion: "CONVERSIÓN VIP",
-                    detalle: `Lead ${apellido} convertido a VIP`
-                });
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now(), estado: "activo" });
+                await addDoc(collection(db, "logs"), { fecha: Date.now(), tipo: "alta_vip", accion: "CONVERSIÓN VIP", detalle: `Lead ${apellido} a VIP` });
             }
         };
 
@@ -284,39 +306,8 @@
             await updateDoc(doc(db, "leads", id), { estado: nuevo });
         };
 
-        window.restablecerCupones = async (id, apellido) => {
-            if(confirm(`¿Restablecer cupones para ${apellido}?`)) {
-                try {
-                    await updateDoc(doc(db, "leads", id), { usados: [] });
-                    alert("Cupones restablecidos.");
-                } catch (e) {
-                    console.error(e);
-                    alert("Error al restablecer.");
-                }
-            }
-        };
-
-        window.restablecerTodos = async () => {
-            if(confirm("¿ESTÁ SEGURO? Se restablecerán los cupones de TODOS los leads listados.")) {
-                try {
-                    const batch = writeBatch(db);
-                    todosLosLeads.forEach(l => {
-                        const ref = doc(db, "leads", l.id);
-                        batch.update(ref, { usados: [] });
-                    });
-                    await batch.commit();
-                    alert("Todos los cupones han sido restablecidos.");
-                } catch (e) {
-                    console.error(e);
-                    alert("Error en el restablecimiento masivo.");
-                }
-            }
-        };
-
         window.borrarLead = async (id) => {
-            if(confirm("¿Eliminar este lead permanentemente?")) {
-                await deleteDoc(doc(db, "leads", id));
-            }
+            if(confirm("¿Eliminar este lead permanentemente?")) await deleteDoc(doc(db, "leads", id));
         };
     </script>
 </body>
