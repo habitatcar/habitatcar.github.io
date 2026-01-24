@@ -111,6 +111,7 @@
         .badge-sistema { background: var(--celeste-habitat); color: white; }
         .badge-inscripcion { background: #6f42c1; color: white; }
         .badge-vip { background: var(--oro); color: black; }
+        .badge-alta_vip { background: var(--oro); color: black; }
 
         .date-col { color: #8892b0; font-family: monospace; font-size: 0.9em; }
 
@@ -186,25 +187,24 @@
         let masterData = [];
 
         const actualizarTabla = () => {
-            // Limpiar datos previos antes de suscribir
             masterData = [];
 
-            // 1. Escuchar 'logs' (Canjes)
+            // 1. Escuchar 'logs'
             const qLogs = query(collection(db, "logs"), orderBy("fecha", "desc"), limit(100));
             onSnapshot(qLogs, (snap) => {
                 const logs = snap.docs.map(d => ({
                     id: d.id,
                     coleccion: 'logs',
                     fecha: d.data().fecha,
-                    modulo: d.data().modulo || 'USUARIO',
-                    accion: d.data().accion || 'CANJE',
-                    detalle: d.data().detalle || 'Canje de cupón',
+                    modulo: d.data().modulo || 'SISTEMA',
+                    accion: d.data().accion || 'ACTIVIDAD',
+                    detalle: d.data().detalle || '---',
                     tipo: d.data().tipo || 'canje'
                 }));
                 mezclarYRenderizar('logs', logs);
             });
 
-            // 2. Escuchar 'leads' (Inscripciones Lead)
+            // 2. Escuchar 'leads'
             const qLeads = query(collection(db, "leads"), orderBy("fechaRegistro", "desc"), limit(50));
             onSnapshot(qLeads, (snap) => {
                 const leads = snap.docs.map(d => ({
@@ -219,7 +219,7 @@
                 mezclarYRenderizar('leads', leads);
             });
 
-            // 3. Escuchar 'vips' (Inscripciones VIP)
+            // 3. Escuchar 'vips'
             const qVips = query(collection(db, "vips"), orderBy("fechaRegistro", "desc"), limit(50));
             onSnapshot(qVips, (snap) => {
                 const vips = snap.docs.map(d => ({
@@ -236,12 +236,10 @@
         };
 
         const mezclarYRenderizar = (origen, nuevosDatos) => {
-            // Filtramos masterData para quitar los que venían del mismo origen y actualizamos
             masterData = masterData.filter(item => item.origen !== origen);
             nuevosDatos.forEach(nd => nd.origen = origen);
             masterData = [...masterData, ...nuevosDatos];
 
-            // Ordenar por fecha desc
             masterData.sort((a, b) => (b.fecha || 0) - (a.fecha || 0));
 
             const lista = document.getElementById('lista-logs');
@@ -251,7 +249,8 @@
                 const fecha = log.fecha ? new Date(log.fecha).toLocaleString() : '---';
                 const tr = document.createElement('tr');
                 tr.className = "log-row";
-                tr.setAttribute('data-search', `${log.modulo} ${log.accion} ${log.detalle} ${log.tipo}`.toLowerCase());
+                const searchText = `${log.modulo} ${log.accion} ${log.detalle} ${log.tipo}`.toLowerCase();
+                tr.setAttribute('data-search', searchText);
 
                 tr.innerHTML = `
                     <td class="date-col">${fecha}</td>
@@ -282,9 +281,9 @@
         window.limpiarLogs = async () => {
             if(confirm("¿BORRAR EL HISTORIAL DE CANJES? (Los datos de Leads y Vips permanecerán intactos en sus bases)")) {
                 const snap = await getDocs(collection(db, "logs"));
-                const batch = snap.docs.map(d => deleteDoc(doc(db, "logs", d.id)));
-                await Promise.all(batch);
-                location.reload();
+                const promesas = snap.docs.map(d => deleteDoc(doc(db, "logs", d.id)));
+                await Promise.all(promesas);
+                alert("Historial de logs limpiado.");
             }
         };
     </script>
