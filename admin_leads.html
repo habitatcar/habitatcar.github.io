@@ -71,6 +71,7 @@
             color: white;
         }
 
+        /* CONTENEDOR CON SCROLL */
         .table-wrapper {
             flex: 1;
             overflow-y: auto;
@@ -84,8 +85,10 @@
             width: 100%;
         }
 
+        /* border-collapse separate para que sticky funcione bien */
         table { width: 100%; border-collapse: separate; border-spacing: 0; }
 
+        /* ENCABEZADO FIJO */
         thead th {
             position: sticky;
             top: 0;
@@ -124,43 +127,9 @@
         .btn-reset { background: var(--celeste-habitat); }
         .btn-reset-all { background: white; color: var(--azul-oscuro); padding: 12px 20px; border-radius: 8px; }
         .btn-action:hover { filter: brightness(1.2); }
-
-        /* ESTILOS DEL DISPARADOR (CARTEL DE BIENVENIDA) */
-        #modal-bienvenida {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        .cartel {
-            background: white;
-            color: #0a192f;
-            padding: 40px;
-            border-radius: 20px;
-            text-align: center;
-            max-width: 450px;
-            border: 8px solid var(--oro);
-        }
-        .cartel h2 { color: var(--celeste-habitat); margin: 10px 0; }
-        .cartel .nombre-destaque { font-size: 1.8em; font-weight: bold; color: var(--rojo); display: block; margin: 15px 0; }
-        .btn-cerrar-modal { margin-top: 20px; padding: 12px 25px; background: var(--azul-oscuro); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
-
-    <div id="modal-bienvenida">
-        <div class="cartel">
-            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="width: 140px;">
-            <h2 id="titulo-cartel">¡BIENVENIDO!</h2>
-            <p>Comprobante de Membresía</p>
-            <span class="nombre-destaque" id="nombre-socio">---</span>
-            <p id="detalle-cartel">Ahora eres Miembro VIP</p>
-            <button class="btn-cerrar-modal" onclick="document.getElementById('modal-bienvenida').style.display='none'">ACEPTAR Y CONTINUAR</button>
-        </div>
-    </div>
 
     <header class="header">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
@@ -222,6 +191,7 @@
         let todosLosLeads = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
+        // Filtramos solo los que NO son VIP
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
         
         onSnapshot(q, (snap) => {
@@ -260,7 +230,6 @@
 
             datos.forEach(l => {
                 const fecha = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
-                // Agregamos l.nombres a la llamada de hacerVIP para el disparador
                 lista.innerHTML += `
                     <tr>
                         <td>${fecha}</td>
@@ -268,7 +237,7 @@
                         <td>${l.whatsapp}</td>
                         <td><span class="status status-${l.estado || 'activo'}">${(l.estado || 'activo').toUpperCase()}</span></td>
                         <td>
-                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido}', '${l.nombres}')" title="Convertir a VIP">💎 VIP</button>
+                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido}')" title="Convertir a VIP">💎 VIP</button>
                             <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}')">🚫</button>
                             <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido}')">🔄 RESTABLECER</button>
                             <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
@@ -291,9 +260,17 @@
         window.restablecerCupones = async (id, apellido) => {
             if(confirm(`¿Restablecer cupones para ${apellido}?`)) {
                 try {
-                    await updateDoc(doc(db, "leads", id), { usados: [], cupones_usados: [], canjes: [] });
+                    // Actualizamos todos los nombres posibles del campo de cupones
+                    await updateDoc(doc(db, "leads", id), { 
+                        usados: [],
+                        cupones_usados: [],
+                        canjes: []
+                    });
                     alert("Cupones restablecidos correctamente.");
-                } catch (e) { console.error(e); }
+                } catch (e) {
+                    console.error("Error al restablecer:", e);
+                    alert("No se pudo restablecer. Revisa la consola.");
+                }
             }
         };
 
@@ -303,31 +280,24 @@
                     const batch = writeBatch(db);
                     todosLosLeads.forEach(l => {
                         const ref = doc(db, "leads", l.id);
-                        batch.update(ref, { usados: [], cupones_usados: [], canjes: [] });
+                        batch.update(ref, { 
+                            usados: [],
+                            cupones_usados: [],
+                            canjes: []
+                        });
                     });
                     await batch.commit();
                     alert("Todos los leads han sido restablecidos.");
-                } catch (e) { console.error(e); }
+                } catch (e) {
+                    console.error("Error masivo:", e);
+                }
             }
         };
 
-        // DISPARADOR CONFIGURADO AQUÍ
-        window.hacerVIP = async (id, apellido, nombres) => {
+        window.hacerVIP = async (id, apellido) => {
             if(confirm(`¿Convertir a ${apellido} en Miembro VIP?`)) {
-                try {
-                    await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now(), estado: "activo" });
-                    
-                    // DISPARO DEL CARTEL (Trigger)
-                    document.getElementById('nombre-socio').innerText = `${nombres} ${apellido}`;
-                    document.getElementById('modal-bienvenida').style.display = 'flex';
-
-                    await addDoc(collection(db, "logs"), { 
-                        fecha: Date.now(), 
-                        tipo: "alta_vip", 
-                        accion: "CONVERSIÓN VIP", 
-                        detalle: `Lead ${apellido} a VIP - Cartel mostrado` 
-                    });
-                } catch (e) { console.error(e); }
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now(), estado: "activo" });
+                await addDoc(collection(db, "logs"), { fecha: Date.now(), tipo: "alta_vip", accion: "CONVERSIÓN VIP", detalle: `Lead ${apellido} a VIP` });
             }
         };
 
