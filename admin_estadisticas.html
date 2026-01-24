@@ -53,6 +53,7 @@
         }
         .nav-link.active { background: var(--rojo); }
 
+        /* FAJA FIJA SUPERIOR */
         .faja-stats {
             background: var(--negro-faja);
             padding: 15px 25px;
@@ -61,8 +62,6 @@
             justify-content: space-between;
             border-bottom: 2px solid var(--azul-claro);
             flex-shrink: 0;
-            position: sticky;
-            top: 0;
             z-index: 900;
         }
 
@@ -106,7 +105,7 @@
         .search-input { flex: 1; padding: 10px; border-radius: 5px; border: 1px solid var(--azul-claro); background: var(--azul-oscuro); color: white; }
         
         .btn-sort { 
-            padding: 8px 12px; 
+            padding: 10px 15px; 
             background: var(--azul-claro); 
             color: white; 
             border: 1px solid var(--celeste-habitat); 
@@ -114,11 +113,14 @@
             cursor: pointer; 
             font-size: 0.75em;
             font-weight: bold;
+            transition: 0.3s;
         }
+        .btn-sort:hover { background: var(--celeste-habitat); border-color: white; }
 
         .table-container { flex: 1; padding: 0 25px 25px 25px; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; background: var(--azul-medio); border-radius: 8px; }
         
+        /* CABECERA FIJA DE LA TABLA */
         thead th { 
             position: sticky; 
             top: 0; 
@@ -128,7 +130,7 @@
             text-align: left; 
             font-size: 0.8em; 
             text-transform: uppercase; 
-            z-index: 100;
+            z-index: 800;
             box-shadow: 0 2px 2px -1px rgba(0,0,0,0.4);
         }
         
@@ -260,20 +262,14 @@
 
             listaComercios.forEach(c => {
                 tCom++;
-                
-                // Estos son los nombres que el código busca. Si en Firebase se llaman distinto, darán 0.
                 const lHist = Number(c.totalUsos || 0);
                 const vHist = Number(c.totalVip || 0);
-                
                 const lHoy = Number(c.usosHoy || 0);
                 const vHoy = Number(c.vipHoy || 0);
-                
                 const lSem = Number(c.usosSemana || 0);
                 const vSem = Number(c.vipSemana || 0);
-                
                 const lMes = Number(c.usosMes || 0);
                 const vMes = Number(c.vipMes || 0);
-                
                 const lAnio = Number(c.usosAnio || 0);
                 const vAnio = Number(c.vipAnio || 0);
 
@@ -291,7 +287,7 @@
 
                 body.innerHTML += `
                     <tr class="com-row">
-                        <td><b>${c.nombre}</b></td>
+                        <td><b>${c.nombre || 'Sin Nombre'}</b></td>
                         <td>${totalCom}</td>
                         <td style="color:var(--oro)">${lHist}</td>
                         <td style="color:var(--oro)">${vHist}</td>
@@ -321,9 +317,15 @@
 
         window.ordenarYRender = (criterio) => {
             if (criterio === 'nombre') {
-                listaComercios.sort((a, b) => a.nombre.localeCompare(b.nombre));
-            } else {
-                listaComercios.sort((a, b) => (b.fechaRegistro || 0) - (a.fechaRegistro || 0));
+                listaComercios.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+            } else if (criterio === 'creacion') {
+                // Ordenar por fechaRegistro descendente (más nuevo primero)
+                // Si no existe fechaRegistro, usa el ID (los IDs de Firebase son cronológicos)
+                listaComercios.sort((a, b) => {
+                    const valA = a.fechaRegistro || a.id;
+                    const valB = b.fechaRegistro || b.id;
+                    return valB > valA ? 1 : -1;
+                });
             }
             renderTabla();
         };
