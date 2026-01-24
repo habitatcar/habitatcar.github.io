@@ -71,7 +71,6 @@
             color: white;
         }
 
-        /* CONTENEDOR CON SCROLL */
         .table-wrapper {
             flex: 1;
             overflow-y: auto;
@@ -85,10 +84,8 @@
             width: 100%;
         }
 
-        /* border-collapse separate para que sticky funcione bien */
         table { width: 100%; border-collapse: separate; border-spacing: 0; }
 
-        /* ENCABEZADO FIJO */
         thead th {
             position: sticky;
             top: 0;
@@ -102,7 +99,6 @@
             border-bottom: 2px solid var(--celeste-habitat);
         }
         thead th:hover { background: #2d3e5a; }
-        thead th:last-child { cursor: default; }
 
         td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         tr:hover { background: rgba(255,255,255,0.02); }
@@ -126,10 +122,42 @@
         .btn-del { background: var(--rojo); }
         .btn-reset { background: var(--celeste-habitat); }
         .btn-reset-all { background: white; color: var(--azul-oscuro); padding: 12px 20px; border-radius: 8px; }
-        .btn-action:hover { filter: brightness(1.2); }
+
+        /* MODAL */
+        #modal-bienvenida {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .cartel {
+            background: white;
+            color: #0a192f;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 450px;
+            border: 8px solid var(--oro);
+        }
+        .cartel h2 { color: var(--celeste-habitat); }
+        .nombre-destaque { font-size: 1.8em; font-weight: bold; color: var(--rojo); display: block; margin: 15px 0; }
+        .btn-cerrar-modal { margin-top: 20px; padding: 12px 25px; background: var(--azul-oscuro); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold; }
     </style>
 </head>
 <body>
+
+    <div id="modal-bienvenida">
+        <div class="cartel">
+            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="width: 140px;">
+            <h2>¡Socio VIP Activado!</h2>
+            <p>El usuario ha sido movido a la sección VIP</p>
+            <span class="nombre-destaque" id="nombre-socio">---</span>
+            <button class="btn-cerrar-modal" onclick="document.getElementById('modal-bienvenida').style.display='none'">ENTENDIDO</button>
+        </div>
+    </div>
 
     <header class="header">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
@@ -149,8 +177,8 @@
 
     <div class="search-area">
         <div class="search-bar">
-            <input type="text" id="buscador" placeholder="Buscar por apellido, nombre o WhatsApp..." onkeyup="filtrarLeads()">
-            <button class="btn-action btn-reset-all" onclick="restablecerTodos()">RESTABLECER TODOS LOS CUPONES</button>
+            <input type="text" id="buscador" placeholder="Buscar..." onkeyup="filtrarLeads()">
+            <button class="btn-action btn-reset-all" onclick="restablecerTodos()">RESTABLECER TODOS</button>
             <div id="contador-total" style="font-weight: bold; color: var(--oro);">Total: 0</div>
         </div>
     </div>
@@ -160,10 +188,11 @@
             <table>
                 <thead>
                     <tr>
-                        <th onclick="ordenar('fechaRegistro')">FECHA <span id="sort-fecha"></span></th>
-                        <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE <span id="sort-apellido"></span></th>
-                        <th onclick="ordenar('whatsapp')">WHATSAPP <span id="sort-whatsapp"></span></th>
-                        <th onclick="ordenar('estado')">ESTADO <span id="sort-estado"></span></th>
+                        <th onclick="ordenar('fechaRegistro')">REGISTRO <span id="sort-fecha"></span></th>
+                        <th onclick="ordenar('lastSubmission')">LAST SUBMISSION <span id="sort-submission"></span></th>
+                        <th onclick="ordenar('apellido')">NOMBRE <span id="sort-apellido"></span></th>
+                        <th>WHATSAPP</th>
+                        <th>ESTADO</th>
                         <th>ACCIONES</th>
                     </tr>
                 </thead>
@@ -191,7 +220,6 @@
         let todosLosLeads = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        // Filtramos solo los que NO son VIP
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
         
         onSnapshot(q, (snap) => {
@@ -203,8 +231,8 @@
         function aplicarOrdenYRender() {
             const { campo, asc } = ordenActual;
             todosLosLeads.sort((a, b) => {
-                let valA = a[campo] || '';
-                let valB = b[campo] || '';
+                let valA = a[campo] || 0;
+                let valB = b[campo] || 0;
                 if (typeof valA === 'string') valA = valA.toLowerCase();
                 if (typeof valB === 'string') valB = valB.toLowerCase();
                 if (valA < valB) return asc ? -1 : 1;
@@ -218,7 +246,7 @@
             ordenActual.asc = (ordenActual.campo === campo) ? !ordenActual.asc : true;
             ordenActual.campo = campo;
             document.querySelectorAll('thead th span').forEach(s => s.innerText = '');
-            const idMap = { 'fechaRegistro': 'sort-fecha', 'apellido': 'sort-apellido', 'whatsapp': 'sort-whatsapp', 'estado': 'sort-estado' };
+            const idMap = { 'fechaRegistro': 'sort-fecha', 'apellido': 'sort-apellido', 'lastSubmission': 'sort-submission' };
             if(idMap[campo]) document.getElementById(idMap[campo]).innerText = ordenActual.asc ? ' ↑' : ' ↓';
             aplicarOrdenYRender();
         };
@@ -229,17 +257,20 @@
             document.getElementById('contador-total').innerText = `Total: ${datos.length}`;
 
             datos.forEach(l => {
-                const fecha = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
+                const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
+                const lastSub = l.lastSubmission ? new Date(l.lastSubmission).toLocaleString() : 'Sin actividad';
+                
                 lista.innerHTML += `
                     <tr>
-                        <td>${fecha}</td>
+                        <td>${fechaReg}</td>
+                        <td style="font-size: 0.85em; color: var(--oro);">${lastSub}</td>
                         <td><b>${l.apellido}, ${l.nombres}</b></td>
                         <td>${l.whatsapp}</td>
                         <td><span class="status status-${l.estado || 'activo'}">${(l.estado || 'activo').toUpperCase()}</span></td>
                         <td>
-                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido}')" title="Convertir a VIP">💎 VIP</button>
+                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido}', '${l.nombres}')">💎 VIP</button>
                             <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}')">🚫</button>
-                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido}')">🔄 RESTABLECER</button>
+                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido}')">🔄</button>
                             <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
                         </td>
                     </tr>
@@ -247,67 +278,65 @@
             });
         }
 
+        window.hacerVIP = async (id, apellido, nombres) => {
+            if(confirm(`¿Convertir a ${apellido} en VIP?`)) {
+                try {
+                    await updateDoc(doc(db, "leads", id), { 
+                        convertidoVIP: true, 
+                        fechaVIP: Date.now(),
+                        lastSubmission: Date.now() // Actualizamos actividad
+                    });
+                    
+                    document.getElementById('nombre-socio').innerText = `${nombres} ${apellido}`;
+                    document.getElementById('modal-bienvenida').style.display = 'flex';
+
+                    await addDoc(collection(db, "logs"), { 
+                        fecha: Date.now(), 
+                        tipo: "alta_vip", 
+                        accion: "CONVERSIÓN VIP", 
+                        detalle: `Lead ${apellido} movido a VIP` 
+                    });
+                } catch (e) { alert("Error al mover usuario"); }
+            }
+        };
+
+        window.restablecerCupones = async (id, apellido) => {
+            if(confirm(`¿Restablecer cupones para ${apellido}?`)) {
+                await updateDoc(doc(db, "leads", id), { 
+                    usados: [], cupones_usados: [], canjes: [],
+                    lastSubmission: Date.now() 
+                });
+                alert("Cupones restablecidos.");
+            }
+        };
+
+        window.restablecerTodos = async () => {
+            if(confirm("¿Restablecer a todos?")) {
+                const batch = writeBatch(db);
+                todosLosLeads.forEach(l => {
+                    batch.update(doc(db, "leads", l.id), { usados: [], cupones_usados: [], canjes: [] });
+                });
+                await batch.commit();
+                alert("Restablecimiento masivo completado.");
+            }
+        };
+
         window.filtrarLeads = () => {
             const busqueda = document.getElementById('buscador').value.toLowerCase();
             const filtrados = todosLosLeads.filter(l => 
                 (l.apellido && l.apellido.toLowerCase().includes(busqueda)) || 
-                (l.nombres && l.nombres.toLowerCase().includes(busqueda)) || 
                 (l.whatsapp && l.whatsapp.includes(busqueda))
             );
             renderizar(filtrados);
         };
 
-        window.restablecerCupones = async (id, apellido) => {
-            if(confirm(`¿Restablecer cupones para ${apellido}?`)) {
-                try {
-                    // Actualizamos todos los nombres posibles del campo de cupones
-                    await updateDoc(doc(db, "leads", id), { 
-                        usados: [],
-                        cupones_usados: [],
-                        canjes: []
-                    });
-                    alert("Cupones restablecidos correctamente.");
-                } catch (e) {
-                    console.error("Error al restablecer:", e);
-                    alert("No se pudo restablecer. Revisa la consola.");
-                }
-            }
-        };
-
-        window.restablecerTodos = async () => {
-            if(confirm("¿ESTÁ SEGURO? Se restablecerán los cupones de TODOS los leads.")) {
-                try {
-                    const batch = writeBatch(db);
-                    todosLosLeads.forEach(l => {
-                        const ref = doc(db, "leads", l.id);
-                        batch.update(ref, { 
-                            usados: [],
-                            cupones_usados: [],
-                            canjes: []
-                        });
-                    });
-                    await batch.commit();
-                    alert("Todos los leads han sido restablecidos.");
-                } catch (e) {
-                    console.error("Error masivo:", e);
-                }
-            }
-        };
-
-        window.hacerVIP = async (id, apellido) => {
-            if(confirm(`¿Convertir a ${apellido} en Miembro VIP?`)) {
-                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now(), estado: "activo" });
-                await addDoc(collection(db, "logs"), { fecha: Date.now(), tipo: "alta_vip", accion: "CONVERSIÓN VIP", detalle: `Lead ${apellido} a VIP` });
-            }
-        };
-
         window.toggleEstado = async (id, estadoActual) => {
             const nuevo = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
-            await updateDoc(doc(db, "leads", id), { estado: nuevo });
+            await updateDoc(doc(db, "leads", id), { estado: nuevo, lastSubmission: Date.now() });
         };
 
         window.borrarLead = async (id) => {
-            if(confirm("¿Eliminar este lead permanentemente?")) await deleteDoc(doc(db, "leads", id));
+            if(confirm("¿Eliminar permanentemente?")) await deleteDoc(doc(db, "leads", id));
         };
     </script>
 </body>
