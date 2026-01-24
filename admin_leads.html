@@ -80,12 +80,11 @@
         .card-table {
             background: var(--azul-medio);
             border-radius: 15px;
-            overflow: hidden;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
             width: 100%;
         }
 
-        table { width: 100%; border-collapse: collapse; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
 
         /* ENCABEZADO FIJO Y CLICKEABLE */
         thead th {
@@ -95,13 +94,14 @@
             color: var(--oro);
             padding: 15px;
             text-align: left;
-            z-index: 10;
+            z-index: 20;
             cursor: pointer;
             user-select: none;
             transition: background 0.2s;
+            border-bottom: 2px solid var(--celeste-habitat);
         }
         thead th:hover { background: #2d3e5a; }
-        thead th:last-child { cursor: default; } /* Acciones no se ordena */
+        thead th:last-child { cursor: default; }
 
         td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         tr:hover { background: rgba(255,255,255,0.02); }
@@ -221,11 +221,10 @@
                 ordenActual.campo = campo;
                 ordenActual.asc = true;
             }
-            // Actualizar indicadores visuales
             const icon = ordenActual.asc ? ' ↑' : ' ↓';
             document.querySelectorAll('thead th span').forEach(s => s.innerText = '');
             const idMap = { 'fechaRegistro': 'sort-fecha', 'apellido': 'sort-apellido', 'whatsapp': 'sort-whatsapp', 'estado': 'sort-estado' };
-            document.getElementById(idMap[campo]).innerText = icon;
+            if (idMap[campo]) document.getElementById(idMap[campo]).innerText = icon;
             
             aplicarOrdenYRender();
         };
@@ -257,9 +256,9 @@
         window.filtrarLeads = () => {
             const busqueda = document.getElementById('buscador').value.toLowerCase();
             const filtrados = todosLosLeads.filter(l => 
-                l.apellido.toLowerCase().includes(busqueda) || 
-                l.nombres.toLowerCase().includes(busqueda) || 
-                l.whatsapp.includes(busqueda)
+                (l.apellido && l.apellido.toLowerCase().includes(busqueda)) || 
+                (l.nombres && l.nombres.toLowerCase().includes(busqueda)) || 
+                (l.whatsapp && l.whatsapp.includes(busqueda))
             );
             renderizar(filtrados);
         };
@@ -287,20 +286,30 @@
 
         window.restablecerCupones = async (id, apellido) => {
             if(confirm(`¿Restablecer cupones para ${apellido}?`)) {
-                await updateDoc(doc(db, "leads", id), { usados: [] });
-                alert("Cupones restablecidos.");
+                try {
+                    await updateDoc(doc(db, "leads", id), { usados: [] });
+                    alert("Cupones restablecidos.");
+                } catch (e) {
+                    console.error(e);
+                    alert("Error al restablecer.");
+                }
             }
         };
 
         window.restablecerTodos = async () => {
             if(confirm("¿ESTÁ SEGURO? Se restablecerán los cupones de TODOS los leads listados.")) {
-                const batch = writeBatch(db);
-                todosLosLeads.forEach(l => {
-                    const ref = doc(db, "leads", l.id);
-                    batch.update(ref, { usados: [] });
-                });
-                await batch.commit();
-                alert("Todos los cupones han sido restablecidos.");
+                try {
+                    const batch = writeBatch(db);
+                    todosLosLeads.forEach(l => {
+                        const ref = doc(db, "leads", l.id);
+                        batch.update(ref, { usados: [] });
+                    });
+                    await batch.commit();
+                    alert("Todos los cupones han sido restablecidos.");
+                } catch (e) {
+                    console.error(e);
+                    alert("Error en el restablecimiento masivo.");
+                }
             }
         };
 
