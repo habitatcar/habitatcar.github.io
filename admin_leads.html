@@ -17,7 +17,6 @@
             --naranja: #ff9800;
         }
 
-        /* Ajuste para evitar scroll en el body y permitirlo solo en la tabla */
         html, body {
             height: 100%;
             margin: 0;
@@ -27,12 +26,8 @@
             color: var(--blanco-suave);
         }
 
-        body {
-            display: flex;
-            flex-direction: column;
-        }
+        body { display: flex; flex-direction: column; }
 
-        /* HEADER FIJO */
         .header {
             background: var(--azul-medio);
             padding: 20px 30px;
@@ -58,12 +53,7 @@
         }
         .nav-link.active { background: var(--rojo); box-shadow: 0 0 10px rgba(220,53,69,0.5); }
 
-        /* BUSCADOR FIJO */
-        .search-area {
-            padding: 20px 30px;
-            flex-shrink: 0;
-        }
-
+        .search-area { padding: 20px 30px; flex-shrink: 0; }
         .search-bar {
             background: var(--azul-medio);
             padding: 15px 25px;
@@ -81,7 +71,6 @@
             color: white;
         }
 
-        /* CONTENEDOR DE TABLA CON SCROLL */
         .table-wrapper {
             flex: 1;
             overflow-y: auto;
@@ -98,16 +87,21 @@
 
         table { width: 100%; border-collapse: collapse; }
 
-        /* ENCABEZADO DE TABLA FIJO */
+        /* ENCABEZADO FIJO Y CLICKEABLE */
         thead th {
             position: sticky;
             top: 0;
-            background: #25334a; /* Un tono más oscuro para distinguir */
+            background: #25334a;
             color: var(--oro);
             padding: 15px;
             text-align: left;
             z-index: 10;
+            cursor: pointer;
+            user-select: none;
+            transition: background 0.2s;
         }
+        thead th:hover { background: #2d3e5a; }
+        thead th:last-child { cursor: default; } /* Acciones no se ordena */
 
         td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); }
         tr:hover { background: rgba(255,255,255,0.02); }
@@ -165,10 +159,10 @@
             <table>
                 <thead>
                     <tr>
-                        <th>FECHA</th>
-                        <th>APELLIDO Y NOMBRE</th>
-                        <th>WHATSAPP</th>
-                        <th>ESTADO</th>
+                        <th onclick="ordenar('fechaRegistro')">FECHA <span id="sort-fecha"></span></th>
+                        <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE <span id="sort-apellido"></span></th>
+                        <th onclick="ordenar('whatsapp')">WHATSAPP <span id="sort-whatsapp"></span></th>
+                        <th onclick="ordenar('estado')">ESTADO <span id="sort-estado"></span></th>
                         <th>ACCIONES</th>
                     </tr>
                 </thead>
@@ -194,18 +188,47 @@
         const db = getFirestore(app);
 
         let todosLosLeads = [];
+        let ordenActual = { campo: 'fechaRegistro', asc: false };
 
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
         
         onSnapshot(q, (snap) => {
             todosLosLeads = [];
             snap.forEach(d => todosLosLeads.push({id: d.id, ...d.data()}));
-            
-            // ORDENAR POR FECHA (MÁS RECIENTE ARRIBA)
-            todosLosLeads.sort((a, b) => (b.fechaRegistro || 0) - (a.fechaRegistro || 0));
-            
-            renderizar(todosLosLeads);
+            aplicarOrdenYRender();
         });
+
+        function aplicarOrdenYRender() {
+            const { campo, asc } = ordenActual;
+            todosLosLeads.sort((a, b) => {
+                let valA = a[campo] || '';
+                let valB = b[campo] || '';
+                
+                if (typeof valA === 'string') valA = valA.toLowerCase();
+                if (typeof valB === 'string') valB = valB.toLowerCase();
+
+                if (valA < valB) return asc ? -1 : 1;
+                if (valA > valB) return asc ? 1 : -1;
+                return 0;
+            });
+            renderizar(todosLosLeads);
+        }
+
+        window.ordenar = (campo) => {
+            if (ordenActual.campo === campo) {
+                ordenActual.asc = !ordenActual.asc;
+            } else {
+                ordenActual.campo = campo;
+                ordenActual.asc = true;
+            }
+            // Actualizar indicadores visuales
+            const icon = ordenActual.asc ? ' ↑' : ' ↓';
+            document.querySelectorAll('thead th span').forEach(s => s.innerText = '');
+            const idMap = { 'fechaRegistro': 'sort-fecha', 'apellido': 'sort-apellido', 'whatsapp': 'sort-whatsapp', 'estado': 'sort-estado' };
+            document.getElementById(idMap[campo]).innerText = icon;
+            
+            aplicarOrdenYRender();
+        };
 
         function renderizar(datos) {
             const lista = document.getElementById('lista-leads');
@@ -263,14 +286,14 @@
         };
 
         window.restablecerCupones = async (id, apellido) => {
-            if(confirm(`¿Restablecer cupones para ${apellido}? El usuario podrá volver a usar todos los beneficios.`)) {
+            if(confirm(`¿Restablecer cupones para ${apellido}?`)) {
                 await updateDoc(doc(db, "leads", id), { usados: [] });
                 alert("Cupones restablecidos.");
             }
         };
 
         window.restablecerTodos = async () => {
-            if(confirm("¿ESTÁ SEGURO? Se restablecerán los cupones de TODOS los leads listados. Esta acción no se puede deshacer.")) {
+            if(confirm("¿ESTÁ SEGURO? Se restablecerán los cupones de TODOS los leads listados.")) {
                 const batch = writeBatch(db);
                 todosLosLeads.forEach(l => {
                     const ref = doc(db, "leads", l.id);
