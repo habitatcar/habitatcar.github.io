@@ -113,7 +113,7 @@
             text-decoration: none; color: white; font-weight: bold; text-transform: uppercase;
         }
 
-        /* ADVERTENCIA CAJERO - TAMAÑO PEDIDO */
+        /* ADVERTENCIA CAJERO */
         .advertencia-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); display: flex; justify-content: center; align-items: center; z-index: 5000;
@@ -123,8 +123,6 @@
             width: 85%; max-width: 340px; color: #000; border: 5px solid var(--dorado);
             box-sizing: border-box;
         }
-        .advertencia-contenido h3 { font-size: 28px; margin: 0 0 15px; }
-        .advertencia-contenido p { font-size: 18px; margin-bottom: 25px; line-height: 1.4; }
         .btn-si, .btn-no { padding: 16px; font-size: 16px; border-radius: 12px; border: none; font-weight: bold; cursor: pointer; flex: 1; }
         .btn-si { background: #d32f2f; color: white; }
         .btn-no { background: var(--gris-volver); color: white; }
@@ -209,7 +207,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -331,16 +329,40 @@
             document.getElementById('pantalla-exito').style.display = 'flex';
             
             try {
+                // 1. Incrementar contadores en Firebase para Estadísticas (Múltiple incremento)
+                const comercioRef = doc(db, "comercios", id);
+                await updateDoc(comercioRef, {
+                    totalVips: increment(1),
+                    vipsHoy: increment(1),
+                    vipsSemana: increment(1),
+                    vipsMes: increment(1),
+                    vipsAnio: increment(1)
+                });
+
+                // 2. Guardar Log Histórico
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
-                await addDoc(collection(db, "logs_vip"), { comercio: nom, fecha: serverTimestamp(), uso_nro: nUso });
+                await addDoc(collection(db, "logs_vip"), { 
+                    comercio: nom, 
+                    comercioId: id,
+                    fecha: serverTimestamp(), 
+                    uso_nro: nUso,
+                    tipo: "VIP"
+                });
+
+                // 3. Actualizar LocalStorage
                 localStorage.setItem('uso_vip_' + id, nUso);
+
+                // 4. Timer de éxito
                 let s = 30;
                 const t = setInterval(() => {
                     s--;
                     document.getElementById('countdown').innerText = s;
                     if(s <= 0) { clearInterval(t); location.reload(); }
                 }, 1000);
-            } catch(e) { console.error(e); }
+            } catch(e) { 
+                console.error("Error al procesar VIP:", e);
+                alert("Hubo un error al validar. Intente de nuevo.");
+            }
         };
 
         window.filtrar = () => {
