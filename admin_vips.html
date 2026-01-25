@@ -184,7 +184,20 @@
         let todosLosVips = [];
         let ordenActual = { campo: 'fechaVIP', asc: false };
 
-        // LA CLAVE: Buscamos en 'leads' donde 'convertidoVIP' sea true
+        // Función para registrar actividad (Igual que en Leads para coherencia en Estadísticas)
+        async function registrarActividad(usuarioId, nombre, accion) {
+            try {
+                await addDoc(collection(db, "logs_actividad"), {
+                    usuarioId: usuarioId,
+                    nombre: nombre,
+                    tipo: "VIP",
+                    accion: accion,
+                    timestamp: Date.now(),
+                    fecha: new Date().toLocaleString()
+                });
+            } catch (e) { console.error("Error log:", e); }
+        }
+
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", true));
         
         onSnapshot(q, (snap) => {
@@ -230,18 +243,23 @@
                         <td>${v.whatsapp || ''}</td>
                         <td><span class="status status-${v.estado || 'activo'}">${(v.estado || 'activo').toUpperCase()}</span></td>
                         <td>
-                            <button class="btn-action btn-reset" onclick="restablecerCupones('${v.id}', '${v.apellido}')">🔄 RESTABLECER</button>
-                            <button class="btn-action btn-suspend" onclick="toggleEstado('${v.id}', '${v.estado}')">🚫</button>
-                            <button class="btn-action btn-del" onclick="bajaVip('${v.id}', '${v.apellido}')">🗑️ QUITAR VIP</button>
+                            <button class="btn-action btn-reset" onclick="restablecerCupones('${v.id}', '${v.apellido}', '${v.nombres}')">🔄 RESTABLECER</button>
+                            <button class="btn-action btn-suspend" onclick="toggleEstado('${v.id}', '${v.estado}', '${v.apellido} ${v.nombres}')">🚫</button>
+                            <button class="btn-action btn-del" onclick="bajaVip('${v.id}', '${v.apellido}', '${v.nombres}')">🗑️ QUITAR VIP</button>
                         </td>
                     </tr>
                 `;
             });
         }
 
-        window.restablecerCupones = async (id, apellido) => {
+        window.restablecerCupones = async (id, apellido, nombres) => {
             if(confirm(`¿Restablecer cupones de ${apellido}?`)) {
-                await updateDoc(doc(db, "leads", id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: Date.now() });
+                const ahora = Date.now();
+                await updateDoc(doc(db, "leads", id), { 
+                    usados: [], cupones_usados: [], canjes: [], 
+                    lastSubmission: ahora 
+                });
+                await registrarActividad(id, `${apellido}, ${nombres}`, "RESTABLECER CUPONES VIP");
                 alert("Cupones restablecidos.");
             }
         };
@@ -254,15 +272,20 @@
             ));
         };
 
-        window.toggleEstado = async (id, est) => {
+        window.toggleEstado = async (id, est, nombreCompleto) => {
             const n = est === 'suspendido' ? 'activo' : 'suspendido';
-            await updateDoc(doc(db, "leads", id), { estado: n, lastSubmission: Date.now() });
+            const ahora = Date.now();
+            await updateDoc(doc(db, "leads", id), { estado: n, lastSubmission: ahora });
+            await registrarActividad(id, nombreCompleto, `ESTADO VIP: ${n.toUpperCase()}`);
         };
 
-        window.bajaVip = async (id, apellido) => {
+        window.bajaVip = async (id, apellido, nombres) => {
             if(confirm(`¿Quitar estado VIP a ${apellido}? Volverá a la lista de Leads.`)) {
-                await updateDoc(doc(db, "leads", id), { convertidoVIP: false, lastSubmission: Date.now() });
-                await addDoc(collection(db, "logs"), { fecha: Date.now(), tipo: "BAJA VIP", detalle: `Socio ${apellido} volvió a ser Lead` });
+                const ahora = Date.now();
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: false, lastSubmission: ahora });
+                await registrarActividad(id, `${apellido}, ${nombres}`, "BAJA VIP (VUELVE A LEAD)");
+                // También guardamos en la colección 'logs' vieja por compatibilidad
+                await addDoc(collection(db, "logs"), { fecha: ahora, tipo: "BAJA VIP", detalle: `Socio ${apellido} volvió a ser Lead` });
             }
         };
     </script>
