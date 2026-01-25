@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>HABITAT-CAR | ESTADÍSTICAS</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <style>
         :root { 
             --azul-oscuro: #0a192f;
@@ -114,6 +116,8 @@
             font-weight: bold;
         }
 
+        .btn-masivo { background: var(--verde); border-color: white; }
+
         .table-container { flex: 1; padding: 0 25px 25px 25px; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; background: var(--azul-medio); border-radius: 8px; }
         
@@ -132,6 +136,32 @@
         
         td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em; }
         .mail-freq { background: #0a192f; color: var(--oro); border: 1px solid var(--oro); padding: 4px; border-radius: 4px; }
+        
+        /* DISEÑO MEJORADO DEL BOTÓN DE ENVÍO */
+        .btn-send-row {
+            background: linear-gradient(135deg, #004a99 0%, #002d5e 100%);
+            color: white;
+            border: 1px solid #00c3ff;
+            padding: 6px 12px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 1.1em;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .btn-send-row:hover { 
+            background: var(--verde); 
+            border-color: white;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,255,0,0.2);
+        }
+        .btn-send-row:active { transform: translateY(0); }
+
     </style>
 </head>
 <body>
@@ -186,6 +216,7 @@
         <input type="text" id="buscador" class="search-input" placeholder="🔍 Buscar comercios..." onkeyup="filtrarTabla()">
         <button class="btn-sort" onclick="ordenarYRender('nombre')">ORDEN A-Z</button>
         <button class="btn-sort" onclick="ordenarYRender('creacion')">ORDEN CREACIÓN</button>
+        <button class="btn-sort btn-masivo" onclick="enviarTodosLosReportes()">🚀 ENVÍO MASIVO</button>
     </div>
 
     <div class="table-container">
@@ -200,7 +231,8 @@
                     <th>Semana</th>
                     <th>Mes</th>
                     <th>Año</th>
-                    <th>Reporte Mail</th>
+                    <th>Último Envío</th>
+                    <th>Frecuencia / Acción</th>
                 </tr>
             </thead>
             <tbody id="tabla-body"></tbody>
@@ -209,7 +241,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -251,6 +283,76 @@
             renderTabla();
         });
 
+        // --- FUNCIÓN PARA LOGS HISTÓRICOS ---
+        async function registrarLogEnvio(comercio, email, estado) {
+            await addDoc(collection(db, "historico_envios_reportes"), {
+                fecha: new Date().toLocaleString(),
+                timestamp: Date.now(),
+                comercio: comercio,
+                email: email,
+                estado: estado
+            });
+        }
+
+        // --- FUNCIÓN GENERAR PDF ---
+        const generarPDFReporte = (c) => {
+            const { jsPDF } = window.jspdf;
+            const docPDF = new jsPDF();
+            docPDF.setFillColor(10, 25, 47);
+            docPDF.rect(0, 0, 210, 40, 'F');
+            docPDF.setTextColor(255, 255, 255);
+            docPDF.text("HABITAT-CAR: REPORTE DE ACTIVIDAD", 105, 25, { align: "center" });
+            
+            docPDF.setTextColor(0, 0, 0);
+            docPDF.text(`Comercio: ${c.nombre}`, 20, 60);
+            docPDF.text(`Fecha: ${new Date().toLocaleDateString()}`, 20, 70);
+
+            const rows = [
+                ["Categoría", "Canjes"],
+                ["Hoy", (Number(c.usosHoy||0) + Number(c.vipsHoy||0))],
+                ["Semana", (Number(c.usosSemana||0) + Number(c.vipsSemana||0))],
+                ["Mes", (Number(c.usosMes||0) + Number(c.vipsMes||0))],
+                ["Año", (Number(c.usosAnio||0) + Number(c.vipsAnio||0))],
+                ["Total Histórico", (Number(c.totalUsos||0) + Number(c.totalVips||0))]
+            ];
+
+            docPDF.autoTable({ startY: 80, head: [rows[0]], body: rows.slice(1) });
+            return docPDF.output('blob');
+        };
+
+        // --- ENVÍO INDIVIDUAL ---
+        window.enviarReporteIndividual = async (id) => {
+            const c = listaComercios.find(x => x.id === id);
+            if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
+
+            try {
+                const pdf = generarPDFReporte(c);
+                const ahora = new Date().toLocaleString();
+                
+                // Actualizar Last Submission
+                await updateDoc(doc(db, "comercios", id), { lastSubmission: ahora });
+                
+                // Registrar Log
+                await registrarLogEnvio(c.nombre, c.emailDueno, "Enviado Manual");
+                
+                alert(`Reporte enviado a ${c.nombre}`);
+                renderTabla();
+            } catch (e) {
+                await registrarLogEnvio(c.nombre, c.emailDueno, "Error: " + e.message);
+                alert("Error al procesar envío");
+            }
+        };
+
+        // --- ENVÍO MASIVO ---
+        window.enviarTodosLosReportes = async () => {
+            if(!confirm("¿Deseas enviar reportes a TODOS los comercios con frecuencia activa?")) return;
+            for(let c of listaComercios) {
+                if(c.frecuenciaMail && c.frecuenciaMail !== 'nunca') {
+                    await enviarReporteIndividual(c.id);
+                }
+            }
+        };
+
         function renderTabla() {
             const body = document.getElementById('tabla-body');
             body.innerHTML = "";
@@ -258,29 +360,14 @@
 
             listaComercios.forEach(c => {
                 tCom++;
-                
-                // Estos campos son los que ahora se incrementan en usuarios_cupones.html
                 const lHist = Number(c.totalUsos || 0);
                 const vHist = Number(c.totalVips || 0); 
-                
-                const lHoy = Number(c.usosHoy || 0);
-                const vHoy = Number(c.vipsHoy || 0);
-                
-                const lSem = Number(c.usosSemana || 0);
-                const vSem = Number(c.vipsSemana || 0);
-                
-                const lMes = Number(c.usosMes || 0);
-                const vMes = Number(c.vipsMes || 0);
-                
-                const lAnio = Number(c.usosAnio || 0);
-                const vAnio = Number(c.vipsAnio || 0);
+                const hoyCom = Number(c.usosHoy || 0) + Number(c.vipsHoy || 0);
+                const semCom = Number(c.usosSemana || 0) + Number(c.vipsSemana || 0);
+                const mesCom = Number(c.usosMes || 0) + Number(c.vipsMes || 0);
+                const anioCom = Number(c.usosAnio || 0) + Number(c.vipsAnio || 0);
 
                 const totalCom = lHist + vHist;
-                const hoyCom = lHoy + vHoy;
-                const semCom = lSem + vSem;
-                const mesCom = lMes + vMes;
-                const anioCom = lAnio + vAnio;
-
                 tUsos += totalCom;
                 tHoy += hoyCom;
                 tSem += semCom;
@@ -297,6 +384,7 @@
                         <td>${semCom}</td>
                         <td>${mesCom}</td>
                         <td>${anioCom}</td>
+                        <td style="font-size: 0.8em; color: #8892b0;">${c.lastSubmission || '---'}</td>
                         <td>
                             <select class="mail-freq" onchange="updateFreq('${c.id}', this.value)">
                                 <option value="nunca" ${c.frecuenciaMail === 'nunca' ? 'selected' : ''}>Nunca</option>
@@ -304,6 +392,7 @@
                                 <option value="semanal" ${c.frecuenciaMail === 'semanal' ? 'selected' : ''}>Semanal</option>
                                 <option value="mensual" ${c.frecuenciaMail === 'mensual' ? 'selected' : ''}>Mensual</option>
                             </select>
+                            <button class="btn-send-row" title="Enviar ahora" onclick="enviarReporteIndividual('${c.id}')">✉</button>
                         </td>
                     </tr>
                 `;
