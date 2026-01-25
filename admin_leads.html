@@ -115,7 +115,6 @@
         .btn-vip { background: var(--oro); color: black; }
         .btn-suspend { background: var(--naranja); }
         .btn-del { background: var(--rojo); }
-        /* BOTÓN RESTABLECER GRANDE */
         .btn-reset { background: var(--celeste-habitat); padding: 10px 20px; }
         
         .btn-reset-all { background: white; color: var(--azul-oscuro); padding: 12px 20px; border-radius: 8px; }
@@ -213,7 +212,20 @@
         let todosLosLeads = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        // FILTRO: Solo los que NO son VIP
+        // Función para registrar actividad
+        async function registrarActividad(leadId, nombre, accion) {
+            try {
+                await addDoc(collection(db, "logs_actividad"), {
+                    usuarioId: leadId,
+                    nombre: nombre,
+                    tipo: "LEAD",
+                    accion: accion,
+                    timestamp: Date.now(),
+                    fecha: new Date().toLocaleString()
+                });
+            } catch (e) { console.error("Error log:", e); }
+        }
+
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
         
         onSnapshot(q, (snap) => {
@@ -257,8 +269,8 @@
                         <td>${l.whatsapp}</td>
                         <td>
                             <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido}', '${l.nombres}')">💎 VIP</button>
-                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido}')">🔄 RESTABLECER</button>
-                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}')">🚫</button>
+                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido}', '${l.nombres}')">🔄 RESTABLECER</button>
+                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${l.apellido} ${l.nombres}')">🚫</button>
                             <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
                         </td>
                     </tr>
@@ -269,23 +281,27 @@
         window.hacerVIP = async (id, apellido, nombres) => {
             if(confirm(`¿Mover a ${apellido} a VIP?`)) {
                 try {
+                    const ahora = Date.now();
                     await updateDoc(doc(db, "leads", id), { 
                         convertidoVIP: true, 
-                        fechaVIP: Date.now(),
-                        lastSubmission: Date.now()
+                        fechaVIP: ahora,
+                        lastSubmission: ahora
                     });
+                    await registrarActividad(id, `${apellido}, ${nombres}`, "CONVERSIÓN VIP");
                     document.getElementById('nombre-socio').innerText = `${nombres} ${apellido}`;
                     document.getElementById('modal-bienvenida').style.display = 'flex';
                 } catch (e) { alert("Error"); }
             }
         };
 
-        window.restablecerCupones = async (id, apellido) => {
+        window.restablecerCupones = async (id, apellido, nombres) => {
             if(confirm(`¿Restablecer cupones de ${apellido}?`)) {
+                const ahora = Date.now();
                 await updateDoc(doc(db, "leads", id), { 
                     usados: [], cupones_usados: [], canjes: [],
-                    lastSubmission: Date.now() 
+                    lastSubmission: ahora 
                 });
+                await registrarActividad(id, `${apellido}, ${nombres}`, "RESTABLECER CUPONES");
                 alert("Cupones restablecidos.");
             }
         };
@@ -293,10 +309,12 @@
         window.restablecerTodos = async () => {
             if(confirm("¿Restablecer a todos?")) {
                 const batch = writeBatch(db);
+                const ahora = Date.now();
                 todosLosLeads.forEach(l => {
-                    batch.update(doc(db, "leads", l.id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: Date.now() });
+                    batch.update(doc(db, "leads", l.id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: ahora });
                 });
                 await batch.commit();
+                await registrarActividad("MASIVO", "SISTEMA", "RESTABLECER TODOS LOS LEADS");
                 alert("Todos restablecidos.");
             }
         }
@@ -306,9 +324,11 @@
             renderizar(todosLosLeads.filter(l => (l.apellido && l.apellido.toLowerCase().includes(b)) || (l.whatsapp && l.whatsapp.includes(b))));
         };
 
-        window.toggleEstado = async (id, est) => {
+        window.toggleEstado = async (id, est, nombreCompleto) => {
             const n = est === 'suspendido' ? 'activo' : 'suspendido';
-            await updateDoc(doc(db, "leads", id), { estado: n, lastSubmission: Date.now() });
+            const ahora = Date.now();
+            await updateDoc(doc(db, "leads", id), { estado: n, lastSubmission: ahora });
+            await registrarActividad(id, nombreCompleto, `ESTADO: ${n.toUpperCase()}`);
         };
 
         window.borrarLead = async (id) => {
