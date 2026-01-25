@@ -137,7 +137,6 @@
         td { padding: 12px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em; }
         .mail-freq { background: #0a192f; color: var(--oro); border: 1px solid var(--oro); padding: 4px; border-radius: 4px; }
         
-        /* DISEÑO MEJORADO DEL BOTÓN DE ENVÍO */
         .btn-send-row {
             background: linear-gradient(135deg, #004a99 0%, #002d5e 100%);
             color: white;
@@ -256,6 +255,9 @@
         const db = getFirestore(app);
         let listaComercios = [];
 
+        // URL DEL SCRIPT "firebase_envio_mails"
+        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
+
         async function cargarStatsUsuarios() {
             const snapLeads = await getDocs(collection(db, "leads"));
             const snapVips = await getDocs(collection(db, "vips"));
@@ -283,7 +285,6 @@
             renderTabla();
         });
 
-        // --- FUNCIÓN PARA LOGS HISTÓRICOS ---
         async function registrarLogEnvio(comercio, email, estado) {
             await addDoc(collection(db, "historico_envios_reportes"), {
                 fecha: new Date().toLocaleString(),
@@ -294,7 +295,6 @@
             });
         }
 
-        // --- FUNCIÓN GENERAR PDF ---
         const generarPDFReporte = (c) => {
             const { jsPDF } = window.jspdf;
             const docPDF = new jsPDF();
@@ -320,30 +320,41 @@
             return docPDF.output('blob');
         };
 
-        // --- ENVÍO INDIVIDUAL ---
         window.enviarReporteIndividual = async (id) => {
             const c = listaComercios.find(x => x.id === id);
             if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
 
             try {
-                const pdf = generarPDFReporte(c);
-                const ahora = new Date().toLocaleString();
+                const pdfBlob = generarPDFReporte(c);
+                const reader = new FileReader();
+                reader.readAsDataURL(pdfBlob);
                 
-                // Actualizar Last Submission
-                await updateDoc(doc(db, "comercios", id), { lastSubmission: ahora });
-                
-                // Registrar Log
-                await registrarLogEnvio(c.nombre, c.emailDueno, "Enviado Manual");
-                
-                alert(`Reporte enviado a ${c.nombre}`);
-                renderTabla();
+                reader.onloadend = async () => {
+                    const base64data = reader.result.split(',')[1];
+                    
+                    const response = await fetch(WEB_APP_URL, {
+                        method: "POST",
+                        mode: "no-cors",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({
+                            email: c.emailDueno,
+                            comercio: c.nombre,
+                            pdfB64: base64data
+                        })
+                    });
+
+                    const ahora = new Date().toLocaleString();
+                    await updateDoc(doc(db, "comercios", id), { lastSubmission: ahora });
+                    await registrarLogEnvio(c.nombre, c.emailDueno, "Enviado");
+                    alert(`Reporte enviado con éxito a ${c.nombre}`);
+                    renderTabla();
+                };
             } catch (e) {
                 await registrarLogEnvio(c.nombre, c.emailDueno, "Error: " + e.message);
                 alert("Error al procesar envío");
             }
         };
 
-        // --- ENVÍO MASIVO ---
         window.enviarTodosLosReportes = async () => {
             if(!confirm("¿Deseas enviar reportes a TODOS los comercios con frecuencia activa?")) return;
             for(let c of listaComercios) {
