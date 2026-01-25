@@ -155,20 +155,24 @@
             vertical-align: middle;
         }
 
-        /* --- ESTILOS DEL PDF ORIGINAL (CALCADO DEL QUE MANDASTE) --- */
+        /* --- ESTILOS DEL PDF ORIGINAL (FONDO BLANCO) --- */
         #molde-pdf-container { position: absolute; left: -9999px; top: -9999px; }
         #reporte-contenido {
             width: 210mm; height: 297mm; padding: 15mm 20mm;
-            background: white; color: #0a192f; box-sizing: border-box; position: relative;
+            background: white !important; 
+            color: #0a192f !important; 
+            box-sizing: border-box; position: relative;
         }
         .header-pdf { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #004a99; padding-bottom: 15px; margin-bottom: 25px; }
         .logo-img { height: 75px; width: auto; display: block; }
         .stats-grid { display: flex; gap: 20px; margin-bottom: 30px; }
         .stat-card { flex: 1; padding: 15px; border-radius: 12px; text-align: center; }
         .barra-container { height: 22px; background: #eee; border-radius: 15px; overflow: hidden; display: flex; margin: 15px 0; }
-        .table-pdf { width: 100%; border-collapse: collapse; margin-top: 15px; }
-        .table-pdf th { background: #f4f7fa; color: #334766; text-align: left; padding: 10px; border-bottom: 2px solid #004a99; }
-        .table-pdf td { padding: 10px; border-bottom: 1px solid #eee; color: #0a192f; }
+        
+        .table-pdf { width: 100%; border-collapse: collapse; margin-top: 15px; background: white !important; }
+        .table-pdf th { background: #f4f7fa !important; color: #334766 !important; text-align: left; padding: 10px; border-bottom: 2px solid #004a99; }
+        .table-pdf td { padding: 10px; border-bottom: 1px solid #eee !important; color: #0a192f !important; }
+        
         .footer-pdf { position: absolute; bottom: 15mm; left: 20mm; right: 20mm; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #eee; padding-top: 15px; }
         .footer-pdf a { color: #004a99; text-decoration: none; font-weight: bold; }
     </style>
@@ -261,14 +265,14 @@
                 </div>
                 <div class="stat-card" style="background: #e9f7ef;">
                     <span style="font-size: 11px; font-weight: bold; color: #28a745; display: block;">TASA CONVERSIÓN</span>
-                    <span style="font-size: 30px; font-weight: bold; color: #0a192f;">22.5%</span>
+                    <span style="font-size: 30px; font-weight: bold; color: #0a192f;">---</span>
                 </div>
             </div>
 
             <h3 style="border-left: 5px solid #ffc107; padding-left: 15px; margin-bottom: 15px; font-size: 16px;">Composición de Audiencia</h3>
             <div class="barra-container">
-                <div style="width: 75%; background: #004a99; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">LEADS 75%</div>
-                <div style="width: 25%; background: #ffc107; display: flex; align-items: center; justify-content: center; color: #0a192f; font-size: 10px; font-weight: bold;">VIP 25%</div>
+                <div id="bar-leads" style="width: 50%; background: #004a99; display: flex; align-items: center; justify-content: center; color: white; font-size: 10px; font-weight: bold;">LEADS</div>
+                <div id="bar-vips" style="width: 50%; background: #ffc107; display: flex; align-items: center; justify-content: center; color: #0a192f; font-size: 10px; font-weight: bold;">VIP</div>
             </div>
 
             <table class="table-pdf">
@@ -276,9 +280,9 @@
                     <tr><th>Franja Horaria</th><th>Nivel de Escaneo</th><th>Interacciones</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>Mañana (08:00 - 13:00)</td><td>Medio</td><td id="pdf-manana">42</td></tr>
-                    <tr style="background: #f0f7ff;"><td><b>Tarde (13:00 - 20:00)</b></td><td style="color: #d9534f; font-weight: bold;">MUY ALTO 🔥</td><td id="pdf-tarde">135</td></tr>
-                    <tr><td>Noche (20:00 - 05:00)</td><td>Bajo</td><td id="pdf-noche">71</td></tr>
+                    <tr><td>Mañana (08:00 - 13:00)</td><td>Pendiente</td><td id="pdf-manana">0</td></tr>
+                    <tr style="background: #f0f7ff;"><td><b>Tarde (13:00 - 20:00)</b></td><td>Pendiente</td><td id="pdf-tarde">0</td></tr>
+                    <tr><td>Noche (20:00 - 05:00)</td><td>Pendiente</td><td id="pdf-noche">0</td></tr>
                 </tbody>
             </table>
 
@@ -347,11 +351,12 @@
             const c = listaComercios.find(x => x.id === id);
             if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
 
-            // DATOS DINÁMICOS AL PDF ORIGINAL
             document.getElementById('pdf-fecha').innerText = new Date().toLocaleString('es-AR', { month: 'long', year: 'numeric' }).toUpperCase();
             document.getElementById('pdf-nombre-comercio').innerText = c.nombre;
-            document.getElementById('pdf-total').innerText = (Number(c.totalUsos||0) + Number(c.totalVips||0));
-            document.getElementById('pdf-canjes').innerText = (Number(c.totalUsos||0) + Number(c.totalVips||0));
+            
+            const total = (Number(c.totalUsos||0) + Number(c.totalVips||0));
+            document.getElementById('pdf-total').innerText = total;
+            document.getElementById('pdf-canjes').innerText = total;
 
             const element = document.getElementById('reporte-contenido');
             const opt = {
