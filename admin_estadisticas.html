@@ -6,6 +6,8 @@
     <title>HABITAT-CAR | ESTADÍSTICAS</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <style>
         :root { 
             --azul-oscuro: #0a192f;
@@ -159,7 +161,22 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 8px rgba(0,255,0,0.2);
         }
-        .btn-send-row:active { transform: translateY(0); }
+
+        /* --- ESTILOS DEL MOLDE PDF (OCULTO) --- */
+        #molde-pdf-container { position: absolute; left: -9999px; top: -9999px; }
+        #reporte-contenido {
+            width: 210mm; height: 297mm; padding: 15mm 20mm;
+            background: white; color: #0a192f; box-sizing: border-box; position: relative;
+        }
+        .header-pdf { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #004a99; padding-bottom: 15px; margin-bottom: 25px; }
+        .logo-img { height: 75px; width: auto; }
+        .stats-grid { display: flex; gap: 20px; margin-bottom: 30px; }
+        .stat-card { flex: 1; padding: 15px; border-radius: 12px; text-align: center; }
+        .barra-container { height: 22px; background: #eee; border-radius: 15px; overflow: hidden; display: flex; margin: 15px 0; }
+        .table-pdf { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        .table-pdf th { background: #f4f7fa; color: #334766; text-align: left; padding: 10px; border-bottom: 2px solid #004a99; }
+        .table-pdf td { padding: 10px; border-bottom: 1px solid #eee; color: #0a192f; }
+        .footer-pdf { position: absolute; bottom: 15mm; left: 20mm; right: 20mm; text-align: center; font-size: 12px; color: #888; border-top: 1px solid #eee; padding-top: 15px; }
 
     </style>
 </head>
@@ -238,6 +255,41 @@
         </table>
     </div>
 
+    <div id="molde-pdf-container">
+        <div id="reporte-contenido">
+            <div class="header-pdf">
+                <img src="https://raw.githubusercontent.com/habitatcar/habitatcar.github.io/main/logo.png" class="logo-img" crossorigin="anonymous">
+                <div style="text-align: right;">
+                    <h1 style="margin: 0; color: #004a99; font-size: 22px;">REPORTE DE ACTIVIDAD</h1>
+                    <p id="pdf-fecha" style="margin: 5px 0; color: #666; font-weight: bold;"></p>
+                </div>
+            </div>
+            <h2 id="pdf-nombre-comercio" style="text-transform: uppercase; color: #334766; margin-bottom: 10px; font-size: 20px;">NOMBRE</h2>
+            <p style="color: #666; margin-bottom: 25px;">Análisis detallado de interacciones y conversiones de usuarios Hábitat-Car.</p>
+            <div class="stats-grid">
+                <div class="stat-card" style="background: #e6f1ff;">
+                    <span style="font-size: 11px; font-weight: bold; color: #004a99; display: block;">TOTAL HISTÓRICO</span>
+                    <span id="pdf-total" style="font-size: 30px; font-weight: bold; color: #0a192f;">0</span>
+                </div>
+                <div class="stat-card" style="background: #e9f7ef;">
+                    <span style="font-size: 11px; font-weight: bold; color: #28a745; display: block;">HOY</span>
+                    <span id="pdf-hoy" style="font-size: 30px; font-weight: bold; color: #0a192f;">0</span>
+                </div>
+            </div>
+            <table class="table-pdf">
+                <thead><tr><th>Periodo</th><th>Interacciones</th></tr></thead>
+                <tbody>
+                    <tr><td>Esta Semana</td><td id="pdf-sem">0</td></tr>
+                    <tr><td>Este Mes</td><td id="pdf-mes">0</td></tr>
+                    <tr><td>Este Año</td><td id="pdf-anio">0</td></tr>
+                </tbody>
+            </table>
+            <div class="footer-pdf">
+                <p>www.habitatcar.com.ar | Cel: 3884618228</p>
+            </div>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -254,8 +306,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         let listaComercios = [];
-
-        // URL DEL SCRIPT "firebase_envio_mails"
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
 
         async function cargarStatsUsuarios() {
@@ -264,11 +314,9 @@
             const allFechas = [];
             snapLeads.forEach(d => allFechas.push(d.data().fechaRegistro || 0));
             snapVips.forEach(d => allFechas.push(d.data().fechaRegistro || 0));
-
             document.getElementById('count-leads').innerText = snapLeads.size;
             document.getElementById('count-vips').innerText = snapVips.size;
             document.getElementById('count-total-users').innerText = allFechas.length;
-
             const ahora = Date.now();
             const unDia = 86400000;
             document.getElementById('t-dia').innerText = allFechas.filter(f => (ahora - f) <= unDia).length;
@@ -279,9 +327,7 @@
 
         onSnapshot(collection(db, "comercios"), (snap) => {
             listaComercios = [];
-            snap.forEach(d => {
-                listaComercios.push({ id: d.id, ...d.data() });
-            });
+            snap.forEach(d => listaComercios.push({ id: d.id, ...d.data() }));
             renderTabla();
         });
 
@@ -295,59 +341,43 @@
             });
         }
 
-        const generarPDFReporte = (c) => {
-            const { jsPDF } = window.jspdf;
-            const docPDF = new jsPDF();
-            docPDF.setFillColor(10, 25, 47);
-            docPDF.rect(0, 0, 210, 40, 'F');
-            docPDF.setTextColor(255, 255, 255);
-            docPDF.text("HABITAT-CAR: REPORTE DE ACTIVIDAD", 105, 25, { align: "center" });
-            
-            docPDF.setTextColor(0, 0, 0);
-            docPDF.text(`Comercio: ${c.nombre}`, 20, 60);
-            docPDF.text(`Fecha: ${new Date().toLocaleDateString()}`, 20, 70);
-
-            const rows = [
-                ["Categoría", "Canjes"],
-                ["Hoy", (Number(c.usosHoy||0) + Number(c.vipsHoy||0))],
-                ["Semana", (Number(c.usosSemana||0) + Number(c.vipsSemana||0))],
-                ["Mes", (Number(c.usosMes||0) + Number(c.vipsMes||0))],
-                ["Año", (Number(c.usosAnio||0) + Number(c.vipsAnio||0))],
-                ["Total Histórico", (Number(c.totalUsos||0) + Number(c.totalVips||0))]
-            ];
-
-            docPDF.autoTable({ startY: 80, head: [rows[0]], body: rows.slice(1) });
-            return docPDF.output('blob');
-        };
-
         window.enviarReporteIndividual = async (id) => {
             const c = listaComercios.find(x => x.id === id);
             if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
 
+            // Llenamos el molde oculto con los datos del comercio
+            document.getElementById('pdf-fecha').innerText = new Date().toLocaleDateString();
+            document.getElementById('pdf-nombre-comercio').innerText = c.nombre;
+            document.getElementById('pdf-total').innerText = (Number(c.totalUsos||0) + Number(c.totalVips||0));
+            document.getElementById('pdf-hoy').innerText = (Number(c.usosHoy||0) + Number(c.vipsHoy||0));
+            document.getElementById('pdf-sem').innerText = (Number(c.usosSemana||0) + Number(c.vipsSemana||0));
+            document.getElementById('pdf-mes').innerText = (Number(c.usosMes||0) + Number(c.vipsMes||0));
+            document.getElementById('pdf-anio').innerText = (Number(c.usosAnio||0) + Number(c.vipsAnio||0));
+
+            const element = document.getElementById('reporte-contenido');
+            const opt = {
+                margin: 0,
+                filename: `Reporte_${c.nombre}.pdf`,
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+            };
+
             try {
-                const pdfBlob = generarPDFReporte(c);
+                const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
                 const reader = new FileReader();
                 reader.readAsDataURL(pdfBlob);
-                
                 reader.onloadend = async () => {
                     const base64data = reader.result.split(',')[1];
-                    
-                    const response = await fetch(WEB_APP_URL, {
+                    fetch(WEB_APP_URL, {
                         method: "POST",
                         mode: "no-cors",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            email: c.emailDueno,
-                            comercio: c.nombre,
-                            pdfB64: base64data
-                        })
+                        body: JSON.stringify({ email: c.emailDueno, comercio: c.nombre, pdfB64: base64data })
                     });
-
                     const ahora = new Date().toLocaleString();
                     await updateDoc(doc(db, "comercios", id), { lastSubmission: ahora });
                     await registrarLogEnvio(c.nombre, c.emailDueno, "Enviado");
                     alert(`Reporte enviado con éxito a ${c.nombre}`);
-                    renderTabla();
                 };
             } catch (e) {
                 await registrarLogEnvio(c.nombre, c.emailDueno, "Error: " + e.message);
@@ -374,16 +404,11 @@
                 const lHist = Number(c.totalUsos || 0);
                 const vHist = Number(c.totalVips || 0); 
                 const hoyCom = Number(c.usosHoy || 0) + Number(c.vipsHoy || 0);
-                const semCom = Number(c.usosSemana || 0) + Number(c.vipsSemana || 0);
-                const mesCom = Number(c.usosMes || 0) + Number(c.vipsMes || 0);
-                const anioCom = Number(c.usosAnio || 0) + Number(c.vipsAnio || 0);
-
                 const totalCom = lHist + vHist;
-                tUsos += totalCom;
-                tHoy += hoyCom;
-                tSem += semCom;
-                tMes += mesCom;
-                tAnio += anioCom;
+                tUsos += totalCom; tHoy += hoyCom;
+                tSem += (Number(c.usosSemana||0) + Number(c.vipsSemana||0));
+                tMes += (Number(c.usosMes||0) + Number(c.vipsMes||0));
+                tAnio += (Number(c.usosAnio||0) + Number(c.vipsAnio||0));
 
                 body.innerHTML += `
                     <tr class="com-row">
@@ -392,9 +417,9 @@
                         <td style="color:var(--oro)">${lHist}</td>
                         <td style="color:var(--oro)">${vHist}</td>
                         <td style="color:var(--verde)">${hoyCom}</td>
-                        <td>${semCom}</td>
-                        <td>${mesCom}</td>
-                        <td>${anioCom}</td>
+                        <td>${Number(c.usosSemana||0) + Number(c.vipsSemana||0)}</td>
+                        <td>${Number(c.usosMes||0) + Number(c.vipsMes||0)}</td>
+                        <td>${Number(c.usosAnio||0) + Number(c.vipsAnio||0)}</td>
                         <td style="font-size: 0.8em; color: #8892b0;">${c.lastSubmission || '---'}</td>
                         <td>
                             <select class="mail-freq" onchange="updateFreq('${c.id}', this.value)">
@@ -405,10 +430,8 @@
                             </select>
                             <button class="btn-send-row" title="Enviar ahora" onclick="enviarReporteIndividual('${c.id}')">✉</button>
                         </td>
-                    </tr>
-                `;
+                    </tr>`;
             });
-
             document.getElementById('count-com').innerText = tCom;
             document.getElementById('count-usos').innerText = tUsos;
             document.getElementById('count-c-hoy').innerText = tHoy;
@@ -418,25 +441,16 @@
         }
 
         window.ordenarYRender = (criterio) => {
-            if (criterio === 'nombre') {
-                listaComercios.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
-            } else if (criterio === 'creacion') {
-                listaComercios.sort((a, b) => (a.id < b.id ? -1 : 1));
-            }
+            if (criterio === 'nombre') listaComercios.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+            else if (criterio === 'creacion') listaComercios.sort((a, b) => (a.id < b.id ? -1 : 1));
             renderTabla();
         };
 
-        window.updateFreq = async (id, val) => {
-            await updateDoc(doc(db, "comercios", id), { frecuenciaMail: val });
-        };
-
+        window.updateFreq = async (id, val) => { await updateDoc(doc(db, "comercios", id), { frecuenciaMail: val }); };
         window.filtrarTabla = () => {
             const term = document.getElementById('buscador').value.toLowerCase();
-            document.querySelectorAll('.com-row').forEach(row => {
-                row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none';
-            });
+            document.querySelectorAll('.com-row').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; });
         };
-
         cargarStatsUsuarios();
     </script>
 </body>
