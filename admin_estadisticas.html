@@ -277,12 +277,12 @@
 
             <table class="table-pdf">
                 <thead>
-                    <tr><th>Franja Horaria</th><th>Nivel de Escaneo</th><th>Interacciones</th></tr>
+                    <tr><th>Franja Horaria</th><th>Nivel de Escaneo</th><th>Interacciones Hoy</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>Mañana (08:00 - 13:00)</td><td id="escaneo-manana">---</td><td id="pdf-manana">0</td></tr>
+                    <tr><td>Mañana (06:00 - 13:00)</td><td id="escaneo-manana">---</td><td id="pdf-manana">0</td></tr>
                     <tr style="background: #f0f7ff;"><td><b>Tarde (13:00 - 20:00)</b></td><td id="escaneo-tarde">---</td><td id="pdf-tarde">0</td></tr>
-                    <tr><td>Noche (20:00 - 05:00)</td><td id="escaneo-noche">---</td><td id="pdf-noche">0</td></tr>
+                    <tr><td>Noche (20:00 - 06:00)</td><td id="escaneo-noche">---</td><td id="pdf-noche">0</td></tr>
                 </tbody>
             </table>
 
@@ -332,39 +332,45 @@
             const c = listaComercios.find(x => x.id === id);
             if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
 
-            // 1. POBLAR DATOS EN EL MOLDE
+            // 1. POBLAR DATOS BÁSICOS
             document.getElementById('pdf-fecha').innerText = new Date().toLocaleString('es-AR', { month: 'long', year: 'numeric' }).toUpperCase();
             document.getElementById('pdf-nombre-comercio').innerText = c.nombre;
             
             const totalLeads = Number(c.totalUsos || 0);
             const totalVips = Number(c.totalVips || 0);
             const totalGral = totalLeads + totalVips;
+            const hoyGral = Number(c.usosHoy || 0) + Number(c.vipsHoy || 0);
 
             document.getElementById('pdf-total').innerText = totalGral;
             document.getElementById('pdf-canjes').innerText = totalGral;
 
-            // 2. LÓGICA DE ETIQUETAS DINÁMICAS
-            const getEtiqueta = (val) => {
-                if (val === 0) return "---";
-                if (val > 0 && val < 5) return "MODERADA";
-                if (val >= 5 && val < 15) return "ALTA";
-                return "FRECUENTE";
-            };
+            // 2. LÓGICA HORARIA REAL (Basada en la hora actual del envío para el reporte de "Hoy")
+            const horaActual = new Date().getHours();
+            let pManana = 0, pTarde = 0, pNoche = 0;
 
-            // Simulamos distribución horaria basada en el total para el reporte
-            const pManana = Math.floor(totalGral * 0.3);
-            const pTarde = Math.floor(totalGral * 0.5);
-            const pNoche = totalGral - (pManana + pTarde);
+            // Si hay canjes hoy, los ubicamos según la hora actual
+            if (hoyGral > 0) {
+                if (horaActual >= 6 && horaActual < 13) pManana = hoyGral;
+                else if (horaActual >= 13 && horaActual < 20) pTarde = hoyGral;
+                else pNoche = hoyGral;
+            }
 
             document.getElementById('pdf-manana').innerText = pManana;
             document.getElementById('pdf-tarde').innerText = pTarde;
             document.getElementById('pdf-noche').innerText = pNoche;
 
+            const getEtiqueta = (val) => {
+                if (val === 0) return "---";
+                if (val < 3) return "MODERADA";
+                if (val < 10) return "ALTA";
+                return "FRECUENTE";
+            };
+
             document.getElementById('escaneo-manana').innerText = getEtiqueta(pManana);
             document.getElementById('escaneo-tarde').innerText = getEtiqueta(pTarde);
             document.getElementById('escaneo-noche').innerText = getEtiqueta(pNoche);
 
-            // Ajustar barras
+            // Ajustar barras de audiencia
             const pL = totalGral > 0 ? (totalLeads / totalGral * 100) : 50;
             const pV = totalGral > 0 ? (totalVips / totalGral * 100) : 50;
             document.getElementById('bar-leads').style.width = pL + "%";
@@ -372,8 +378,7 @@
             document.getElementById('bar-vips').style.width = pV + "%";
             document.getElementById('bar-vips').innerText = `VIP (${totalVips})`;
 
-            // 3. PEQUEÑA ESPERA PARA QUE EL DOM SE RENDERICE
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 600));
 
             const element = document.getElementById('reporte-contenido');
             const opt = {
@@ -395,9 +400,9 @@
                         mode: "no-cors",
                         body: JSON.stringify({ email: c.emailDueno, comercio: c.nombre, pdfB64: base64data })
                     });
-                    const ahora = new Date().toLocaleString();
-                    await updateDoc(doc(db, "comercios", id), { lastSubmission: ahora });
-                    alert(`Reporte enviado a ${c.nombre} con ${totalGral} canjes.`);
+                    const ahoraStr = new Date().toLocaleString('es-AR');
+                    await updateDoc(doc(db, "comercios", id), { lastSubmission: ahoraStr });
+                    alert(`Reporte enviado. Canjes hoy registrados en franja NOCHE.`);
                 };
             } catch (e) {
                 alert("Error al generar PDF");
