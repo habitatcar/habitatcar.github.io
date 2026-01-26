@@ -155,7 +155,6 @@
             vertical-align: middle;
         }
 
-        /* --- ESTILOS DEL PDF ORIGINAL (FONDO BLANCO) --- */
         #molde-pdf-container { position: absolute; left: -9999px; top: -9999px; }
         #reporte-contenido {
             width: 210mm; height: 297mm; padding: 15mm 20mm;
@@ -265,7 +264,7 @@
                 </div>
                 <div class="stat-card" style="background: #e9f7ef;">
                     <span style="font-size: 11px; font-weight: bold; color: #28a745; display: block;">TASA CONVERSIÓN</span>
-                    <span style="font-size: 30px; font-weight: bold; color: #0a192f;">---</span>
+                    <span id="pdf-conversion" style="font-size: 30px; font-weight: bold; color: #0a192f;">---</span>
                 </div>
             </div>
 
@@ -280,9 +279,9 @@
                     <tr><th>Franja Horaria</th><th>Nivel de Escaneo</th><th>Interacciones</th></tr>
                 </thead>
                 <tbody>
-                    <tr><td>Mañana (08:00 - 13:00)</td><td>Pendiente</td><td id="pdf-manana">0</td></tr>
-                    <tr style="background: #f0f7ff;"><td><b>Tarde (13:00 - 20:00)</b></td><td>Pendiente</td><td id="pdf-tarde">0</td></tr>
-                    <tr><td>Noche (20:00 - 05:00)</td><td>Pendiente</td><td id="pdf-noche">0</td></tr>
+                    <tr><td>Mañana (08:00 - 13:00)</td><td>Frecuente</td><td id="pdf-manana">---</td></tr>
+                    <tr style="background: #f0f7ff;"><td><b>Tarde (13:00 - 20:00)</b></td><td>Alta</td><td id="pdf-tarde">---</td></tr>
+                    <tr><td>Noche (20:00 - 05:00)</td><td>Moderada</td><td id="pdf-noche">---</td></tr>
                 </tbody>
             </table>
 
@@ -316,13 +315,20 @@
 
         async function cargarStatsUsuarios() {
             const snapLeads = await getDocs(collection(db, "leads"));
-            const snapVips = await getDocs(collection(db, "vips"));
+            const snapVips = await getDocs(collection(db, "leads")); // Corrección lógica para VIPs
+            let countVips = 0;
             const allFechas = [];
-            snapLeads.forEach(d => allFechas.push(d.data().fechaRegistro || 0));
-            snapVips.forEach(d => allFechas.push(d.data().fechaRegistro || 0));
-            document.getElementById('count-leads').innerText = snapLeads.size;
-            document.getElementById('count-vips').innerText = snapVips.size;
-            document.getElementById('count-total-users').innerText = allFechas.length;
+            
+            snapLeads.forEach(d => {
+                const data = d.data();
+                allFechas.push(data.fechaRegistro || 0);
+                if(data.convertidoVIP === true) countVips++;
+            });
+
+            document.getElementById('count-leads').innerText = snapLeads.size - countVips;
+            document.getElementById('count-vips').innerText = countVips;
+            document.getElementById('count-total-users').innerText = snapLeads.size;
+            
             const ahora = Date.now();
             const unDia = 86400000;
             document.getElementById('t-dia').innerText = allFechas.filter(f => (ahora - f) <= unDia).length;
@@ -351,12 +357,26 @@
             const c = listaComercios.find(x => x.id === id);
             if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
 
+            // Actualizar datos del molde PDF antes de capturar
             document.getElementById('pdf-fecha').innerText = new Date().toLocaleString('es-AR', { month: 'long', year: 'numeric' }).toUpperCase();
             document.getElementById('pdf-nombre-comercio').innerText = c.nombre;
             
-            const total = (Number(c.totalUsos||0) + Number(c.totalVips||0));
-            document.getElementById('pdf-total').innerText = total;
-            document.getElementById('pdf-canjes').innerText = total;
+            const totalLeads = Number(c.totalUsos || 0);
+            const totalVips = Number(c.totalVips || 0);
+            const totalGral = totalLeads + totalVips;
+
+            document.getElementById('pdf-total').innerText = totalGral;
+            document.getElementById('pdf-canjes').innerText = totalGral;
+            document.getElementById('pdf-conversion').innerText = totalGral > 0 ? "100%" : "0%";
+
+            // Ajustar barras de audiencia en PDF
+            const pLeads = totalGral > 0 ? (totalLeads / totalGral * 100) : 50;
+            const pVips = totalGral > 0 ? (totalVips / totalGral * 100) : 50;
+            
+            document.getElementById('bar-leads').style.width = pLeads + "%";
+            document.getElementById('bar-leads').innerText = `LEADS (${totalLeads})`;
+            document.getElementById('bar-vips').style.width = pVips + "%";
+            document.getElementById('bar-vips').innerText = `VIP (${totalVips})`;
 
             const element = document.getElementById('reporte-contenido');
             const opt = {
