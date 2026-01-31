@@ -26,6 +26,7 @@
             --gris-volver: #757575;
             --facebook: #1877f2;
             --instagram: #e4405f;
+            --rojo-marco: #e60000;
         }
 
         body { 
@@ -96,7 +97,6 @@
         .btn-validar { background-color: var(--rosa); }
         .btn-usar { background-color: #222; color: #555; border-color: #444; pointer-events: none; }
         
-        /* CAMBIO SOLICITADO: Animación para el botón activo */
         .btn-usar.activo { 
             background: #000; 
             color: var(--dorado-brillante); 
@@ -151,6 +151,20 @@
             border: 6px solid var(--dorado); border-radius: 30px; padding: 30px 15px;
             width: 90%; max-width: 380px; background: #111; box-sizing: border-box;
         }
+
+        /* ESTILO SOLICITADO PARA LOGO EN CONTEO */
+        .logo-exito-container {
+            display: inline-block;
+            border: 6px solid var(--rojo-marco);
+            padding: 0;
+            border-radius: 15px;
+            background: #000;
+            overflow: hidden;
+            width: 360px; /* Doble del original aproximado (180px -> 360px) */
+            margin-bottom: 20px;
+        }
+        .logo-exito-container img { width: 100%; height: auto; display: block; }
+
         .timer-circle { font-size: 70px; font-weight: 900; color: var(--dorado); }
         .aviso-cajero-vip { margin-top: 20px; padding: 15px; font-size: 19px; font-weight: 900; color: var(--dorado-brillante); animation: parpadeoVIP 1.2s infinite; }
         @keyframes parpadeoVIP { 0% { background: transparent; } 50% { background: rgba(212, 175, 55, 0.5); } 100% { background: transparent; } }
@@ -203,7 +217,9 @@
 
     <div id="pantalla-exito" class="success-page">
         <div class="success-card">
-            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="width:180px;">
+            <div class="logo-exito-container">
+                <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" alt="Habitat Car">
+            </div>
             <h1 style="color:var(--dorado);">👑 VIP ACTIVADO</h1>
             <p id="exito-comercio" style="font-weight:900; font-size:20px; color: #fff;"></p>
             <p id="exito-beneficio" style="font-size:24px; color:var(--dorado-brillante); font-weight:900;"></p>
@@ -343,7 +359,6 @@
             document.getElementById('pantalla-exito').style.display = 'flex';
             
             try {
-                // 1. Incrementar contadores en Firebase para Estadísticas (Múltiple incremento)
                 const comercioRef = doc(db, "comercios", id);
                 await updateDoc(comercioRef, {
                     totalVips: increment(1),
@@ -353,7 +368,6 @@
                     vipsAnio: increment(1)
                 });
 
-                // 2. Guardar Log Histórico
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
                 await addDoc(collection(db, "logs_vip"), { 
                     comercio: nom, 
@@ -363,10 +377,8 @@
                     tipo: "VIP"
                 });
 
-                // 3. Actualizar LocalStorage
                 localStorage.setItem('uso_vip_' + id, nUso);
 
-                // 4. Timer de éxito
                 let s = 30;
                 const t = setInterval(() => {
                     s--;
