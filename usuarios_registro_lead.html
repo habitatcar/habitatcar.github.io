@@ -141,7 +141,6 @@
 
     <div class="container">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
-        
         <h2 style="color: var(--azul-habitat); margin-bottom: 20px;">Activa tus Beneficios</h2>
         
         <div class="input-group">
@@ -162,7 +161,6 @@
         </div>
 
         <button class="btn-submit" id="btnRegistro" onclick="registrarLead()">Activar mis beneficios</button>
-        
         <p style="font-size: 0.8em; margin-top: 15px;">Al registrarte, aceptas nuestros <a href="usuarios_terminos.html">Términos y Condiciones</a>.</p>
     </div>
 
@@ -191,7 +189,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // FUNCIONES DE MODAL
         window.mostrarError = (titulo, msg) => {
             document.getElementById('error-titulo').innerText = titulo;
             document.getElementById('error-mensaje').innerText = msg;
@@ -210,9 +207,8 @@
             const mail = document.getElementById('email').value.trim();
             const notif = document.getElementById('notificacion');
 
-            // VALIDACIÓN DE CAMPOS VACÍOS
             if(!nom || !ape || !tel || !mail) { 
-                mostrarError("DATOS INCOMPLETOS", "Para activar tus beneficios, necesitamos que completes todos los campos del formulario.");
+                mostrarError("DATOS INCOMPLETOS", "Para activar tus beneficios, necesitamos que completes todos los campos.");
                 return; 
             }
 
@@ -223,14 +219,12 @@
                 const q = query(collection(db, "leads"), where("whatsapp", "==", tel));
                 const snap = await getDocs(q);
 
+                // BLOQUEO SI EL NÚMERO EXISTE
                 if (!snap.empty) {
-                    mostrarError("NÚMERO YA REGISTRADO", "Este WhatsApp ya tiene beneficios activos. Iniciando sesión...");
-                    
-                    // Pequeña pausa para que lea el mensaje antes de redirigir
-                    setTimeout(() => {
-                        window.location.replace("usuarios_cupones_leads.html");
-                    }, 2000);
-                    return;
+                    mostrarError("NÚMERO EXISTENTE", "Este número ya está registrado. Por favor, usa un número diferente o contacta a soporte.");
+                    btn.disabled = false;
+                    btn.innerText = "Activar mis beneficios";
+                    return; // AQUÍ SE DETIENE TODO
                 }
 
                 await addDoc(collection(db, "leads"), {
@@ -244,14 +238,13 @@
                 });
 
                 notif.style.display = 'block';
-
                 setTimeout(() => {
                     window.location.replace("usuarios_cupones_leads.html");
                 }, 2500);
 
             } catch (e) {
                 console.error(e);
-                mostrarError("ERROR", "Hubo un problema al conectar con el servidor. Intente nuevamente.");
+                mostrarError("ERROR", "Hubo un problema de conexión. Reintente.");
                 btn.disabled = false;
                 btn.innerText = "Activar mis beneficios";
             }
