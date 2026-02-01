@@ -22,7 +22,7 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding-bottom: 80px; /* Espacio para el pie fijo */
+            padding-bottom: 80px;
         }
 
         .container {
@@ -71,10 +71,14 @@
         }
         .custom-alert h2 { margin: 10px 0; font-size: 24px; font-weight: 900; color: var(--rojo-error); }
         .custom-alert p { font-size: 19px; color: #333; margin: 15px 0; line-height: 1.4; font-weight: 600; }
+        
+        /* Estilo para el link de soporte dentro del modal */
+        .soporte-link { color: var(--azul-habitat); text-decoration: underline; display: block; margin-top: 10px; }
+
         .btn-alert { 
             width: 100%; padding: 15px; border: none; border-radius: 10px; 
             font-weight: 900; font-size: 16px; cursor: pointer; text-transform: uppercase;
-            background: var(--azul-habitat); color: white;
+            background: var(--azul-habitat); color: white; margin-top: 10px;
         }
 
         .input-group { margin-bottom: 15px; text-align: left; }
@@ -134,7 +138,9 @@
     <div id="overlay-error" class="custom-overlay">
         <div class="custom-alert">
             <h2 id="error-titulo">⚠️ ATENCIÓN</h2>
-            <p id="error-mensaje">Por favor, complete todos los campos.</p>
+            <div id="error-contenido">
+                <p id="error-mensaje">Por favor, complete todos los campos.</p>
+            </div>
             <button class="btn-alert" onclick="cerrarError()">ENTENDIDO</button>
         </div>
     </div>
@@ -189,9 +195,13 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        window.mostrarError = (titulo, msg) => {
+        window.mostrarError = (titulo, msg, conSoporte = false) => {
             document.getElementById('error-titulo').innerText = titulo;
-            document.getElementById('error-mensaje').innerText = msg;
+            let contenido = `<p>${msg}</p>`;
+            if(conSoporte) {
+                contenido += `<a href="https://wa.me/543884618228" target="_blank" class="soporte-link">Contactar a Soporte (388-4618228)</a>`;
+            }
+            document.getElementById('error-contenido').innerHTML = contenido;
             document.getElementById('overlay-error').style.display = 'flex';
         };
 
@@ -219,12 +229,11 @@
                 const q = query(collection(db, "leads"), where("whatsapp", "==", tel));
                 const snap = await getDocs(q);
 
-                // BLOQUEO SI EL NÚMERO EXISTE
                 if (!snap.empty) {
-                    mostrarError("NÚMERO EXISTENTE", "Este número ya está registrado. Por favor, usa un número diferente o contacta a soporte.");
+                    mostrarError("NÚMERO EXISTENTE", "Este número ya está registrado en nuestra base.", true);
                     btn.disabled = false;
                     btn.innerText = "Activar mis beneficios";
-                    return; // AQUÍ SE DETIENE TODO
+                    return;
                 }
 
                 await addDoc(collection(db, "leads"), {
