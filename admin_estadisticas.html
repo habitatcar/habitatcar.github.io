@@ -313,13 +313,10 @@
         let listaComercios = [];
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
 
-        // --- FUNCIÓN DE CONTROL DE RESETEO ---
         async function controlarReseteoDiario(comercios) {
             const hoy = new Date().toLocaleDateString('es-AR');
             const ultimaFecha = localStorage.getItem('panel_ultima_fecha');
-
             if (ultimaFecha && ultimaFecha !== hoy) {
-                console.log("Día nuevo detectado. Limpiando contadores 'Hoy'...");
                 const batch = writeBatch(db);
                 comercios.forEach(com => {
                     const ref = doc(db, "comercios", com.id);
@@ -334,17 +331,14 @@
             const snapLeads = await getDocs(collection(db, "leads"));
             let countVips = 0;
             const allFechas = [];
-            
             snapLeads.forEach(d => {
                 const data = d.data();
                 allFechas.push(data.fechaRegistro || 0);
                 if(data.convertidoVIP === true) countVips++;
             });
-
             document.getElementById('count-leads').innerText = snapLeads.size - countVips;
             document.getElementById('count-vips').innerText = countVips;
             document.getElementById('count-total-users').innerText = snapLeads.size;
-            
             const ahora = Date.now();
             const unDia = 86400000;
             document.getElementById('t-dia').innerText = allFechas.filter(f => (ahora - f) <= unDia).length;
@@ -373,26 +367,20 @@
         window.enviarReporteIndividual = async (id) => {
             const c = listaComercios.find(x => x.id === id);
             if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
-
             document.getElementById('pdf-fecha').innerText = new Date().toLocaleString('es-AR', { month: 'long', year: 'numeric' }).toUpperCase();
             document.getElementById('pdf-nombre-comercio').innerText = c.nombre;
-            
             const totalLeads = Number(c.totalUsos || 0);
             const totalVips = Number(c.totalVips || 0);
             const totalGral = totalLeads + totalVips;
-
             document.getElementById('pdf-total').innerText = totalGral;
             document.getElementById('pdf-canjes').innerText = totalGral;
             document.getElementById('pdf-conversion').innerText = totalGral > 0 ? "100%" : "0%";
-
             const pLeads = totalGral > 0 ? (totalLeads / totalGral * 100) : 50;
             const pVips = totalGral > 0 ? (totalVips / totalGral * 100) : 50;
-            
             document.getElementById('bar-leads').style.width = pLeads + "%";
             document.getElementById('bar-leads').innerText = `LEADS (${totalLeads})`;
             document.getElementById('bar-vips').style.width = pVips + "%";
             document.getElementById('bar-vips').innerText = `VIP (${totalVips})`;
-
             const element = document.getElementById('reporte-contenido');
             const opt = {
                 margin: 0,
@@ -401,7 +389,6 @@
                 html2canvas: { scale: 2, useCORS: true, y: 0 },
                 jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
             };
-
             try {
                 const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
                 const reader = new FileReader();
@@ -430,6 +417,7 @@
             }
         };
 
+        // --- LÓGICA DE RENDERIZADO Y CONTEO CORREGIDA ---
         function renderTabla() {
             const body = document.getElementById('tabla-body');
             body.innerHTML = "";
@@ -437,31 +425,32 @@
 
             listaComercios.forEach(c => {
                 tCom++;
-                const usosLead = Number(c.totalUsos || 0);
-                const usosVip = Number(c.totalVips || 0);
-                const totalCom = usosLead + usosVip;
+                // Conversión forzada y segura de cada campo
+                const vLead = Number(c.totalUsos) || 0;
+                const vVip = Number(c.totalVips) || 0;
+                const vHoy = (Number(c.usosHoy) || 0) + (Number(c.vipsHoy) || 0);
+                const vSem = (Number(c.usosSemana) || 0) + (Number(c.vipsSemana) || 0);
+                const vMes = (Number(c.usosMes) || 0) + (Number(c.vipsMes) || 0);
+                const vAnio = (Number(c.usosAnio) || 0) + (Number(c.vipsAnio) || 0);
+                const vTotal = vLead + vVip;
 
-                const hoyCom = Number(c.usosHoy || 0) + Number(c.vipsHoy || 0);
-                const semCom = Number(c.usosSemana || 0) + Number(c.vipsSemana || 0);
-                const mesCom = Number(c.usosMes || 0) + Number(c.vipsMes || 0);
-                const anioCom = Number(c.usosAnio || 0) + Number(c.vipsAnio || 0);
-
-                tUsosTotal += totalCom; 
-                tHoyTotal += hoyCom;
-                tSemTotal += semCom;
-                tMesTotal += mesCom;
-                tAnioTotal += anioCom;
+                // Acumulación global
+                tUsosTotal += vTotal;
+                tHoyTotal += vHoy;
+                tSemTotal += vSem;
+                tMesTotal += vMes;
+                tAnioTotal += vAnio;
 
                 body.innerHTML += `
                     <tr class="com-row">
                         <td><b>${c.nombre || 'Sin Nombre'}</b></td>
-                        <td>${totalCom}</td>
-                        <td style="color:var(--oro)">${usosLead}</td>
-                        <td style="color:var(--oro)">${usosVip}</td>
-                        <td style="color:var(--verde)">${hoyCom}</td>
-                        <td>${semCom}</td>
-                        <td>${mesCom}</td>
-                        <td>${anioCom}</td>
+                        <td>${vTotal}</td>
+                        <td style="color:var(--oro)">${vLead}</td>
+                        <td style="color:var(--oro)">${vVip}</td>
+                        <td style="color:var(--verde)">${vHoy}</td>
+                        <td>${vSem}</td>
+                        <td>${vMes}</td>
+                        <td>${vAnio}</td>
                         <td style="font-size: 0.8em; color: #8892b0;">${c.lastSubmission || '---'}</td>
                         <td>
                             <select class="mail-freq" onchange="updateFreq('${c.id}', this.value)">
