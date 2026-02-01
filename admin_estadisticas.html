@@ -417,24 +417,28 @@
             }
         };
 
-        // --- LÓGICA DE RENDERIZADO Y CONTEO CORREGIDA ---
+        // --- LÓGICA DE RENDERIZADO Y CONTEO (MODIFICADA BAJO PROTOCOLO DE SEGURIDAD) ---
         function renderTabla() {
             const body = document.getElementById('tabla-body');
+            if (!body) return;
             body.innerHTML = "";
+            
             let tCom = 0, tUsosTotal = 0, tHoyTotal = 0, tSemTotal = 0, tMesTotal = 0, tAnioTotal = 0;
 
             listaComercios.forEach(c => {
                 tCom++;
-                // Conversión forzada y segura de cada campo
-                const vLead = Number(c.totalUsos) || 0;
-                const vVip = Number(c.totalVips) || 0;
-                const vHoy = (Number(c.usosHoy) || 0) + (Number(c.vipsHoy) || 0);
-                const vSem = (Number(c.usosSemana) || 0) + (Number(c.vipsSemana) || 0);
-                const vMes = (Number(c.usosMes) || 0) + (Number(c.vipsMes) || 0);
-                const vAnio = (Number(c.usosAnio) || 0) + (Number(c.vipsAnio) || 0);
+                
+                // Conversión forzada y segura a números para evitar errores de concatenación o NaN
+                const vLead = parseInt(c.totalUsos || 0, 10);
+                const vVip = parseInt(c.totalVips || 0, 10);
                 const vTotal = vLead + vVip;
 
-                // Acumulación global
+                const vHoy = parseInt(c.usosHoy || 0, 10) + parseInt(c.vipsHoy || 0, 10);
+                const vSem = parseInt(c.usosSemana || 0, 10) + parseInt(c.vipsSemana || 0, 10);
+                const vMes = parseInt(c.usosMes || 0, 10) + parseInt(c.vipsMes || 0, 10);
+                const vAnio = parseInt(c.usosAnio || 0, 10) + parseInt(c.vipsAnio || 0, 10);
+
+                // Acumulación global para la faja superior
                 tUsosTotal += vTotal;
                 tHoyTotal += vHoy;
                 tSemTotal += vSem;
@@ -464,6 +468,7 @@
                     </tr>`;
             });
 
+            // Actualización de los indicadores superiores
             document.getElementById('count-com').innerText = tCom;
             document.getElementById('count-usos').innerText = tUsosTotal;
             document.getElementById('count-c-hoy').innerText = tHoyTotal;
