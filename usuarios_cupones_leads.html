@@ -321,7 +321,7 @@
         localStorage.setItem('habitat_auth', 'true');
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -488,17 +488,20 @@
         window.finalizar = async (id, nom) => {
             try {
                 const ref = doc(db, "comercios", id);
-                // CORRECCIÓN: Aseguramos que incremente totalLeads para el conteo de Leads
+                
+                // CORRECCIÓN LEAD: Actualizamos el campo que lee admin_estadisticas.html
                 await updateDoc(ref, { 
-                    totalLeads: increment(1)
+                    totalLeads: increment(1),
+                    ultimaActualizacion: serverTimestamp()
                 });
 
-                // CORRECCIÓN: Agregamos el log con el tipo exacto para el historial de Leads
+                // CORRECCIÓN LOG: Registramos en la colección de historial de Leads
                 await addDoc(collection(db, "logs_leads"), { 
                     fecha: new Date().toLocaleString('es-AR'), 
                     tipo: "canje_lead", 
                     comercio: nom, 
-                    comercioId: id
+                    comercioId: id,
+                    timestamp: serverTimestamp()
                 });
 
                 document.getElementById('exito-comercio').innerText = nom;
