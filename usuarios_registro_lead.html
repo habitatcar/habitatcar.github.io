@@ -59,7 +59,7 @@
             font-size: 1.2rem;
         }
 
-        /* ESTILOS DEL MODAL DE ERROR (ESTILO LEAD) */
+        /* MODAL DE ADVERTENCIA / ERROR */
         .custom-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 3000;
@@ -134,7 +134,7 @@
     <div id="overlay-error" class="custom-overlay">
         <div class="custom-alert">
             <h2 id="error-titulo">⚠️ ATENCIÓN</h2>
-            <p id="error-mensaje">Este número ya está registrado en nuestra base.</p>
+            <p id="error-mensaje">Por favor, complete todos los campos.</p>
             <button class="btn-alert" onclick="cerrarError()">ENTENDIDO</button>
         </div>
     </div>
@@ -204,11 +204,15 @@
 
         window.registrarLead = async () => {
             const btn = document.getElementById('btnRegistro');
+            const nom = document.getElementById('nombres').value.trim();
+            const ape = document.getElementById('apellido').value.trim();
             const tel = document.getElementById('whatsapp').value.trim();
+            const mail = document.getElementById('email').value.trim();
             const notif = document.getElementById('notificacion');
 
-            if(!tel) { 
-                mostrarError("DATOS FALTANTES", "Por favor, ingrese su número de WhatsApp para continuar.");
+            // VALIDACIÓN DE CAMPOS VACÍOS
+            if(!nom || !ape || !tel || !mail) { 
+                mostrarError("DATOS INCOMPLETOS", "Para activar tus beneficios, necesitamos que completes todos los campos del formulario.");
                 return; 
             }
 
@@ -220,17 +224,20 @@
                 const snap = await getDocs(q);
 
                 if (!snap.empty) {
-                    mostrarError("NÚMERO YA REGISTRADO", "Este WhatsApp ya tiene beneficios activos. Inicie sesión directamente.");
-                    btn.disabled = false;
-                    btn.innerText = "Activar mis beneficios";
+                    mostrarError("NÚMERO YA REGISTRADO", "Este WhatsApp ya tiene beneficios activos. Iniciando sesión...");
+                    
+                    // Pequeña pausa para que lea el mensaje antes de redirigir
+                    setTimeout(() => {
+                        window.location.replace("usuarios_cupones_leads.html");
+                    }, 2000);
                     return;
                 }
 
                 await addDoc(collection(db, "leads"), {
-                    nombres: document.getElementById('nombres').value,
-                    apellido: document.getElementById('apellido').value,
+                    nombres: nom,
+                    apellido: ape,
                     whatsapp: tel,
-                    email: document.getElementById('email').value,
+                    email: mail,
                     fechaRegistro: Date.now(),
                     estado: "activo",
                     convertidoVIP: false
@@ -244,8 +251,9 @@
 
             } catch (e) {
                 console.error(e);
-                mostrarError("ERROR", "Hubo un problema al registrar sus datos. Intente nuevamente.");
+                mostrarError("ERROR", "Hubo un problema al conectar con el servidor. Intente nuevamente.");
                 btn.disabled = false;
+                btn.innerText = "Activar mis beneficios";
             }
         };
     </script>
