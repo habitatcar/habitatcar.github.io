@@ -297,7 +297,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, getDocs, addDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -313,9 +313,25 @@
         let listaComercios = [];
         const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
 
+        // --- FUNCIÓN DE CONTROL DE RESETEO (NUEVA) ---
+        async function controlarReseteoDiario(comercios) {
+            const hoy = new Date().toLocaleDateString('es-AR');
+            const ultimaFecha = localStorage.getItem('panel_ultima_fecha');
+
+            if (ultimaFecha && ultimaFecha !== hoy) {
+                console.log("Día nuevo detectado. Limpiando contadores 'Hoy'...");
+                const batch = writeBatch(db);
+                comercios.forEach(com => {
+                    const ref = doc(db, "comercios", com.id);
+                    batch.update(ref, { usosHoy: 0, vipsHoy: 0 });
+                });
+                await batch.commit();
+            }
+            localStorage.setItem('panel_ultima_fecha', hoy);
+        }
+
         async function cargarStatsUsuarios() {
             const snapLeads = await getDocs(collection(db, "leads"));
-            const snapVips = await getDocs(collection(db, "leads")); // Corrección lógica para VIPs
             let countVips = 0;
             const allFechas = [];
             
@@ -340,6 +356,7 @@
         onSnapshot(collection(db, "comercios"), (snap) => {
             listaComercios = [];
             snap.forEach(d => listaComercios.push({ id: d.id, ...d.data() }));
+            controlarReseteoDiario(listaComercios); // Activa el reseteo si es necesario
             renderTabla();
         });
 
@@ -357,7 +374,6 @@
             const c = listaComercios.find(x => x.id === id);
             if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
 
-            // Actualizar datos del molde PDF antes de capturar
             document.getElementById('pdf-fecha').innerText = new Date().toLocaleString('es-AR', { month: 'long', year: 'numeric' }).toUpperCase();
             document.getElementById('pdf-nombre-comercio').innerText = c.nombre;
             
@@ -369,7 +385,6 @@
             document.getElementById('pdf-canjes').innerText = totalGral;
             document.getElementById('pdf-conversion').innerText = totalGral > 0 ? "100%" : "0%";
 
-            // Ajustar barras de audiencia en PDF
             const pLeads = totalGral > 0 ? (totalLeads / totalGral * 100) : 50;
             const pVips = totalGral > 0 ? (totalVips / totalGral * 100) : 50;
             
