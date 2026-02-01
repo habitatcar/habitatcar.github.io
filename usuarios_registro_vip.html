@@ -12,6 +12,7 @@
             --oro-brillante: #f9d976;
             --azul-fondo: rgba(10, 25, 47, 0.98);
             --blanco: #ffffff;
+            --rojo-error: #ff4d4d;
         }
 
         body {
@@ -48,6 +49,26 @@
         }
 
         h2 { color: var(--oro-vip); margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px; }
+
+        /* MODAL VIP ADVERTENCIA */
+        .custom-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 3000;
+        }
+        .custom-alert {
+            background: #0a192f; width: 85%; max-width: 400px; border-radius: 20px;
+            border: 3px solid var(--oro-vip);
+            text-align: center; padding: 30px; box-sizing: border-box;
+            box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
+        }
+        .custom-alert h2 { margin: 0 0 15px 0; font-size: 22px; color: var(--rojo-error); }
+        .custom-alert p { font-size: 18px; color: #eee; margin-bottom: 20px; line-height: 1.4; }
+        .soporte-link { color: var(--oro-brillante); text-decoration: underline; display: block; margin-bottom: 20px; font-weight: bold; }
+        .btn-alert { 
+            width: 100%; padding: 15px; border: none; border-radius: 10px; 
+            font-weight: 900; font-size: 16px; cursor: pointer; text-transform: uppercase;
+            background: linear-gradient(45deg, var(--oro-vip), var(--oro-brillante)); color: #000;
+        }
 
         #msg-validacion {
             padding: 12px;
@@ -144,6 +165,16 @@
         <span style="font-size: 0.8em; font-weight: normal;">Activando cuenta...</span>
     </div>
 
+    <div id="overlay-error" class="custom-overlay">
+        <div class="custom-alert">
+            <h2 id="error-titulo">⚠️ ATENCIÓN VIP</h2>
+            <div id="error-contenido">
+                <p id="error-mensaje">Por favor, complete todos los campos requeridos.</p>
+            </div>
+            <button class="btn-alert" onclick="cerrarError()">REVISAR DATOS</button>
+        </div>
+    </div>
+
     <div class="container">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
         
@@ -208,6 +239,21 @@
         const tokenInterno = urlParams.get('t');
         let idDocumentoToken = "";
 
+        // MODAL FUNCTIONS
+        window.mostrarError = (titulo, msg, conSoporte = false) => {
+            document.getElementById('error-titulo').innerText = titulo;
+            let contenido = `<p>${msg}</p>`;
+            if(conSoporte) {
+                contenido += `<a href="https://wa.me/543884618228" target="_blank" class="soporte-link">Contactar a Soporte (388-4618228)</a>`;
+            }
+            document.getElementById('error-contenido').innerHTML = contenido;
+            document.getElementById('overlay-error').style.display = 'flex';
+        };
+
+        window.cerrarError = () => {
+            document.getElementById('overlay-error').style.display = 'none';
+        };
+
         async function validarTokenInterno() {
             const msg = document.getElementById('msg-validacion');
             const btn = document.getElementById('btnRegistro');
@@ -239,12 +285,14 @@
 
         window.registrarVIP = async () => {
             const btn = document.getElementById('btnRegistro');
+            const nom = document.getElementById('nombres').value.trim();
+            const ape = document.getElementById('apellido').value.trim();
             const tel = document.getElementById('whatsapp').value.trim();
             const mail = document.getElementById('email').value.trim();
-            const nom = document.getElementById('nombres').value.trim();
 
-            if(!tel || !mail || !nom) {
-                alert("Por favor, complete todos los campos.");
+            // BLOQUEO SI FALTAN CAMPOS
+            if(!nom || !ape || !tel || !mail) {
+                mostrarError("DATOS INCOMPLETOS", "Para activar su membresía VIP Premium, debe completar todos los campos del formulario.");
                 return;
             }
 
@@ -252,9 +300,20 @@
             btn.innerText = "Procesando...";
 
             try {
+                // VERIFICAR SI YA EXISTE COMO VIP
+                const qVip = query(collection(db, "vips"), where("whatsapp", "==", tel));
+                const snapVip = await getDocs(qVip);
+
+                if (!snapVip.empty) {
+                    mostrarError("MIEMBRO EXISTENTE", "Este número ya cuenta con una membresía VIP activa.", true);
+                    btn.disabled = false;
+                    btn.innerText = "Activar Membresía VIP";
+                    return;
+                }
+
                 await addDoc(collection(db, "vips"), {
                     nombres: nom,
-                    apellido: document.getElementById('apellido').value,
+                    apellido: ape,
                     whatsapp: tel,
                     email: mail,
                     tokenUsado: tokenInterno,
@@ -277,7 +336,7 @@
                 }, 2500);
 
             } catch (e) {
-                alert("Error al registrar.");
+                mostrarError("ERROR DE REGISTRO", "No se pudo procesar la membresía en este momento. Intente más tarde.");
                 console.error(e);
                 btn.disabled = false;
                 btn.innerText = "Activar Membresía VIP";
