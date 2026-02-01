@@ -410,7 +410,6 @@
                     const base64data = reader.result.split(',')[1];
                     fetch(WEB_APP_URL, {
                         method: "POST",
-                        mode: "no-cors",
                         body: JSON.stringify({ email: c.emailDueno, comercio: c.nombre, pdfB64: base64data })
                     });
                     const ahora = new Date().toLocaleString();
@@ -434,27 +433,37 @@
         function renderTabla() {
             const body = document.getElementById('tabla-body');
             body.innerHTML = "";
-            let tCom = 0, tUsos = 0, tHoy = 0, tSem = 0, tMes = 0, tAnio = 0;
+            let tCom = 0, tUsosTotal = 0, tHoyTotal = 0, tSemTotal = 0, tMesTotal = 0, tAnioTotal = 0;
 
             listaComercios.forEach(c => {
                 tCom++;
+                // Conversión forzada a Número para evitar errores de registro/NaN
+                const usosLead = Number(c.totalUsos || 0);
+                const usosVip = Number(c.totalVips || 0);
+                const totalCom = usosLead + usosVip;
+
                 const hoyCom = Number(c.usosHoy || 0) + Number(c.vipsHoy || 0);
-                const totalCom = Number(c.totalUsos || 0) + Number(c.totalVips || 0);
-                tUsos += totalCom; tHoy += hoyCom;
-                tSem += (Number(c.usosSemana||0) + Number(c.vipsSemana||0));
-                tMes += (Number(c.usosMes||0) + Number(c.vipsMes||0));
-                tAnio += (Number(c.usosAnio||0) + Number(c.vipsAnio||0));
+                const semCom = Number(c.usosSemana || 0) + Number(c.vipsSemana || 0);
+                const mesCom = Number(c.usosMes || 0) + Number(c.vipsMes || 0);
+                const anioCom = Number(c.usosAnio || 0) + Number(c.vipsAnio || 0);
+
+                // Acumuladores de la Faja Superior
+                tUsosTotal += totalCom; 
+                tHoyTotal += hoyCom;
+                tSemTotal += semCom;
+                tMesTotal += mesCom;
+                tAnioTotal += anioCom;
 
                 body.innerHTML += `
                     <tr class="com-row">
                         <td><b>${c.nombre || 'Sin Nombre'}</b></td>
                         <td>${totalCom}</td>
-                        <td style="color:var(--oro)">${c.totalUsos || 0}</td>
-                        <td style="color:var(--oro)">${c.totalVips || 0}</td>
+                        <td style="color:var(--oro)">${usosLead}</td>
+                        <td style="color:var(--oro)">${usosVip}</td>
                         <td style="color:var(--verde)">${hoyCom}</td>
-                        <td>${Number(c.usosSemana||0) + Number(c.vipsSemana||0)}</td>
-                        <td>${Number(c.usosMes||0) + Number(c.vipsMes||0)}</td>
-                        <td>${Number(c.usosAnio||0) + Number(c.vipsAnio||0)}</td>
+                        <td>${semCom}</td>
+                        <td>${mesCom}</td>
+                        <td>${anioCom}</td>
                         <td style="font-size: 0.8em; color: #8892b0;">${c.lastSubmission || '---'}</td>
                         <td>
                             <select class="mail-freq" onchange="updateFreq('${c.id}', this.value)">
@@ -467,12 +476,14 @@
                         </td>
                     </tr>`;
             });
+
+            // Actualización de la Faja de Estadísticas
             document.getElementById('count-com').innerText = tCom;
-            document.getElementById('count-usos').innerText = tUsos;
-            document.getElementById('count-c-hoy').innerText = tHoy;
-            document.getElementById('count-c-sem').innerText = tSem;
-            document.getElementById('count-c-mes').innerText = tMes;
-            document.getElementById('count-c-anio').innerText = tAnio;
+            document.getElementById('count-usos').innerText = tUsosTotal;
+            document.getElementById('count-c-hoy').innerText = tHoyTotal;
+            document.getElementById('count-c-sem').innerText = tSemTotal;
+            document.getElementById('count-c-mes').innerText = tMesTotal;
+            document.getElementById('count-c-anio').innerText = tAnioTotal;
         }
 
         window.ordenarYRender = (criterio) => {
