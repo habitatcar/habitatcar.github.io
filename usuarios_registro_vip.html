@@ -239,7 +239,6 @@
         const tokenInterno = urlParams.get('t');
         let idDocumentoToken = "";
 
-        // MODAL FUNCTIONS
         window.mostrarError = (titulo, msg, conSoporte = false) => {
             document.getElementById('error-titulo').innerText = titulo;
             let contenido = `<p>${msg}</p>`;
@@ -290,9 +289,8 @@
             const tel = document.getElementById('whatsapp').value.trim();
             const mail = document.getElementById('email').value.trim();
 
-            // BLOQUEO SI FALTAN CAMPOS
             if(!nom || !ape || !tel || !mail) {
-                mostrarError("DATOS INCOMPLETOS", "Para activar su membresía VIP Premium, debe completar todos los campos del formulario.");
+                mostrarError("DATOS INCOMPLETOS", "Para activar su membresía VIP, complete todos los campos.");
                 return;
             }
 
@@ -300,17 +298,18 @@
             btn.innerText = "Procesando...";
 
             try {
-                // VERIFICAR SI YA EXISTE COMO VIP
+                // VALIDACIÓN CRUCIAL: Solo bloquea si ya existe en la colección 'vips'
                 const qVip = query(collection(db, "vips"), where("whatsapp", "==", tel));
                 const snapVip = await getDocs(qVip);
 
                 if (!snapVip.empty) {
-                    mostrarError("MIEMBRO EXISTENTE", "Este número ya cuenta con una membresía VIP activa.", true);
+                    mostrarError("MIEMBRO YA ES VIP", "Este número ya cuenta con una membresía VIP activa. No es necesario registrarse nuevamente.", true);
                     btn.disabled = false;
                     btn.innerText = "Activar Membresía VIP";
                     return;
                 }
 
+                // Si llegó aquí es porque o es nuevo o es un Lead ascendiendo
                 await addDoc(collection(db, "vips"), {
                     nombres: nom,
                     apellido: ape,
@@ -336,7 +335,7 @@
                 }, 2500);
 
             } catch (e) {
-                mostrarError("ERROR DE REGISTRO", "No se pudo procesar la membresía en este momento. Intente más tarde.");
+                mostrarError("ERROR", "Hubo un problema al procesar su solicitud.");
                 console.error(e);
                 btn.disabled = false;
                 btn.innerText = "Activar Membresía VIP";
