@@ -114,7 +114,6 @@
             100% { opacity: 1; transform: scale(1); }
         }
 
-        /* --- ANIMACIÓN SUAVIZADA PARA EL VENDEDOR --- */
         @keyframes parpadeoSuave {
             0% { background-color: white; color: var(--rojo-cupon); }
             50% { background-color: #fff0f0; color: var(--rojo-cupon); }
@@ -162,6 +161,28 @@
             pointer-events: auto; 
             animation: parpadeoVerde 1.5s infinite; 
         }
+
+        /* --- MODALES PERSONALIZADOS (MARCO AZUL) --- */
+        .custom-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 3000;
+        }
+        .custom-alert {
+            background: white; width: 85%; max-width: 350px; border-radius: 20px;
+            border: 5px solid var(--azul-habitat); /* MARCO AZUL SOLICITADO */
+            text-align: center; padding: 25px; box-sizing: border-box;
+        }
+        .custom-alert img.check-icon { width: 60px; margin-bottom: 15px; }
+        .custom-alert h2 { margin: 10px 0; font-size: 22px; font-weight: 900; color: black; }
+        .custom-alert p { font-size: 17px; color: #333; margin: 15px 0; line-height: 1.4; }
+        
+        .btn-group-alert { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        .btn-alert { 
+            flex: 1; padding: 12px; border: none; border-radius: 10px; 
+            font-weight: bold; font-size: 16px; cursor: pointer; text-transform: uppercase;
+        }
+        .btn-si { background: #e63946; color: white; }
+        .btn-no { background: #8e8e93; color: white; }
 
         .modal {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -239,6 +260,27 @@
     </div>
 
     <div id="contenedor-cupones" class="grid"></div>
+
+    <div id="overlay-validado" class="custom-overlay">
+        <div class="custom-alert">
+            <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" class="check-icon">
+            <h2>QR VALIDADO</h2>
+            <p>Ahora pulse el botón "USAR BENEFICIO"</p>
+            <button class="btn-alert btn-si" style="background:var(--azul-habitat)" onclick="cerrarValidado()">ENTENDIDO</button>
+        </div>
+    </div>
+
+    <div id="overlay-atencion" class="custom-overlay">
+        <div class="custom-alert">
+            <h2 style="color:#e63946">⚠️ ATENCIÓN</h2>
+            <p>¿Avisaste al cajero que usarás el cupón <b>VIP</b>?</p>
+            <p>Si no avisaste, perderás el beneficio.</p>
+            <div class="btn-group-alert">
+                <button id="btn-confirmar-final" class="btn-alert btn-si">SÍ</button>
+                <button class="btn-alert btn-no" onclick="cerrarAtencion()">NO</button>
+            </div>
+        </div>
+    </div>
 
     <div id="popup-redes" class="popup-redes">
         <h3 id="pop-nombre" style="margin:0; color:var(--negro)"></h3>
@@ -380,7 +422,7 @@
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
                             <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
-                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="finalizar('${id}', '${nombre}')">Usar el Beneficio</button>
+                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">Usar el Beneficio</button>
                         </div>
                     </div>`;
             });
@@ -390,6 +432,25 @@
             }
             contenedor.innerHTML = html;
         });
+
+        // --- FUNCIONES DE LOS NUEVOS CARTELES ---
+        window.cerrarValidado = () => {
+            document.getElementById('overlay-validado').style.display = 'none';
+        };
+
+        window.confirmarAtencion = (id, nom) => {
+            const overlay = document.getElementById('overlay-atencion');
+            overlay.style.display = 'flex';
+            const btnSi = document.getElementById('btn-confirmar-final');
+            btnSi.onclick = () => {
+                overlay.style.display = 'none';
+                finalizar(id, nom);
+            };
+        };
+
+        window.cerrarAtencion = () => {
+            document.getElementById('overlay-atencion').style.display = 'none';
+        };
 
         window.abrirPopup = (nom, ig, web) => {
             document.getElementById('pop-nombre').innerText = nom;
@@ -408,10 +469,13 @@
             scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
                 if (text.trim() === tokenEsperado.trim()) {
                     cerrarScanner();
+                    // MOSTRAR CARTEL 1 (VALIDADO)
+                    document.getElementById('overlay-validado').style.display = 'flex';
+                    
                     const btn = document.getElementById(`btn-usar-${idEnProceso}`);
                     if(btn) { 
                         btn.classList.add('activo'); 
-                        btn.innerText = "¡CONFIRMAR CANJE!"; 
+                        btn.innerText = "USAR BENEFICIO"; 
                     }
                 } else { alert("QR Incorrecto"); }
             }).catch(e => console.error(e));
