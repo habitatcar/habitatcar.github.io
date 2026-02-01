@@ -369,18 +369,23 @@
             if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
             document.getElementById('pdf-fecha').innerText = new Date().toLocaleString('es-AR', { month: 'long', year: 'numeric' }).toUpperCase();
             document.getElementById('pdf-nombre-comercio').innerText = c.nombre;
-            const totalLeads = Number(c.totalUsos || 0);
-            const totalVips = Number(c.totalVips || 0);
+            
+            const totalLeads = parseInt(c.totalUsos || 0, 10);
+            const totalVips = parseInt(c.totalVips || 0, 10);
             const totalGral = totalLeads + totalVips;
+            
             document.getElementById('pdf-total').innerText = totalGral;
             document.getElementById('pdf-canjes').innerText = totalGral;
             document.getElementById('pdf-conversion').innerText = totalGral > 0 ? "100%" : "0%";
+            
             const pLeads = totalGral > 0 ? (totalLeads / totalGral * 100) : 50;
             const pVips = totalGral > 0 ? (totalVips / totalGral * 100) : 50;
+            
             document.getElementById('bar-leads').style.width = pLeads + "%";
             document.getElementById('bar-leads').innerText = `LEADS (${totalLeads})`;
             document.getElementById('bar-vips').style.width = pVips + "%";
             document.getElementById('bar-vips').innerText = `VIP (${totalVips})`;
+            
             const element = document.getElementById('reporte-contenido');
             const opt = {
                 margin: 0,
@@ -417,7 +422,7 @@
             }
         };
 
-        // --- LÓGICA DE RENDERIZADO Y CONTEO (MODIFICADA BAJO PROTOCOLO DE SEGURIDAD) ---
+        // --- LÓGICA DE RENDERIZADO Y CONTEO (RESTAURADA SEGÚN CÓDIGO VIEJO) ---
         function renderTabla() {
             const body = document.getElementById('tabla-body');
             if (!body) return;
@@ -428,18 +433,19 @@
             listaComercios.forEach(c => {
                 tCom++;
                 
-                // Conversión forzada y segura a números para evitar errores de concatenación o NaN
+                // Conteo directo de campos como en el código que sí funcionaba
+                // Se suman Leads + Vips para el total de la columna
                 const vLead = parseInt(c.totalUsos || 0, 10);
                 const vVip = parseInt(c.totalVips || 0, 10);
-                const vTotal = vLead + vVip;
+                const vTotalComercio = vLead + vVip;
 
                 const vHoy = parseInt(c.usosHoy || 0, 10) + parseInt(c.vipsHoy || 0, 10);
                 const vSem = parseInt(c.usosSemana || 0, 10) + parseInt(c.vipsSemana || 0, 10);
                 const vMes = parseInt(c.usosMes || 0, 10) + parseInt(c.vipsMes || 0, 10);
                 const vAnio = parseInt(c.usosAnio || 0, 10) + parseInt(c.vipsAnio || 0, 10);
 
-                // Acumulación global para la faja superior
-                tUsosTotal += vTotal;
+                // Acumulación para la faja superior
+                tUsosTotal += vTotalComercio;
                 tHoyTotal += vHoy;
                 tSemTotal += vSem;
                 tMesTotal += vMes;
@@ -448,7 +454,7 @@
                 body.innerHTML += `
                     <tr class="com-row">
                         <td><b>${c.nombre || 'Sin Nombre'}</b></td>
-                        <td>${vTotal}</td>
+                        <td>${vTotalComercio}</td>
                         <td style="color:var(--oro)">${vLead}</td>
                         <td style="color:var(--oro)">${vVip}</td>
                         <td style="color:var(--verde)">${vHoy}</td>
@@ -468,7 +474,7 @@
                     </tr>`;
             });
 
-            // Actualización de los indicadores superiores
+            // Actualización de los indicadores de la faja (ID's exactos del código nuevo)
             document.getElementById('count-com').innerText = tCom;
             document.getElementById('count-usos').innerText = tUsosTotal;
             document.getElementById('count-c-hoy').innerText = tHoyTotal;
