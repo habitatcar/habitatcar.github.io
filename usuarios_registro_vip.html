@@ -19,7 +19,7 @@
             font-family: 'Segoe UI', sans-serif;
             background-color: #1a1a1a;
             background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)),
-                              url("https://www.transparenttextures.com/patterns/gold-tips.png");
+                            url("https://www.transparenttextures.com/patterns/gold-tips.png");
             background-size: cover;
             background-attachment: fixed;
             margin: 0;
@@ -239,6 +239,7 @@
         const tokenInterno = urlParams.get('t');
         let idDocumentoToken = "";
 
+        // MODAL FUNCTIONS
         window.mostrarError = (titulo, msg, conSoporte = false) => {
             document.getElementById('error-titulo').innerText = titulo;
             let contenido = `<p>${msg}</p>`;
@@ -290,7 +291,7 @@
             const mail = document.getElementById('email').value.trim();
 
             if(!nom || !ape || !tel || !mail) {
-                mostrarError("DATOS INCOMPLETOS", "Para activar su membresía VIP, complete todos los campos.");
+                mostrarError("DATOS INCOMPLETOS", "Para activar su membresía VIP Premium, debe completar todos los campos del formulario.");
                 return;
             }
 
@@ -298,18 +299,19 @@
             btn.innerText = "Procesando...";
 
             try {
-                // VALIDACIÓN CRUCIAL: Solo bloquea si ya existe en la colección 'vips'
+                // RESTRICCIÓN ESTRICTA: Verificar si el número ya existe en la colección VIP
+                // Esto no afecta a los Leads, solo impide duplicados en la tabla VIP final.
                 const qVip = query(collection(db, "vips"), where("whatsapp", "==", tel));
                 const snapVip = await getDocs(qVip);
 
                 if (!snapVip.empty) {
-                    mostrarError("MIEMBRO YA ES VIP", "Este número ya cuenta con una membresía VIP activa. No es necesario registrarse nuevamente.", true);
+                    mostrarError("MIEMBRO EXISTENTE", "Este número ya cuenta con una membresía VIP activa.", true);
                     btn.disabled = false;
                     btn.innerText = "Activar Membresía VIP";
                     return;
                 }
 
-                // Si llegó aquí es porque o es nuevo o es un Lead ascendiendo
+                // Si no existe en VIP, procedemos con el registro
                 await addDoc(collection(db, "vips"), {
                     nombres: nom,
                     apellido: ape,
@@ -335,7 +337,7 @@
                 }, 2500);
 
             } catch (e) {
-                mostrarError("ERROR", "Hubo un problema al procesar su solicitud.");
+                mostrarError("ERROR DE REGISTRO", "No se pudo procesar la membresía en este momento. Intente más tarde.");
                 console.error(e);
                 btn.disabled = false;
                 btn.innerText = "Activar Membresía VIP";
