@@ -5,8 +5,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Beneficios Leads | Hábitat-Car</title>
 
-    <link rel="icon" type="image/png" href="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true">
-    <link rel="apple-touch-icon" href="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true">
+    <link rel="icon" type="image/png" href="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo_redondo.png?raw=true">
+    <link rel="apple-touch-icon" href="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo_redondo.png?raw=true">
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-title" content="Hábitat-Car">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
@@ -31,6 +31,8 @@
             background-color: var(--azul-habitat); 
             font-family: 'Segoe UI', Arial, sans-serif; 
             padding-bottom: 100px; 
+            width: 100vw;
+            overflow-x: hidden;
         }
 
         .header-white { 
@@ -164,7 +166,7 @@
 
         .custom-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 3000;
+            background: rgba(0,0,0,0.8); display: none; align-items: center; justify-content: center; z-index: 3000;
         }
         .custom-alert {
             background: white; width: 85%; max-width: 350px; border-radius: 20px;
@@ -316,10 +318,6 @@
     </footer>
 
     <script type="module">
-        history.pushState(null, null, location.href);
-        window.onpopstate = function () { history.go(1); };
-        localStorage.setItem('habitat_auth', 'true');
-
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -333,24 +331,6 @@
         };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
-        let deferredPrompt;
-        const btnInstalar = document.getElementById('btn-instalar-pwa');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            btnInstalar.style.display = 'block';
-        });
-
-        btnInstalar.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') btnInstalar.style.display = 'none';
-                deferredPrompt = null;
-            }
-        });
 
         let scanner = null;
         let idEnProceso = "";
@@ -419,8 +399,8 @@
                         ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
                         <div class="btn-stack">
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
-                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
+                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + nombre)}')">Cómo llegar</button>
+                            <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
                             <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">Usar el Beneficio</button>
                         </div>
                     </div>`;
@@ -468,12 +448,12 @@
                 if (text.trim() === tokenEsperado.trim()) {
                     cerrarScanner();
                     document.getElementById('overlay-validado').style.display = 'flex';
-                    
                     const btn = document.getElementById(`btn-usar-${idEnProceso}`);
                     if(btn) { 
                         btn.classList.add('activo'); 
                         btn.innerText = "USAR BENEFICIO"; 
                     }
+                    document.getElementById(`btn-val-${idEnProceso}`).style.display = 'none';
                 } else { alert("QR Incorrecto"); }
             }).catch(e => console.error(e));
         };
@@ -489,19 +469,22 @@
             try {
                 const ref = doc(db, "comercios", id);
                 
-                // CORRECCIÓN LEAD: Actualizamos el campo que lee admin_estadisticas.html
+                // IGUALAMOS A LA LÓGICA VIP PARA QUE SUME EN TODOS LOS PERIODOS
                 await updateDoc(ref, { 
                     totalLeads: increment(1),
+                    leadsHoy: increment(1),
+                    leadsSemana: increment(1),
+                    leadsMes: increment(1),
+                    leadsAnio: increment(1),
                     ultimaActualizacion: serverTimestamp()
                 });
 
-                // CORRECCIÓN LOG: Registramos en la colección de historial de Leads
+                // GUARDAMOS EL LOG EN LA COLECCIÓN QUE USA EL HISTORIAL
                 await addDoc(collection(db, "logs_leads"), { 
-                    fecha: new Date().toLocaleString('es-AR'), 
-                    tipo: "canje_lead", 
                     comercio: nom, 
                     comercioId: id,
-                    timestamp: serverTimestamp()
+                    fecha: serverTimestamp(), 
+                    tipo: "LEAD"
                 });
 
                 document.getElementById('exito-comercio').innerText = nom;
