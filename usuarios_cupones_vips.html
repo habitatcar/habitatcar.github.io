@@ -354,16 +354,17 @@
             const alerta = document.getElementById('alerta-cajero');
             if(alerta) alerta.remove();
 
-            // 2. Mostrar Pantalla de Éxito
+            // 2. Mostrar Pantalla de Éxito inmediatamente para el usuario
             document.getElementById('exito-comercio').innerText = nom;
             document.getElementById('exito-beneficio').innerText = ben;
             document.getElementById('pantalla-exito').style.display = 'flex';
             
             try {
+                // Referencia al comercio
                 const comercioRef = doc(db, "comercios", id);
                 
                 // 3. ACTUALIZACIÓN DE ESTADÍSTICAS (Sincronizado con admin_estadisticas.html)
-                // Usamos increment(1) para que Firebase sume automáticamente
+                // Usamos increment(1) para sumar en los campos que lee tu tabla
                 await updateDoc(comercioRef, {
                     totalVips: increment(1),
                     vipsHoy: increment(1),
@@ -372,7 +373,7 @@
                     vipsAnio: increment(1)
                 });
 
-                // 4. REGISTRO EN LOGS (Para auditoría)
+                // 4. REGISTRO EN LOGS (Para que aparezca en la página de LOGS)
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
                 await addDoc(collection(db, "logs"), { 
                     comercio: nom, 
@@ -384,7 +385,7 @@
                     modulo: "VIP_CARD"
                 });
 
-                // 5. Guardar progreso local para la "nube" dorada
+                // 5. Guardar progreso local para el contador dorado (nube)
                 localStorage.setItem('uso_vip_' + id, nUso);
 
                 // 6. Cuenta regresiva para cerrar
@@ -400,10 +401,11 @@
                 }, 1000);
 
             } catch(e) { 
-                console.error("Error al guardar estadísticas:", e);
-                // No bloqueamos al usuario, la pantalla de éxito sigue visible
+                console.error("Error crítico en Firebase:", e);
+                // Si falla la red, al menos el usuario ya vio su pantalla de éxito
             }
         };
+        
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
             document.querySelectorAll('.card-vip').forEach(c => {
@@ -413,5 +415,6 @@
     </script>
 </body>
 </html>
+
 
 
