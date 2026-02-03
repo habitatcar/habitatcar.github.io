@@ -232,7 +232,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -242,217 +242,40 @@
             messagingSenderId: "311691258694",
             appId: "1:311691258694:web:17a09051dcea7707af9347"
         };
-
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
         let scanner = null;
+        let listaComercios = [];
 
-        // --- 1. FUNCIONES AUXILIARES SEGURAS (Para evitar errores de comillas) ---
-
-        window.abrirMapa = (direccion, ciudad) => {
-            // Limpiamos los datos para evitar errores en la URL
-            const query = encodeURIComponent(`${direccion || ''} ${ciudad || ''}`);
-            window.open(`https://www.google.com/maps/search/?api=1&query=${query}`, '_blank');
-        };
-
-        window.verRedes = (nombre, face, insta, web) => {
-            const overlay = document.createElement('div');
-            overlay.className = 'redes-overlay';
-            overlay.onclick = () => overlay.remove();
-            
-            let btns = "";
-            // Verificamos que los links no sean 'undefined' o vacíos
-            if(face && face.length > 5) btns += `<a href="${face}" target="_blank" class="btn-red" style="background:var(--facebook)">Facebook</a>`;
-            if(insta && insta.length > 5) btns += `<a href="${insta}" target="_blank" class="btn-red" style="background:var(--instagram)">Instagram</a>`;
-            if(web && web.length > 5) btns += `<a href="${web}" target="_blank" class="btn-red" style="background:var(--azul-lindo)">Página Web</a>`;
-            
-            overlay.innerHTML = `<div class="redes-box" onclick="event.stopPropagation()">
-                <h3 style="color:var(--dorado); margin-top:0;">${nombre}</h3>
-                ${btns || '<p>Este comercio no tiene redes registradas.</p>'}
-                <button onclick="this.closest('.redes-overlay').remove()" style="margin-top:15px; background:none; border:none; color:gray; font-weight:bold;">CERRAR</button>
-            </div>`;
-            document.body.appendChild(overlay);
-        };
-
-        // --- 2. LÓGICA DEL QR ---
-
-        window.abrirQR = (id, token) => {
-            document.getElementById('modal-qr').style.display = 'flex';
-            scanner = new Html5Qrcode("reader");
-            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
-                // Comparamos los tokens limpiando espacios
-                if (text && token && text.trim() === token.trim()) {
-                    window.cerrarScanner();
-                    
-                    // Activamos visualmente el botón
-                    const btnUsar = document.getElementById(`btn-usar-${id}`);
-                    const btnVal = document.getElementById(`btn-val-${id}`);
-                    if(btnUsar) btnUsar.classList.add('activo');
-                    if(btnVal) btnVal.style.display = 'none';
-                    
-                    // Mensaje de éxito del QR
-                    const overlay = document.createElement('div');
-                    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:flex;justify-content:center;align-items:center;z-index:9000;";
-                    overlay.innerHTML = `
-                        <div style="background:white;padding:30px;border-radius:20px;text-align:center;max-width:80%; border:5px solid var(--dorado);">
-                            <div style="font-size:60px; margin-bottom:15px;">✅</div>
-                            <b style="color:black;font-size:24px;display:block;margin-bottom:10px;">QR VALIDADO</b>
-                            <p style="color:#333;font-size:18px;margin:0;font-weight:600;">Ahora pulsa el botón "USAR BENEFICIO"</p>
-                        </div>`;
-                    document.body.appendChild(overlay);
-                    setTimeout(() => overlay.remove(), 3000);
-                }
-            }).catch(e => console.error("Error cámara:", e));
-        };
-
-        window.cerrarScanner = () => {
-            document.getElementById('modal-qr').style.display = 'none';
-            if(scanner) {
-                scanner.stop().then(() => scanner.clear()).catch(e => console.log(e));
-                scanner = null;
-            }
-        };
-
-        // --- 3. LÓGICA DE PAGO Y BASE DE DATOS (La parte crítica) ---
-
-        window.preguntarCajeroVIP = (id, nombre, beneficio) => {
-            const btn = document.getElementById(`btn-usar-${id}`);
-            // Solo funciona si el botón tiene la clase 'activo' (después del QR)
-            if (!btn || !btn.classList.contains('activo')) return;
-
-            const alerta = document.createElement('div');
-            alerta.className = 'advertencia-overlay';
-            alerta.id = 'alerta-cajero';
-            
-            // Usamos comillas invertidas para evitar errores de string
-            alerta.innerHTML = `
-                <div class="advertencia-contenido">
-                    <h3 style="color:red;">⚠️ ATENCIÓN</h3>
-                    <p>¿Avisaste al cajero que usarás el cupón <b>VIP</b>?</p>
-                    <div style="display:flex; gap:10px; margin-top:20px;">
-                        <button class="btn-si" id="btn-confirmar-canje">SÍ, CANJEAR</button>
-                        <button class="btn-no" onclick="document.getElementById('alerta-cajero').remove()">NO</button>
-                    </div>
-                </div>`;
-            document.body.appendChild(alerta);
-
-            // Asignamos el evento click manualmente para evitar problemas de scope
-            document.getElementById('btn-confirmar-canje').onclick = () => {
-                window.finalizarVIP(id, nombre, beneficio);
-            };
-        };
-
-        window.finalizarVIP = async (id, nom, ben) => {
-            const alerta = document.getElementById('alerta-cajero');
-            if(alerta) alerta.remove();
-
-            // 1. Feedback visual inmediato
-            document.getElementById('exito-comercio').innerText = nom;
-            document.getElementById('exito-beneficio').innerText = ben;
-            document.getElementById('pantalla-exito').style.display = 'flex';
-            
-            try {
-                const comercioRef = doc(db, "comercios", id);
-                
-                // 2. ACTUALIZACIÓN BLINDADA (setDoc con merge)
-                // Esto crea los campos si no existen, evitando el error de "document not found"
-                await setDoc(comercioRef, {
-                    totalVips: increment(1),
-                    vipsHoy: increment(1),
-                    vipsSemana: increment(1),
-                    vipsMes: increment(1),
-                    vipsAnio: increment(1)
-                }, { merge: true });
-
-                // 3. REGISTRO EN LOGS (Usamos 'logs' genérico para que lo vea tu panel)
-                const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
-                
-                await addDoc(collection(db, "logs"), { 
-                    comercio: nom, 
-                    comercioId: id,
-                    fecha: Date.now(), 
-                    fechaString: new Date().toLocaleString(),
-                    uso_nro: nUso,
-                    tipo: "VIP",
-                    beneficio: ben,
-                    modulo: "VIP_CARD"
-                });
-
-                localStorage.setItem('uso_vip_' + id, nUso);
-
-                // 4. Cuenta regresiva
-                let s = 30;
-                const t = setInterval(() => {
-                    s--;
-                    const el = document.getElementById('countdown');
-                    if(el) el.innerText = s;
-                    if(s <= 0) { 
-                        clearInterval(t); 
-                        location.reload(); 
-                    }
-                }, 1000);
-
-            } catch(e) { 
-                console.error("ERROR CRÍTICO:", e);
-                // No mostramos alert para no arruinar la experiencia visual del éxito
-            }
-        };
-
-        window.filtrar = () => {
-            const texto = document.getElementById('filtroNombre').value.toLowerCase();
-            document.querySelectorAll('.card-vip').forEach(c => {
-                const nombre = c.getAttribute('data-nombre') || '';
-                c.style.display = nombre.includes(texto) ? 'block' : 'none';
-            });
-        };
-
-        // --- 4. CARGA DE DATOS (HTML Generado Limpio) ---
-        
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-vip');
             let html = "";
-            
+            listaComercios = [];
+
             snap.forEach(d => {
                 const c = d.data();
                 if (c.estado === "inactivo") return;
-                
                 const id = d.id;
-                // Sanitizamos strings para evitar que una comilla rompa el HTML
-                const nombreSafe = (c.nombre || '').replace(/'/g, "\\'");
-                const dirSafe = (c.direccion || '').replace(/'/g, "\\'");
-                const ciudadSafe = (c.ciudad || '').replace(/'/g, "\\'");
-                const tokenSafe = (c.tokenQR || '').trim();
+                listaComercios.push({id, ...c});
                 
-                const nUso = localStorage.getItem('uso_vip_' + id) || "0";
-                const beneficio = (c.valVip || '0') + '% OFF';
-                
-                // Preparar HTML del logo y redes
-                const htmlLogo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : '';
-                
+                const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0");
                 const tieneRedes = (c.facebook || c.instagram || c.web);
-                const btnRedesHTML = tieneRedes 
-                    ? `<button class="btn-act btn-conozca" onclick="window.verRedes('${nombreSafe}', '${c.facebook||''}','${c.instagram||''}','${c.web||''}')">Conozca el comercio</button>` 
+                const htmlLogo = c.logoUrl 
+                    ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` 
                     : '';
-
+                
                 html += `
-                    <div class="card-vip" data-nombre="${nombreSafe.toLowerCase()}">
+                    <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">
                         ${htmlLogo}
-                        <div class="nombre-c">${c.nombre || 'Nombre no disponible'}</div>
-                        <div class="beneficio-c">${beneficio}</div>
+                        <div class="nombre-c">${c.nombre || ''}</div>
+                        <div class="beneficio-c">${c.valVip || 0}% OFF</div>
                         <div class="vence-vip">★ Vence en ${c.vigenciaVip || 'X'} días ★</div>
-                        
                         <div class="btn-stack">
-                            ${btnRedesHTML}
-                            
-                            <button class="btn-act btn-llegar" onclick="window.abrirMapa('${dirSafe}', '${ciudadSafe}')">
-                                Cómo llegar
-                            </button>
-                            
-                            <button class="btn-act btn-validar" id="btn-val-${id}" onclick="window.abrirQR('${id}', '${tokenSafe}')">
-                                Validar con QR
-                            </button>
-                            
-                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="window.preguntarCajeroVIP('${id}', '${nombreSafe}', '${beneficio}')">
+                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${id}')">Conozca el comercio</button>` : ''}
+                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || ''))}')">Cómo llegar</button>
+                            <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
+                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajeroVIP('${id}', '${c.nombre}', '${c.valVip}% OFF')">
                                 Usar beneficio <span class="contador-nube">${nUso}</span>
                             </button>
                         </div>
@@ -460,7 +283,7 @@
             });
             contenedor.innerHTML = html;
         });
-    </script>
+
         window.verRedes = (id) => {
             const c = listaComercios.find(x => x.id === id);
             const overlay = document.createElement('div');
@@ -498,19 +321,14 @@
                             <p style="color:#333;font-size:18px;margin:0;font-weight:600;">Ahora pulse el botón "USAR BENEFICIO"</p>
                         </div>`;
                     document.body.appendChild(overlay);
-                    setTimeout(() => overlay.remove(), 3000);
+                    setTimeout(() => overlay.remove(), 4000);
                 }
             }).catch(e => console.error(e));
         };
 
         window.cerrarScanner = () => {
             document.getElementById('modal-qr').style.display = 'none';
-            if(scanner) {
-                scanner.stop().then(() => {
-                    scanner.clear();
-                    scanner = null;
-                });
-            }
+            if(scanner) scanner.stop().then(() => scanner.clear());
         };
 
         window.preguntarCajeroVIP = (id, nombre, beneficio) => {
@@ -524,77 +342,52 @@
                     <h3 style="color:red;">⚠️ ATENCIÓN</h3>
                     <p>¿Avisaste al cajero que usarás el cupón <b>VIP</b>?<br><br><b>Si no avisaste, perderás el beneficio.</b></p>
                     <div style="display:flex; gap:10px;">
-                        <button class="btn-si" id="confirmar-canje">SÍ</button>
+                        <button class="btn-si" onclick="finalizarVIP('${id}', '${nombre}', '${beneficio}')">SÍ</button>
                         <button class="btn-no" onclick="document.getElementById('alerta-cajero').remove()">NO</button>
                     </div>
                 </div>`;
             document.body.appendChild(alerta);
-            
-            // Asignar evento al botón SÍ
-            document.getElementById('confirmar-canje').onclick = () => finalizarVIP(id, nombre, beneficio);
         };
 
         window.finalizarVIP = async (id, nom, ben) => {
-            const alerta = document.getElementById('alerta-cajero');
-            if(alerta) alerta.remove();
-
-            // Interfaz inmediata para el usuario
+            document.getElementById('alerta-cajero').remove();
             document.getElementById('exito-comercio').innerText = nom;
             document.getElementById('exito-beneficio').innerText = ben;
             document.getElementById('pantalla-exito').style.display = 'flex';
             
             try {
                 const comercioRef = doc(db, "comercios", id);
-                const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
-
-                // 1. ACTUALIZACIÓN DE ESTADÍSTICAS (Campos exactos para tu panel)
-                // Usamos updateDoc con increment. Si los campos no existen, se crearán.
                 await updateDoc(comercioRef, {
                     totalVips: increment(1),
                     vipsHoy: increment(1),
                     vipsSemana: increment(1),
                     vipsMes: increment(1),
                     vipsAnio: increment(1)
-                }).catch(async (error) => {
-                    console.error("Error en updateDoc, reintentando con setDoc:", error);
-                    // Si falla el update (porque el documento quizás está vacío), forzamos la creación
-                    await setDoc(comercioRef, {
-                        totalVips: 1, vipsHoy: 1, vipsSemana: 1, vipsMes: 1, vipsAnio: 1
-                    }, { merge: true });
                 });
 
-                // 2. REGISTRO EN LOGS (Para auditoría)
-                await addDoc(collection(db, "logs"), { 
+                const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
+                await addDoc(collection(db, "logs_vip"), { 
                     comercio: nom, 
                     comercioId: id,
-                    fecha: Date.now(), 
-                    fechaLegible: new Date().toLocaleString('es-AR'),
+                    fecha: serverTimestamp(), 
                     uso_nro: nUso,
-                    tipo: "VIP",
-                    beneficio: ben,
-                    modulo: "VIP_CARD"
+                    tipo: "VIP"
                 });
 
                 localStorage.setItem('uso_vip_' + id, nUso);
 
-                // 3. Cuenta regresiva para el cierre
                 let s = 30;
                 const t = setInterval(() => {
                     s--;
-                    const countdownEl = document.getElementById('countdown');
-                    if(countdownEl) countdownEl.innerText = s;
-                    if(s <= 0) { 
-                        clearInterval(t); 
-                        location.reload(); 
-                    }
+                    document.getElementById('countdown').innerText = s;
+                    if(s <= 0) { clearInterval(t); location.reload(); }
                 }, 1000);
-
             } catch(e) { 
-                console.error("ERROR CRÍTICO EN EL CANJE:", e);
-                // No lanzamos alert para no arruinar la experiencia del usuario, 
-                // pero el error queda en la consola para diagnóstico.
+                console.error("Error al procesar VIP:", e);
+                alert("Hubo un error al validar. Intente de nuevo.");
             }
         };
+
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
             document.querySelectorAll('.card-vip').forEach(c => {
@@ -602,7 +395,5 @@
             });
         };
     </script>
-
-
-
-
+</body>
+</html>
