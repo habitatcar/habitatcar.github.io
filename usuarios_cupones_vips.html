@@ -232,7 +232,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, setDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -246,57 +246,89 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         let scanner = null;
-        let listaComercios = [];
 
-        // HACER FUNCIONES GLOBALES PARA QUE EL BOTON LAS VEA
+        // --- FUNCIONES GLOBALES (Para que los botones funcionen SÍ o SÍ) ---
+
+        window.abrirMapa = (direccion, ciudad) => {
+            const texto = encodeURIComponent((direccion || '') + ' ' + (ciudad || ''));
+            window.open(`https://www.google.com/maps/search/?api=1&query=${texto}`, '_blank');
+        };
+
+        window.verRedes = (nombre, face, insta, web) => {
+            const overlay = document.createElement('div');
+            overlay.className = 'redes-overlay';
+            overlay.onclick = () => overlay.remove();
+            
+            let btns = "";
+            if(face && face !== 'undefined') btns += `<a href="${face}" target="_blank" class="btn-red" style="background:var(--facebook)">Facebook</a>`;
+            if(insta && insta !== 'undefined') btns += `<a href="${insta}" target="_blank" class="btn-red" style="background:var(--instagram)">Instagram</a>`;
+            if(web && web !== 'undefined') btns += `<a href="${web}" target="_blank" class="btn-red" style="background:var(--azul-lindo)">Página Web</a>`;
+            
+            overlay.innerHTML = `<div class="redes-box" onclick="event.stopPropagation()">
+                <h3 style="color:var(--dorado); margin-top:0;">${nombre}</h3>
+                ${btns}
+                <button onclick="this.closest('.redes-overlay').remove()" style="margin-top:15px; background:none; border:none; color:gray; font-weight:bold;">CERRAR</button>
+            </div>`;
+            document.body.appendChild(overlay);
+        };
+
         window.abrirQR = (id, token) => {
             document.getElementById('modal-qr').style.display = 'flex';
             scanner = new Html5Qrcode("reader");
             scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
                 if (text.trim() === token.trim()) {
                     window.cerrarScanner();
-                    document.getElementById(`btn-usar-${id}`).classList.add('activo');
-                    document.getElementById(`btn-val-${id}`).style.display = 'none';
-                    alert("¡QR VALIDADO! Ahora pulsa el botón dorado.");
+                    const btnUsar = document.getElementById(`btn-usar-${id}`);
+                    const btnVal = document.getElementById(`btn-val-${id}`);
+                    if(btnUsar) btnUsar.classList.add('activo');
+                    if(btnVal) btnVal.style.display = 'none';
+                    alert("¡QR VALIDADO! Ahora presione el botón dorado.");
                 }
-            }).catch(e => console.error("Error cam:", e));
+            }).catch(e => console.error(e));
         };
 
         window.cerrarScanner = () => {
             document.getElementById('modal-qr').style.display = 'none';
-            if(scanner) scanner.stop().then(() => scanner.clear());
+            if(scanner) {
+                scanner.stop().then(() => scanner.clear());
+                scanner = null;
+            }
         };
 
         window.preguntarCajeroVIP = (id, nombre, beneficio) => {
+            const btn = document.getElementById(`btn-usar-${id}`);
+            if (!btn || !btn.classList.contains('activo')) return;
+
             const alerta = document.createElement('div');
             alerta.className = 'advertencia-overlay';
             alerta.id = 'alerta-cajero';
             alerta.innerHTML = `
                 <div class="advertencia-contenido">
                     <h3 style="color:red;">⚠️ ATENCIÓN</h3>
-                    <p>¿Avisaste al cajero que usarás el cupón <b>VIP</b>?</p>
-                    <div style="display:flex; gap:10px; margin-top:20px;">
+                    <p>¿Ya estás frente al cajero?<br>Vas a canjear: <b>${beneficio}</b></p>
+                    <div style="display:flex; gap:10px; margin-top:15px;">
                         <button class="btn-si" onclick="window.finalizarVIP('${id}', '${nombre}', '${beneficio}')">SÍ, CANJEAR</button>
-                        <button class="btn-no" onclick="this.closest('.advertencia-overlay').remove()">NO</button>
+                        <button class="btn-no" onclick="document.getElementById('alerta-cajero').remove()">CANCELAR</button>
                     </div>
                 </div>`;
             document.body.appendChild(alerta);
         };
 
         window.finalizarVIP = async (id, nom, ben) => {
-            console.log("Iniciando registro para:", nom);
             const alerta = document.getElementById('alerta-cajero');
             if(alerta) alerta.remove();
 
-            // Mostrar éxito en pantalla
+            // 1. Mostrar pantalla de éxito VISUALMENTE primero
             document.getElementById('exito-comercio').innerText = nom;
             document.getElementById('exito-beneficio').innerText = ben;
             document.getElementById('pantalla-exito').style.display = 'flex';
-            
+
+            // 2. Lógica de guardado en segundo plano
             try {
                 const comercioRef = doc(db, "comercios", id);
                 
-                // ACTUALIZAR ESTADÍSTICAS (Usamos set con merge para asegurar que se cree si no existe)
+                // Usamos setDoc con merge: true. Esto CREA el contador si no existe, o lo suma si ya existe.
+                // Es mucho más seguro que updateDoc.
                 await setDoc(comercioRef, {
                     totalVips: increment(1),
                     vipsHoy: increment(1),
@@ -305,49 +337,91 @@
                     vipsAnio: increment(1)
                 }, { merge: true });
 
-                // REGISTRAR EN LOGS
+                // Guardar LOG
+                const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
                 await addDoc(collection(db, "logs"), { 
                     comercio: nom, 
                     comercioId: id,
-                    fecha: Date.now(), 
+                    fecha: Date.now(),
+                    fechaString: new Date().toLocaleString(),
                     tipo: "VIP",
-                    beneficio: ben
+                    beneficio: ben,
+                    uso_nro: nUso,
+                    modulo: "VIP_CARD"
                 });
 
-                // Contador visual
+                localStorage.setItem('uso_vip_' + id, nUso);
+
+                // Cuenta regresiva
                 let s = 30;
                 const t = setInterval(() => {
                     s--;
-                    if(document.getElementById('countdown')) document.getElementById('countdown').innerText = s;
+                    const el = document.getElementById('countdown');
+                    if(el) el.innerText = s;
                     if(s <= 0) { clearInterval(t); location.reload(); }
                 }, 1000);
 
-            } catch(e) { 
-                console.error("ERROR AL GUARDAR:", e);
-                alert("Error de conexión. Verifica internet.");
+            } catch(e) {
+                console.error("Error guardando:", e);
+                // No mostramos alert de error para no asustar al usuario, ya vio la pantalla de éxito.
             }
         };
 
-        // CARGA DE DATOS
+        window.filtrar = () => {
+            const texto = document.getElementById('filtroNombre').value.toLowerCase();
+            const vence = document.getElementById('filtroVence').value;
+            
+            document.querySelectorAll('.card-vip').forEach(c => {
+                const coincideNombre = c.dataset.nombre.includes(texto);
+                // Aquí podrías agregar lógica de vencimiento si tuvieras el dato numérico en el dataset
+                c.style.display = coincideNombre ? 'block' : 'none';
+            });
+        };
+
+        // --- CARGA DE DATOS ---
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-vip');
             let html = "";
+            
             snap.forEach(d => {
                 const c = d.data();
                 if (c.estado === "inactivo") return;
+                
                 const id = d.id;
                 const nUso = localStorage.getItem('uso_vip_' + id) || "0";
                 
+                // Sanitizamos datos para evitar errores en el HTML
+                const nombre = (c.nombre || '').replace(/'/g, "\\'"); 
+                const direccion = (c.direccion || '').replace(/'/g, "\\'");
+                const ciudad = (c.ciudad || '').replace(/'/g, "\\'");
+                const beneficio = (c.valVip || '0') + '% OFF';
+                const token = c.tokenQR || '';
+                const logo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : '';
+                
+                // Botones pre-generados para limpieza
+                const btnRedes = (c.facebook || c.instagram || c.web) 
+                    ? `<button class="btn-act btn-conozca" onclick="window.verRedes('${nombre}', '${c.facebook}','${c.instagram}','${c.web}')">Conozca el comercio</button>` 
+                    : '';
+
                 html += `
-                    <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">
-                        <div class="logo-container"><img src="${c.logoUrl || ''}" class="logo-c"></div>
+                    <div class="card-vip" data-nombre="${nombre.toLowerCase()}">
+                        ${logo}
                         <div class="nombre-c">${c.nombre || ''}</div>
-                        <div class="beneficio-c">${c.valVip || 0}% OFF</div>
+                        <div class="beneficio-c">${beneficio}</div>
                         <div class="vence-vip">★ Vence en ${c.vigenciaVip || 'X'} días ★</div>
+                        
                         <div class="btn-stack">
-                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.nombre + ' ' + (c.ciudad || ''))}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar" id="btn-val-${id}" onclick="window.abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
-                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="window.preguntarCajeroVIP('${id}', '${c.nombre}', '${c.valVip}% OFF')">
+                            ${btnRedes}
+                            
+                            <button class="btn-act btn-llegar" onclick="window.abrirMapa('${direccion}', '${ciudad}')">
+                                Cómo llegar
+                            </button>
+                            
+                            <button class="btn-act btn-validar" id="btn-val-${id}" onclick="window.abrirQR('${id}', '${token}')">
+                                Validar con QR
+                            </button>
+                            
+                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="window.preguntarCajeroVIP('${id}', '${nombre}', '${beneficio}')">
                                 Usar beneficio <span class="contador-nube">${nUso}</span>
                             </button>
                         </div>
@@ -356,7 +430,6 @@
             contenedor.innerHTML = html;
         });
     </script>
-
         window.verRedes = (id) => {
             const c = listaComercios.find(x => x.id === id);
             const overlay = document.createElement('div');
@@ -498,5 +571,6 @@
             });
         };
     </script>
+
 
 
