@@ -232,7 +232,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -242,41 +242,112 @@
             messagingSenderId: "311691258694",
             appId: "1:311691258694:web:17a09051dcea7707af9347"
         };
+
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-
         let scanner = null;
         let listaComercios = [];
 
+        // HACER FUNCIONES GLOBALES PARA QUE EL BOTON LAS VEA
+        window.abrirQR = (id, token) => {
+            document.getElementById('modal-qr').style.display = 'flex';
+            scanner = new Html5Qrcode("reader");
+            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+                if (text.trim() === token.trim()) {
+                    window.cerrarScanner();
+                    document.getElementById(`btn-usar-${id}`).classList.add('activo');
+                    document.getElementById(`btn-val-${id}`).style.display = 'none';
+                    alert("¡QR VALIDADO! Ahora pulsa el botón dorado.");
+                }
+            }).catch(e => console.error("Error cam:", e));
+        };
+
+        window.cerrarScanner = () => {
+            document.getElementById('modal-qr').style.display = 'none';
+            if(scanner) scanner.stop().then(() => scanner.clear());
+        };
+
+        window.preguntarCajeroVIP = (id, nombre, beneficio) => {
+            const alerta = document.createElement('div');
+            alerta.className = 'advertencia-overlay';
+            alerta.id = 'alerta-cajero';
+            alerta.innerHTML = `
+                <div class="advertencia-contenido">
+                    <h3 style="color:red;">⚠️ ATENCIÓN</h3>
+                    <p>¿Avisaste al cajero que usarás el cupón <b>VIP</b>?</p>
+                    <div style="display:flex; gap:10px; margin-top:20px;">
+                        <button class="btn-si" onclick="window.finalizarVIP('${id}', '${nombre}', '${beneficio}')">SÍ, CANJEAR</button>
+                        <button class="btn-no" onclick="this.closest('.advertencia-overlay').remove()">NO</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(alerta);
+        };
+
+        window.finalizarVIP = async (id, nom, ben) => {
+            console.log("Iniciando registro para:", nom);
+            const alerta = document.getElementById('alerta-cajero');
+            if(alerta) alerta.remove();
+
+            // Mostrar éxito en pantalla
+            document.getElementById('exito-comercio').innerText = nom;
+            document.getElementById('exito-beneficio').innerText = ben;
+            document.getElementById('pantalla-exito').style.display = 'flex';
+            
+            try {
+                const comercioRef = doc(db, "comercios", id);
+                
+                // ACTUALIZAR ESTADÍSTICAS (Usamos set con merge para asegurar que se cree si no existe)
+                await setDoc(comercioRef, {
+                    totalVips: increment(1),
+                    vipsHoy: increment(1),
+                    vipsSemana: increment(1),
+                    vipsMes: increment(1),
+                    vipsAnio: increment(1)
+                }, { merge: true });
+
+                // REGISTRAR EN LOGS
+                await addDoc(collection(db, "logs"), { 
+                    comercio: nom, 
+                    comercioId: id,
+                    fecha: Date.now(), 
+                    tipo: "VIP",
+                    beneficio: ben
+                });
+
+                // Contador visual
+                let s = 30;
+                const t = setInterval(() => {
+                    s--;
+                    if(document.getElementById('countdown')) document.getElementById('countdown').innerText = s;
+                    if(s <= 0) { clearInterval(t); location.reload(); }
+                }, 1000);
+
+            } catch(e) { 
+                console.error("ERROR AL GUARDAR:", e);
+                alert("Error de conexión. Verifica internet.");
+            }
+        };
+
+        // CARGA DE DATOS
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-vip');
             let html = "";
-            listaComercios = [];
-
             snap.forEach(d => {
                 const c = d.data();
                 if (c.estado === "inactivo") return;
                 const id = d.id;
-                listaComercios.push({id, ...c});
-                
-                const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0");
-                const tieneRedes = (c.facebook || c.instagram || c.web);
-                const htmlLogo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : '';
-                
-                // CORRECCIÓN: URL de Google Maps corregida
-                const direccionMapa = encodeURIComponent(`${c.direccion || ''} ${c.ciudad || ''}`);
+                const nUso = localStorage.getItem('uso_vip_' + id) || "0";
                 
                 html += `
                     <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">
-                        ${htmlLogo}
+                        <div class="logo-container"><img src="${c.logoUrl || ''}" class="logo-c"></div>
                         <div class="nombre-c">${c.nombre || ''}</div>
                         <div class="beneficio-c">${c.valVip || 0}% OFF</div>
                         <div class="vence-vip">★ Vence en ${c.vigenciaVip || 'X'} días ★</div>
                         <div class="btn-stack">
-                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${id}')">Conozca el comercio</button>` : ''}
-                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${direccionMapa}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
-                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajeroVIP('${id}', '${c.nombre}', '${c.valVip}% OFF')">
+                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.nombre + ' ' + (c.ciudad || ''))}')">Cómo llegar</button>
+                            <button class="btn-act btn-validar" id="btn-val-${id}" onclick="window.abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
+                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="window.preguntarCajeroVIP('${id}', '${c.nombre}', '${c.valVip}% OFF')">
                                 Usar beneficio <span class="contador-nube">${nUso}</span>
                             </button>
                         </div>
@@ -284,6 +355,7 @@
             });
             contenedor.innerHTML = html;
         });
+    </script>
 
         window.verRedes = (id) => {
             const c = listaComercios.find(x => x.id === id);
@@ -426,4 +498,5 @@
             });
         };
     </script>
+
 
