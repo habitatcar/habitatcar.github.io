@@ -142,24 +142,20 @@
 
             const esUsado = usados.includes(id);
             const nombre = c.nombre || "Comercio";
-            
-            // CORRECCIÓN DE LOGO: Busca logoUrl o logo
-            const logoFinal = c.logoUrl || c.logo || "";
-            const beneficio = c.beneficioLead || c.beneficio || "Consultar";
 
             html += `
                 <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="7">
                     <div class="logo-container">
-                        <img src="${logoFinal}" class="logo-c" onerror="this.src='https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true'">
+                        <img src="${c.logo}" class="logo-c" onerror="this.src='https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true'">
                     </div>
                     <div class="nombre-c">${nombre}</div>
-                    <div class="beneficio-c">${beneficio}</div>
+                    <div class="beneficio-c">${c.beneficio}</div>
                     <span class="info-txt">Vencimiento: 7 días</span>
                     <span class="info-txt">📍 ${c.direccion || 'Consulte dirección'}</span>
                     <div class="btn-stack">
                         <button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${c.instagram || ''}', '${c.web || ''}')">Conozca el comercio</button>
                         <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
-                        <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${c.token || c.token_id || ''}')">Validar Cupón con QR</button>
+                        <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${c.token}')">Validar Cupón con QR</button>
                         <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="finalizar('${id}', '${nombre}')">Usar el Beneficio</button>
                     </div>
                 </div>`;
@@ -184,7 +180,7 @@
         document.getElementById('modal-qr').style.display = 'flex';
         scanner = new Html5Qrcode("reader");
         scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
-            if (text.trim() === tokenEsperado.trim()) {
+            if (text === tokenEsperado) {
                 cerrarScanner();
                 const btn = document.getElementById(`btn-usar-${idEnProceso}`);
                 if(btn) { 
@@ -193,7 +189,7 @@
                     btn.style.background = "var(--verde)";
                 }
             } else {
-                alert("QR Incorrecto. Escanee el QR oficial del comercio.");
+                alert("QR Incorrecto");
             }
         }).catch(e => console.error(e));
     };
@@ -203,22 +199,18 @@
         if(scanner) scanner.stop().then(() => scanner.clear());
     };
 
-    // MODIFICADO: Lógica interna para estadísticas
     window.finalizar = async (id, nom) => {
         try {
+            // --- ÚNICA MODIFICACIÓN: Lógica de Estadísticas ---
             const ref = doc(db, "comercios", id);
-            
-            // 1. IMPACTO EN ESTADÍSTICAS
             await updateDoc(ref, {
                 totalUsos: increment(1),
                 usosHoy: increment(1),
                 usosSemana: increment(1),
                 usosMes: increment(1),
-                usosAnio: increment(1),
-                leadsTotalUsos: increment(1)
+                usosAnio: increment(1)
             });
 
-            // 2. IMPACTO EN LOGS
             await addDoc(collection(db, "logs"), {
                 fecha: Date.now(),
                 tipo: "canje",
@@ -227,8 +219,8 @@
                 detalle: `Canje realizado en: ${nom}`,
                 comercioId: id
             });
+            // --- FIN DE MODIFICACIÓN ---
 
-            // 3. UI DE ÉXITO
             document.getElementById('exito-comercio').innerText = nom;
             document.getElementById('pantalla-exito').style.display = 'flex';
             
@@ -246,7 +238,7 @@
             }, 1000);
         } catch(e) { 
             console.error(e);
-            alert("Error al procesar canje. Verifique su conexión."); 
+            alert("Error al procesar canje"); 
         }
     };
 
