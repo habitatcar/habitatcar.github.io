@@ -232,7 +232,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -261,9 +261,10 @@
                 
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0");
                 const tieneRedes = (c.facebook || c.instagram || c.web);
-                const htmlLogo = c.logoUrl 
-                    ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` 
-                    : '';
+                const htmlLogo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : '';
+                
+                // CORRECCIÓN: URL de Google Maps corregida
+                const direccionMapa = encodeURIComponent(`${c.direccion || ''} ${c.ciudad || ''}`);
                 
                 html += `
                     <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">
@@ -273,7 +274,7 @@
                         <div class="vence-vip">★ Vence en ${c.vigenciaVip || 'X'} días ★</div>
                         <div class="btn-stack">
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${id}')">Conozca el comercio</button>` : ''}
-                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || ''))}')">Cómo llegar</button>
+                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${direccionMapa}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
                             <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajeroVIP('${id}', '${c.nombre}', '${c.valVip}% OFF')">
                                 Usar beneficio <span class="contador-nube">${nUso}</span>
@@ -321,14 +322,19 @@
                             <p style="color:#333;font-size:18px;margin:0;font-weight:600;">Ahora pulse el botón "USAR BENEFICIO"</p>
                         </div>`;
                     document.body.appendChild(overlay);
-                    setTimeout(() => overlay.remove(), 4000);
+                    setTimeout(() => overlay.remove(), 3000);
                 }
             }).catch(e => console.error(e));
         };
 
         window.cerrarScanner = () => {
             document.getElementById('modal-qr').style.display = 'none';
-            if(scanner) scanner.stop().then(() => scanner.clear());
+            if(scanner) {
+                scanner.stop().then(() => {
+                    scanner.clear();
+                    scanner = null;
+                });
+            }
         };
 
         window.preguntarCajeroVIP = (id, nombre, beneficio) => {
@@ -342,29 +348,27 @@
                     <h3 style="color:red;">⚠️ ATENCIÓN</h3>
                     <p>¿Avisaste al cajero que usarás el cupón <b>VIP</b>?<br><br><b>Si no avisaste, perderás el beneficio.</b></p>
                     <div style="display:flex; gap:10px;">
-                        <button class="btn-si" onclick="finalizarVIP('${id}', '${nombre}', '${beneficio}')">SÍ</button>
+                        <button class="btn-si" id="confirmar-canje">SÍ</button>
                         <button class="btn-no" onclick="document.getElementById('alerta-cajero').remove()">NO</button>
                     </div>
                 </div>`;
             document.body.appendChild(alerta);
+            
+            // Asignar evento al botón SÍ
+            document.getElementById('confirmar-canje').onclick = () => finalizarVIP(id, nombre, beneficio);
         };
 
         window.finalizarVIP = async (id, nom, ben) => {
-            // 1. Limpieza de interfaz
             const alerta = document.getElementById('alerta-cajero');
             if(alerta) alerta.remove();
 
-            // 2. Mostrar Pantalla de Éxito inmediatamente para el usuario
             document.getElementById('exito-comercio').innerText = nom;
             document.getElementById('exito-beneficio').innerText = ben;
             document.getElementById('pantalla-exito').style.display = 'flex';
             
             try {
-                // Referencia al comercio
+                // CORRECCIÓN: Referencia y actualización de contadores para Estadísticas
                 const comercioRef = doc(db, "comercios", id);
-                
-                // 3. ACTUALIZACIÓN DE ESTADÍSTICAS (Sincronizado con admin_estadisticas.html)
-                // Usamos increment(1) para sumar en los campos que lee tu tabla
                 await updateDoc(comercioRef, {
                     totalVips: increment(1),
                     vipsHoy: increment(1),
@@ -373,7 +377,6 @@
                     vipsAnio: increment(1)
                 });
 
-                // 4. REGISTRO EN LOGS (Para que aparezca en la página de LOGS)
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
                 await addDoc(collection(db, "logs"), { 
                     comercio: nom, 
@@ -385,10 +388,8 @@
                     modulo: "VIP_CARD"
                 });
 
-                // 5. Guardar progreso local para el contador dorado (nube)
                 localStorage.setItem('uso_vip_' + id, nUso);
 
-                // 6. Cuenta regresiva para cerrar
                 let s = 30;
                 const t = setInterval(() => {
                     s--;
@@ -401,11 +402,10 @@
                 }, 1000);
 
             } catch(e) { 
-                console.error("Error crítico en Firebase:", e);
-                // Si falla la red, al menos el usuario ya vio su pantalla de éxito
+                console.error("Error al guardar:", e);
             }
         };
-        
+
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
             document.querySelectorAll('.card-vip').forEach(c => {
@@ -413,8 +413,3 @@
             });
         };
     </script>
-</body>
-</html>
-
-
-
