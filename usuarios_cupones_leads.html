@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="Hábitat-Car">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIExlYWRzIiwKICAic2hvcnRfbmFtZSI6ICJIYeWiaXRhdC1DYXIiLAogIClY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyL2Jsb2IvbWFpbi9sb2dvLnBuZz9yYXc9dHJ1ZSIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyL2Jsb2IvbWFpbi9sb2dvLnBuZz9yYXc9dHJ1ZSIsCiAgICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfQogIF0sCiAgInN0YXJ0X3VybCI6ICIvaW5kZXguaHRtbCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDRhOTkiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwMDRhOTkiCn0=">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIExlYWRzIiwKICAic2hvcnRfbmFtZSI6ICJIYeWiaXRhdC1DYXIiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyL2Jsb2IvbWFpbi9sb2dvLnBuZz9yYXc9dHJ1ZSIsCiAgICAgICJzaXplcyI6ICIxOTJ4MTkyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfSwKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyL2Jsb2IvbWFpbi9sb2dvLnBuZz9yYXc9dHJ1ZSIsCiAgICAgICJzaXplcyI6ICI1MTJ4NTEyIiwKICAgICAgInR5cGUiOiAiaW1hZ2UvcG5nIgogICAgfQogIF0sCiAgInN0YXJ0X3VybCI6ICIvaW5kZXguaHRtbCIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDRhOTkiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwMDRhOTkiCn0=">
 
     <script src="https://unpkg.com/html5-qrcode"></script>
     <style>
@@ -143,7 +143,6 @@
             const esUsado = usados.includes(id);
             const nombre = c.nombre || "Comercio";
 
-            // RESPETO TOTAL DE TUS BACKTICKS Y COMILLAS ORIGINALES
             html += `
                 <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="7">
                     <div class="logo-container">
@@ -202,14 +201,22 @@
 
     window.finalizar = async (id, nom) => {
         try {
-            // INSERCIÓN ÚNICA DE LÓGICA FIREBASE SIN TOCAR EL RESTO
+            // ✅ CORRECCIÓN: guardar TODOS los campos que la página de estadísticas necesita
             const ref = doc(db, "comercios", id);
             await updateDoc(ref, {
+                // Campos generales (leads + vips)
                 totalUsos: increment(1),
                 usosHoy: increment(1),
                 usosSemana: increment(1),
                 usosMes: increment(1),
-                usosAnio: increment(1)
+                usosAnio: increment(1),
+                
+                // Campos específicos de leads (asumimos que todos los canjes en esta página son leads)
+                totalLeads: increment(1),
+                leadsHoy: increment(1),
+                leadsSemana: increment(1),
+                leadsMes: increment(1),
+                leadsAnio: increment(1)
             });
 
             await addDoc(collection(db, "logs"), {
