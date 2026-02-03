@@ -184,88 +184,40 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        let masterData = [];
+        // ESCUCHA ÚNICA DE ACTIVIDAD UNIFICADA
+        const qLogs = query(collection(db, "logs_actividad"), orderBy("timestamp", "desc"), limit(150));
 
-        const actualizarTabla = () => {
-            masterData = [];
-
-            // 1. Escuchar 'logs'
-            const qLogs = query(collection(db, "logs"), orderBy("fecha", "desc"), limit(100));
-            onSnapshot(qLogs, (snap) => {
-                const logs = snap.docs.map(d => ({
-                    id: d.id,
-                    coleccion: 'logs',
-                    fecha: d.data().fecha,
-                    modulo: d.data().modulo || 'SISTEMA',
-                    accion: d.data().accion || 'ACTIVIDAD',
-                    detalle: d.data().detalle || '---',
-                    tipo: d.data().tipo || 'canje'
-                }));
-                mezclarYRenderizar('logs', logs);
-            });
-
-            // 2. Escuchar 'leads'
-            const qLeads = query(collection(db, "leads"), orderBy("fechaRegistro", "desc"), limit(50));
-            onSnapshot(qLeads, (snap) => {
-                const leads = snap.docs.map(d => ({
-                    id: d.id,
-                    coleccion: 'leads',
-                    fecha: d.data().fechaRegistro,
-                    modulo: 'LEADS',
-                    accion: 'INSCRIPCIÓN',
-                    detalle: `Nuevo Lead: ${d.data().nombres} ${d.data().apellido} (WA: ${d.data().whatsapp})`,
-                    tipo: 'inscripcion'
-                }));
-                mezclarYRenderizar('leads', leads);
-            });
-
-            // 3. Escuchar 'vips'
-            const qVips = query(collection(db, "vips"), orderBy("fechaRegistro", "desc"), limit(50));
-            onSnapshot(qVips, (snap) => {
-                const vips = snap.docs.map(d => ({
-                    id: d.id,
-                    coleccion: 'vips',
-                    fecha: d.data().fechaRegistro,
-                    modulo: 'VIPS',
-                    accion: 'ALTA VIP',
-                    detalle: `Nuevo VIP: ${d.data().nombres} ${d.data().apellido} (WA: ${d.data().whatsapp})`,
-                    tipo: 'vip'
-                }));
-                mezclarYRenderizar('vips', vips);
-            });
-        };
-
-        const mezclarYRenderizar = (origen, nuevosDatos) => {
-            masterData = masterData.filter(item => item.origen !== origen);
-            nuevosDatos.forEach(nd => nd.origen = origen);
-            masterData = [...masterData, ...nuevosDatos];
-
-            masterData.sort((a, b) => (b.fecha || 0) - (a.fecha || 0));
-
+        onSnapshot(qLogs, (snap) => {
             const lista = document.getElementById('lista-logs');
-            lista.innerHTML = "";
+            lista.innerHTML = ""; 
 
-            masterData.forEach(log => {
-                const fecha = log.fecha ? new Date(log.fecha).toLocaleString() : '---';
+            snap.forEach(d => {
+                const log = d.data();
+                const fecha = log.fecha || (log.timestamp ? new Date(log.timestamp).toLocaleString() : '---');
+                const tipo = (log.tipo || 'SISTEMA').toLowerCase();
+                
+                let badgeClass = 'badge-sistema';
+                if(tipo.includes('vip')) badgeClass = 'badge-vip';
+                if(tipo.includes('lead') || tipo.includes('inscripcion')) badgeClass = 'badge-inscripcion';
+                if(tipo.includes('canje')) badgeClass = 'badge-canje';
+
                 const tr = document.createElement('tr');
                 tr.className = "log-row";
-                const searchText = `${log.modulo} ${log.accion} ${log.detalle} ${log.tipo}`.toLowerCase();
-                tr.setAttribute('data-search', searchText);
+                const textoBusqueda = `${log.nombre} ${log.accion} ${log.tipo}`.toLowerCase();
+                tr.setAttribute('data-search', textoBusqueda);
 
                 tr.innerHTML = `
                     <td class="date-col">${fecha}</td>
-                    <td style="font-weight:bold;">${log.modulo} / ${log.accion}</td>
-                    <td style="font-size: 0.9em;">${log.detalle}</td>
-                    <td><span class="badge badge-${log.tipo}">${log.tipo.toUpperCase()}</span></td>
+                    <td style="font-weight:bold;">${log.tipo?.toUpperCase() || 'SISTEMA'} / ${log.accion || 'ACTIVIDAD'}</td>
+                    <td style="font-size: 0.9em;">${log.nombre || '---'}</td>
+                    <td><span class="badge ${badgeClass}">${tipo.toUpperCase()}</span></td>
                     <td>
-                        ${log.coleccion === 'logs' ? `<button class="btn-del-log" onclick="borrarLog('${log.id}')">🗑️</button>` : '<small style="opacity:0.5">DB Base</small>'}
+                        <button class="btn-del-log" onclick="borrarLog('${d.id}')">🗑️</button>
                     </td>
                 `;
                 lista.appendChild(tr);
             });
-        };
-
-        actualizarTabla();
+        });
 
         window.filtrarLogs = () => {
             const term = document.getElementById('buscadorLogs').value.toLowerCase();
@@ -275,15 +227,17 @@
         };
 
         window.borrarLog = async (id) => {
-            if(confirm("¿Eliminar este registro del log?")) await deleteDoc(doc(db, "logs", id));
+            if(confirm("¿Eliminar este registro del log?")) {
+                await deleteDoc(doc(db, "logs_actividad", id));
+            }
         };
 
         window.limpiarLogs = async () => {
-            if(confirm("¿BORRAR EL HISTORIAL DE CANJES? (Los datos de Leads y Vips permanecerán intactos en sus bases)")) {
-                const snap = await getDocs(collection(db, "logs"));
-                const promesas = snap.docs.map(d => deleteDoc(doc(db, "logs", d.id)));
+            if(confirm("¿BORRAR TODO EL HISTORIAL DE ACTIVIDAD?")) {
+                const snap = await getDocs(collection(db, "logs_actividad"));
+                const promesas = snap.docs.map(d => deleteDoc(doc(db, "logs_actividad", d.id)));
                 await Promise.all(promesas);
-                alert("Historial de logs limpiado.");
+                alert("Historial limpiado.");
             }
         };
     </script>
