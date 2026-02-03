@@ -201,23 +201,25 @@
 
     window.finalizar = async (id, nom) => {
         try {
-            // ✅ CORRECCIÓN: guardar TODOS los campos que la página de estadísticas necesita
-            const ref = doc(db, "comercios", id);
-            await updateDoc(ref, {
-                // Campos generales (leads + vips)
-                totalUsos: increment(1),
-                usosHoy: increment(1),
-                usosSemana: increment(1),
-                usosMes: increment(1),
-                usosAnio: increment(1),
-                
-                // Campos específicos de leads (asumimos que todos los canjes en esta página son leads)
-                totalLeads: increment(1),
-                leadsHoy: increment(1),
-                leadsSemana: increment(1),
-                leadsMes: increment(1),
-                leadsAnio: increment(1)
-            });
+            // --- COPIAR DESDE AQUÍ ---
+const ref = doc(db, "comercios", id);
+await updateDoc(ref, {
+    totalUsos: increment(1),
+    usosHoy: increment(1),
+    usosSemana: increment(1),
+    usosMes: increment(1),
+    usosAnio: increment(1)
+});
+
+await addDoc(collection(db, "logs"), {
+    fecha: Date.now(),
+    tipo: "canje",
+    modulo: "CUPONES",
+    accion: "CANJE LEADS",
+    detalle: `Canje realizado en: ${nom}`,
+    comercioId: id
+});
+// --- HASTA AQUÍ ---
 
             await addDoc(collection(db, "logs"), {
                 fecha: Date.now(),
@@ -265,3 +267,4 @@
 </script>
 </body>
 </html>
+
