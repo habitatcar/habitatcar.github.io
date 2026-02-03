@@ -284,67 +284,87 @@
         }
 
         window.registrarVIP = async () => {
-            const btn = document.getElementById('btnRegistro');
-            const nom = document.getElementById('nombres').value.trim();
-            const ape = document.getElementById('apellido').value.trim();
-            const tel = document.getElementById('whatsapp').value.trim();
-            const mail = document.getElementById('email').value.trim();
+    const btn = document.getElementById('btnRegistro');
+    const nom = document.getElementById('nombres').value.trim();
+    const ape = document.getElementById('apellido').value.trim();
+    const tel = document.getElementById('whatsapp').value.trim();
+    const mail = document.getElementById('email').value.trim();
 
-            if(!nom || !ape || !tel || !mail) {
-                mostrarError("DATOS INCOMPLETOS", "Para activar su membresía VIP Premium, debe completar todos los campos del formulario.");
-                return;
-            }
+    if(!nom || !ape || !tel || !mail) {
+        mostrarError("DATOS INCOMPLETOS", "Para activar su membresía VIP Premium, debe completar todos los campos del formulario.");
+        return;
+    }
 
-            btn.disabled = true;
-            btn.innerText = "Procesando...";
+    btn.disabled = true;
+    btn.innerText = "Procesando...";
 
-            try {
-                // RESTRICCIÓN ESTRICTA: Verificar si el número ya existe en la colección VIP
-                // Esto no afecta a los Leads, solo impide duplicados en la tabla VIP final.
-                const qVip = query(collection(db, "vips"), where("whatsapp", "==", tel));
-                const snapVip = await getDocs(qVip);
+    try {
+        // 1. Verificar si ya existe en la colección 'leads' (que es donde deben estar)
+        const qLead = query(collection(db, "leads"), where("whatsapp", "==", tel));
+        const snapLead = await getDocs(qLead);
 
-                if (!snapVip.empty) {
-                    mostrarError("MIEMBRO EXISTENTE", "Este número ya cuenta con una membresía VIP activa.", true);
-                    btn.disabled = false;
-                    btn.innerText = "Activar Membresía VIP";
-                    return;
-                }
+        const ahora = Date.now();
 
-                // Si no existe en VIP, procedemos con el registro
-                await addDoc(collection(db, "vips"), {
-                    nombres: nom,
-                    apellido: ape,
-                    whatsapp: tel,
-                    email: mail,
-                    tokenUsado: tokenInterno,
-                    fechaRegistro: Date.now(),
-                    estado: "activo"
-                });
+        if (!snapLead.empty) {
+            // Si ya existe como Lead, lo actualizamos a VIP
+            const docId = snapLead.docs[0].id;
+            await updateDoc(doc(db, "leads", docId), {
+                convertidoVIP: true,
+                estado: "activo",
+                fechaVIP: ahora,
+                lastSubmission: ahora,
+                email: mail // Actualizamos el mail por si cambió
+            });
+        } else {
+            // 2. Si es totalmente nuevo, lo creamos en 'leads' con los campos correctos
+            await addDoc(collection(db, "leads"), {
+                nombres: nom,
+                apellido: ape,
+                whatsapp: tel,
+                email: mail,
+                convertidoVIP: true,
+                estado: "activo",
+                fechaVIP: ahora,
+                fechaRegistro: ahora,
+                lastSubmission: ahora,
+                tipo: "VIP",
+                origen: "Registro Directo VIP"
+            });
+        }
 
-                await updateDoc(doc(db, "tokens_vip", idDocumentoToken), {
-                    estado: "usado",
-                    whatsapp: tel,
-                    nombreVip: nom,
-                    fechaUso: Date.now()
-                });
+        // 3. REGISTRAR EN EL LOG (Para que lo veas en admin_logs.html)
+        await addDoc(collection(db, "logs_actividad"), {
+            nombre: `${ape}, ${nom}`,
+            tipo: "VIP",
+            accion: "NUEVO REGISTRO VIP",
+            timestamp: ahora,
+            fecha: new Date().toLocaleString()
+        });
 
-                localStorage.setItem('habitat_vip_auth', 'true');
-                document.getElementById('notificacion').style.display = 'block';
-                
-                setTimeout(() => { 
-                    window.location.replace("usuarios_cupones_vips.html"); 
-                }, 2500);
+        // 4. Quemar el token usado
+        await updateDoc(doc(db, "tokens_vip", idDocumentoToken), {
+            estado: "usado",
+            whatsapp: tel,
+            nombreVip: nom,
+            fechaUso: ahora
+        });
 
-            } catch (e) {
-                mostrarError("ERROR DE REGISTRO", "No se pudo procesar la membresía en este momento. Intente más tarde.");
-                console.error(e);
-                btn.disabled = false;
-                btn.innerText = "Activar Membresía VIP";
-            }
-        };
+        localStorage.setItem('habitat_vip_auth', 'true');
+        document.getElementById('notificacion').style.display = 'block';
+        
+        setTimeout(() => { 
+            window.location.replace("usuarios_cupones_vips.html"); 
+        }, 2500);
 
+    } catch (e) {
+        mostrarError("ERROR DE REGISTRO", "No se pudo procesar la membresía. Error técnico registrado.");
+        console.error(e);
+        btn.disabled = false;
+        btn.innerText = "Activar Membresía VIP";
+    }
+};
         validarTokenInterno();
     </script>
 </body>
 </html>
+
