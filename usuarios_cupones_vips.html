@@ -362,26 +362,37 @@
             const alerta = document.getElementById('alerta-cajero');
             if(alerta) alerta.remove();
 
+            // Interfaz inmediata para el usuario
             document.getElementById('exito-comercio').innerText = nom;
             document.getElementById('exito-beneficio').innerText = ben;
             document.getElementById('pantalla-exito').style.display = 'flex';
             
             try {
-                // CORRECCIÓN: Referencia y actualización de contadores para Estadísticas
                 const comercioRef = doc(db, "comercios", id);
+                const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
+
+                // 1. ACTUALIZACIÓN DE ESTADÍSTICAS (Campos exactos para tu panel)
+                // Usamos updateDoc con increment. Si los campos no existen, se crearán.
                 await updateDoc(comercioRef, {
                     totalVips: increment(1),
                     vipsHoy: increment(1),
                     vipsSemana: increment(1),
                     vipsMes: increment(1),
                     vipsAnio: increment(1)
+                }).catch(async (error) => {
+                    console.error("Error en updateDoc, reintentando con setDoc:", error);
+                    // Si falla el update (porque el documento quizás está vacío), forzamos la creación
+                    await setDoc(comercioRef, {
+                        totalVips: 1, vipsHoy: 1, vipsSemana: 1, vipsMes: 1, vipsAnio: 1
+                    }, { merge: true });
                 });
 
-                const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
+                // 2. REGISTRO EN LOGS (Para auditoría)
                 await addDoc(collection(db, "logs"), { 
                     comercio: nom, 
                     comercioId: id,
                     fecha: Date.now(), 
+                    fechaLegible: new Date().toLocaleString('es-AR'),
                     uso_nro: nUso,
                     tipo: "VIP",
                     beneficio: ben,
@@ -390,6 +401,7 @@
 
                 localStorage.setItem('uso_vip_' + id, nUso);
 
+                // 3. Cuenta regresiva para el cierre
                 let s = 30;
                 const t = setInterval(() => {
                     s--;
@@ -402,10 +414,11 @@
                 }, 1000);
 
             } catch(e) { 
-                console.error("Error al guardar:", e);
+                console.error("ERROR CRÍTICO EN EL CANJE:", e);
+                // No lanzamos alert para no arruinar la experiencia del usuario, 
+                // pero el error queda en la consola para diagnóstico.
             }
         };
-
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
             document.querySelectorAll('.card-vip').forEach(c => {
@@ -413,3 +426,4 @@
             });
         };
     </script>
+
