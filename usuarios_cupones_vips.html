@@ -351,12 +351,17 @@
 
         window.finalizarVIP = async (id, nom, ben) => {
             document.getElementById('alerta-cajero').remove();
+            
+            // 1. Mostramos la pantalla de éxito inmediatamente para no hacer esperar al usuario
             document.getElementById('exito-comercio').innerText = nom;
             document.getElementById('exito-beneficio').innerText = ben;
             document.getElementById('pantalla-exito').style.display = 'flex';
             
             try {
                 const comercioRef = doc(db, "comercios", id);
+                
+                // 2. Actualizamos los contadores específicos de VIP
+                // IMPORTANTE: Asegurate que en Firebase estos campos existan o empezarán de 0
                 await updateDoc(comercioRef, {
                     totalVips: increment(1),
                     vipsHoy: increment(1),
@@ -366,25 +371,36 @@
                 });
 
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
-                await addDoc(collection(db, "logs_vip"), { 
-                    comercio: nom, 
+
+                // 3. REGISTRO EN LOGS (Usamos la misma lógica que en Leads para mantener orden)
+                await addDoc(collection(db, "logs"), { 
+                    fecha: Date.now(),
+                    tipo: "canje",
+                    modulo: "CUPONES",
+                    accion: "CANJE VIP",
+                    detalle: `Canje VIP (${ben}) en: ${nom}`,
                     comercioId: id,
-                    fecha: serverTimestamp(), 
-                    uso_nro: nUso,
-                    tipo: "VIP"
+                    uso_nro: nUso
                 });
 
+                // Guardamos en local para que el contador de la tarjeta suba
                 localStorage.setItem('uso_vip_' + id, nUso);
 
+                // 4. Temporizador de 30 segundos
                 let s = 30;
                 const t = setInterval(() => {
                     s--;
                     document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { clearInterval(t); location.reload(); }
+                    if(s <= 0) { 
+                        clearInterval(t); 
+                        location.reload(); 
+                    }
                 }, 1000);
+
             } catch(e) { 
-                console.error("Error al procesar VIP:", e);
-                alert("Hubo un error al validar. Intente de nuevo.");
+                console.error("Error crítico en VIP:", e);
+                // Si falla Firebase, igual dejamos que vea la pantalla de éxito 
+                // pero lo registramos en consola para soporte técnico.
             }
         };
 
@@ -397,3 +413,4 @@
     </script>
 </body>
 </html>
+
