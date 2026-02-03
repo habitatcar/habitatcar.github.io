@@ -350,9 +350,11 @@
         };
 
         window.finalizarVIP = async (id, nom, ben) => {
-            document.getElementById('alerta-cajero').remove();
-            
-            // 1. Mostramos la pantalla de éxito inmediatamente para no hacer esperar al usuario
+            // 1. Limpieza de interfaz
+            const alerta = document.getElementById('alerta-cajero');
+            if(alerta) alerta.remove();
+
+            // 2. Mostrar Pantalla de Éxito
             document.getElementById('exito-comercio').innerText = nom;
             document.getElementById('exito-beneficio').innerText = ben;
             document.getElementById('pantalla-exito').style.display = 'flex';
@@ -360,8 +362,8 @@
             try {
                 const comercioRef = doc(db, "comercios", id);
                 
-                // 2. Actualizamos los contadores específicos de VIP
-                // IMPORTANTE: Asegurate que en Firebase estos campos existan o empezarán de 0
+                // 3. ACTUALIZACIÓN DE ESTADÍSTICAS (Sincronizado con admin_estadisticas.html)
+                // Usamos increment(1) para que Firebase sume automáticamente
                 await updateDoc(comercioRef, {
                     totalVips: increment(1),
                     vipsHoy: increment(1),
@@ -370,27 +372,27 @@
                     vipsAnio: increment(1)
                 });
 
+                // 4. REGISTRO EN LOGS (Para auditoría)
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
-
-                // 3. REGISTRO EN LOGS (Usamos la misma lógica que en Leads para mantener orden)
                 await addDoc(collection(db, "logs"), { 
-                    fecha: Date.now(),
-                    tipo: "canje",
-                    modulo: "CUPONES",
-                    accion: "CANJE VIP",
-                    detalle: `Canje VIP (${ben}) en: ${nom}`,
+                    comercio: nom, 
                     comercioId: id,
-                    uso_nro: nUso
+                    fecha: Date.now(), 
+                    uso_nro: nUso,
+                    tipo: "VIP",
+                    beneficio: ben,
+                    modulo: "VIP_CARD"
                 });
 
-                // Guardamos en local para que el contador de la tarjeta suba
+                // 5. Guardar progreso local para la "nube" dorada
                 localStorage.setItem('uso_vip_' + id, nUso);
 
-                // 4. Temporizador de 30 segundos
+                // 6. Cuenta regresiva para cerrar
                 let s = 30;
                 const t = setInterval(() => {
                     s--;
-                    document.getElementById('countdown').innerText = s;
+                    const countdownEl = document.getElementById('countdown');
+                    if(countdownEl) countdownEl.innerText = s;
                     if(s <= 0) { 
                         clearInterval(t); 
                         location.reload(); 
@@ -398,12 +400,10 @@
                 }, 1000);
 
             } catch(e) { 
-                console.error("Error crítico en VIP:", e);
-                // Si falla Firebase, igual dejamos que vea la pantalla de éxito 
-                // pero lo registramos en consola para soporte técnico.
+                console.error("Error al guardar estadísticas:", e);
+                // No bloqueamos al usuario, la pantalla de éxito sigue visible
             }
         };
-
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
             document.querySelectorAll('.card-vip').forEach(c => {
@@ -413,4 +413,5 @@
     </script>
 </body>
 </html>
+
 
