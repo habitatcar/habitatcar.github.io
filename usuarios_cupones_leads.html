@@ -488,26 +488,29 @@
 
         window.finalizar = async (id, nom) => {
             try {
-                // --- COPIAR DESDE AQUÍ ---
-const ref = doc(db, "comercios", id);
-await updateDoc(ref, {
-    totalUsos: increment(1),
-    usosHoy: increment(1),
-    usosSemana: increment(1),
-    usosMes: increment(1),
-    usosAnio: increment(1)
-});
+                // Referencia exacta al comercio
+                const ref = doc(db, "comercios", id);
+                
+                // Actualizamos los contadores numéricos
+                await updateDoc(ref, {
+                    totalUsos: increment(1),
+                    usosHoy: increment(1),
+                    usosSemana: increment(1),
+                    usosMes: increment(1),
+                    usosAnio: increment(1)
+                });
 
-await addDoc(collection(db, "logs"), {
-    fecha: Date.now(),
-    tipo: "canje",
-    modulo: "CUPONES",
-    accion: "CANJE LEADS",
-    detalle: `Canje realizado en: ${nom}`,
-    comercioId: id
-});
-// --- HASTA AQUÍ ---
+                // Registramos el log del evento
+                await addDoc(collection(db, "logs"), {
+                    fecha: Date.now(),
+                    tipo: "canje",
+                    modulo: "CUPONES",
+                    accion: "CANJE LEADS",
+                    detalle: `Canje realizado en: ${nom}`,
+                    comercioId: id
+                });
 
+                // Mostrar pantalla de éxito
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('pantalla-exito').style.display = 'flex';
                 
@@ -523,9 +526,11 @@ await addDoc(collection(db, "logs"), {
                         location.reload(); 
                     }
                 }, 1000);
-            } catch(e) { alert("Error al procesar canje"); }
+            } catch(e) { 
+                console.error("Error Firebase:", e);
+                alert("Error al procesar canje: " + e.message); 
+            }
         };
-
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
             const vencimiento = document.getElementById('filtroVence').value;
@@ -542,3 +547,4 @@ await addDoc(collection(db, "logs"), {
     </script>
 </body>
 </html>
+
