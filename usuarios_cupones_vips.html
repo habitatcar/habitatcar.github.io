@@ -176,6 +176,17 @@
             align-items: center; justify-content: center; z-index: 1000;
         }
         #reader { width: 300px; background: white; border-radius: 15px; overflow: hidden; border: 4px solid var(--dorado); }
+
+        /* Estilos Overlay Error QR VIP */
+        .custom-overlay-error {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 9500;
+        }
+        .error-box-vip {
+            background: #111; width: 85%; max-width: 350px; border-radius: 20px;
+            border: 5px solid var(--dorado); text-align: center; padding: 25px; box-sizing: border-box;
+        }
+        .error-icon-vip { width: 60px; margin-bottom: 15px; filter: drop-shadow(0 0 5px red); }
     </style>
 </head>
 <body>
@@ -208,6 +219,16 @@
         <h2 style="color:var(--dorado)">Escanee el QR del local</h2>
         <div id="reader"></div>
         <button onclick="cerrarScanner()" style="margin-top:20px; padding:12px 25px; background:var(--dorado); color:black; border-radius:10px; font-weight:bold; border:none;">CANCELAR</button>
+    </div>
+
+    <div id="overlay-error-vip" class="custom-overlay-error">
+        <div class="error-box-vip">
+            <img src="https://cdn-icons-png.flaticon.com/512/753/753345.png" class="error-icon-vip">
+            <h2 style="color:red; margin: 10px 0;">❌ ERROR QR</h2>
+            <p style="color: white; font-size: 17px;"><b>El código escaneado no coincide con este comercio.</b></p>
+            <p style="font-weight: 900; color: var(--dorado-brillante); margin: 15px 0;">Escanee el QR ubicado en el mostrador del comercio elegido.</p>
+            <button onclick="cerrarErrorVIP()" style="width:100%; padding: 15px; background: red; color: white; border: none; border-radius: 12px; font-weight: bold; cursor: pointer; text-transform: uppercase;">REINTENTAR</button>
+        </div>
     </div>
 
     <div id="pantalla-exito" class="success-page">
@@ -322,6 +343,9 @@
                         </div>`;
                     document.body.appendChild(overlay);
                     setTimeout(() => overlay.remove(), 4000);
+                } else {
+                    cerrarScanner();
+                    document.getElementById('overlay-error-vip').style.display = 'flex';
                 }
             }).catch(e => console.error(e));
         };
@@ -329,6 +353,10 @@
         window.cerrarScanner = () => {
             document.getElementById('modal-qr').style.display = 'none';
             if(scanner) scanner.stop().then(() => scanner.clear());
+        };
+
+        window.cerrarErrorVIP = () => {
+            document.getElementById('overlay-error-vip').style.display = 'none';
         };
 
         window.preguntarCajeroVIP = (id, nombre, beneficio) => {
@@ -359,19 +387,17 @@
                 const ahora = new Date().toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
                 const comercioRef = doc(db, "comercios", id);
                 
-                // ACTUALIZACIÓN DE ESTADÍSTICAS DEL COMERCIO
                 await updateDoc(comercioRef, {
                     totalVips: increment(1),
                     vipsHoy: increment(1),
                     vipsSemana: increment(1),
                     vipsMes: increment(1),
                     vipsAnio: increment(1),
-                    lastSubmission: ahora // <--- ESTO ACTUALIZA LA COLUMNA ÚLTIMO ENVÍO
+                    lastSubmission: ahora 
                 });
 
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
                 
-                // REGISTRO EN LOG ESPECÍFICO VIP
                 await addDoc(collection(db, "logs_vip"), { 
                     comercio: nom, 
                     comercioId: id,
@@ -380,7 +406,6 @@
                     tipo: "VIP"
                 });
 
-                // REGISTRO EN LOG GENERAL DE ADMINISTRACIÓN
                 await addDoc(collection(db, "logs_admin"), {
                     fecha: serverTimestamp(),
                     accion: "CANJE VIP",
