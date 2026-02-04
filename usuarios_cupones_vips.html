@@ -11,9 +11,11 @@
     <meta name="apple-mobile-web-app-title" content="Hábitat-Car">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIiwKICAic2hvcnRfbmFtZSI6ICJIYWJpdGF0LUNhciIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vZ2l0aHViLmNvbS9oYWJpdGF0Y2FyL2hhYml0YXRjYXIuZ2l0aHViLmlvL2Jsb2IvbWFpbi9sb2dvX3JlZG9uZG8ucG5nP3Jhdz10cnVlIiwKICAgICAgInNpemVzIjogIjUxMng1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9wbmciLAogICAgICAicHVycG9zZSI6ICJhbnkgbWFza2FibGUiCiAgICB9CiAgXSwKICAic3RhcnRfdXJsIjogInVzdWFyaW9zX2N1cG9uZXNfdmlwcy5odG1sIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMGEwYTBhIiwKICAidGhlbWVfY29sb3IiOiAiI2Q0YWYzNyIKfQ==">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIiwKICAic2hvcnRfbmFtZSI6ICJIYWJpdGF0LUNhciIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vZ2l0aHViLmNvbS9oYWJpdGF0Y2FyL2hhYml0YXRjYXIuZ2l0aHViLmlvL2Jsb2IvbWFpbi9sb2dvX3JlZG9uZG8ucG5nP3Jhdz10cnVlIiwKICAgICAgInNpemVzIjogIjUxMng1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9wbmciLAogICAgIiwicHVycG9zZSI6ICJhbnkgbWFza2FibGUiCiAgICB9CiAgXSwKICAic3RhcnRfdXJsIjogInVzdWFyaW9zX2N1cG9uZXNfdmlwcy5odG1sIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMGEwYTBhIiwKICAidGhlbWVfY29sb3IiOiAiI2Q0YWYzNyIKfQ==">
 
     <script src="https://unpkg.com/html5-qrcode"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    
     <style>
         :root {
             --dorado: #d4af37;
@@ -177,7 +179,6 @@
         }
         #reader { width: 300px; background: white; border-radius: 15px; overflow: hidden; border: 4px solid var(--dorado); }
 
-        /* Estilos Overlay Error QR VIP */
         .custom-overlay-error {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); display: none; align-items: center; justify-content: center; z-index: 9500;
@@ -187,6 +188,15 @@
             border: 5px solid var(--dorado); text-align: center; padding: 25px; box-sizing: border-box;
         }
         .error-icon-vip { width: 60px; margin-bottom: 15px; filter: drop-shadow(0 0 5px red); }
+
+        /* Estilo para el contenedor de código de barras VIP */
+        .barcode-container {
+            background: white;
+            padding: 15px;
+            border-radius: 15px;
+            margin: 15px 0;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
@@ -239,8 +249,13 @@
             <h1 style="color:var(--dorado);">👑 VIP ACTIVADO</h1>
             <p id="exito-comercio" style="font-weight:900; font-size:20px; color: #fff;"></p>
             <p id="exito-beneficio" style="font-size:24px; color:var(--dorado-brillante); font-weight:900;"></p>
-            <div style="margin:15px auto; width:130px; height:130px; border-radius:50%; border:10px solid var(--dorado); display:flex; align-items:center; justify-content:center;">
-                <div class="timer-circle" id="countdown">30</div>
+            
+            <div class="barcode-container">
+                <svg id="barcodeVIP"></svg>
+            </div>
+
+            <div style="margin:15px auto; width:100px; height:100px; border-radius:50%; border:6px solid var(--dorado); display:flex; align-items:center; justify-content:center;">
+                <div class="timer-circle" id="countdown" style="font-size: 40px;">30</div>
             </div>
             <div class="aviso-cajero-vip">Mostrale esta pantalla al cajero</div>
         </div>
@@ -253,7 +268,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -379,15 +394,18 @@
 
         window.finalizarVIP = async (id, nom, ben) => {
             document.getElementById('alerta-cajero').remove();
-            document.getElementById('exito-comercio').innerText = nom;
-            document.getElementById('exito-beneficio').innerText = ben;
-            document.getElementById('pantalla-exito').style.display = 'flex';
             
             try {
                 const ahora = Date.now();
                 const fechaLegible = new Date().toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
                 const comercioRef = doc(db, "comercios", id);
                 
+                // Obtenemos el valor actual antes de incrementar para generar el código exacto
+                const snapComercio = await getDoc(comercioRef);
+                const dataCom = snapComercio.data();
+                const proximoNro = (dataCom.totalVips || 0) + 1;
+                const codigoIdentidad = "VIP-" + proximoNro.toString().padStart(4, '0');
+
                 // 1. ACTUALIZACIÓN DE ESTADÍSTICAS DEL COMERCIO
                 await updateDoc(comercioRef, {
                     totalVips: increment(1),
@@ -398,27 +416,41 @@
                     lastSubmission: fechaLegible 
                 });
 
+                // 2. GENERACIÓN VISUAL DEL CÓDIGO DE BARRAS
+                JsBarcode("#barcodeVIP", codigoIdentidad, {
+                    format: "CODE128",
+                    lineColor: "#000",
+                    width: 2,
+                    height: 50,
+                    displayValue: true,
+                    fontSize: 20
+                });
+
+                document.getElementById('exito-comercio').innerText = nom;
+                document.getElementById('exito-beneficio').innerText = ben;
+                document.getElementById('pantalla-exito').style.display = 'flex';
+
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
                 
-                // 2. REGISTRO EN LOG DE ACTIVIDAD (El que lee tu panel de administración)
-                // Usamos la misma estructura que en Leads para asegurar que aparezca
+                // 3. REGISTRO EN LOG DE ACTIVIDAD
                 await addDoc(collection(db, "logs_actividad"), {
                     timestamp: ahora,
                     tipo: "canje",
                     accion: "CANJE VIP",
-                    nombre: `VIP canjeó ${ben} en ${nom}`,
+                    nombre: `${codigoIdentidad} canjeó ${ben} en ${nom}`,
                     comercioId: id,
                     modulo: "VIPS"
                 });
 
-                // 3. REGISTRO EN LOG ESPECÍFICO VIP (Para auditoría interna)
+                // 4. REGISTRO EN LOG ESPECÍFICO VIP
                 await addDoc(collection(db, "logs_vip"), { 
                     comercio: nom, 
                     comercioId: id,
                     fecha: serverTimestamp(), 
                     uso_nro: nUso,
                     tipo: "VIP",
-                    beneficio: ben
+                    beneficio: ben,
+                    codigoGenerado: codigoIdentidad
                 });
 
                 localStorage.setItem('uso_vip_' + id, nUso);
@@ -437,6 +469,7 @@
                 alert("Error de conexión con el servidor de Logs.");
             }
         };
+
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
             document.querySelectorAll('.card-vip').forEach(c => {
@@ -446,4 +479,3 @@
     </script>
 </body>
 </html>
-
