@@ -287,208 +287,205 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, getDocs, addDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+    import { getFirestore, collection, onSnapshot, doc, updateDoc, getDocs, addDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
-            authDomain: "habitatcar-pro.firebaseapp.com",
-            projectId: "habitatcar-pro",
-            storageBucket: "habitatcar-pro.firebasestorage.app",
-            messagingSenderId: "311691258694",
-            appId: "1:311691258694:web:17a09051dcea7707af9347"
-        };
+    const firebaseConfig = {
+        apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+        authDomain: "habitatcar-pro.firebaseapp.com",
+        projectId: "habitatcar-pro",
+        storageBucket: "habitatcar-pro.firebasestorage.app",
+        messagingSenderId: "311691258694",
+        appId: "1:311691258694:web:17a09051dcea7707af9347"
+    };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        let listaComercios = [];
-        const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    let listaComercios = [];
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
 
-        async function controlarReseteoDiario(comercios) {
-            const hoy = new Date().toLocaleDateString('es-AR');
-            const ultimaFecha = localStorage.getItem('panel_ultima_fecha');
-            if (ultimaFecha && ultimaFecha !== hoy) {
-                const batch = writeBatch(db);
-                comercios.forEach(com => {
-                    const ref = doc(db, "comercios", com.id);
-                    batch.update(ref, { usosHoy: 0, vipsHoy: 0 });
-                });
-                await batch.commit();
-            }
-            localStorage.setItem('panel_ultima_fecha', hoy);
-        }
-
-        async function cargarStatsUsuarios() {
-            const snapLeads = await getDocs(collection(db, "leads"));
-            let countVips = 0;
-            const allFechas = [];
-            snapLeads.forEach(d => {
-                const data = d.data();
-                allFechas.push(data.fechaRegistro || 0);
-                if(data.convertidoVIP === true) countVips++;
+    async function controlarReseteoDiario(comercios) {
+        const hoy = new Date().toLocaleDateString('es-AR');
+        const ultimaFecha = localStorage.getItem('panel_ultima_fecha');
+        if (ultimaFecha && ultimaFecha !== hoy) {
+            const batch = writeBatch(db);
+            comercios.forEach(com => {
+                const ref = doc(db, "comercios", com.id);
+                batch.update(ref, { usosHoy: 0, vipsHoy: 0 });
             });
-            document.getElementById('count-leads').innerText = snapLeads.size - countVips;
-            document.getElementById('count-vips').innerText = countVips;
-            document.getElementById('count-total-users').innerText = snapLeads.size;
-            const ahora = Date.now();
-            const unDia = 86400000;
-            document.getElementById('t-dia').innerText = allFechas.filter(f => (ahora - f) <= unDia).length;
-            document.getElementById('t-sem').innerText = allFechas.filter(f => (ahora - f) <= unDia * 7).length;
-            document.getElementById('t-mes').innerText = allFechas.filter(f => (ahora - f) <= unDia * 30).length;
-            document.getElementById('t-anio').innerText = allFechas.filter(f => (ahora - f) <= unDia * 365).length;
+            await batch.commit();
         }
+        localStorage.setItem('panel_ultima_fecha', hoy);
+    }
 
-        onSnapshot(collection(db, "comercios"), (snap) => {
-            listaComercios = [];
-            snap.forEach(d => listaComercios.push({ id: d.id, ...d.data() }));
-            controlarReseteoDiario(listaComercios);
-            renderTabla();
+    async function cargarStatsUsuarios() {
+        const snapLeads = await getDocs(collection(db, "leads"));
+        let countVips = 0;
+        const allFechas = [];
+        snapLeads.forEach(d => {
+            const data = d.data();
+            allFechas.push(data.fechaRegistro || 0);
+            if(data.convertidoVIP === true) countVips++;
+        });
+        document.getElementById('count-leads').innerText = snapLeads.size - countVips;
+        document.getElementById('count-vips').innerText = countVips;
+        document.getElementById('count-total-users').innerText = snapLeads.size;
+        const ahora = Date.now();
+        const unDia = 86400000;
+        document.getElementById('t-dia').innerText = allFechas.filter(f => (ahora - f) <= unDia).length;
+        document.getElementById('t-sem').innerText = allFechas.filter(f => (ahora - f) <= unDia * 7).length;
+        document.getElementById('t-mes').innerText = allFechas.filter(f => (ahora - f) <= unDia * 30).length;
+        document.getElementById('t-anio').innerText = allFechas.filter(f => (ahora - f) <= unDia * 365).length;
+    }
+
+    onSnapshot(collection(db, "comercios"), (snap) => {
+        listaComercios = [];
+        snap.forEach(d => listaComercios.push({ id: d.id, ...d.data() }));
+        controlarReseteoDiario(listaComercios);
+        renderTabla();
+    });
+
+    async function registrarLogEnvio(comercio, email, estado) {
+        await addDoc(collection(db, "historico_envios_reportes"), {
+            fecha: new Date().toLocaleString(),
+            timestamp: Date.now(),
+            comercio: comercio,
+            email: email,
+            estado: estado
+        });
+    }
+
+    window.enviarReporteIndividual = async (id) => {
+        const c = listaComercios.find(x => x.id === id);
+        if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
+        document.getElementById('pdf-fecha').innerText = new Date().toLocaleString('es-AR', { month: 'long', year: 'numeric' }).toUpperCase();
+        document.getElementById('pdf-nombre-comercio').innerText = c.nombre;
+        
+        const vLeads = parseInt(c.totalUsos || 0, 10);
+        const vVips = parseInt(c.totalVips || 0, 10);
+        const totalGral = vLeads + vVips;
+
+        document.getElementById('pdf-total').innerText = totalGral;
+        document.getElementById('pdf-canjes').innerText = totalGral;
+        document.getElementById('pdf-conversion').innerText = totalGral > 0 ? "100%" : "0%";
+        
+        const pLeads = totalGral > 0 ? (vLeads / totalGral * 100) : 50;
+        const pVips = totalGral > 0 ? (vVips / totalGral * 100) : 50;
+        
+        document.getElementById('bar-leads').style.width = pLeads + "%";
+        document.getElementById('bar-leads').innerText = `LEADS (${vLeads})`;
+        document.getElementById('bar-vips').style.width = pVips + "%";
+        document.getElementById('bar-vips').innerText = `VIP (${vVips})`;
+        
+        const element = document.getElementById('reporte-contenido');
+        const opt = {
+            margin: 0,
+            filename: `Reporte_${c.nombre}.pdf`,
+            image: { type: 'jpeg', quality: 0.98 },
+            html2canvas: { scale: 2, useCORS: true, y: 0 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        try {
+            const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
+            const reader = new FileReader();
+            reader.readAsDataURL(pdfBlob);
+            reader.onloadend = async () => {
+                const base64data = reader.result.split(',')[1];
+                fetch(WEB_APP_URL, {
+                    method: "POST",
+                    body: JSON.stringify({ email: c.emailDueno, comercio: c.nombre, pdfB64: base64data })
+                });
+                
+                // AQUÍ LA CORRECCIÓN DE LA COLUMNA ÚLTIMO ENVÍO
+                const ahoraStr = new Date().toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+                await updateDoc(doc(db, "comercios", id), { lastSubmission: ahoraStr });
+                
+                await registrarLogEnvio(c.nombre, c.emailDueno, "Enviado");
+                alert(`Reporte enviado con éxito a ${c.nombre}`);
+            };
+        } catch (e) {
+            await registrarLogEnvio(c.nombre, c.emailDueno, "Error: " + e.message);
+            alert("Error al procesar envío");
+        }
+    };
+
+    window.enviarTodosLosReportes = async () => {
+        if(!confirm("¿Deseas enviar reportes a TODOS los comercios con frecuencia activa?")) return;
+        for(let c of listaComercios) {
+            if(c.frecuenciaMail && c.frecuenciaMail !== 'nunca') await enviarReporteIndividual(c.id);
+        }
+    };
+
+    function renderTabla() {
+        const body = document.getElementById('tabla-body');
+        if (!body) return;
+        body.innerHTML = "";
+        
+        let tCom = 0, tUsosTotal = 0, tHoyTotal = 0, tSemTotal = 0, tMesTotal = 0, tAnioTotal = 0;
+
+        listaComercios.forEach(c => {
+            tCom++;
+            
+            const leadHist = parseInt(c.totalUsos || 0, 10);
+            const vipHist = parseInt(c.totalVips || 0, 10);
+            const sumaHist = leadHist + vipHist;
+
+            const sumaHoy = parseInt(c.usosHoy || 0, 10) + parseInt(c.vipsHoy || 0, 10);
+            const sumaSem = parseInt(c.usosSemana || 0, 10) + parseInt(c.vipsSemana || 0, 10);
+            const sumaMes = parseInt(c.usosMes || 0, 10) + parseInt(c.vipsMes || 0, 10);
+            const sumaAnio = parseInt(c.usosAnio || 0, 10) + parseInt(c.vipsAnio || 0, 10);
+
+            tUsosTotal += sumaHist;
+            tHoyTotal += sumaHoy;
+            tSemTotal += sumaSem;
+            tMesTotal += sumaMes;
+            tAnioTotal += sumaAnio;
+
+            body.innerHTML += `
+                <tr class="com-row">
+                    <td><b>${c.nombre || 'Sin Nombre'}</b></td>
+                    <td>${sumaHist}</td>
+                    <td style="color:var(--oro)">${leadHist}</td>
+                    <td style="color:var(--oro)">${vipHist}</td>
+                    <td style="color:var(--verde)">${sumaHoy}</td>
+                    <td>${sumaSem}</td>
+                    <td>${sumaMes}</td>
+                    <td>${sumaAnio}</td>
+                    <td style="font-size: 0.85em; color: #00c3ff;">${c.lastSubmission || '---'}</td>
+                    <td>
+                        <select class="mail-freq" onchange="updateFreq('${c.id}', this.value)">
+                            <option value="nunca" ${c.frecuenciaMail === 'nunca' ? 'selected' : ''}>Nunca</option>
+                            <option value="diario" ${c.frecuenciaMail === 'diario' ? 'selected' : ''}>Diario</option>
+                            <option value="semanal" ${c.frecuenciaMail === 'semanal' ? 'selected' : ''}>Semanal</option>
+                            <option value="mensual" ${c.frecuenciaMail === 'mensual' ? 'selected' : ''}>Mensual</option>
+                        </select>
+                        <button class="btn-send-row" title="Enviar ahora" onclick="enviarReporteIndividual('${c.id}')">✉</button>
+                    </td>
+                </tr>`;
         });
 
-        async function registrarLogEnvio(comercio, email, estado) {
-            await addDoc(collection(db, "historico_envios_reportes"), {
-                fecha: new Date().toLocaleString(),
-                timestamp: Date.now(),
-                comercio: comercio,
-                email: email,
-                estado: estado
-            });
-        }
+        document.getElementById('count-com').innerText = tCom;
+        document.getElementById('count-usos').innerText = tUsosTotal;
+        document.getElementById('count-c-hoy').innerText = tHoyTotal;
+        document.getElementById('count-c-sem').innerText = tSemTotal;
+        document.getElementById('count-c-mes').innerText = tMesTotal;
+        document.getElementById('count-c-anio').innerText = tAnioTotal;
+    }
 
-        window.enviarReporteIndividual = async (id) => {
-            const c = listaComercios.find(x => x.id === id);
-            if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
-            document.getElementById('pdf-fecha').innerText = new Date().toLocaleString('es-AR', { month: 'long', year: 'numeric' }).toUpperCase();
-            document.getElementById('pdf-nombre-comercio').innerText = c.nombre;
-            
-            // Lógica de cálculo PDF basada en el código de cupones
-            const vLeads = parseInt(c.totalUsos || 0, 10);
-            const vVips = parseInt(c.totalVips || 0, 10);
-            const totalGral = vLeads + vVips;
+    window.ordenarYRender = (criterio) => {
+        if (criterio === 'nombre') listaComercios.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
+        else if (criterio === 'creacion') listaComercios.sort((a, b) => (a.id < b.id ? -1 : 1));
+        renderTabla();
+    };
 
-            document.getElementById('pdf-total').innerText = totalGral;
-            document.getElementById('pdf-canjes').innerText = totalGral;
-            document.getElementById('pdf-conversion').innerText = totalGral > 0 ? "100%" : "0%";
-            
-            const pLeads = totalGral > 0 ? (vLeads / totalGral * 100) : 50;
-            const pVips = totalGral > 0 ? (vVips / totalGral * 100) : 50;
-            
-            document.getElementById('bar-leads').style.width = pLeads + "%";
-            document.getElementById('bar-leads').innerText = `LEADS (${vLeads})`;
-            document.getElementById('bar-vips').style.width = pVips + "%";
-            document.getElementById('bar-vips').innerText = `VIP (${vVips})`;
-            
-            const element = document.getElementById('reporte-contenido');
-            const opt = {
-                margin: 0,
-                filename: `Reporte_${c.nombre}.pdf`,
-                image: { type: 'jpeg', quality: 0.98 },
-                html2canvas: { scale: 2, useCORS: true, y: 0 },
-                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-            };
-            try {
-                const pdfBlob = await html2pdf().set(opt).from(element).output('blob');
-                const reader = new FileReader();
-                reader.readAsDataURL(pdfBlob);
-                reader.onloadend = async () => {
-                    const base64data = reader.result.split(',')[1];
-                    fetch(WEB_APP_URL, {
-                        method: "POST",
-                        body: JSON.stringify({ email: c.emailDueno, comercio: c.nombre, pdfB64: base64data })
-                    });
-                    const ahora = new Date().toLocaleString();
-                    await updateDoc(doc(db, "comercios", id), { lastSubmission: ahora });
-                    await registrarLogEnvio(c.nombre, c.emailDueno, "Enviado");
-                    alert(`Reporte enviado con éxito a ${c.nombre}`);
-                };
-            } catch (e) {
-                await registrarLogEnvio(c.nombre, c.emailDueno, "Error: " + e.message);
-                alert("Error al procesar envío");
-            }
-        };
-
-        window.enviarTodosLosReportes = async () => {
-            if(!confirm("¿Deseas enviar reportes a TODOS los comercios con frecuencia activa?")) return;
-            for(let c of listaComercios) {
-                if(c.frecuenciaMail && c.frecuenciaMail !== 'nunca') await enviarReporteIndividual(c.id);
-            }
-        };
-
-        // --- LÓGICA DE RENDERIZADO (COPIADA DE LA FUNCIÓN 'finalizar' DEL CÓDIGO DE CUPONES) ---
-        function renderTabla() {
-            const body = document.getElementById('tabla-body');
-            if (!body) return;
-            body.innerHTML = "";
-            
-            let tCom = 0, tUsosTotal = 0, tHoyTotal = 0, tSemTotal = 0, tMesTotal = 0, tAnioTotal = 0;
-
-            listaComercios.forEach(c => {
-                tCom++;
-                
-                // Estos son los nombres exactos de los campos que tu función 'finalizar' incrementa:
-                // totalUsos, usosHoy, usosSemana, usosMes, usosAnio
-                // Y para VIP: totalVips, vipsHoy, vipsSemana, vipsMes, vipsAnio
-                
-                const leadHist = parseInt(c.totalUsos || 0, 10);
-                const vipHist = parseInt(c.totalVips || 0, 10);
-                const sumaHist = leadHist + vipHist;
-
-                const sumaHoy = parseInt(c.usosHoy || 0, 10) + parseInt(c.vipsHoy || 0, 10);
-                const sumaSem = parseInt(c.usosSemana || 0, 10) + parseInt(c.vipsSemana || 0, 10);
-                const sumaMes = parseInt(c.usosMes || 0, 10) + parseInt(c.vipsMes || 0, 10);
-                const sumaAnio = parseInt(c.usosAnio || 0, 10) + parseInt(c.vipsAnio || 0, 10);
-
-                // Acumulación global
-                tUsosTotal += sumaHist;
-                tHoyTotal += sumaHoy;
-                tSemTotal += sumaSem;
-                tMesTotal += sumaMes;
-                tAnioTotal += sumaAnio;
-
-                body.innerHTML += `
-                    <tr class="com-row">
-                        <td><b>${c.nombre || 'Sin Nombre'}</b></td>
-                        <td>${sumaHist}</td>
-                        <td style="color:var(--oro)">${leadHist}</td>
-                        <td style="color:var(--oro)">${vipHist}</td>
-                        <td style="color:var(--verde)">${sumaHoy}</td>
-                        <td>${sumaSem}</td>
-                        <td>${sumaMes}</td>
-                        <td>${sumaAnio}</td>
-                        <td style="font-size: 0.8em; color: #8892b0;">${c.lastSubmission || '---'}</td>
-                        <td>
-                            <select class="mail-freq" onchange="updateFreq('${c.id}', this.value)">
-                                <option value="nunca" ${c.frecuenciaMail === 'nunca' ? 'selected' : ''}>Nunca</option>
-                                <option value="diario" ${c.frecuenciaMail === 'diario' ? 'selected' : ''}>Diario</option>
-                                <option value="semanal" ${c.frecuenciaMail === 'semanal' ? 'selected' : ''}>Semanal</option>
-                                <option value="mensual" ${c.frecuenciaMail === 'mensual' ? 'selected' : ''}>Mensual</option>
-                            </select>
-                            <button class="btn-send-row" title="Enviar ahora" onclick="enviarReporteIndividual('${c.id}')">✉</button>
-                        </td>
-                    </tr>`;
-            });
-
-            // Actualización faja superior
-            document.getElementById('count-com').innerText = tCom;
-            document.getElementById('count-usos').innerText = tUsosTotal;
-            document.getElementById('count-c-hoy').innerText = tHoyTotal;
-            document.getElementById('count-c-sem').innerText = tSemTotal;
-            document.getElementById('count-c-mes').innerText = tMesTotal;
-            document.getElementById('count-c-anio').innerText = tAnioTotal;
-        }
-
-        window.ordenarYRender = (criterio) => {
-            if (criterio === 'nombre') listaComercios.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
-            else if (criterio === 'creacion') listaComercios.sort((a, b) => (a.id < b.id ? -1 : 1));
-            renderTabla();
-        };
-
-        window.updateFreq = async (id, val) => { await updateDoc(doc(db, "comercios", id), { frecuenciaMail: val }); };
-        window.filtrarTabla = () => {
-            const term = document.getElementById('buscador').value.toLowerCase();
-            document.querySelectorAll('.com-row').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; });
-        };
-        cargarStatsUsuarios();
-    </script>
+    window.updateFreq = async (id, val) => { await updateDoc(doc(db, "comercios", id), { frecuenciaMail: val }); };
+    
+    window.filtrarTabla = () => {
+        const term = document.getElementById('buscador').value.toLowerCase();
+        document.querySelectorAll('.com-row').forEach(row => { row.style.display = row.innerText.toLowerCase().includes(term) ? '' : 'none'; });
+    };
+    cargarStatsUsuarios();
+</script>
 </body>
 </html>
+
