@@ -356,22 +356,36 @@
             document.getElementById('pantalla-exito').style.display = 'flex';
             
             try {
+                const ahora = new Date().toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
                 const comercioRef = doc(db, "comercios", id);
+                
+                // ACTUALIZACIÓN DE ESTADÍSTICAS DEL COMERCIO
                 await updateDoc(comercioRef, {
                     totalVips: increment(1),
                     vipsHoy: increment(1),
                     vipsSemana: increment(1),
                     vipsMes: increment(1),
-                    vipsAnio: increment(1)
+                    vipsAnio: increment(1),
+                    lastSubmission: ahora // <--- ESTO ACTUALIZA LA COLUMNA ÚLTIMO ENVÍO
                 });
 
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
+                
+                // REGISTRO EN LOG ESPECÍFICO VIP
                 await addDoc(collection(db, "logs_vip"), { 
                     comercio: nom, 
                     comercioId: id,
                     fecha: serverTimestamp(), 
                     uso_nro: nUso,
                     tipo: "VIP"
+                });
+
+                // REGISTRO EN LOG GENERAL DE ADMINISTRACIÓN
+                await addDoc(collection(db, "logs_admin"), {
+                    fecha: serverTimestamp(),
+                    accion: "CANJE VIP",
+                    detalle: `VIP canjeó ${ben} en ${nom}`,
+                    modulo: "VIPS"
                 });
 
                 localStorage.setItem('uso_vip_' + id, nUso);
