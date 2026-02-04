@@ -59,7 +59,6 @@
             font-size: 1.2rem;
         }
 
-        /* MODAL DE ADVERTENCIA / ERROR */
         .custom-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 3000;
@@ -72,7 +71,6 @@
         .custom-alert h2 { margin: 10px 0; font-size: 24px; font-weight: 900; color: var(--rojo-error); }
         .custom-alert p { font-size: 19px; color: #333; margin: 15px 0; line-height: 1.4; font-weight: 600; }
         
-        /* Estilo para el link de soporte dentro del modal */
         .soporte-link { color: var(--azul-habitat); text-decoration: underline; display: block; margin-top: 10px; }
 
         .btn-alert { 
@@ -236,25 +234,26 @@
                     return;
                 }
 
-                // REPORTE AL HISTORIAL UNIFICADO (Corregido para admin_logs)
+                // --- 1. GUARDAR EN COLECCIÓN LEADS (RESTAURADO) ---
+                await addDoc(collection(db, "leads"), {
+                    nombres: nom,
+                    apellido: ape,
+                    whatsapp: tel,
+                    email: mail,
+                    fechaRegistro: Date.now(),
+                    estado: "activo",
+                    convertidoVIP: false
+                });
+
+                // --- 2. REPORTE AL HISTORIAL UNIFICADO ---
                 await addDoc(collection(db, "logs_actividad"), {
                     timestamp: Date.now(),
                     tipo: "inscripcion",
                     accion: "NUEVA INSCRIPCIÓN",
                     nombre: `Lead: ${nom} ${ape} (${tel})`,
-                    modulo: "LEADS"
+                    modulo: "LEADS",
+                    color: "#004a99"
                 });
-
-                // --- INICIO CAMBIO: REPORTE AL HISTORIAL ---
-                await addDoc(collection(db, "logs_actividad"), {
-    fecha: Date.now(),
-    tipo: "registro",
-    modulo: "LEADS",
-    accion: "NUEVA INSCRIPCIÓN",
-    detalle: `Nuevo Lead: ${nom} ${ape} (${tel})`,
-    color: "#004a99"
-});
-                // --- FIN CAMBIO ---
 
                 notif.style.display = 'block';
                 setTimeout(() => {
@@ -271,6 +270,3 @@
     </script>
 </body>
 </html>
-
-
-
