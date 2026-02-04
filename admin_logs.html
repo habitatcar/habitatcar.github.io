@@ -184,7 +184,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // ESCUCHA ÚNICA DE ACTIVIDAD UNIFICADA
         const qLogs = query(collection(db, "logs_actividad"), orderBy("timestamp", "desc"), limit(150));
 
         onSnapshot(qLogs, (snap) => {
@@ -194,23 +193,40 @@
             snap.forEach(d => {
                 const log = d.data();
                 const fecha = log.timestamp ? new Date(log.timestamp).toLocaleString() : (log.fecha || '---');
-                const tipo = (log.tipo || 'SISTEMA').toLowerCase();
+                const tipoRaw = (log.tipo || 'SISTEMA').toLowerCase();
                 
                 let badgeClass = 'badge-sistema';
-                if(tipo.includes('vip')) badgeClass = 'badge-vip';
-                if(tipo.includes('lead') || tipo.includes('inscripcion')) badgeClass = 'badge-inscripcion';
-                if(tipo.includes('canje')) badgeClass = 'badge-canje';
+                let textoTipo = tipoRaw.toUpperCase();
+
+                // Lógica de etiquetas y colores mejorada
+                if(tipoRaw.includes('vip')) {
+                    badgeClass = 'badge-vip';
+                    // Si la acción es un registro, especificamos INSCRIPCIÓN VIP
+                    if(log.accion?.toLowerCase().includes('registro')) {
+                        textoTipo = "INSCRIPCIÓN VIP";
+                    } else {
+                        textoTipo = "VIP";
+                    }
+                } 
+                else if(tipoRaw.includes('lead') || tipoRaw.includes('inscripcion')) {
+                    badgeClass = 'badge-inscripcion';
+                    textoTipo = "INSCRIPCIÓN LEAD";
+                } 
+                else if(tipoRaw.includes('canje')) {
+                    badgeClass = 'badge-canje';
+                    textoTipo = "CANJE";
+                }
 
                 const tr = document.createElement('tr');
                 tr.className = "log-row";
-                const textoBusqueda = `${log.nombre} ${log.accion} ${log.tipo}`.toLowerCase();
+                const textoBusqueda = `${log.nombre} ${log.accion} ${textoTipo}`.toLowerCase();
                 tr.setAttribute('data-search', textoBusqueda);
 
                 tr.innerHTML = `
                     <td class="date-col">${fecha}</td>
                     <td style="font-weight:bold;">${log.tipo?.toUpperCase() || 'SISTEMA'} / ${log.accion || 'ACTIVIDAD'}</td>
                     <td style="font-size: 0.9em;">${log.nombre || '---'}</td>
-                    <td><span class="badge ${badgeClass}">${tipo.toUpperCase()}</span></td>
+                    <td><span class="badge ${badgeClass}">${textoTipo}</span></td>
                     <td>
                         <button class="btn-del-log" onclick="borrarLog('${d.id}')">🗑️</button>
                     </td>
@@ -243,4 +259,3 @@
     </script>
 </body>
 </html>
-
