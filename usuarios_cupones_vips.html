@@ -384,33 +384,41 @@
             document.getElementById('pantalla-exito').style.display = 'flex';
             
             try {
-                const ahora = new Date().toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+                const ahora = Date.now();
+                const fechaLegible = new Date().toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
                 const comercioRef = doc(db, "comercios", id);
                 
+                // 1. ACTUALIZACIÓN DE ESTADÍSTICAS DEL COMERCIO
                 await updateDoc(comercioRef, {
                     totalVips: increment(1),
                     vipsHoy: increment(1),
                     vipsSemana: increment(1),
                     vipsMes: increment(1),
                     vipsAnio: increment(1),
-                    lastSubmission: ahora 
+                    lastSubmission: fechaLegible 
                 });
 
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
                 
+                // 2. REGISTRO EN LOG DE ACTIVIDAD (El que lee tu panel de administración)
+                // Usamos la misma estructura que en Leads para asegurar que aparezca
+                await addDoc(collection(db, "logs_actividad"), {
+                    timestamp: ahora,
+                    tipo: "canje",
+                    accion: "CANJE VIP",
+                    nombre: `VIP canjeó ${ben} en ${nom}`,
+                    comercioId: id,
+                    modulo: "VIPS"
+                });
+
+                // 3. REGISTRO EN LOG ESPECÍFICO VIP (Para auditoría interna)
                 await addDoc(collection(db, "logs_vip"), { 
                     comercio: nom, 
                     comercioId: id,
                     fecha: serverTimestamp(), 
                     uso_nro: nUso,
-                    tipo: "VIP"
-                });
-
-                await addDoc(collection(db, "logs_admin"), {
-                    fecha: serverTimestamp(),
-                    accion: "CANJE VIP",
-                    detalle: `VIP canjeó ${ben} en ${nom}`,
-                    modulo: "VIPS"
+                    tipo: "VIP",
+                    beneficio: ben
                 });
 
                 localStorage.setItem('uso_vip_' + id, nUso);
@@ -419,14 +427,16 @@
                 const t = setInterval(() => {
                     s--;
                     document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { clearInterval(t); location.reload(); }
+                    if(s <= 0) { 
+                        clearInterval(t); 
+                        location.reload(); 
+                    }
                 }, 1000);
             } catch(e) { 
-                console.error("Error al procesar VIP:", e);
-                alert("Hubo un error al validar. Intente de nuevo.");
+                console.error("Error al registrar en Log:", e);
+                alert("Error de conexión con el servidor de Logs.");
             }
         };
-
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
             document.querySelectorAll('.card-vip').forEach(c => {
@@ -436,3 +446,4 @@
     </script>
 </body>
 </html>
+
