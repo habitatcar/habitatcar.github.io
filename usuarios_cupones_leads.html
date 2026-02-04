@@ -116,7 +116,7 @@
 
         @keyframes parpadeoSuave {
             0% { background-color: white; }
-            50% { background-color: #ffebeb; } /* ACENTUADO PARA QUE SE NOTE MÁS */
+            50% { background-color: #ffebeb; }
             100% { background-color: white; }
         }
 
@@ -162,14 +162,13 @@
             animation: parpadeoVerde 1.5s infinite; 
         }
 
-        /* --- MODALES PERSONALIZADOS (MARCO AZUL) --- */
         .custom-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 3000;
         }
         .custom-alert {
             background: white; width: 85%; max-width: 350px; border-radius: 20px;
-            border: 5px solid var(--azul-habitat); /* MARCO AZUL SOLICITADO */
+            border: 5px solid var(--azul-habitat); 
             text-align: center; padding: 25px; box-sizing: border-box;
         }
         .custom-alert img.check-icon { width: 60px; margin-bottom: 15px; }
@@ -488,30 +487,29 @@
 
         window.finalizar = async (id, nom) => {
             try {
-                // Referencia exacta al comercio
+                const ahora = Date.now();
                 const ref = doc(db, "comercios", id);
                 
-                // Actualizamos los contadores numéricos
+                // ACTUALIZACIÓN DE ESTADÍSTICAS Y FECHA DE ÚLTIMO ENVÍO
                 await updateDoc(ref, {
                     totalUsos: increment(1),
                     usosHoy: increment(1),
                     usosSemana: increment(1),
                     usosMes: increment(1),
-                    usosAnio: increment(1)
+                    usosAnio: increment(1),
+                    lastSubmission: ahora // <--- ESTO ES LO QUE HACÍA FALTA PARA EL PANEL
                 });
 
-                // Registramos el log del evento (Corregido para admin_logs)
+                // REGISTRO DE LOG
                 await addDoc(collection(db, "logs_actividad"), {
-                    timestamp: Date.now(),
+                    timestamp: ahora,
                     tipo: "canje",
                     accion: "CANJE LEADS",
                     nombre: `Canje en: ${nom}`,
                     comercioId: id,
                     modulo: "CUPONES"
                 });
-                // --- FIN CAMBIO ---
 
-                // Mostrar pantalla de éxito
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('pantalla-exito').style.display = 'flex';
                 
@@ -548,6 +546,3 @@
     </script>
 </body>
 </html>
-
-
-
