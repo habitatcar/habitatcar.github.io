@@ -338,18 +338,12 @@
         document.getElementById('t-anio').innerText = allFechas.filter(f => (ahora - f) <= unDia * 365).length;
     }
 
-    // SCRIPT DE DIAGNÓSTICO RÁPIDO
-onSnapshot(collection(db, "comercios"), (snap) => {
-    console.log("--- REVISIÓN DE CAMPOS ---");
-    snap.forEach(d => {
-        const data = d.data();
-        console.log(`Comercio: ${data.nombre}`);
-        console.log(`ID en DB: ${d.id}`);
-        console.log(`¿Tiene lastSubmission?:`, data.hasOwnProperty('lastSubmission'));
-        console.log(`¿Tiene totalUsos?:`, data.hasOwnProperty('totalUsos'));
-        console.log("-----------------------");
+    onSnapshot(collection(db, "comercios"), (snap) => {
+        listaComercios = [];
+        snap.forEach(d => listaComercios.push({ id: d.id, ...d.data() }));
+        controlarReseteoDiario(listaComercios);
+        renderTabla();
     });
-});
 
     async function registrarLogEnvio(comercio, email, estado) {
         await addDoc(collection(db, "historico_envios_reportes"), {
