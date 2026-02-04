@@ -269,10 +269,20 @@
         </div>
     </div>
 
+    <div id="overlay-error-qr" class="custom-overlay">
+        <div class="custom-alert" style="border-color: var(--rojo-cupon);">
+            <img src="https://cdn-icons-png.flaticon.com/512/753/753345.png" class="check-icon">
+            <h2 style="color: var(--rojo-cupon);">❌ ERROR DE VALIDACIÓN</h2>
+            <p>El código escaneado no coincide con este comercio.</p>
+            <p style="font-weight: 900; color: var(--azul-habitat);">Hábitat-Car le pide que escanee el QR correcto ubicado en el mostrador.</p>
+            <button class="btn-alert btn-si" style="background:var(--rojo-cupon)" onclick="cerrarErrorQR()">REINTENTAR</button>
+        </div>
+    </div>
+
     <div id="overlay-atencion" class="custom-overlay">
         <div class="custom-alert">
             <h2 style="color:#e63946">⚠️ ATENCIÓN</h2>
-            <p>¿Avisaste al cajero que usarás el cupón <b>VIP</b>?</p>
+            <p>¿Avisaste al cajero que usarás el cupón <b>LEADS</b>?</p>
             <p>Si no avisaste, perderás el beneficio.</p>
             <div class="btn-group-alert">
                 <button id="btn-confirmar-final" class="btn-alert btn-si">SÍ</button>
@@ -436,6 +446,10 @@
             document.getElementById('overlay-validado').style.display = 'none';
         };
 
+        window.cerrarErrorQR = () => {
+            document.getElementById('overlay-error-qr').style.display = 'none';
+        };
+
         window.confirmarAtencion = (id, nom) => {
             const overlay = document.getElementById('overlay-atencion');
             overlay.style.display = 'flex';
@@ -474,7 +488,10 @@
                         btn.classList.add('activo'); 
                         btn.innerText = "USAR BENEFICIO"; 
                     }
-                } else { alert("QR Incorrecto"); }
+                } else { 
+                    cerrarScanner();
+                    document.getElementById('overlay-error-qr').style.display = 'flex'; 
+                }
             }).catch(e => console.error(e));
         };
         
@@ -490,17 +507,15 @@
                 const ahora = Date.now();
                 const ref = doc(db, "comercios", id);
                 
-                // ACTUALIZACIÓN DE ESTADÍSTICAS Y FECHA DE ÚLTIMO ENVÍO
                 await updateDoc(ref, {
                     totalUsos: increment(1),
                     usosHoy: increment(1),
                     usosSemana: increment(1),
                     usosMes: increment(1),
                     usosAnio: increment(1),
-                    lastSubmission: ahora // <--- ESTO ES LO QUE HACÍA FALTA PARA EL PANEL
+                    lastSubmission: ahora
                 });
 
-                // REGISTRO DE LOG
                 await addDoc(collection(db, "logs_actividad"), {
                     timestamp: ahora,
                     tipo: "canje",
