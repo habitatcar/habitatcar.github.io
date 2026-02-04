@@ -189,7 +189,6 @@
         }
         .error-icon-vip { width: 60px; margin-bottom: 15px; filter: drop-shadow(0 0 5px red); }
 
-        /* Estilo para el contenedor de código de barras VIP */
         .barcode-container {
             background: white;
             padding: 15px;
@@ -294,28 +293,11 @@
                 if (c.estado === "inactivo") return;
                 const id = d.id;
                 listaComercios.push({id, ...c});
-                
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0");
                 const tieneRedes = (c.facebook || c.instagram || c.web);
-                const htmlLogo = c.logoUrl 
-                    ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` 
-                    : '';
+                const htmlLogo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : '';
                 
-                html += `
-                    <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">
-                        ${htmlLogo}
-                        <div class="nombre-c">${c.nombre || ''}</div>
-                        <div class="beneficio-c">${c.valVip || 0}% OFF</div>
-                        <div class="vence-vip">★ Vence en ${c.vigenciaVip || 'X'} días ★</div>
-                        <div class="btn-stack">
-                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${id}')">Conozca el comercio</button>` : ''}
-                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || ''))}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
-                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajeroVIP('${id}', '${c.nombre}', '${c.valVip}% OFF')">
-                                Usar beneficio <span class="contador-nube">${nUso}</span>
-                            </button>
-                        </div>
-                    </div>`;
+                html += `<div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">${htmlLogo}<div class="nombre-c">${c.nombre || ''}</div><div class="beneficio-c">${c.valVip || 0}% OFF</div><div class="vence-vip">★ Vence en ${c.vigenciaVip || 'X'} días ★</div><div class="btn-stack">${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${id}')">Conozca el comercio</button>` : ''}<button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || ''))}')">Cómo llegar</button><button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button><button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajeroVIP('${id}', '${c.nombre}', '${c.valVip}% OFF')">Usar beneficio <span class="contador-nube">${nUso}</span></button></div></div>`;
             });
             contenedor.innerHTML = html;
         });
@@ -325,17 +307,11 @@
             const overlay = document.createElement('div');
             overlay.className = 'redes-overlay';
             overlay.onclick = () => overlay.remove();
-            
             let btns = "";
             if(c.facebook) btns += `<a href="${c.facebook}" target="_blank" class="btn-red" style="background:var(--facebook)">Facebook</a>`;
             if(c.instagram) btns += `<a href="${c.instagram}" target="_blank" class="btn-red" style="background:var(--instagram)">Instagram</a>`;
             if(c.web) btns += `<a href="${c.web}" target="_blank" class="btn-red" style="background:var(--azul-lindo)">Página Web</a>`;
-            
-            overlay.innerHTML = `<div class="redes-box" onclick="event.stopPropagation()">
-                <h3 style="color:var(--dorado); margin-top:0;">${c.nombre}</h3>
-                ${btns}
-                <button onclick="this.closest('.redes-overlay').remove()" style="margin-top:15px; background:none; border:none; color:gray; font-weight:bold;">CERRAR</button>
-            </div>`;
+            overlay.innerHTML = `<div class="redes-box" onclick="event.stopPropagation()"><h3 style="color:var(--dorado); margin-top:0;">${c.nombre}</h3>${btns}<button onclick="this.closest('.redes-overlay').remove()" style="margin-top:15px; background:none; border:none; color:gray; font-weight:bold;">CERRAR</button></div>`;
             document.body.appendChild(overlay);
         };
 
@@ -347,15 +323,9 @@
                     cerrarScanner();
                     document.getElementById(`btn-usar-${id}`).classList.add('activo');
                     document.getElementById(`btn-val-${id}`).style.display = 'none';
-                    
                     const overlay = document.createElement('div');
                     overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:flex;justify-content:center;align-items:center;z-index:9000;";
-                    overlay.innerHTML = `
-                        <div style="background:white;padding:30px;border-radius:20px;text-align:center;max-width:80%; border:5px solid var(--dorado);">
-                            <div style="font-size:60px; margin-bottom:15px;">✅</div>
-                            <b style="color:black;font-size:24px;display:block;margin-bottom:10px;">QR VALIDADO</b>
-                            <p style="color:#333;font-size:18px;margin:0;font-weight:600;">Ahora pulse el botón "USAR BENEFICIO"</p>
-                        </div>`;
+                    overlay.innerHTML = `<div style="background:white;padding:30px;border-radius:20px;text-align:center;max-width:80%; border:5px solid var(--dorado);"><div style="font-size:60px; margin-bottom:15px;">✅</div><b style="color:black;font-size:24px;display:block;margin-bottom:10px;">QR VALIDADO</b><p style="color:#333;font-size:18px;margin:0;font-weight:600;">Ahora pulse el botón "USAR BENEFICIO"</p></div>`;
                     document.body.appendChild(overlay);
                     setTimeout(() => overlay.remove(), 4000);
                 } else {
@@ -380,89 +350,53 @@
             const alerta = document.createElement('div');
             alerta.className = 'advertencia-overlay';
             alerta.id = 'alerta-cajero';
-            alerta.innerHTML = `
-                <div class="advertencia-contenido">
-                    <h3 style="color:red;">⚠️ ATENCIÓN</h3>
-                    <p>¿Avisaste al cajero que usarás el cupón <b>VIP</b>?<br><br><b>Si no avisaste, perderás el beneficio.</b></p>
-                    <div style="display:flex; gap:10px;">
-                        <button class="btn-si" onclick="finalizarVIP('${id}', '${nombre}', '${beneficio}')">SÍ</button>
-                        <button class="btn-no" onclick="document.getElementById('alerta-cajero').remove()">NO</button>
-                    </div>
-                </div>`;
+            alerta.innerHTML = `<div class="advertencia-contenido"><h3 style="color:red;">⚠️ ATENCIÓN</h3><p>¿Avisaste al cajero que usarás el cupón <b>VIP</b>?<br><br><b>Si no avisaste, perderás el beneficio.</b></p><div style="display:flex; gap:10px;"><button class="btn-si" onclick="finalizarVIP('${id}', '${nombre}', '${beneficio}')">SÍ</button><button class="btn-no" onclick="document.getElementById('alerta-cajero').remove()">NO</button></div></div>`;
             document.body.appendChild(alerta);
         };
 
         window.finalizarVIP = async (id, nom, ben) => {
             document.getElementById('alerta-cajero').remove();
-            
             try {
                 const ahora = Date.now();
                 const fechaLegible = new Date().toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
                 const comercioRef = doc(db, "comercios", id);
-                
                 const snapComercio = await getDoc(comercioRef);
                 const dataCom = snapComercio.data();
                 const proximoNro = (dataCom.totalVips || 0) + 1;
                 const codigoIdentidad = "VIP-" + proximoNro.toString().padStart(4, '0');
 
-                // 1. ACTUALIZACIÓN DE ESTADÍSTICAS DEL COMERCIO
                 await updateDoc(comercioRef, {
-                    totalVips: increment(1),
-                    vipsHoy: increment(1),
-                    vipsSemana: increment(1),
-                    vipsMes: increment(1),
-                    vipsAnio: increment(1),
-                    lastSubmission: fechaLegible 
+                    totalVips: increment(1), vipsHoy: increment(1), vipsSemana: increment(1),
+                    vipsMes: increment(1), vipsAnio: increment(1), lastSubmission: fechaLegible 
                 });
 
-                // 2. GENERACIÓN VISUAL DEL CÓDIGO DE BARRAS (CAMBIO: TEXTO EN NEGRITA)
                 JsBarcode("#barcodeVIP", codigoIdentidad, {
-                    format: "CODE128",
-                    lineColor: "#000",
-                    width: 2,
-                    height: 50,
-                    displayValue: true,
-                    fontSize: 20,
-                    fontOptions: "bold"
+                    format: "CODE128", lineColor: "#000", width: 2, height: 50,
+                    displayValue: true, fontSize: 20, fontOptions: "bold"
                 });
 
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-beneficio').innerText = ben;
                 document.getElementById('pantalla-exito').style.display = 'flex';
-
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
                 
-                // 3. REGISTRO EN LOG DE ACTIVIDAD
                 await addDoc(collection(db, "logs_actividad"), {
-                    timestamp: ahora,
-                    tipo: "canje",
-                    accion: "CANJE VIP",
+                    timestamp: ahora, tipo: "canje", accion: "CANJE VIP",
                     nombre: `${codigoIdentidad} canjeó ${ben} en ${nom}`,
-                    comercioId: id,
-                    modulo: "VIPS"
+                    comercioId: id, modulo: "VIPS"
                 });
 
-                // 4. REGISTRO EN LOG ESPECÍFICO VIP
                 await addDoc(collection(db, "logs_vip"), { 
-                    comercio: nom, 
-                    comercioId: id,
-                    fecha: serverTimestamp(), 
-                    uso_nro: nUso,
-                    tipo: "VIP",
-                    beneficio: ben,
-                    codigoGenerado: codigoIdentidad
+                    comercio: nom, comercioId: id, fecha: serverTimestamp(), 
+                    uso_nro: nUso, tipo: "VIP", beneficio: ben, codigoGenerado: codigoIdentidad
                 });
 
                 localStorage.setItem('uso_vip_' + id, nUso);
-
                 let s = 30;
                 const t = setInterval(() => {
                     s--;
                     document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { 
-                        clearInterval(t); 
-                        location.reload(); 
-                    }
+                    if(s <= 0) { clearInterval(t); location.reload(); }
                 }, 1000);
             } catch(e) { 
                 console.error("Error al registrar en Log:", e);
