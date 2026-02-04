@@ -243,7 +243,7 @@
 
     <div class="header-white">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true">
-        <button id="btn-instalar-pwa">Instalar APP Habitat-Car</button>
+        <button id="btn-instalar-pwa">INSTALAR ÍCONO HÁBITAT-CAR</button>
     </div>
 
     <div class="filtro-container">
@@ -344,10 +344,15 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // Lógica de Instalación Ícono (PWA) mejorada
         let deferredPrompt;
         const btnInstalar = document.getElementById('btn-instalar-pwa');
 
+        // Solo mostramos el botón si NO lo instaló antes (guardado en localStorage)
+        const yaInstalado = localStorage.getItem('habitat_pwa_instalada');
+
         window.addEventListener('beforeinstallprompt', (e) => {
+            if (yaInstalado) return; // Si ya marcó que instaló, no lo molestamos
             e.preventDefault();
             deferredPrompt = e;
             btnInstalar.style.display = 'block';
@@ -357,7 +362,10 @@
             if (deferredPrompt) {
                 deferredPrompt.prompt();
                 const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') btnInstalar.style.display = 'none';
+                if (outcome === 'accepted') {
+                    btnInstalar.style.display = 'none';
+                    localStorage.setItem('habitat_pwa_instalada', 'true');
+                }
                 deferredPrompt = null;
             }
         });
