@@ -426,10 +426,10 @@
         listaComercios.forEach(c => {
             tCom++;
             
+            // Lógica de sumas original
             const leadHist = parseInt(c.totalUsos || 0, 10);
             const vipHist = parseInt(c.totalVips || 0, 10);
             const sumaHist = leadHist + vipHist;
-
             const sumaHoy = parseInt(c.usosHoy || 0, 10) + parseInt(c.vipsHoy || 0, 10);
             const sumaSem = parseInt(c.usosSemana || 0, 10) + parseInt(c.vipsSemana || 0, 10);
             const sumaMes = parseInt(c.usosMes || 0, 10) + parseInt(c.vipsMes || 0, 10);
@@ -441,6 +441,19 @@
             tMesTotal += sumaMes;
             tAnioTotal += sumaAnio;
 
+            // --- TRATAMIENTO DEL CAMPO ÚLTIMO ENVÍO ---
+            let visualEnvio = "---";
+            if (c.lastSubmission) {
+                // Si el dato es un número (timestamp), lo convertimos a fecha humana
+                if (!isNaN(c.lastSubmission) && typeof c.lastSubmission !== 'string') {
+                    const d = new Date(c.lastSubmission);
+                    visualEnvio = d.toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+                } else {
+                    // Si ya es un texto, lo mostramos tal cual
+                    visualEnvio = c.lastSubmission;
+                }
+            }
+
             body.innerHTML += `
                 <tr class="com-row">
                     <td><b>${c.nombre || 'Sin Nombre'}</b></td>
@@ -451,7 +464,7 @@
                     <td>${sumaSem}</td>
                     <td>${sumaMes}</td>
                     <td>${sumaAnio}</td>
-                    <td style="font-size: 0.85em; color: #00c3ff;">${c.lastSubmission || '---'}</td>
+                    <td style="font-size: 0.85em; color: #00c3ff; font-weight: bold;">${visualEnvio}</td>
                     <td>
                         <select class="mail-freq" onchange="updateFreq('${c.id}', this.value)">
                             <option value="nunca" ${c.frecuenciaMail === 'nunca' ? 'selected' : ''}>Nunca</option>
@@ -459,11 +472,12 @@
                             <option value="semanal" ${c.frecuenciaMail === 'semanal' ? 'selected' : ''}>Semanal</option>
                             <option value="mensual" ${c.frecuenciaMail === 'mensual' ? 'selected' : ''}>Mensual</option>
                         </select>
-                        <button class="btn-send-row" title="Enviar ahora" onclick="enviarReporteIndividual('${c.id}')">✉</button>
+                        <button class="btn-send-row" onclick="enviarReporteIndividual('${c.id}')">✉</button>
                     </td>
                 </tr>`;
         });
 
+        // Actualización de contadores superiores
         document.getElementById('count-com').innerText = tCom;
         document.getElementById('count-usos').innerText = tUsosTotal;
         document.getElementById('count-c-hoy').innerText = tHoyTotal;
@@ -471,7 +485,6 @@
         document.getElementById('count-c-mes').innerText = tMesTotal;
         document.getElementById('count-c-anio').innerText = tAnioTotal;
     }
-
     window.ordenarYRender = (criterio) => {
         if (criterio === 'nombre') listaComercios.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
         else if (criterio === 'creacion') listaComercios.sort((a, b) => (a.id < b.id ? -1 : 1));
@@ -488,4 +501,5 @@
 </script>
 </body>
 </html>
+
 
