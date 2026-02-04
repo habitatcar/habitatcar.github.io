@@ -257,17 +257,22 @@
         let COMERCIOS = [];
         let FILTRO_ESTADO = 'todos';
 
-        // FUNCIÓN PARA FORMATEAR FECHAS (MANEJA TIMESTAMPS Y NÚMEROS)
+        // FUNCIÓN CORREGIDA PARA MANEJAR TEXTO Y NÚMEROS SIN ROMPER LA TABLA
         const formatearFecha = (ts) => {
             if (!ts) return "Sin envíos";
             try {
+                // Si ya es un texto legible (ej: "03/02 14:30"), lo devolvemos tal cual
+                if (typeof ts === 'string' && ts.includes('/')) return ts;
+                
+                // Si es un número (timestamp) lo convertimos
                 let fecha = ts.toDate ? ts.toDate() : new Date(Number(ts));
-                if (isNaN(fecha.getTime())) return "Formato antiguo";
+                if (isNaN(fecha.getTime())) return ts; // Devolver el dato original si no se puede convertir
+
                 return fecha.toLocaleString('es-AR', { 
-                    day: '2-digit', month: '2-digit', year: 'numeric', 
+                    day: '2-digit', month: '2-digit', 
                     hour: '2-digit', minute: '2-digit' 
                 });
-            } catch (e) { return "Error fecha"; }
+            } catch (e) { return "Formato inválido"; }
         };
 
         onSnapshot(collection(db, "comercios"), (snap) => {
@@ -310,6 +315,7 @@
 
             filtrados.forEach(c => {
                 const estaActivo = c.estado === 'activo';
+                // CORRECCIÓN ID FANTASMA: Priorizamos idComercio que es el que usa el input de edición
                 const displayID = c.idComercio || c.id || "SIN-ID";
                 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
                 
@@ -376,6 +382,7 @@
 
             document.getElementById('edit-id').value = id;
             document.getElementById('nombre-input').value = c.nombre || "";
+            // UNIFICACIÓN DE LECTURA DE ID
             let idExistente = c.idComercio || c.id || (c.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
             document.getElementById('id-input').value = idExistente;
             document.getElementById('token-input').value = c.tokenQR || "";
