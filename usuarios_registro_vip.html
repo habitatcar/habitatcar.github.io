@@ -299,22 +299,23 @@
             btn.innerText = "Procesando...";
 
             try {
-                // VALIDACIÓN DE DUPLICADO (Lógica copiada de Leads según protocolo)
                 const qCheck = query(collection(db, "leads"), where("whatsapp", "==", tel));
                 const snapCheck = await getDocs(qCheck);
-                
-                // Si el documento existe y ya es VIP, bloqueamos el registro
-                if (!snapCheck.empty && snapCheck.docs[0].data().convertidoVIP === true) {
-                    mostrarError("NÚMERO YA REGISTRADO", "Este número de WhatsApp ya se encuentra registrado como miembro VIP. Por favor, utilice otro número o contacte a soporte.", true);
-                    btn.disabled = false;
-                    btn.innerText = "Activar Membresía VIP";
-                    return;
-                }
-
                 const ahora = Date.now();
+                let accionLog = "NUEVO REGISTRO VIP"; // Por defecto
 
                 if (!snapCheck.empty) {
-                    // Si ya existe como Lead común, lo actualizamos a VIP
+                    const dataPrevia = snapCheck.docs[0].data();
+                    
+                    if (dataPrevia.convertidoVIP === true) {
+                        mostrarError("NÚMERO YA REGISTRADO", "Este número ya es miembro VIP.", true);
+                        btn.disabled = false;
+                        btn.innerText = "Activar Membresía VIP";
+                        return;
+                    }
+                    
+                    // Si existía como lead pero no era VIP, entonces SUBIÓ
+                    accionLog = "SUBIÓ A VIP";
                     const docId = snapCheck.docs[0].id;
                     await updateDoc(doc(db, "leads", docId), {
                         convertidoVIP: true,
@@ -324,7 +325,7 @@
                         email: mail
                     });
                 } else {
-                    // Si es totalmente nuevo, lo creamos
+                    // Si no existía, se crea de cero
                     await addDoc(collection(db, "leads"), {
                         nombres: nom,
                         apellido: ape,
@@ -340,16 +341,15 @@
                     });
                 }
 
-                // REGISTRAR EN EL LOG DE ACTIVIDAD
+                // REGISTRAR EN EL LOG CON LA ACCIÓN CORRESPONDIENTE
                 await addDoc(collection(db, "logs_actividad"), {
                     nombre: `${ape}, ${nom}`,
                     tipo: "VIP",
-                    accion: "NUEVO REGISTRO VIP",
+                    accion: accionLog, // Aquí dirá "NUEVO REGISTRO VIP" o "SUBIÓ A VIP"
                     timestamp: ahora,
                     fecha: new Date().toLocaleString()
                 });
 
-                // Quemar el token usado
                 await updateDoc(doc(db, "tokens_vip", idDocumentoToken), {
                     estado: "usado",
                     whatsapp: tel,
@@ -365,7 +365,7 @@
                 }, 2500);
 
             } catch (e) {
-                mostrarError("ERROR DE REGISTRO", "No se pudo procesar la membresía. Error técnico registrado.");
+                mostrarError("ERROR DE REGISTRO", "No se pudo procesar. Error técnico.");
                 console.error(e);
                 btn.disabled = false;
                 btn.innerText = "Activar Membresía VIP";
