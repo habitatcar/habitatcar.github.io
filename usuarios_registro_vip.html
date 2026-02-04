@@ -1,378 +1,105 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Registro VIP | Hábitat-Car</title>
-    <link rel="manifest" href="manifest.json">
-    <style>
-        :root {
-            --azul-habitat: #004a99;
-            --oro-vip: #d4af37;
-            --oro-brillante: #f9d976;
-            --azul-fondo: rgba(10, 25, 47, 0.98);
-            --blanco: #ffffff;
-            --rojo-error: #ff4d4d;
+<script type="module">
+    // ... (importaciones y configuración de Firebase igual) ...
+
+    window.registrarVIP = async () => {
+        const btn = document.getElementById('btnRegistro');
+        const nom = document.getElementById('nombres').value.trim();
+        const ape = document.getElementById('apellido').value.trim();
+        const tel = document.getElementById('whatsapp').value.trim();
+        const mail = document.getElementById('email').value.trim();
+
+        if(!nom || !ape || !tel || !mail) {
+            mostrarError("DATOS INCOMPLETOS", "Por favor, complete todos los campos.");
+            return;
         }
 
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: #1a1a1a;
-            background-image: linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)),
-                            url("https://www.transparenttextures.com/patterns/gold-tips.png");
-            background-size: cover;
-            background-attachment: fixed;
-            margin: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding-bottom: 80px;
-        }
+        // Limpiamos el número para que la búsqueda sea infalible (solo números)
+        const whatsappLimpio = tel.replace(/\D/g, '');
 
-        .container {
-            background: var(--azul-fondo);
-            padding: 40px;
-            border-radius: 25px;
-            box-shadow: 0 15px 40px rgba(0,0,0,0.6);
-            width: 100%;
-            max-width: 550px;
-            text-align: center;
-            border: 2px solid var(--oro-vip);
-        }
+        btn.disabled = true;
+        btn.innerText = "Procesando...";
 
-        .logo { 
-            width: 600px; 
-            max-width: 100%;
-            height: auto; 
-            margin-bottom: 30px; 
-        }
+        try {
+            // 1. RECONOCIMIENTO: Buscamos si ya existe como Lead
+            const qLead = query(collection(db, "leads"), where("whatsapp", "==", whatsappLimpio));
+            const snapLead = await getDocs(qLead);
+            const ahora = Date.now();
+            
+            let accionParaLog = ""; // Variable para distinguir el origen
 
-        h2 { color: var(--oro-vip); margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px; }
+            if (!snapLead.empty) {
+                // CASO A: YA EXISTÍA COMO LEAD
+                const docId = snapLead.docs[0].id;
+                const dataPrevia = snapLead.docs[0].data();
 
-        /* MODAL VIP ADVERTENCIA */
-        .custom-overlay {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 3000;
-        }
-        .custom-alert {
-            background: #0a192f; width: 85%; max-width: 400px; border-radius: 20px;
-            border: 3px solid var(--oro-vip);
-            text-align: center; padding: 30px; box-sizing: border-box;
-            box-shadow: 0 0 30px rgba(212, 175, 55, 0.3);
-        }
-        .custom-alert h2 { margin: 0 0 15px 0; font-size: 22px; color: var(--rojo-error); }
-        .custom-alert p { font-size: 18px; color: #eee; margin-bottom: 20px; line-height: 1.4; }
-        .soporte-link { color: var(--oro-brillante); text-decoration: underline; display: block; margin-bottom: 20px; font-weight: bold; }
-        .btn-alert { 
-            width: 100%; padding: 15px; border: none; border-radius: 10px; 
-            font-weight: 900; font-size: 16px; cursor: pointer; text-transform: uppercase;
-            background: linear-gradient(45deg, var(--oro-vip), var(--oro-brillante)); color: #000;
-        }
-
-        #msg-validacion {
-            padding: 12px;
-            margin-bottom: 20px;
-            border-radius: 8px;
-            font-weight: bold;
-            font-size: 0.95em;
-        }
-        .valido { background: rgba(40, 167, 69, 0.2); color: #28a745; border: 1px solid #28a745; }
-        .invalido { background: rgba(220, 53, 69, 0.2); color: #dc3545; border: 1px solid #dc3545; }
-
-        .input-group { margin-bottom: 18px; text-align: left; }
-        label { display: block; margin-bottom: 5px; color: var(--oro-brillante); font-weight: bold; font-size: 0.9em; }
-        input { 
-            width: 100%; padding: 14px; border: 1px solid var(--oro-vip); border-radius: 12px; 
-            background: rgba(255,255,255,0.05); color: white; box-sizing: border-box; font-size: 1rem;
-        }
-
-        .terminos-box {
-            margin: 20px 0;
-            color: #ccc;
-            font-size: 0.85em;
-        }
-        .terminos-box a {
-            color: var(--oro-brillante);
-            text-decoration: underline;
-            font-weight: bold;
-        }
-
-        .btn-vip {
-            width: 100%;
-            padding: 18px;
-            background: linear-gradient(45deg, var(--oro-vip), var(--oro-brillante));
-            color: #000;
-            border: none;
-            border-radius: 12px;
-            font-weight: bold;
-            font-size: 1.1rem;
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: 0.3s;
-        }
-        .btn-vip:disabled { background: #444; color: #888; cursor: not-allowed; filter: grayscale(1); }
-
-        #notificacion {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #000000;
-            color: var(--oro-vip);
-            padding: 30px 50px;
-            border-radius: 20px;
-            z-index: 1000;
-            text-align: center;
-            font-weight: bold;
-            border: 2px solid var(--oro-vip);
-            font-size: 1.2em;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-        }
-
-        .footer-identificacion {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: white;
-            border-top: 4px solid var(--azul-habitat);
-            padding: 10px 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            z-index: 900;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-        }
-        .footer-link {
-            text-decoration: none;
-            color: var(--azul-habitat);
-            font-weight: bold;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-    </style>
-</head>
-<body>
-
-    <div id="notificacion">
-        <span style="font-size: 1.5em;">💎</span><br>
-        <strong>¡BIENVENIDO AL CLUB VIP!</strong><br>
-        <span style="font-size: 0.8em; font-weight: normal;">Activando cuenta...</span>
-    </div>
-
-    <div id="overlay-error" class="custom-overlay">
-        <div class="custom-alert">
-            <h2 id="error-titulo">⚠️ ATENCIÓN VIP</h2>
-            <div id="error-contenido">
-                <p id="error-mensaje">Por favor, complete todos los campos requeridos.</p>
-            </div>
-            <button class="btn-alert" onclick="cerrarError()">REVISAR DATOS</button>
-        </div>
-    </div>
-
-    <div class="container">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
-        
-        <h2>Registro VIP Premium</h2>
-
-        <div id="msg-validacion">Validando invitación...</div>
-        
-        <div class="input-group">
-            <label>Nombres Completos</label>
-            <input type="text" id="nombres" placeholder="Sus nombres">
-        </div>
-
-        <div class="input-group">
-            <label>Apellido</label>
-            <input type="text" id="apellido" placeholder="Su apellido">
-        </div>
-
-        <div class="input-group">
-            <label>WhatsApp</label>
-            <input type="tel" id="whatsapp" placeholder="Ej: 54911...">
-        </div>
-
-        <div class="input-group">
-            <label>Correo Electrónico</label>
-            <input type="email" id="email" placeholder="ejemplo@correo.com">
-        </div>
-
-        <div class="terminos-box">
-            Al hacer clic en activar, usted acepta nuestros <br>
-            <a href="usuarios_terminos.html">Términos y Condiciones de Uso</a>
-        </div>
-
-        <button class="btn-vip" id="btnRegistro" onclick="registrarVIP()" disabled>Activar Membresía VIP</button>
-    </div>
-
-    <footer class="footer-identificacion">
-        <a href="https://www.habitatcar.com.ar" class="footer-link" target="_blank">www.habitatcar.com.ar</a>
-        <a href="https://wa.me/543884618228" class="footer-link" target="_blank">Cel: 388-4618228</a>
-    </footer>
-
-    <script type="module">
-        if (localStorage.getItem('habitat_vip_auth') === 'true') {
-            window.location.replace("usuarios_cupones_vips.html");
-        }
-
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, where, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-
-        const firebaseConfig = {
-            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
-            authDomain: "habitatcar-pro.firebaseapp.com",
-            projectId: "habitatcar-pro",
-            storageBucket: "habitatcar-pro.firebasestorage.app",
-            messagingSenderId: "311691258694",
-            appId: "1:311691258694:web:17a09051dcea7707af9347"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const tokenInterno = urlParams.get('t');
-        let idDocumentoToken = "";
-
-        // MODAL FUNCTIONS
-        window.mostrarError = (titulo, msg, conSoporte = false) => {
-            document.getElementById('error-titulo').innerText = titulo;
-            let contenido = `<p>${msg}</p>`;
-            if(conSoporte) {
-                contenido += `<a href="https://wa.me/543884618228" target="_blank" class="soporte-link">Contactar a Soporte (388-4618228)</a>`;
-            }
-            document.getElementById('error-contenido').innerHTML = contenido;
-            document.getElementById('overlay-error').style.display = 'flex';
-        };
-
-        window.cerrarError = () => {
-            document.getElementById('overlay-error').style.display = 'none';
-        };
-
-        async function validarTokenInterno() {
-            const msg = document.getElementById('msg-validacion');
-            const btn = document.getElementById('btnRegistro');
-
-            if (!tokenInterno) {
-                msg.innerText = "⚠️ Enlace VIP no válido.";
-                msg.className = "invalido";
-                return;
-            }
-
-            try {
-                const q = query(collection(db, "tokens_vip"), where("token", "==", tokenInterno), where("estado", "==", "disponible"));
-                const snap = await getDocs(q);
-
-                if (!snap.empty) {
-                    msg.innerText = "✅ Invitación VIP Confirmada";
-                    msg.className = "valido";
+                if (dataPrevia.convertidoVIP === true) {
+                    mostrarError("YA ES MIEMBRO", "Este número ya está registrado como VIP.");
                     btn.disabled = false;
-                    idDocumentoToken = snap.docs[0].id;
-                } else {
-                    msg.innerText = "❌ Este código no existe o ya fue utilizado.";
-                    msg.className = "invalido";
-                }
-            } catch (e) {
-                msg.innerText = "Error de conexión.";
-                console.error(e);
-            }
-        }
-
-        window.registrarVIP = async () => {
-            const btn = document.getElementById('btnRegistro');
-            const nom = document.getElementById('nombres').value.trim();
-            const ape = document.getElementById('apellido').value.trim();
-            const tel = document.getElementById('whatsapp').value.trim();
-            const mail = document.getElementById('email').value.trim();
-
-            if(!nom || !ape || !tel || !mail) {
-                mostrarError("DATOS INCOMPLETOS", "Para activar su membresía VIP Premium, debe completar todos los campos del formulario.");
-                return;
-            }
-
-            btn.disabled = true;
-            btn.innerText = "Procesando...";
-
-            try {
-                const qCheck = query(collection(db, "leads"), where("whatsapp", "==", tel));
-                const snapCheck = await getDocs(qCheck);
-                const ahora = Date.now();
-                let accionLog = "NUEVO REGISTRO VIP"; // Por defecto
-
-                if (!snapCheck.empty) {
-                    const dataPrevia = snapCheck.docs[0].data();
-                    
-                    if (dataPrevia.convertidoVIP === true) {
-                        mostrarError("NÚMERO YA REGISTRADO", "Este número ya es miembro VIP.", true);
-                        btn.disabled = false;
-                        btn.innerText = "Activar Membresía VIP";
-                        return;
-                    }
-                    
-                    // Si existía como lead pero no era VIP, entonces SUBIÓ
-                    accionLog = "SUBIÓ A VIP";
-                    const docId = snapCheck.docs[0].id;
-                    await updateDoc(doc(db, "leads", docId), {
-                        convertidoVIP: true,
-                        estado: "activo",
-                        fechaVIP: ahora,
-                        lastSubmission: ahora,
-                        email: mail
-                    });
-                } else {
-                    // Si no existía, se crea de cero
-                    await addDoc(collection(db, "leads"), {
-                        nombres: nom,
-                        apellido: ape,
-                        whatsapp: tel,
-                        email: mail,
-                        convertidoVIP: true,
-                        estado: "activo",
-                        fechaVIP: ahora,
-                        fechaRegistro: ahora,
-                        lastSubmission: ahora,
-                        tipo: "VIP",
-                        origen: "Registro Directo VIP"
-                    });
+                    btn.innerText = "Activar Membresía VIP";
+                    return;
                 }
 
-                // REGISTRAR EN EL LOG CON LA ACCIÓN CORRESPONDIENTE
-                await addDoc(collection(db, "logs_actividad"), {
-                    nombre: `${ape}, ${nom}`,
-                    tipo: "VIP",
-                    accion: accionLog, // Aquí dirá "NUEVO REGISTRO VIP" o "SUBIÓ A VIP"
-                    timestamp: ahora,
-                    fecha: new Date().toLocaleString()
-                });
-
-                await updateDoc(doc(db, "tokens_vip", idDocumentoToken), {
-                    estado: "usado",
-                    whatsapp: tel,
-                    nombreVip: nom,
-                    fechaUso: ahora
-                });
-
-                localStorage.setItem('habitat_vip_auth', 'true');
-                document.getElementById('notificacion').style.display = 'block';
+                // ETIQUETA ESPECÍFICA PARA CONVERSIÓN
+                accionParaLog = "SUBIÓ POR CONVERSIÓN";
                 
-                setTimeout(() => { 
-                    window.location.replace("usuarios_cupones_vips.html"); 
-                }, 2500);
-
-            } catch (e) {
-                mostrarError("ERROR DE REGISTRO", "No se pudo procesar. Error técnico.");
-                console.error(e);
-                btn.disabled = false;
-                btn.innerText = "Activar Membresía VIP";
+                await updateDoc(doc(db, "leads", docId), {
+                    convertidoVIP: true,
+                    estado: "activo",
+                    fechaVIP: ahora,
+                    lastSubmission: ahora,
+                    email: mail,
+                    tipo: "VIP" // Aseguramos que cambie el tipo
+                });
+            } else {
+                // CASO B: SE REGISTRA POR PRIMERA VEZ DIRECTO A VIP
+                accionParaLog = "NUEVO REGISTRO VIP";
+                
+                await addDoc(collection(db, "leads"), {
+                    nombres: nom,
+                    apellido: ape,
+                    whatsapp: whatsappLimpio,
+                    email: mail,
+                    convertidoVIP: true,
+                    estado: "activo",
+                    fechaVIP: ahora,
+                    fechaRegistro: ahora,
+                    lastSubmission: ahora,
+                    tipo: "VIP",
+                    origen: "Registro Directo VIP"
+                });
             }
-        };
 
-        validarTokenInterno();
-    </script>
-</body>
-</html>
+            // 2. REGISTRO EN LOGS (Aquí verás la diferencia en la columna TIPO/ACCION)
+            await addDoc(collection(db, "logs_actividad"), {
+                nombre: `${ape}, ${nom}`,
+                tipo: "VIP",
+                accion: accionParaLog, // Guardará el resultado del reconocimiento
+                timestamp: ahora,
+                fecha: new Date().toLocaleString()
+            });
+
+            // 3. Finalizar proceso (Token y Redirección)
+            await updateDoc(doc(db, "tokens_vip", idDocumentoToken), {
+                estado: "usado",
+                whatsapp: whatsappLimpio,
+                nombreVip: nom,
+                fechaUso: ahora
+            });
+
+            localStorage.setItem('habitat_vip_auth', 'true');
+            document.getElementById('notificacion').style.display = 'block';
+            
+            setTimeout(() => { 
+                window.location.replace("usuarios_cupones_vips.html"); 
+            }, 2500);
+
+        } catch (e) {
+            mostrarError("ERROR", "No se pudo procesar el registro.");
+            console.error(e);
+            btn.disabled = false;
+            btn.innerText = "Activar Membresía VIP";
+        }
+    };
+
+    validarTokenInterno();
+</script>
