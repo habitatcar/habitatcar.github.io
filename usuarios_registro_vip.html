@@ -299,11 +299,10 @@
             btn.innerText = "Procesando...";
 
             try {
-                // VALIDACIÓN DE DUPLICADO (Lógica copiada de Leads según protocolo)
+                // VALIDACIÓN DE DUPLICADO
                 const qCheck = query(collection(db, "leads"), where("whatsapp", "==", tel));
                 const snapCheck = await getDocs(qCheck);
                 
-                // Si el documento existe y ya es VIP, bloqueamos el registro
                 if (!snapCheck.empty && snapCheck.docs[0].data().convertidoVIP === true) {
                     mostrarError("NÚMERO YA REGISTRADO", "Este número de WhatsApp ya se encuentra registrado como miembro VIP. Por favor, utilice otro número o contacte a soporte.", true);
                     btn.disabled = false;
@@ -312,9 +311,11 @@
                 }
 
                 const ahora = Date.now();
+                let accionLog = "NUEVO REGISTRO VIP"; // Etiqueta por defecto
 
                 if (!snapCheck.empty) {
-                    // Si ya existe como Lead común, lo actualizamos a VIP
+                    // SI EXISTE COMO LEAD COMÚN -> SE IDENTIFICA LA CONVERSIÓN
+                    accionLog = "CONVERTIDO A VIP";
                     const docId = snapCheck.docs[0].id;
                     await updateDoc(doc(db, "leads", docId), {
                         convertidoVIP: true,
@@ -324,7 +325,7 @@
                         email: mail
                     });
                 } else {
-                    // Si es totalmente nuevo, lo creamos
+                    // SI ES TOTALMENTE NUEVO
                     await addDoc(collection(db, "leads"), {
                         nombres: nom,
                         apellido: ape,
@@ -340,11 +341,11 @@
                     });
                 }
 
-                // REGISTRAR EN EL LOG DE ACTIVIDAD
+                // REGISTRAR EN EL LOG DE ACTIVIDAD CON LA ETIQUETA DINÁMICA
                 await addDoc(collection(db, "logs_actividad"), {
                     nombre: `${ape}, ${nom}`,
                     tipo: "VIP",
-                    accion: "NUEVO REGISTRO VIP",
+                    accion: accionLog,
                     timestamp: ahora,
                     fecha: new Date().toLocaleString()
                 });
