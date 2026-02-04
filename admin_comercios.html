@@ -257,13 +257,6 @@
         let COMERCIOS = [];
         let FILTRO_ESTADO = 'todos';
 
-        // FUNCIÓN AGREGADA SEGÚN SOLICITUD
-        const formatearFecha = (ts) => {
-            if (!ts) return "Sin envíos";
-            const d = ts.toDate ? ts.toDate() : new Date(ts);
-            return d.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-        };
-
         onSnapshot(collection(db, "comercios"), (snap) => {
             COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
             window.render();
@@ -281,6 +274,7 @@
         };
 
         window.render = () => {
+            // Normalización del término buscado (quitar tildes y a minúsculas)
             const term = document.getElementById('masterSearch').value
                 .toLowerCase()
                 .normalize("NFD")
@@ -290,6 +284,7 @@
             box.innerHTML = "";
             
             let filtrados = COMERCIOS.filter(c => {
+                // Normalización del contenido de los datos (quitar tildes y a minúsculas)
                 const searchStr = ((c.nombre || "") + " " + (c.ciudad || "") + " " + (c.direccion || ""))
                     .toLowerCase()
                     .normalize("NFD")
@@ -327,8 +322,6 @@
                             <div class="data-box"><b>Reporte</b><span>${c.frecuenciaReporte || 'Semanal'}</span></div>
                             <div class="data-box"><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
                             
-                            <div class="data-box"><b>Último Envío</b><span style="color:var(--oro)">${formatearFecha(c.lastSubmission)}</span></div>
-
                             <div class="data-box" style="grid-column: span 2"><b>Dirección</b><span>${c.direccion || '-'}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Ciudad</b><span>${c.ciudad || '-'}</span></div>
 
@@ -472,3 +465,4 @@
     </script>
 </body>
 </html>
+
