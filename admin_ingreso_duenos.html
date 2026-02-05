@@ -62,7 +62,7 @@
 
         <div id="dashboard" class="hidden">
             
-            <div class="mb-8">
+            <div id="btnFichaArea" class="mb-8">
                 <button onclick="irAFicha()" class="w-full bg-dorado text-black font-black p-4 rounded-xl flex items-center justify-center gap-2 hover:bg-yellow-500 shadow-lg">
                     <span>⚙️</span> MODIFICAR LOS DATOS DE MI FICHA COMERCIAL
                 </button>
@@ -102,7 +102,7 @@
                 </div>
             </div>
 
-            <footer class="fixed bottom-0 left-0 w-full bg-black/90 backdrop-blur-md p-4 border-t border-dorado flex gap-4 justify-center z-50">
+            <footer id="footerNav" class="fixed bottom-0 left-0 w-full bg-black/90 backdrop-blur-md p-4 border-t border-dorado flex gap-4 justify-center z-50">
                 <button onclick="generarPDF()" class="bg-white text-black px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 uppercase text-sm">
                     📄 Generar PDF
                 </button>
@@ -130,7 +130,7 @@
         const db = getFirestore(app);
         let unsubVip = null, unsubLead = null;
         let miGrafico = null;
-        const registroUsuarios = {}; // Para contador de usos
+        const registroUsuarios = {}; 
 
         window.onload = async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -201,7 +201,6 @@
                     const timestamp = fecha.getTime();
                     const esVip = (tipo === "VIP");
                     
-                    // Contador de usos
                     const userId = d.usuarioId || d.userId || d.nombre || "anonimo";
                     registroUsuarios[userId] = (registroUsuarios[userId] || 0) + 1;
                     const usos = registroUsuarios[userId];
@@ -217,20 +216,18 @@
                         <tr id="${docId}" data-time="${timestamp}" class="hover:bg-black border-b border-gray-800">
                             <td class="p-5 font-bold">${fecha.toLocaleDateString()}<br><span class="text-gray-500 font-normal">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}hs</span></td>
                             <td class="p-5"><span class="px-2 py-1 rounded text-[10px] font-black ${esVip ? 'bg-yellow-900/40 text-dorado' : 'bg-blue-900/40 text-blue-400'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
-                            <td class="p-5 font-mono">${d.codigoGenerado || 'LEAD'}</td>
+                            <td class="p-5 font-mono">${d.codigoGenerado || d.idCupon || 'LEAD'}</td>
                             <td class="p-5 text-gray-400 text-xs">
                                 <div>${d.beneficio || d.nombre || 'Sin detalle'}</div>
                                 <div class="text-dorado font-bold mt-1 uppercase text-[9px]">Usos registrados: ${usos}</div>
                             </td>
                         </tr>`;
 
-                    // Inserción ordenada cronológicamente
                     const filas = Array.from(tabla.querySelectorAll('tr'));
                     const posicion = filas.findIndex(f => parseInt(f.getAttribute('data-time')) < timestamp);
                     if (posicion === -1) tabla.insertAdjacentHTML('beforeend', filaHTML);
                     else filas[posicion].insertAdjacentHTML('beforebegin', filaHTML);
 
-                    // Actualizar Stats
                     const elStat = document.getElementById(esVip ? 'statVip' : 'statLead');
                     elStat.innerText = parseInt(elStat.innerText) + 1;
                     document.getElementById('statTotal').innerText = parseInt(document.getElementById('statVip').innerText) + parseInt(document.getElementById('statLead').innerText);
@@ -245,43 +242,53 @@
         };
 
         window.generarPDF = async (soloBlob = false) => {
-            const original = document.getElementById('reporteArea');
-            const clon = original.cloneNode(true);
-            const container = clon.querySelector('.contenedor-tabla');
-            
-            // Forzar que el clon no tenga scroll para que salga completo
-            container.style.maxHeight = 'none';
-            container.style.overflow = 'visible';
-            clon.style.background = '#0a0a0a';
-            
+            const element = document.getElementById('dashboard');
+            const nav = document.getElementById('footerNav');
+            const btnFicha = document.getElementById('btnFichaArea');
+            const tablaCont = document.querySelector('.contenedor-tabla');
+
+            // Preparación para PDF: Mostrar todo sin scrolls ni botones
+            nav.style.display = 'none';
+            btnFicha.style.display = 'none';
+            const oldMaxH = tablaCont.style.maxHeight;
+            const oldOverflow = tablaCont.style.overflowY;
+            tablaCont.style.maxHeight = 'none';
+            tablaCont.style.overflowY = 'visible';
+
             const opt = { 
-                margin: 0.2, 
-                filename: 'Reporte_HabitatCar.pdf', 
+                margin: 0.3, 
+                filename: 'Reporte_Auditoria_HabitatCar.pdf', 
                 image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2, backgroundColor: '#0a0a0a' }, 
+                html2canvas: { scale: 2, backgroundColor: '#0a0a0a', useCORS: true }, 
                 jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } 
             };
 
-            if (soloBlob) return html2pdf().set(opt).from(clon).output('blob');
-            html2pdf().set(opt).from(clon).save();
+            try {
+                if (soloBlob) {
+                    const blob = await html2pdf().set(opt).from(element).output('blob');
+                    restaurarUI();
+                    return blob;
+                }
+                await html2pdf().set(opt).from(element).save();
+                restaurarUI();
+            } catch (e) { console.error(e); restaurarUI(); }
+
+            function restaurarUI() {
+                nav.style.display = 'flex';
+                btnFicha.style.display = 'block';
+                tablaCont.style.maxHeight = oldMaxH;
+                tablaCont.style.overflowY = oldOverflow;
+            }
         };
 
         window.compartirApp = async () => {
             try {
                 const pdfBlob = await generarPDF(true);
-                const file = new File([pdfBlob], "Reporte_Habitat.pdf", { type: "application/pdf" });
-
+                const file = new File([pdfBlob], "Reporte_HabitatCar.pdf", { type: "application/pdf" });
                 if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({
-                        files: [file],
-                        title: 'Reporte de Auditoría',
-                        text: 'Adjunto reporte de canjes HABITAT-CAR'
-                    });
-                } else {
-                    alert("Tu navegador no soporta compartir archivos directamente. Se descargará el PDF.");
-                    window.generarPDF();
-                }
-            } catch (e) { console.error(e); alert("Error al procesar el archivo."); }
+                    await navigator.share({ files: [file], title: 'Auditoría HABITAT-CAR' });
+                } else { window.generarPDF(); }
+            } catch (e) { console.error(e); alert("Error al compartir."); }
         };
 
         function inicializarGrafico() {
