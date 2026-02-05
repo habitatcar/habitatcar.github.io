@@ -94,6 +94,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         let unsubVip = null, unsubLead = null;
+        let miGrafico = null;
 
         window.onload = async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -111,8 +112,8 @@
                         sessionStorage.setItem('token_habitat_' + cid, 'admin_bypass_' + Date.now());
                         document.getElementById('loginBox').classList.add('hidden');
                         document.getElementById('dashboard').classList.remove('hidden');
-                        iniciarSuscripciones(uidFirebase);
                         inicializarGrafico();
+                        iniciarSuscripciones(uidFirebase);
                     }
                 } catch (e) { console.error("Error bypass:", e); }
             }
@@ -142,8 +143,8 @@
                     document.getElementById('loginBox').classList.add('hidden');
                     document.getElementById('dashboard').classList.remove('hidden');
                     
-                    iniciarSuscripciones(uidFirebase);
                     inicializarGrafico();
+                    iniciarSuscripciones(uidFirebase);
                 } else {
                     alert("Contraseña incorrecta");
                 }
@@ -177,6 +178,15 @@
 
                     const esVip = (tipo === "VIP");
                     
+                    // Lógica para actualizar gráfico
+                    if (miGrafico) {
+                        let diaIndex = fecha.getDay(); // 0 Dom, 1 Lun...
+                        let diaAjustado = diaIndex === 0 ? 6 : diaIndex - 1; // Ajustar a Lun=0, Dom=6
+                        const datasetIndex = esVip ? 0 : 1;
+                        miGrafico.data.datasets[datasetIndex].data[diaAjustado]++;
+                        miGrafico.update();
+                    }
+
                     const fila = `
                         <tr id="${docId}" class="hover:bg-black border-b border-gray-800">
                             <td class="p-5 font-bold">
@@ -213,7 +223,7 @@
 
         function inicializarGrafico() {
             const ctx = document.getElementById('graficoSemanal').getContext('2d');
-            new Chart(ctx, {
+            miGrafico = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
