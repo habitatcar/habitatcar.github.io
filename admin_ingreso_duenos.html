@@ -95,18 +95,20 @@
         const db = getFirestore(app);
         let unsubVip = null, unsubLead = null, chart = null;
 
-        // Validar Password antes de mostrar nada
+        // Lógica corregida para permitir el acceso a la ficha comercial
         window.validarYConsultar = async () => {
             const cid = document.getElementById('comercioId').value.trim();
             const pass = document.getElementById('comercioPass').value.trim();
             
             if(!cid || !pass) return alert("Complete los datos de acceso");
 
-            // Buscamos el comercio en tu colección de 'comercios'
             const docRef = doc(db, "comercios", cid);
             const docSnap = await getDoc(docRef);
 
             if (docSnap.exists() && docSnap.data().password === pass) {
+                // GENERACIÓN DE TOKEN DE SESIÓN PARA EVITAR "ACCESO RESTRINGIDO"
+                sessionStorage.setItem('token_habitat_' + cid, 'autorizado_' + Date.now());
+                
                 document.getElementById('loginBox').classList.add('hidden');
                 document.getElementById('dashboard').classList.remove('hidden');
                 iniciarSuscripciones(cid);
@@ -140,11 +142,9 @@
                 </tr>`;
                 tabla.insertAdjacentHTML('afterbegin', fila);
                 
-                // Actualizar Stats
                 const statId = esVip ? 'statVip' : 'statLead';
                 document.getElementById(statId).innerText = parseInt(document.getElementById(statId).innerText) + 1;
                 
-                // Actualizar Gran Total
                 const total = parseInt(document.getElementById('statVip').innerText) + parseInt(document.getElementById('statLead').innerText);
                 document.getElementById('statTotal').innerText = total;
                 document.getElementById('statUltima').innerText = fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
@@ -153,7 +153,7 @@
 
         window.irAFicha = () => {
             const cid = document.getElementById('comercioId').value;
-            // IMPORTANTE: Enviamos el ID para que admin_comercios sepa quién es
+            // Redirección autorizada con el ID del comercio
             window.location.href = `admin_comercios.html?id=${cid}`;
         };
 
