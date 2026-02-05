@@ -317,15 +317,19 @@
             } catch (e) { return "Formato inválido"; }
         };
 
+        // ESCUCHA DE FIREBASE REFORZADA
         onSnapshot(collection(db, "comercios"), (snap) => {
             COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+            
+            // Renderizamos primero para asegurar que el DOM exista
             window.render();
             
-            // LOGICA DE AUTOCARGA: Si hay idForzado, buscarlo y llenar el form automáticamente para que el dueño vea sus datos
-            if(idForzado && COMERCIOS.length > 0) {
+            // Si hay idForzado, ejecutamos la precarga de la ficha en el sidebar
+            if(idForzado) {
+                // Buscamos por idComercio (el amigable)
                 const comActual = COMERCIOS.find(x => x.idComercio === idForzado);
                 if(comActual) {
-                    window.edit(null, comActual.fbId);
+                    setTimeout(() => window.edit(null, comActual.fbId), 100);
                 }
             }
         });
@@ -342,15 +346,16 @@
         };
 
         window.render = () => {
-            const term = document.getElementById('masterSearch').value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const masterSearchInput = document.getElementById('masterSearch');
+            const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
             const box = document.getElementById('lista-comercios');
+            if(!box) return;
             box.innerHTML = "";
             
             let filtrados = COMERCIOS.filter(c => {
                 const searchStr = ((c.nombre || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 const matchesSearch = searchStr.includes(term);
                 const matchesFiltro = FILTRO_ESTADO === 'todos' || (FILTRO_ESTADO === 'inactivo' && c.estado !== 'activo');
-                // Si hay idForzado, solo mostrar ese comercio en la lista
                 const matchesForzado = !idForzado || c.idComercio === idForzado;
                 return matchesSearch && matchesFiltro && matchesForzado;
             });
@@ -404,9 +409,12 @@
                     </div>
                 </div>`;
             });
-            document.getElementById('count-total').innerText = COMERCIOS.length;
-            document.getElementById('count-act').innerText = COMERCIOS.filter(x => x.estado === 'activo').length;
-            document.getElementById('count-inact').innerText = COMERCIOS.filter(x => x.estado !== 'activo').length;
+            const cTotal = document.getElementById('count-total');
+            const cAct = document.getElementById('count-act');
+            const cInact = document.getElementById('count-inact');
+            if(cTotal) cTotal.innerText = COMERCIOS.length;
+            if(cAct) cAct.innerText = COMERCIOS.filter(x => x.estado === 'activo').length;
+            if(cInact) cInact.innerText = COMERCIOS.filter(x => x.estado !== 'activo').length;
         };
 
         window.edit = (event, id) => {
@@ -468,17 +476,21 @@
                 frecuenciaReporte: document.getElementById('reporte-input').value
             };
 
-            if(eid) {
-                await updateDoc(doc(db, "comercios", eid), d);
-                alert("Cambios guardados correctamente.");
-                // Si el dueño está editando, refrescamos para asegurar que vea los cambios
-                if(idForzado) window.location.reload();
-            } else {
-                d.estado = "activo";
-                d.fechaCarga = Date.now();
-                d.lastSubmission = null;
-                await addDoc(collection(db, "comercios"), d);
-                window.clear();
+            try {
+                if(eid) {
+                    await updateDoc(doc(db, "comercios", eid), d);
+                    alert("¡Ficha actualizada correctamente!");
+                    if(idForzado) window.location.reload(); 
+                } else {
+                    d.estado = "activo";
+                    d.fechaCarga = Date.now();
+                    d.lastSubmission = null;
+                    await addDoc(collection(db, "comercios"), d);
+                    alert("Comercio creado con éxito");
+                    window.clear();
+                }
+            } catch(e) {
+                alert("Error al guardar: " + e.message);
             }
         };
 
