@@ -125,7 +125,15 @@
             font-size: 0.95em;
         }
 
-        .read-only { background: #000 !important; color: var(--oro) !important; font-weight: bold; border: 2px solid var(--oro) !important; }
+        /* ESTILO PARA LOS CAMPOS BLOQUEADOS PERO CON TEXTO VISIBLE */
+        .read-only { 
+            background: #000 !important; 
+            color: var(--oro) !important; 
+            font-weight: bold; 
+            border: 2px solid var(--oro) !important; 
+            text-align: center;
+        }
+        .read-only::placeholder { color: rgba(255, 193, 7, 0.5); }
         
         .btn-submit { 
             width: 100%; background: var(--verde); color: white; border: none; padding: 18px; 
@@ -157,23 +165,23 @@
         .btn-group { margin-top: 25px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; }
         .btn-op { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; font-size: 0.9em; transition: 0.3s; }
 
-        /* ESTILOS DE REDES SOCIALES MEJORADOS */
-        .social-box { display: flex; align-items: center; gap: 12px; border-left: 2px solid rgba(255,255,255,0.1); padding-left: 15px; }
+        /* ICONOS REDONDOS Y LINDOS */
+        .social-box { display: flex; align-items: center; gap: 10px; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 15px; }
         .social-link { 
-            width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; 
-            border-radius: 50%; text-decoration: none; font-size: 1.2em; transition: 0.3s;
+            width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; 
+            border-radius: 50%; text-decoration: none; font-size: 1.1em; transition: 0.3s;
         }
-        .social-link:hover { transform: translateY(-3px); filter: brightness(1.2); }
+        .social-link:hover { transform: scale(1.15); filter: brightness(1.2); }
         
         .bg-fb { background: #1877F2; color: white; }
         .bg-ig { background: linear-gradient(45deg, #f09433 0%,#e6683c 25%,#dc2743 50%,#cc2366 75%,#bc1888 100%); color: white; }
         .bg-tk { background: #000000; color: white; border: 1px solid #fff; }
         .bg-web { background: #00d2ff; color: white; }
         
-        /* ESTILO DEL CORREO TIPO LINK */
+        /* EMAIL DEL DUEÑO JUNTO A ICONOS */
         .owner-email {
             display: flex; align-items: center; gap: 8px; color: var(--oro); text-decoration: none;
-            font-weight: bold; font-size: 1em; padding: 8px 15px; background: rgba(255,193,7,0.1);
+            font-weight: bold; font-size: 0.9em; padding: 6px 14px; background: rgba(255,193,7,0.15);
             border-radius: 20px; border: 1px solid var(--oro); transition: 0.3s;
         }
         .owner-email:hover { background: var(--oro); color: var(--azul-oscuro); }
@@ -185,7 +193,7 @@
 <body>
     <div id="capa-seguridad">VALIDANDO SESIÓN SEGURA...</div>
 
-    <header class="header" id="header-principal">
+    <header class="header">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
         <nav class="nav-menu" id="nav-menu-principal">
             <a href="admin_comercios.html" class="nav-link active">COMERCIOS</a>
@@ -224,8 +232,10 @@
                 <input type="hidden" id="edit-id">
                 <div class="form-grid">
                     <input type="text" id="nombre-input" class="full" placeholder="Nombre Fantasía" oninput="genID()">
-                    <input type="text" id="id-input" class="read-only" placeholder="ID SISTEMA" readonly>
-                    <input type="text" id="token-input" class="read-only" placeholder="TOKEN QR" readonly>
+                    
+                    <input type="text" id="id-input" class="read-only" placeholder="ID SISTEMA (AUTO)" readonly>
+                    <input type="text" id="token-input" class="read-only" placeholder="TOKEN QR (AUTO)" readonly>
+                    
                     <input type="text" id="logo-input" class="full" placeholder="URL Logotipo">
                     
                     <input type="number" id="val-lead" placeholder="Desc. Lead %">
@@ -306,19 +316,12 @@
             try {
                 if (typeof ts === 'string' && ts.includes('/')) return ts;
                 let fecha = ts.toDate ? ts.toDate() : new Date(Number(ts));
-                if (isNaN(fecha.getTime())) return ts; 
                 return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             } catch (e) { return "Formato inválido"; }
         };
 
         onSnapshot(collection(db, "comercios"), (snap) => {
-            const todos = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
-            if (idForzado) {
-                COMERCIOS = todos.filter(c => c.idComercio === idForzado);
-                if (COMERCIOS.length > 0) window.edit(null, COMERCIOS[0].fbId);
-            } else {
-                COMERCIOS = todos;
-            }
+            COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
             window.render();
         });
 
@@ -375,13 +378,11 @@
                             </div>
                         </div>
                         <div class="btn-group">
-                            <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">${idForzado ? 'MODIFICAR MI FICHA' : 'EDITAR'}</button>
-                            ${!idForzado ? `
-                                <button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
-                                    ${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
-                                </button>
-                                <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
-                            ` : ''}
+                            <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
+                            <button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
+                                ${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
+                            </button>
+                            <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
 
                             <div class="social-box">
                                 ${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email" title="Contactar dueño"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
@@ -426,14 +427,14 @@
             document.getElementById('password-input').value = c.password || "";
             document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
             
-            document.getElementById('titulo-form').innerText = idForzado ? "MI FICHA COMERCIAL" : "📝 EDITANDO COMERCIO";
+            document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
         };
 
         window.guardar = async () => {
             const eid = document.getElementById('edit-id').value;
             const passValue = document.getElementById('password-input').value;
 
-            if(!passValue) return alert("Debes asignar una contraseña para que el dueño pueda entrar.");
+            if(!passValue) return alert("Debes asignar una contraseña.");
 
             const d = { 
                 nombre: document.getElementById('nombre-input').value, 
@@ -460,20 +461,17 @@
 
             if(eid) {
                 await updateDoc(doc(db, "comercios", eid), d);
-                await registrarLog("EDICIÓN", `Se actualizó el comercio: ${d.nombre}`);
                 alert("Cambios guardados correctamente.");
-            } else if (!idForzado) {
+            } else {
                 d.estado = "activo";
                 d.fechaCarga = Date.now();
                 d.lastSubmission = null;
                 await addDoc(collection(db, "comercios"), d);
-                await registrarLog("REGISTRO", `Nuevo comercio creado: ${d.nombre}`);
                 window.clear();
             }
         };
 
         window.clear = () => {
-            if(idForzado) return;
             document.getElementById('edit-id').value = "";
             document.querySelectorAll('.sidebar input').forEach(i => i.value = "");
             document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
@@ -488,17 +486,13 @@
         };
 
         window.toggleEstado = async (event, id, est, nom) => { 
-            if(idForzado) return;
             const nuevoEstado = est === 'activo' ? 'inactivo' : 'activo';
             await updateDoc(doc(db, "comercios", id), { estado: nuevoEstado }); 
-            await registrarLog("ESTADO", `Comercio ${nom} marcado como ${nuevoEstado}`);
         };
         
         window.del = async (event, id, nom) => { 
-            if(idForzado) return;
             if(confirm("¿Eliminar comercio?")) {
                 await deleteDoc(doc(db, "comercios", id)); 
-                await registrarLog("ELIMINACIÓN", `Se eliminó el comercio: ${nom}`);
             }
         };
         
