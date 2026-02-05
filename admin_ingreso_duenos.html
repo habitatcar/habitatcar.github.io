@@ -80,7 +80,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -93,7 +93,7 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        let unsubVip = null, unsubLead = null, chart = null;
+        let unsubVip = null, unsubLead = null;
 
         window.validarYConsultar = async () => {
             const cid = document.getElementById('comercioId').value.trim();
@@ -110,72 +110,78 @@
                     return;
                 }
 
-                const docSnapshot = querySnapshot.docs[0];
-                const docData = docSnapshot.data();
-                const firebaseUID = docSnapshot.id; // El ID real de la colección
+                const docSnap = querySnapshot.docs[0];
+                const docData = docSnap.data();
+                const uidFirebase = docSnap.id; 
 
                 if (docData.password === pass) {
                     sessionStorage.setItem('token_habitat_' + cid, 'autorizado_' + Date.now());
                     document.getElementById('loginBox').classList.add('hidden');
                     document.getElementById('dashboard').classList.remove('hidden');
                     
-                    // Iniciamos suscripciones usando el ID de documento de Firebase
-                    iniciarSuscripciones(firebaseUID);
+                    iniciarSuscripciones(uidFirebase);
                     inicializarGrafico();
                 } else {
                     alert("Contraseña incorrecta");
                 }
             } catch (error) {
-                console.error("Error en login:", error);
-                alert("Error al validar credenciales.");
+                console.error(error);
+                alert("Error de conexión.");
             }
         };
 
         function iniciarSuscripciones(uid) {
-            // Referencias a las colecciones
-            const qVip = query(collection(db, "logs_vip"), where("comercioId", "==", uid), orderBy("fecha", "desc"));
+            // Quitamos el orderBy temporalmente para descartar errores de índices en Firebase
+            const qVip = query(collection(db, "logs_vip"), where("comercioId", "==", uid));
             unsubVip = onSnapshot(qVip, (snap) => procesarSnapshot(snap, "VIP"));
 
-            const qLead = query(collection(db, "logs_actividad"), where("comercioId", "==", uid), where("tipo", "==", "canje"), orderBy("timestamp", "desc"));
+            const qLead = query(collection(db, "logs_actividad"), where("comercioId", "==", uid), where("tipo", "==", "canje"));
             unsubLead = onSnapshot(qLead, (snap) => procesarSnapshot(snap, "LEAD"));
         }
 
         function procesarSnapshot(snap, tipo) {
             const tabla = document.getElementById('tablaMaestra');
             
-            // Usamos docChanges para manejar actualizaciones en tiempo real sin duplicar
             snap.docChanges().forEach((change) => {
                 if (change.type === "added") {
                     const d = change.doc.data();
                     const docId = change.doc.id;
-                    
                     if (document.getElementById(docId)) return;
 
                     let fecha;
-                    if (d.fecha && d.fecha.toDate) {
-                        fecha = d.fecha.toDate();
-                    } else if (d.timestamp) {
-                        fecha = new Date(d.timestamp);
-                    } else {
-                        fecha = new Date();
-                    }
+                    // Detectar si es el formato de logs_vip o logs_actividad
+                    if (d.fecha && d.fecha.toDate) fecha = d.fecha.toDate();
+                    else if (d.timestamp) fecha = new Date(d.timestamp);
+                    else fecha = new Date();
 
-                    const esVip = tipo === "VIP";
+                    const esVip = (tipo === "VIP");
                     
-                    const fila = `<tr id="${docId}" class="hover:bg-black border-b border-gray-800">
-                        <td class="p-5 font-bold">${fecha.toLocaleDateString()}<br><span class="text-gray-500 font-normal">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}hs</span></td>
-                        <td class="p-5"><span class="px-2 py-1 rounded text-[10px] font-black ${esVip ? 'bg-yellow-900/40 text-dorado' : 'bg-blue-900/40 text-blue-400'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
-                        <td class="p-5 font-mono">${d.codigoGenerado || 'LEAD'}</td>
-                        <td class="p-5 text-gray-400 text-xs">${d.beneficio || d.nombre}</td>
-                    </tr>`;
+                    const fila = `
+                        <tr id="${docId}" class="hover:bg-black border-b border-gray-800">
+                            <td class="p-5 font-bold">
+                                ${fecha.toLocaleDateString()}<br>
+                                <span class="text-gray-500 font-normal">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}hs</span>
+                            </td>
+                            <td class="p-5">
+                                <span class="px-2 py-1 rounded text-[10px] font-black ${esVip ? 'bg-yellow-900/40 text-dorado' : 'bg-blue-900/40 text-blue-400'}">
+                                    ${esVip ? 'VIP' : 'LEAD'}
+                                </span>
+                            </td>
+                            <td class="p-5 font-mono">${d.codigoGenerado || 'LEAD'}</td>
+                            <td class="p-5 text-gray-400 text-xs">${d.beneficio || d.nombre || 'Sin detalle'}</td>
+                        </tr>`;
                     
+                    // Insertar siempre arriba (más reciente)
                     tabla.insertAdjacentHTML('afterbegin', fila);
                     
+                    // Actualizar contadores
                     const statId = esVip ? 'statVip' : 'statLead';
-                    document.getElementById(statId).innerText = parseInt(document.getElementById(statId).innerText) + 1;
+                    const elStat = document.getElementById(statId);
+                    elStat.innerText = parseInt(elStat.innerText) + 1;
                     
-                    const total = parseInt(document.getElementById('statVip').innerText) + parseInt(document.getElementById('statLead').innerText);
-                    document.getElementById('statTotal').innerText = total;
+                    const totalV = parseInt(document.getElementById('statVip').innerText);
+                    const totalL = parseInt(document.getElementById('statLead').innerText);
+                    document.getElementById('statTotal').innerText = totalV + totalL;
                     document.getElementById('statUltima').innerText = fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
                 }
             });
@@ -188,7 +194,7 @@
 
         function inicializarGrafico() {
             const ctx = document.getElementById('graficoSemanal').getContext('2d');
-            chart = new Chart(ctx, {
+            new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
