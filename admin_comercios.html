@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v6.6</title>
+    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v6.7</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -132,7 +132,6 @@
             border: 2px solid var(--oro) !important; 
             text-align: center;
         }
-        .read-only::placeholder { color: rgba(255, 193, 7, 0.5); }
         
         .btn-submit { 
             width: 100%; background: var(--verde); color: white; border: none; padding: 18px; 
@@ -153,6 +152,7 @@
         .comercio-card.inactive { background: #121b29; border-left-color: #333; }
         .visual-side { width: 160px; background: rgba(0,0,0,0.15); display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 25px; border-right: 1px solid rgba(255,255,255,0.05); }
         .img-preview { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; background: white; border: 3px solid var(--azul-claro); cursor: zoom-in; }
+        
         .info-side { flex: 1; padding: 25px; }
         .comercio-title { font-size: 2.2em; color: var(--oro); margin: 0 0 15px 0; font-weight: 900; }
         .data-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
@@ -164,6 +164,7 @@
         .btn-group { margin-top: 25px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; }
         .btn-op { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; font-size: 0.9em; transition: 0.3s; }
 
+        /* Botones de Administración en la Card */
         .btn-directo {
             background: var(--celeste-habitat);
             color: white;
@@ -180,6 +181,24 @@
             display: inline-block;
         }
         .btn-directo:hover { background: var(--oro); color: var(--azul-oscuro); }
+        
+        .btn-copiar-link {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-size: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+            width: 120px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        .btn-copiar-link:hover { background: var(--verde); }
 
         .social-box { display: flex; align-items: center; gap: 10px; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 15px; }
         .social-link { 
@@ -246,32 +265,24 @@
                 <input type="hidden" id="edit-id">
                 <div class="form-grid">
                     <input type="text" id="nombre-input" class="full" placeholder="Nombre Fantasía" oninput="genID()">
-                    
                     <input type="text" id="id-input" class="read-only" placeholder="ID SISTEMA (AUTO)" readonly>
                     <input type="text" id="token-input" class="read-only" placeholder="TOKEN QR (AUTO)" readonly>
-                    
                     <input type="text" id="logo-input" class="full" placeholder="URL Logotipo">
-                    
                     <input type="number" id="val-lead" placeholder="Desc. Lead %">
                     <input type="number" id="vig-lead" placeholder="Vigencia Lead (Días)">
                     <input type="text" id="txt-lead" class="full" placeholder="Detalle Lead (Ej: En servicios)">
-                    
                     <input type="number" id="val-vip" placeholder="Desc. VIP %">
                     <input type="number" id="vig-vip" placeholder="Vigencia VIP (Días)">
                     <input type="text" id="txt-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
-                    
                     <input type="text" id="direccion-input" class="full" placeholder="Dirección">
                     <input type="text" id="ciudad-input" placeholder="Ciudad">
                     <input type="text" id="telefono-input" placeholder="WhatsApp (Número)">
-                    
                     <input type="text" id="facebook-input" class="full" placeholder="URL FACEBOOK">
                     <input type="text" id="instagram-input" class="full" placeholder="URL INSTAGRAM">
                     <input type="text" id="web-input" class="full" placeholder="URL TIK TOK">
                     <input type="text" id="sitio-web-input" class="full" placeholder="Sitio Web (URL)">
-
                     <input type="email" id="email-input" class="full" placeholder="Email Dueño">
                     <input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO (OBLIGATORIO)" style="border: 2px solid var(--oro)">
-                    
                     <select id="reporte-input" class="full">
                         <option value="Semanal">Reporte Semanal</option>
                         <option value="Quincenal">Reporte Quincenal</option>
@@ -292,7 +303,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -340,12 +351,9 @@
         onSnapshot(collection(db, "comercios"), (snap) => {
             COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
             window.render();
-            
             if(idForzado && COMERCIOS.length > 0) {
                 const comActual = COMERCIOS.find(x => x.idComercio === idForzado);
-                if(comActual) {
-                    window.edit(null, comActual.fbId);
-                }
+                if(comActual) window.edit(null, comActual.fbId);
             }
         });
 
@@ -376,7 +384,13 @@
                     <div class="visual-side">
                         <img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
                         <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
-                        ${!idForzado ? `<a href="admin_ingreso_duenos.html?id=${displayID}" target="_blank" class="btn-directo">VER PANEL</a>` : ''}
+                        
+                        ${!idForzado ? `
+                            <a href="admin_ingreso_duenos.html?id=${displayID}" target="_blank" class="btn-directo">VER PANEL</a>
+                            <button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayID}')">
+                                <i class="fas fa-link"></i> COPIAR LINK
+                            </button>
+                        ` : ''}
                     </div>
                     <div class="info-side">
                         <h2 class="comercio-title">${c.nombre || 'Sin Nombre'}</h2>
@@ -387,12 +401,8 @@
                             <div class="data-box"><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Último Envío</b><span style="color:var(--oro)">${formatearFecha(c.lastSubmission)}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Ciudad</b><span>${c.ciudad || '-'}</span></div>
-                            <div class="data-box benefit-box">
-                                <b>Lead</b><span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span>
-                            </div>
-                            <div class="data-box benefit-box">
-                                <b>VIP</b><span class="highlight-ben" style="color:var(--oro)!important">${c.valVip || 0}% ${c.txtVip || ''}</span>
-                            </div>
+                            <div class="data-box benefit-box"><b>Lead</b><span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span></div>
+                            <div class="data-box benefit-box"><b>VIP</b><span class="highlight-ben" style="color:var(--oro)!important">${c.valVip || 0}% ${c.txtVip || ''}</span></div>
                         </div>
                         <div class="btn-group">
                             <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
@@ -402,9 +412,8 @@
                             </button>
                             <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
                             ` : ''}
-
                             <div class="social-box">
-                                ${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email" title="Contactar dueño"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
+                                ${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
                                 ${c.facebook ? `<a href="${c.facebook}" target="_blank" class="social-link bg-fb"><i class="fab fa-facebook-f"></i></a>` : ''}
                                 ${c.instagram ? `<a href="${c.instagram}" target="_blank" class="social-link bg-ig"><i class="fab fa-instagram"></i></a>` : ''}
                                 ${c.web ? `<a href="${c.web}" target="_blank" class="social-link bg-tk"><i class="fab fa-tiktok"></i></a>` : ''}
@@ -415,19 +424,26 @@
                 </div>`;
             });
 
-            const cTotal = document.getElementById('count-total');
-            const cAct = document.getElementById('count-act');
-            const cInact = document.getElementById('count-inact');
-            if(cTotal) cTotal.innerText = COMERCIOS.length;
-            if(cAct) cAct.innerText = COMERCIOS.filter(x => x.estado === 'activo').length;
-            if(cInact) cInact.innerText = COMERCIOS.filter(x => x.estado !== 'activo').length;
+            document.getElementById('count-total').innerText = COMERCIOS.length;
+            document.getElementById('count-act').innerText = COMERCIOS.filter(x => x.estado === 'activo').length;
+            document.getElementById('count-inact').innerText = COMERCIOS.filter(x => x.estado !== 'activo').length;
+        };
+
+        window.copiarLinkDirecto = (id) => {
+            const urlBase = window.location.origin + window.location.pathname.replace('admin_comercios.html', '');
+            const urlFinal = `${urlBase}admin_ingreso_duenos.html?id=${id}`;
+            
+            navigator.clipboard.writeText(urlFinal).then(() => {
+                alert("✅ ¡Enlace copiado al portapapeles!\n\nYa puedes pegarlo en el chat del dueño.");
+            }).catch(err => {
+                console.error('Error al copiar: ', err);
+            });
         };
 
         window.edit = (event, id) => {
             if(event) event.preventDefault();
             const c = COMERCIOS.find(x => x.fbId === id);
             if(!c) return;
-
             document.getElementById('edit-id').value = id;
             document.getElementById('nombre-input').value = c.nombre || "";
             document.getElementById('id-input').value = c.idComercio || "";
@@ -449,17 +465,13 @@
             document.getElementById('email-input').value = c.emailDueno || "";
             document.getElementById('password-input').value = c.password || "";
             document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
-            
-            const titulo = document.getElementById('titulo-form');
-            const btnCancel = document.getElementById('btn-cancel-edit');
-            if(titulo) titulo.innerText = "📝 EDITANDO COMERCIO";
-            if(btnCancel) btnCancel.style.display = 'block';
+            document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
+            document.getElementById('btn-cancel-edit').style.display = 'block';
         };
 
         window.guardar = async () => {
             const eid = document.getElementById('edit-id').value;
             const passValue = document.getElementById('password-input').value;
-
             if(!passValue) return alert("Debes asignar una contraseña.");
 
             const d = { 
@@ -488,35 +500,22 @@
             try {
                 if(eid) {
                     await updateDoc(doc(db, "comercios", eid), d);
-                    
-                    await addDoc(collection(db, "logs_actividad"), {
-                        tipo: "EDICIÓN DUEÑO",
-                        modulo: "FICHA COMERCIAL",
-                        detalle: `El comercio ${d.nombre} actualizó sus datos de perfil.`,
-                        timestamp: Date.now(),
-                        comercioId: d.idComercio
-                    });
-
-                    alert("¡Ficha actualizada correctamente!");
+                    alert("¡Ficha actualizada!");
                     if(idForzado) window.location.reload(); 
                 } else {
-                    d.estado = "activo";
-                    d.fechaCarga = Date.now();
-                    d.lastSubmission = null;
+                    d.estado = "activo"; d.fechaCarga = Date.now(); d.lastSubmission = null;
                     await addDoc(collection(db, "comercios"), d);
-                    alert("Comercio creado con éxito");
+                    alert("Comercio creado");
                     window.clear();
                 }
-            } catch(e) { alert("Error al guardar: " + e.message); }
+            } catch(e) { alert("Error: " + e.message); }
         };
 
         window.clear = () => {
             document.getElementById('edit-id').value = "";
             document.querySelectorAll('.sidebar input').forEach(i => i.value = "");
-            const titulo = document.getElementById('titulo-form');
-            const btnCancel = document.getElementById('btn-cancel-edit');
-            if(titulo) titulo.innerText = "➕ REGISTRAR COMERCIO";
-            if(btnCancel) btnCancel.style.display = 'none';
+            document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
+            document.getElementById('btn-cancel-edit').style.display = 'none';
         };
 
         window.genID = () => {
@@ -527,15 +526,12 @@
             document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000 + Math.random() * 899999) : "";
         };
 
-        window.toggleEstado = async (event, id, est, nom) => { 
-            const nuevoEstado = est === 'activo' ? 'inactivo' : 'activo';
-            await updateDoc(doc(db, "comercios", id), { estado: nuevoEstado }); 
+        window.toggleEstado = async (e, id, est) => { 
+            await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' }); 
         };
         
-        window.del = async (event, id, nom) => { 
-            if(confirm("¿Eliminar comercio?")) {
-                await deleteDoc(doc(db, "comercios", id)); 
-            }
+        window.del = async (e, id) => { 
+            if(confirm("¿Borrar comercio?")) await deleteDoc(doc(db, "comercios", id)); 
         };
         
         window.zoom = (u) => { document.getElementById('modal-img').src = u; document.getElementById('modal').style.display='flex'; };
