@@ -302,48 +302,35 @@
                     setTimeout(() => window.location.href = 'index.html', 3000);
                     return;
                 }
-                document.getElementById('nav-menu-principal').style.display = 'none';
-                document.getElementById('faja-herramientas').style.display = 'none';
+                const nav = document.getElementById('nav-menu-principal');
+                const faja = document.getElementById('faja-herramientas');
+                if(nav) nav.style.display = 'none';
+                if(faja) faja.style.display = 'none';
             }
-            document.getElementById('capa-seguridad').style.display = 'none';
+            const capa = document.getElementById('capa-seguridad');
+            if(capa) capa.style.display = 'none';
         });
 
         const formatearFecha = (ts) => {
             if (!ts) return "Sin envíos";
             try {
-                if (typeof ts === 'string' && ts.includes('/')) return ts;
+                if (typeof ts === 'string') return ts;
                 let fecha = ts.toDate ? ts.toDate() : new Date(Number(ts));
                 return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-            } catch (e) { return "Formato inválido"; }
+            } catch (e) { return "---"; }
         };
 
-        // ESCUCHA DE FIREBASE REFORZADA
         onSnapshot(collection(db, "comercios"), (snap) => {
             COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
-            
-            // Renderizamos primero para asegurar que el DOM exista
             window.render();
             
-            // Si hay idForzado, ejecutamos la precarga de la ficha en el sidebar
-            if(idForzado) {
-                // Buscamos por idComercio (el amigable)
+            if(idForzado && COMERCIOS.length > 0) {
                 const comActual = COMERCIOS.find(x => x.idComercio === idForzado);
                 if(comActual) {
-                    setTimeout(() => window.edit(null, comActual.fbId), 100);
+                    window.edit(null, comActual.fbId);
                 }
             }
         });
-
-        const registrarLog = async (accion, detalle) => {
-            try {
-                await addDoc(collection(db, "logs_admin"), {
-                    fecha: serverTimestamp(),
-                    accion: accion,
-                    detalle: detalle,
-                    modulo: "COMERCIOS"
-                });
-            } catch (e) { console.error("Error log:", e); }
-        };
 
         window.render = () => {
             const masterSearchInput = document.getElementById('masterSearch');
@@ -409,6 +396,7 @@
                     </div>
                 </div>`;
             });
+
             const cTotal = document.getElementById('count-total');
             const cAct = document.getElementById('count-act');
             const cInact = document.getElementById('count-inact');
@@ -444,7 +432,10 @@
             document.getElementById('password-input').value = c.password || "";
             document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
             
-            document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
+            const titulo = document.getElementById('titulo-form');
+            const btnCancel = document.getElementById('btn-cancel-edit');
+            if(titulo) titulo.innerText = "📝 EDITANDO COMERCIO";
+            if(btnCancel) btnCancel.style.display = 'block';
         };
 
         window.guardar = async () => {
@@ -489,15 +480,16 @@
                     alert("Comercio creado con éxito");
                     window.clear();
                 }
-            } catch(e) {
-                alert("Error al guardar: " + e.message);
-            }
+            } catch(e) { alert("Error al guardar: " + e.message); }
         };
 
         window.clear = () => {
             document.getElementById('edit-id').value = "";
             document.querySelectorAll('.sidebar input').forEach(i => i.value = "");
-            document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
+            const titulo = document.getElementById('titulo-form');
+            const btnCancel = document.getElementById('btn-cancel-edit');
+            if(titulo) titulo.innerText = "➕ REGISTRAR COMERCIO";
+            if(btnCancel) btnCancel.style.display = 'none';
         };
 
         window.genID = () => {
