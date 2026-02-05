@@ -80,7 +80,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -95,26 +95,39 @@
         const db = getFirestore(app);
         let unsubVip = null, unsubLead = null, chart = null;
 
-        // Lógica corregida para permitir el acceso a la ficha comercial
+        // Lógica corregida para buscar por campo idComercio y password
         window.validarYConsultar = async () => {
             const cid = document.getElementById('comercioId').value.trim();
             const pass = document.getElementById('comercioPass').value.trim();
             
             if(!cid || !pass) return alert("Complete los datos de acceso");
 
-            const docRef = doc(db, "comercios", cid);
-            const docSnap = await getDoc(docRef);
+            try {
+                // Realizamos una consulta para buscar el documento que tenga el idComercio ingresado
+                const q = query(collection(db, "comercios"), where("idComercio", "==", cid));
+                const querySnapshot = await getDocs(q);
 
-            if (docSnap.exists() && docSnap.data().password === pass) {
-                // GENERACIÓN DE TOKEN DE SESIÓN PARA EVITAR "ACCESO RESTRINGIDO" EN ADMIN_COMERCIOS
-                sessionStorage.setItem('token_habitat_' + cid, 'autorizado_' + Date.now());
-                
-                document.getElementById('loginBox').classList.add('hidden');
-                document.getElementById('dashboard').classList.remove('hidden');
-                iniciarSuscripciones(cid);
-                inicializarGrafico();
-            } else {
-                alert("ID de Comercio o Contraseña incorrectos");
+                if (querySnapshot.empty) {
+                    alert("El ID de comercio no existe.");
+                    return;
+                }
+
+                const docData = querySnapshot.docs[0].data();
+
+                if (docData.password === pass) {
+                    // GENERACIÓN DE TOKEN DE SESIÓN PARA EVITAR "ACCESO RESTRINGIDO" EN ADMIN_COMERCIOS
+                    sessionStorage.setItem('token_habitat_' + cid, 'autorizado_' + Date.now());
+                    
+                    document.getElementById('loginBox').classList.add('hidden');
+                    document.getElementById('dashboard').classList.remove('hidden');
+                    iniciarSuscripciones(cid);
+                    inicializarGrafico();
+                } else {
+                    alert("Contraseña incorrecta");
+                }
+            } catch (error) {
+                console.error("Error en login:", error);
+                alert("Error al validar credenciales.");
             }
         };
 
@@ -153,7 +166,6 @@
 
         window.irAFicha = () => {
             const cid = document.getElementById('comercioId').value;
-            // Redirección autorizada con el ID del comercio
             window.location.href = `admin_comercios.html?id=${cid}`;
         };
 
