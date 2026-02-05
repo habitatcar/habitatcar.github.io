@@ -14,14 +14,12 @@
         .bg-dorado { background-color: var(--dorado); }
         .border-dorado { border-color: var(--dorado); }
         
-        /* Estilo solicitado para el título: Azul con borde blanco grueso */
         .titulo-especial {
             color: #0033ff; 
             -webkit-text-stroke: 2px white;
             text-shadow: 0 0 10px rgba(0, 51, 255, 0.3);
         }
 
-        /* Scroll para la tabla y encabezado fijo */
         .contenedor-tabla {
             max-height: 450px;
             overflow-y: auto;
@@ -29,7 +27,7 @@
         thead th {
             position: sticky;
             top: 0;
-            background-color: #1f2937; /* gray-800 */
+            background-color: #1f2937;
             z-index: 10;
         }
     </style>
@@ -247,43 +245,50 @@
             const btnFicha = document.getElementById('btnFichaArea');
             const tablaCont = document.querySelector('.contenedor-tabla');
 
+            // Ocultar elementos que no van en el PDF
             nav.style.display = 'none';
             btnFicha.style.display = 'none';
-            
-            // Ajuste de limpieza para el PDF
-            element.style.padding = '20px';
-            element.style.marginTop = '-30px'; 
 
+            // Guardar estados originales para restaurar después
             const oldMaxH = tablaCont.style.maxHeight;
             const oldOverflow = tablaCont.style.overflowY;
+            
+            // Expandir tabla para que no se corte y quitar scroll
             tablaCont.style.maxHeight = 'none';
             tablaCont.style.overflowY = 'visible';
 
+            // Configuración del PDF con márgenes mínimos para evitar el "espacio gigante"
             const opt = { 
-                margin: [0.3, 0.3, 0.3, 0.3], 
+                margin: 0.2, 
                 filename: 'Reporte_Auditoria_HabitatCar.pdf', 
                 image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { scale: 2, backgroundColor: '#0a0a0a', useCORS: true, letterRendering: true }, 
+                html2canvas: { 
+                    scale: 2, 
+                    backgroundColor: '#0a0a0a', 
+                    useCORS: true, 
+                    scrollY: 0, // Evita capturar el scroll actual
+                    windowWidth: document.documentElement.offsetWidth 
+                }, 
                 jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } 
             };
 
             try {
+                const worker = html2pdf().set(opt).from(element);
                 if (soloBlob) {
-                    const blob = await html2pdf().set(opt).from(element).output('blob');
+                    const blob = await worker.output('blob');
                     restaurarUI();
                     return blob;
                 }
-                await html2pdf().set(opt).from(element).save();
+                await worker.save();
                 restaurarUI();
             } catch (e) { console.error(e); restaurarUI(); }
 
             function restaurarUI() {
                 nav.style.display = 'flex';
                 btnFicha.style.display = 'block';
-                element.style.padding = '0px';
-                element.style.marginTop = '0px';
                 tablaCont.style.maxHeight = oldMaxH;
                 tablaCont.style.overflowY = oldOverflow;
+                window.scrollTo(0,0);
             }
         };
 
