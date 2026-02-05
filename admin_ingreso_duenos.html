@@ -110,18 +110,17 @@
                     return;
                 }
 
-                const docSnap = querySnapshot.docs[0];
-                const docData = docSnap.data();
-                const uidFirebase = docSnap.id; // Obtenemos el ID interno de Firebase
+                const docSnapshot = querySnapshot.docs[0];
+                const docData = docSnapshot.data();
+                const firebaseUID = docSnapshot.id; // El ID real de la colección
 
                 if (docData.password === pass) {
                     sessionStorage.setItem('token_habitat_' + cid, 'autorizado_' + Date.now());
-                    
                     document.getElementById('loginBox').classList.add('hidden');
                     document.getElementById('dashboard').classList.remove('hidden');
                     
-                    // IMPORTANTE: Pasamos tanto el idComercio como el UID de Firebase para asegurar el cruce
-                    iniciarSuscripciones(cid, uidFirebase);
+                    // Iniciamos suscripciones usando el ID de documento de Firebase
+                    iniciarSuscripciones(firebaseUID);
                     inicializarGrafico();
                 } else {
                     alert("Contraseña incorrecta");
@@ -132,18 +131,11 @@
             }
         };
 
-        function iniciarSuscripciones(cid, uid) {
-            // Limpiar tabla por si acaso
-            document.getElementById('tablaMaestra').innerHTML = "";
-            document.getElementById('statVip').innerText = "0";
-            document.getElementById('statLead').innerText = "0";
-            document.getElementById('statTotal').innerText = "0";
-
-            // Suscripción a VIP (Usa comercioId que es el UID guardado en finalizarVIP)
+        function iniciarSuscripciones(uid) {
+            // Referencias a las colecciones
             const qVip = query(collection(db, "logs_vip"), where("comercioId", "==", uid), orderBy("fecha", "desc"));
             unsubVip = onSnapshot(qVip, (snap) => procesarSnapshot(snap, "VIP"));
 
-            // Suscripción a LEAD (Usa comercioId que es el UID guardado en el log de actividad)
             const qLead = query(collection(db, "logs_actividad"), where("comercioId", "==", uid), where("tipo", "==", "canje"), orderBy("timestamp", "desc"));
             unsubLead = onSnapshot(qLead, (snap) => procesarSnapshot(snap, "LEAD"));
         }
@@ -151,11 +143,13 @@
         function procesarSnapshot(snap, tipo) {
             const tabla = document.getElementById('tablaMaestra');
             
+            // Usamos docChanges para manejar actualizaciones en tiempo real sin duplicar
             snap.docChanges().forEach((change) => {
                 if (change.type === "added") {
                     const d = change.doc.data();
-                    const idDoc = change.doc.id;
-                    if (document.getElementById(idDoc)) return;
+                    const docId = change.doc.id;
+                    
+                    if (document.getElementById(docId)) return;
 
                     let fecha;
                     if (d.fecha && d.fecha.toDate) {
@@ -168,7 +162,7 @@
 
                     const esVip = tipo === "VIP";
                     
-                    const fila = `<tr id="${idDoc}" class="hover:bg-black border-b border-gray-800">
+                    const fila = `<tr id="${docId}" class="hover:bg-black border-b border-gray-800">
                         <td class="p-5 font-bold">${fecha.toLocaleDateString()}<br><span class="text-gray-500 font-normal">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}hs</span></td>
                         <td class="p-5"><span class="px-2 py-1 rounded text-[10px] font-black ${esVip ? 'bg-yellow-900/40 text-dorado' : 'bg-blue-900/40 text-blue-400'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
                         <td class="p-5 font-mono">${d.codigoGenerado || 'LEAD'}</td>
