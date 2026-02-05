@@ -95,7 +95,6 @@
         const db = getFirestore(app);
         let unsubVip = null, unsubLead = null, chart = null;
 
-        // Lógica corregida para buscar por campo idComercio y password
         window.validarYConsultar = async () => {
             const cid = document.getElementById('comercioId').value.trim();
             const pass = document.getElementById('comercioPass').value.trim();
@@ -103,7 +102,6 @@
             if(!cid || !pass) return alert("Complete los datos de acceso");
 
             try {
-                // Realizamos una consulta para buscar el documento que tenga el idComercio ingresado
                 const q = query(collection(db, "comercios"), where("idComercio", "==", cid));
                 const querySnapshot = await getDocs(q);
 
@@ -112,15 +110,18 @@
                     return;
                 }
 
-                const docData = querySnapshot.docs[0].data();
+                const docSnap = querySnapshot.docs[0];
+                const docData = docSnap.data();
+                const uidFirebase = docSnap.id; // Obtenemos el ID interno de Firebase
 
                 if (docData.password === pass) {
-                    // GENERACIÓN DE TOKEN DE SESIÓN PARA EVITAR "ACCESO RESTRINGIDO" EN ADMIN_COMERCIOS
                     sessionStorage.setItem('token_habitat_' + cid, 'autorizado_' + Date.now());
                     
                     document.getElementById('loginBox').classList.add('hidden');
                     document.getElementById('dashboard').classList.remove('hidden');
-                    iniciarSuscripciones(cid);
+                    
+                    // IMPORTANTE: Pasamos tanto el idComercio como el UID de Firebase para asegurar el cruce
+                    iniciarSuscripciones(cid, uidFirebase);
                     inicializarGrafico();
                 } else {
                     alert("Contraseña incorrecta");
@@ -131,36 +132,58 @@
             }
         };
 
-        function iniciarSuscripciones(cid) {
-            const qVip = query(collection(db, "logs_vip"), where("comercioId", "==", cid), orderBy("fecha", "desc"));
+        function iniciarSuscripciones(cid, uid) {
+            // Limpiar tabla por si acaso
+            document.getElementById('tablaMaestra').innerHTML = "";
+            document.getElementById('statVip').innerText = "0";
+            document.getElementById('statLead').innerText = "0";
+            document.getElementById('statTotal').innerText = "0";
+
+            // Suscripción a VIP (Usa comercioId que es el UID guardado en finalizarVIP)
+            const qVip = query(collection(db, "logs_vip"), where("comercioId", "==", uid), orderBy("fecha", "desc"));
             unsubVip = onSnapshot(qVip, (snap) => procesarSnapshot(snap, "VIP"));
 
-            const qLead = query(collection(db, "logs_actividad"), where("comercioId", "==", cid), where("tipo", "==", "canje"), orderBy("timestamp", "desc"));
+            // Suscripción a LEAD (Usa comercioId que es el UID guardado en el log de actividad)
+            const qLead = query(collection(db, "logs_actividad"), where("comercioId", "==", uid), where("tipo", "==", "canje"), orderBy("timestamp", "desc"));
             unsubLead = onSnapshot(qLead, (snap) => procesarSnapshot(snap, "LEAD"));
         }
 
         function procesarSnapshot(snap, tipo) {
             const tabla = document.getElementById('tablaMaestra');
-            snap.forEach(doc => {
-                if (document.getElementById(doc.id)) return;
-                const d = doc.data();
-                const fecha = d.fecha?.toDate() || new Date(d.timestamp);
-                const esVip = tipo === "VIP";
-                
-                const fila = `<tr id="${doc.id}" class="hover:bg-black border-b border-gray-800">
-                    <td class="p-5 font-bold">${fecha.toLocaleDateString()}<br><span class="text-gray-500 font-normal">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}hs</span></td>
-                    <td class="p-5"><span class="px-2 py-1 rounded text-[10px] font-black ${esVip ? 'bg-yellow-900/40 text-dorado' : 'bg-blue-900/40 text-blue-400'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
-                    <td class="p-5 font-mono">${d.codigoGenerado || 'LEAD'}</td>
-                    <td class="p-5 text-gray-400 text-xs">${d.beneficio || d.nombre}</td>
-                </tr>`;
-                tabla.insertAdjacentHTML('afterbegin', fila);
-                
-                const statId = esVip ? 'statVip' : 'statLead';
-                document.getElementById(statId).innerText = parseInt(document.getElementById(statId).innerText) + 1;
-                
-                const total = parseInt(document.getElementById('statVip').innerText) + parseInt(document.getElementById('statLead').innerText);
-                document.getElementById('statTotal').innerText = total;
-                document.getElementById('statUltima').innerText = fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            
+            snap.docChanges().forEach((change) => {
+                if (change.type === "added") {
+                    const d = change.doc.data();
+                    const idDoc = change.doc.id;
+                    if (document.getElementById(idDoc)) return;
+
+                    let fecha;
+                    if (d.fecha && d.fecha.toDate) {
+                        fecha = d.fecha.toDate();
+                    } else if (d.timestamp) {
+                        fecha = new Date(d.timestamp);
+                    } else {
+                        fecha = new Date();
+                    }
+
+                    const esVip = tipo === "VIP";
+                    
+                    const fila = `<tr id="${idDoc}" class="hover:bg-black border-b border-gray-800">
+                        <td class="p-5 font-bold">${fecha.toLocaleDateString()}<br><span class="text-gray-500 font-normal">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}hs</span></td>
+                        <td class="p-5"><span class="px-2 py-1 rounded text-[10px] font-black ${esVip ? 'bg-yellow-900/40 text-dorado' : 'bg-blue-900/40 text-blue-400'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
+                        <td class="p-5 font-mono">${d.codigoGenerado || 'LEAD'}</td>
+                        <td class="p-5 text-gray-400 text-xs">${d.beneficio || d.nombre}</td>
+                    </tr>`;
+                    
+                    tabla.insertAdjacentHTML('afterbegin', fila);
+                    
+                    const statId = esVip ? 'statVip' : 'statLead';
+                    document.getElementById(statId).innerText = parseInt(document.getElementById(statId).innerText) + 1;
+                    
+                    const total = parseInt(document.getElementById('statVip').innerText) + parseInt(document.getElementById('statLead').innerText);
+                    document.getElementById('statTotal').innerText = total;
+                    document.getElementById('statUltima').innerText = fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                }
             });
         }
 
