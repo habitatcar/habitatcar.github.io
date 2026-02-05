@@ -130,6 +130,7 @@
         const db = getFirestore(app);
         let unsubVip = null, unsubLead = null;
         let miGrafico = null;
+        const registroUsuarios = {}; // Para contador de usos
 
         window.onload = async () => {
             const urlParams = new URLSearchParams(window.location.search);
@@ -177,9 +178,7 @@
                     document.getElementById('dashboard').classList.remove('hidden');
                     inicializarGrafico();
                     iniciarSuscripciones(uidFirebase);
-                } else {
-                    alert("Contraseña incorrecta");
-                }
+                } else { alert("Contraseña incorrecta"); }
             } catch (error) { console.error(error); alert("Error de conexión."); }
         };
 
@@ -197,21 +196,41 @@
                     const d = change.doc.data();
                     const docId = change.doc.id;
                     if (document.getElementById(docId)) return;
+
                     let fecha = d.fecha?.toDate ? d.fecha.toDate() : (d.timestamp ? new Date(d.timestamp) : new Date());
+                    const timestamp = fecha.getTime();
                     const esVip = (tipo === "VIP");
+                    
+                    // Contador de usos
+                    const userId = d.usuarioId || d.userId || d.nombre || "anonimo";
+                    registroUsuarios[userId] = (registroUsuarios[userId] || 0) + 1;
+                    const usos = registroUsuarios[userId];
+
                     if (miGrafico) {
                         let diaIndex = fecha.getDay(); 
                         let diaAjustado = diaIndex === 0 ? 6 : diaIndex - 1; 
                         miGrafico.data.datasets[esVip ? 0 : 1].data[diaAjustado]++;
                         miGrafico.update();
                     }
-                    const fila = `<tr id="${docId}" class="hover:bg-black border-b border-gray-800">
-                        <td class="p-5 font-bold">${fecha.toLocaleDateString()}<br><span class="text-gray-500 font-normal">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}hs</span></td>
-                        <td class="p-5"><span class="px-2 py-1 rounded text-[10px] font-black ${esVip ? 'bg-yellow-900/40 text-dorado' : 'bg-blue-900/40 text-blue-400'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
-                        <td class="p-5 font-mono">${d.codigoGenerado || 'LEAD'}</td>
-                        <td class="p-5 text-gray-400 text-xs">${d.beneficio || d.nombre || 'Sin detalle'}</td>
-                    </tr>`;
-                    tabla.insertAdjacentHTML('afterbegin', fila);
+
+                    const filaHTML = `
+                        <tr id="${docId}" data-time="${timestamp}" class="hover:bg-black border-b border-gray-800">
+                            <td class="p-5 font-bold">${fecha.toLocaleDateString()}<br><span class="text-gray-500 font-normal">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}hs</span></td>
+                            <td class="p-5"><span class="px-2 py-1 rounded text-[10px] font-black ${esVip ? 'bg-yellow-900/40 text-dorado' : 'bg-blue-900/40 text-blue-400'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
+                            <td class="p-5 font-mono">${d.codigoGenerado || 'LEAD'}</td>
+                            <td class="p-5 text-gray-400 text-xs">
+                                <div>${d.beneficio || d.nombre || 'Sin detalle'}</div>
+                                <div class="text-dorado font-bold mt-1 uppercase text-[9px]">Usos registrados: ${usos}</div>
+                            </td>
+                        </tr>`;
+
+                    // Inserción ordenada cronológicamente
+                    const filas = Array.from(tabla.querySelectorAll('tr'));
+                    const posicion = filas.findIndex(f => parseInt(f.getAttribute('data-time')) < timestamp);
+                    if (posicion === -1) tabla.insertAdjacentHTML('beforeend', filaHTML);
+                    else filas[posicion].insertAdjacentHTML('beforebegin', filaHTML);
+
+                    // Actualizar Stats
                     const elStat = document.getElementById(esVip ? 'statVip' : 'statLead');
                     elStat.innerText = parseInt(elStat.innerText) + 1;
                     document.getElementById('statTotal').innerText = parseInt(document.getElementById('statVip').innerText) + parseInt(document.getElementById('statLead').innerText);
@@ -225,16 +244,44 @@
             window.location.href = `admin_comercios.html?id=${cid}`;
         };
 
-        window.generarPDF = () => {
-            const element = document.getElementById('reporteArea');
-            const opt = { margin: 0.5, filename: 'Reporte_HabitatCar.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } };
-            html2pdf().set(opt).from(element).save();
+        window.generarPDF = async (soloBlob = false) => {
+            const original = document.getElementById('reporteArea');
+            const clon = original.cloneNode(true);
+            const container = clon.querySelector('.contenedor-tabla');
+            
+            // Forzar que el clon no tenga scroll para que salga completo
+            container.style.maxHeight = 'none';
+            container.style.overflow = 'visible';
+            clon.style.background = '#0a0a0a';
+            
+            const opt = { 
+                margin: 0.2, 
+                filename: 'Reporte_HabitatCar.pdf', 
+                image: { type: 'jpeg', quality: 0.98 }, 
+                html2canvas: { scale: 2, backgroundColor: '#0a0a0a' }, 
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } 
+            };
+
+            if (soloBlob) return html2pdf().set(opt).from(clon).output('blob');
+            html2pdf().set(opt).from(clon).save();
         };
 
         window.compartirApp = async () => {
-            if (navigator.share) {
-                try { await navigator.share({ title: 'Auditoría HABITAT-CAR', url: window.location.href }); } catch (e) { console.log(e); }
-            } else { alert("Enlace copiado: " + window.location.href); }
+            try {
+                const pdfBlob = await generarPDF(true);
+                const file = new File([pdfBlob], "Reporte_Habitat.pdf", { type: "application/pdf" });
+
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Reporte de Auditoría',
+                        text: 'Adjunto reporte de canjes HABITAT-CAR'
+                    });
+                } else {
+                    alert("Tu navegador no soporta compartir archivos directamente. Se descargará el PDF.");
+                    window.generarPDF();
+                }
+            } catch (e) { console.error(e); alert("Error al procesar el archivo."); }
         };
 
         function inicializarGrafico() {
