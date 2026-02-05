@@ -125,7 +125,6 @@
             font-size: 0.95em;
         }
 
-        /* ESTILO PARA LOS CAMPOS BLOQUEADOS PERO CON TEXTO VISIBLE */
         .read-only { 
             background: #000 !important; 
             color: var(--oro) !important; 
@@ -165,7 +164,6 @@
         .btn-group { margin-top: 25px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; }
         .btn-op { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; font-size: 0.9em; transition: 0.3s; }
 
-        /* ICONOS REDONDOS Y LINDOS */
         .social-box { display: flex; align-items: center; gap: 10px; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 15px; }
         .social-link { 
             width: 38px; height: 38px; display: flex; align-items: center; justify-content: center; 
@@ -178,7 +176,6 @@
         .bg-tk { background: #000000; color: white; border: 1px solid #fff; }
         .bg-web { background: #00d2ff; color: white; }
         
-        /* EMAIL DEL DUEÑO JUNTO A ICONOS */
         .owner-email {
             display: flex; align-items: center; gap: 8px; color: var(--oro); text-decoration: none;
             font-weight: bold; font-size: 0.9em; padding: 6px 14px; background: rgba(255,193,7,0.15);
@@ -255,7 +252,7 @@
                     <input type="text" id="web-input" class="full" placeholder="URL TIK TOK">
                     <input type="text" id="sitio-web-input" class="full" placeholder="Sitio Web (URL)">
 
-                    <input type="text" id="email-input" class="full" placeholder="Email Dueño">
+                    <input type="email" id="email-input" class="full" placeholder="Email Dueño">
                     <input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO (OBLIGATORIO)" style="border: 2px solid var(--oro)">
                     
                     <select id="reporte-input" class="full">
@@ -323,6 +320,14 @@
         onSnapshot(collection(db, "comercios"), (snap) => {
             COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
             window.render();
+            
+            // LOGICA DE AUTOCARGA: Si hay idForzado, buscarlo y llenar el form automáticamente
+            if(idForzado && COMERCIOS.length > 0) {
+                const comActual = COMERCIOS.find(x => x.idComercio === idForzado);
+                if(comActual) {
+                    window.edit(null, comActual.fbId);
+                }
+            }
         });
 
         const registrarLog = async (accion, detalle) => {
@@ -345,7 +350,9 @@
                 const searchStr = ((c.nombre || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 const matchesSearch = searchStr.includes(term);
                 const matchesFiltro = FILTRO_ESTADO === 'todos' || (FILTRO_ESTADO === 'inactivo' && c.estado !== 'activo');
-                return matchesSearch && matchesFiltro;
+                // Si hay idForzado, solo mostrar ese comercio en la lista
+                const matchesForzado = !idForzado || c.idComercio === idForzado;
+                return matchesSearch && matchesFiltro && matchesForzado;
             });
 
             filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
@@ -379,10 +386,12 @@
                         </div>
                         <div class="btn-group">
                             <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
+                            ${!idForzado ? `
                             <button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
                                 ${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
                             </button>
                             <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
+                            ` : ''}
 
                             <div class="social-box">
                                 ${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email" title="Contactar dueño"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
