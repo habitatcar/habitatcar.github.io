@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Auditoría de Canjes | HABITAT-CAR</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root { --dorado: #d4af37; --negro-fondo: #0a0a0a; }
+        body { background-color: var(--negro-fondo); color: white; font-family: 'Segoe UI', sans-serif; }
+        .text-dorado { color: var(--dorado); }
+        .bg-dorado { background-color: var(--dorado); }
+        .border-dorado { border-color: var(--dorado); }
+    </style>
+</head>
+<body class="p-4 pb-20">
+
+    <div class="max-w-5xl mx-auto">
+        <header class="text-center mb-8 border-b-2 border-dorado pb-6">
+            <h1 class="text-4xl font-black text-dorado tracking-tighter italic">HABITAT-CAR</h1>
+            <p class="text-gray-400 font-semibold uppercase tracking-widest text-sm">Acceso Privado para Propietarios</p>
+        </header>
+
+        <div id="loginBox" class="bg-gray-900 p-6 rounded-2xl border border-dorado mb-8 shadow-2xl">
+            <h2 class="text-dorado font-bold mb-4 uppercase text-center">Identificación de Comercio</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <input type="text" id="comercioId" placeholder="ID de Usuario (ej: opticaelmiron)" 
+                    class="bg-black border-2 border-gray-800 focus:border-dorado outline-none p-4 rounded-xl text-white transition-all text-sm">
+                <input type="password" id="comercioPass" placeholder="Contraseña" 
+                    class="bg-black border-2 border-gray-800 focus:border-dorado outline-none p-4 rounded-xl text-white transition-all text-sm">
+            </div>
+            <button onclick="validarYConsultar()" 
+                class="w-full mt-4 bg-dorado text-black font-black py-4 rounded-xl hover:bg-yellow-500 transition-all uppercase">
+                Ingresar al Sistema
+            </button>
+        </div>
+
+        <div id="dashboard" class="hidden">
+            
+            <div class="mb-8">
+                <button onclick="irAFicha()" class="w-full bg-white text-black font-black p-4 rounded-xl flex items-center justify-center gap-2 hover:bg-gray-200 shadow-lg">
+                    <span>⚙️</span> MODIFICAR LOS DATOS DE MI FICHA COMERCIAL
+                </button>
+            </div>
+
+            <div class="bg-gray-900 p-6 rounded-2xl border border-gray-800 mb-8 shadow-lg">
+                <div class="h-64"><canvas id="graficoSemanal"></canvas></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+                <div class="bg-gray-900 p-5 rounded-2xl border-b-4 border-white">
+                    <span class="block text-gray-500 text-[10px] font-black uppercase">Total Usuarios</span>
+                    <span id="statTotal" class="text-3xl font-bold text-white">0</span>
+                </div>
+                <div class="bg-gray-900 p-5 rounded-2xl border-b-4 border-dorado">
+                    <span class="block text-gray-500 text-[10px] font-black uppercase">Canjes VIP</span>
+                    <span id="statVip" class="text-3xl font-bold text-dorado">0</span>
+                </div>
+                <div class="bg-gray-900 p-5 rounded-2xl border-b-4 border-blue-500">
+                    <span class="block text-gray-500 text-[10px] font-black uppercase">Canjes Lead</span>
+                    <span id="statLead" class="text-3xl font-bold text-blue-500">0</span>
+                </div>
+                <div class="bg-gray-900 p-5 rounded-2xl border-b-4 border-green-500">
+                    <span class="block text-gray-500 text-[10px] font-black uppercase">Último Acceso</span>
+                    <span id="statUltima" class="text-xl font-bold text-white">--:--</span>
+                </div>
+            </div>
+
+            <div class="bg-gray-900 rounded-3xl border border-gray-800 overflow-hidden shadow-2xl">
+                <table class="w-full text-left">
+                    <thead class="bg-gray-800 text-gray-400 text-[10px] uppercase">
+                        <tr><th class="p-5">Fecha/Hora</th><th class="p-5">Categoría</th><th class="p-5">Nro Cupón</th><th class="p-5">Detalle</th></tr>
+                    </thead>
+                    <tbody id="tablaMaestra" class="divide-y divide-gray-800 text-sm"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+            authDomain: "habitatcar-pro.firebaseapp.com",
+            projectId: "habitatcar-pro",
+            storageBucket: "habitatcar-pro.firebasestorage.app",
+            messagingSenderId: "311691258694",
+            appId: "1:311691258694:web:17a09051dcea7707af9347"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        let unsubVip = null, unsubLead = null, chart = null;
+
+        // Validar Password antes de mostrar nada
+        window.validarYConsultar = async () => {
+            const cid = document.getElementById('comercioId').value.trim();
+            const pass = document.getElementById('comercioPass').value.trim();
+            
+            if(!cid || !pass) return alert("Complete los datos de acceso");
+
+            // Buscamos el comercio en tu colección de 'comercios'
+            const docRef = doc(db, "comercios", cid);
+            const docSnap = await getDoc(docRef);
+
+            if (docSnap.exists() && docSnap.data().password === pass) {
+                document.getElementById('loginBox').classList.add('hidden');
+                document.getElementById('dashboard').classList.remove('hidden');
+                iniciarSuscripciones(cid);
+                inicializarGrafico();
+            } else {
+                alert("ID de Comercio o Contraseña incorrectos");
+            }
+        };
+
+        function iniciarSuscripciones(cid) {
+            const qVip = query(collection(db, "logs_vip"), where("comercioId", "==", cid), orderBy("fecha", "desc"));
+            unsubVip = onSnapshot(qVip, (snap) => procesarSnapshot(snap, "VIP"));
+
+            const qLead = query(collection(db, "logs_actividad"), where("comercioId", "==", cid), where("tipo", "==", "canje"), orderBy("timestamp", "desc"));
+            unsubLead = onSnapshot(qLead, (snap) => procesarSnapshot(snap, "LEAD"));
+        }
+
+        function procesarSnapshot(snap, tipo) {
+            const tabla = document.getElementById('tablaMaestra');
+            snap.forEach(doc => {
+                if (document.getElementById(doc.id)) return;
+                const d = doc.data();
+                const fecha = d.fecha?.toDate() || new Date(d.timestamp);
+                const esVip = tipo === "VIP";
+                
+                const fila = `<tr id="${doc.id}" class="hover:bg-black border-b border-gray-800">
+                    <td class="p-5 font-bold">${fecha.toLocaleDateString()}<br><span class="text-gray-500 font-normal">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}hs</span></td>
+                    <td class="p-5"><span class="px-2 py-1 rounded text-[10px] font-black ${esVip ? 'bg-yellow-900/40 text-dorado' : 'bg-blue-900/40 text-blue-400'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
+                    <td class="p-5 font-mono">${d.codigoGenerado || 'LEAD'}</td>
+                    <td class="p-5 text-gray-400 text-xs">${d.beneficio || d.nombre}</td>
+                </tr>`;
+                tabla.insertAdjacentHTML('afterbegin', fila);
+                
+                // Actualizar Stats
+                const statId = esVip ? 'statVip' : 'statLead';
+                document.getElementById(statId).innerText = parseInt(document.getElementById(statId).innerText) + 1;
+                
+                // Actualizar Gran Total
+                const total = parseInt(document.getElementById('statVip').innerText) + parseInt(document.getElementById('statLead').innerText);
+                document.getElementById('statTotal').innerText = total;
+                document.getElementById('statUltima').innerText = fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+            });
+        }
+
+        window.irAFicha = () => {
+            const cid = document.getElementById('comercioId').value;
+            // IMPORTANTE: Enviamos el ID para que admin_comercios sepa quién es
+            window.location.href = `admin_comercios.html?id=${cid}`;
+        };
+
+        function inicializarGrafico() {
+            const ctx = document.getElementById('graficoSemanal').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                    datasets: [
+                        { label: 'VIP', data: [0,0,0,0,0,0,0], borderColor: '#d4af37', tension: 0.4 },
+                        { label: 'LEAD', data: [0,0,0,0,0,0,0], borderColor: '#3b82f6', tension: 0.4 }
+                    ]
+                },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#aaa' } } } }
+            });
+        }
+    </script>
+</body>
+</html>
