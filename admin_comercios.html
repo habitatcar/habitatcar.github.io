@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v6.5</title>
+    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v6.6</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <style>
@@ -27,7 +27,6 @@
             padding: 0; 
         }
 
-        /* Capa de seguridad inicial */
         #capa-seguridad {
             position: fixed; top:0; left:0; width:100%; height:100%;
             background: var(--azul-oscuro); z-index: 9999; display: flex;
@@ -229,6 +228,8 @@
                     <input type="text" id="sitio-web-input" class="full" placeholder="Sitio Web (URL)">
 
                     <input type="text" id="email-input" class="full" placeholder="Email Dueño">
+                    <input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO (OBLIGATORIO)" style="border: 2px solid var(--oro)">
+                    
                     <select id="reporte-input" class="full">
                         <option value="Semanal">Reporte Semanal</option>
                         <option value="Quincenal">Reporte Quincenal</option>
@@ -263,7 +264,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
-        // --- LOGICA DE SEGURIDAD Y FILTRADO ---
         const urlParams = new URLSearchParams(window.location.search);
         const idForzado = urlParams.get('id');
         let COMERCIOS = [];
@@ -271,16 +271,15 @@
 
         window.addEventListener('load', () => {
             if (idForzado) {
+                // El dueño entra vía Auditoría: buscamos su token local
                 const token = sessionStorage.getItem('token_habitat_' + idForzado);
                 if (!token) {
                     document.body.innerHTML = "<div style='background:#0a192f; height:100vh; color:white; display:flex; justify-content:center; align-items:center; flex-direction:column;'><h1>ACCESO RESTRINGIDO</h1><p>Por favor, ingrese desde el Panel de Auditoría.</p></div>";
                     setTimeout(() => window.location.href = 'index.html', 3000);
                     return;
                 }
-                // Si es dueño, ocultamos navegación y herramientas
                 document.getElementById('nav-menu-principal').style.display = 'none';
                 document.getElementById('faja-herramientas').style.display = 'none';
-                document.getElementById('btn-cancel-edit').remove();
             }
             document.getElementById('capa-seguridad').style.display = 'none';
         });
@@ -297,9 +296,7 @@
 
         onSnapshot(collection(db, "comercios"), (snap) => {
             const todos = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
-            
             if (idForzado) {
-                // El dueño SOLO ve su comercio, nada más llega a su memoria
                 COMERCIOS = todos.filter(c => c.idComercio === idForzado);
                 if (COMERCIOS.length > 0) window.edit(null, COMERCIOS[0].fbId);
             } else {
@@ -338,12 +335,6 @@
                 const displayID = c.idComercio || c.id || "SIN-ID";
                 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
                 
-                const waLink = c.telefono ? (c.telefono.includes('http') ? c.telefono : `https://wa.me/${c.telefono.replace(/[^0-9]/g, '')}`) : null;
-                const igLink = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/${c.instagram.replace('@','')}`) : null;
-                const fbLink = c.facebook ? (c.facebook.includes('http') ? c.facebook : `https://facebook.com/${c.facebook}`) : null;
-                const tikLink = c.web ? (c.web.includes('http') ? c.web : `https://tiktok.com/@${c.web.replace('@','')}`) : null;
-                const webPropia = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : null;
-
                 box.innerHTML += `
                 <div class="comercio-card ${estaActivo ? '' : 'inactive'}">
                     <div class="visual-side">
@@ -359,7 +350,6 @@
                             <div class="data-box"><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Último Envío</b><span style="color:var(--oro)">${formatearFecha(c.lastSubmission)}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Ciudad</b><span>${c.ciudad || '-'}</span></div>
-                            <div class="data-box" style="grid-column: span 4"><b>Dirección</b><span>${c.direccion || '-'}</span></div>
                             <div class="data-box benefit-box">
                                 <b>Lead</b><span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span>
                             </div>
@@ -375,13 +365,6 @@
                                 </button>
                                 <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
                             ` : ''}
-                            <div class="social-inline">
-                                ${webPropia ? `<a href="${webPropia}" target="_blank">🌐 SITIO WEB</a>` : ''}
-                                ${fbLink ? `<a href="${fbLink}" target="_blank">🔵 FACEBOOK</a>` : ''}
-                                ${igLink ? `<a href="${igLink}" target="_blank">📸 INSTAGRAM</a>` : ''}
-                                ${tikLink ? `<a href="${tikLink}" target="_blank">⚫ TIK TOK</a>` : ''}
-                                ${waLink ? `<a href="${waLink}" target="_blank">🟢 WHATSAPP</a>` : ''}
-                            </div>
                         </div>
                     </div>
                 </div>`;
@@ -398,13 +381,12 @@
 
             document.getElementById('edit-id').value = id;
             document.getElementById('nombre-input').value = c.nombre || "";
-            let idExistente = c.idComercio || c.id || (c.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
-            document.getElementById('id-input').value = idExistente;
+            document.getElementById('id-input').value = c.idComercio || "";
             document.getElementById('token-input').value = c.tokenQR || "";
             document.getElementById('logo-input').value = c.logoUrl || "";
             document.getElementById('val-lead').value = c.valLead || "";
             document.getElementById('txt-lead').value = c.txtLead || "";
-            document.getElementById('vig-lead').value = c.vigenciaLead || c.vigencia || "";
+            document.getElementById('vig-lead').value = c.vigenciaLead || "";
             document.getElementById('val-vip').value = c.valVip || "";
             document.getElementById('txt-vip').value = c.txtVip || "";
             document.getElementById('vig-vip').value = c.vigenciaVip || "";
@@ -416,14 +398,18 @@
             document.getElementById('web-input').value = c.web || "";
             document.getElementById('sitio-web-input').value = c.sitioWeb || "";
             document.getElementById('email-input').value = c.emailDueno || "";
+            document.getElementById('password-input').value = c.password || "";
             document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
             
             document.getElementById('titulo-form').innerText = idForzado ? "MI FICHA COMERCIAL" : "📝 EDITANDO COMERCIO";
-            if(!idForzado) document.getElementById('btn-cancel-edit').style.display = "block";
         };
 
         window.guardar = async () => {
             const eid = document.getElementById('edit-id').value;
+            const passValue = document.getElementById('password-input').value;
+
+            if(!passValue) return alert("Debes asignar una contraseña para que el dueño pueda entrar.");
+
             const d = { 
                 nombre: document.getElementById('nombre-input').value, 
                 idComercio: document.getElementById('id-input').value, 
@@ -443,6 +429,7 @@
                 web: document.getElementById('web-input').value,
                 sitioWeb: document.getElementById('sitio-web-input').value,
                 emailDueno: document.getElementById('email-input').value, 
+                password: passValue,
                 frecuenciaReporte: document.getElementById('reporte-input').value
             };
 
@@ -465,7 +452,6 @@
             document.getElementById('edit-id').value = "";
             document.querySelectorAll('.sidebar input').forEach(i => i.value = "");
             document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
-            document.getElementById('btn-cancel-edit').style.display = "none";
         };
 
         window.genID = () => {
@@ -478,7 +464,6 @@
 
         window.toggleEstado = async (event, id, est, nom) => { 
             if(idForzado) return;
-            if(event) event.preventDefault();
             const nuevoEstado = est === 'activo' ? 'inactivo' : 'activo';
             await updateDoc(doc(db, "comercios", id), { estado: nuevoEstado }); 
             await registrarLog("ESTADO", `Comercio ${nom} marcado como ${nuevoEstado}`);
@@ -486,7 +471,6 @@
         
         window.del = async (event, id, nom) => { 
             if(idForzado) return;
-            if(event) event.preventDefault();
             if(confirm("¿Eliminar comercio?")) {
                 await deleteDoc(doc(db, "comercios", id)); 
                 await registrarLog("ELIMINACIÓN", `Se eliminó el comercio: ${nom}`);
