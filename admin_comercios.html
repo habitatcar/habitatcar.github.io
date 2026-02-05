@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v6.3</title>
+    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v6.5</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
     <style>
@@ -25,6 +25,13 @@
             color: var(--blanco-suave);
             margin: 0; 
             padding: 0; 
+        }
+
+        /* Capa de seguridad inicial */
+        #capa-seguridad {
+            position: fixed; top:0; left:0; width:100%; height:100%;
+            background: var(--azul-oscuro); z-index: 9999; display: flex;
+            justify-content: center; align-items: center; font-weight: bold;
         }
 
         .header {
@@ -159,10 +166,11 @@
     </style>
 </head>
 <body>
+    <div id="capa-seguridad">VALIDANDO SESIÓN SEGURA...</div>
 
-    <header class="header">
+    <header class="header" id="header-principal">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
-        <nav class="nav-menu">
+        <nav class="nav-menu" id="nav-menu-principal">
             <a href="admin_comercios.html" class="nav-link active">COMERCIOS</a>
             <a href="admin_leads.html" class="nav-link">LEADS</a>
             <a href="admin_vips.html" class="nav-link">VIPS</a>
@@ -176,7 +184,7 @@
         </nav>
     </header>
 
-    <div class="tools-faja">
+    <div class="tools-faja" id="faja-herramientas">
         <div class="search-container">
             <span class="search-icon">🔍</span>
             <input type="text" id="masterSearch" class="search-input" placeholder="Buscar comercio..." oninput="window.render()">
@@ -254,29 +262,49 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        
+        // --- LOGICA DE SEGURIDAD Y FILTRADO ---
+        const urlParams = new URLSearchParams(window.location.search);
+        const idForzado = urlParams.get('id');
         let COMERCIOS = [];
         let FILTRO_ESTADO = 'todos';
 
-        // FUNCIÓN CORREGIDA PARA MANEJAR TEXTO Y NÚMEROS SIN ROMPER LA TABLA
+        window.addEventListener('load', () => {
+            if (idForzado) {
+                const token = sessionStorage.getItem('token_habitat_' + idForzado);
+                if (!token) {
+                    document.body.innerHTML = "<div style='background:#0a192f; height:100vh; color:white; display:flex; justify-content:center; align-items:center; flex-direction:column;'><h1>ACCESO RESTRINGIDO</h1><p>Por favor, ingrese desde el Panel de Auditoría.</p></div>";
+                    setTimeout(() => window.location.href = 'index.html', 3000);
+                    return;
+                }
+                // Si es dueño, ocultamos navegación y herramientas
+                document.getElementById('nav-menu-principal').style.display = 'none';
+                document.getElementById('faja-herramientas').style.display = 'none';
+                document.getElementById('btn-cancel-edit').remove();
+            }
+            document.getElementById('capa-seguridad').style.display = 'none';
+        });
+
         const formatearFecha = (ts) => {
             if (!ts) return "Sin envíos";
             try {
-                // Si ya es un texto legible (ej: "03/02 14:30"), lo devolvemos tal cual
                 if (typeof ts === 'string' && ts.includes('/')) return ts;
-                
-                // Si es un número (timestamp) lo convertimos
                 let fecha = ts.toDate ? ts.toDate() : new Date(Number(ts));
-                if (isNaN(fecha.getTime())) return ts; // Devolver el dato original si no se puede convertir
-
-                return fecha.toLocaleString('es-AR', { 
-                    day: '2-digit', month: '2-digit', 
-                    hour: '2-digit', minute: '2-digit' 
-                });
+                if (isNaN(fecha.getTime())) return ts; 
+                return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
             } catch (e) { return "Formato inválido"; }
         };
 
         onSnapshot(collection(db, "comercios"), (snap) => {
-            COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+            const todos = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+            
+            if (idForzado) {
+                // El dueño SOLO ve su comercio, nada más llega a su memoria
+                COMERCIOS = todos.filter(c => c.idComercio === idForzado);
+                if (COMERCIOS.length > 0) window.edit(null, COMERCIOS[0].fbId);
+            } else {
+                COMERCIOS = todos;
+            }
             window.render();
         });
 
@@ -292,20 +320,12 @@
         };
 
         window.render = () => {
-            const term = document.getElementById('masterSearch').value
-                .toLowerCase()
-                .normalize("NFD")
-                .replace(/[\u0300-\u036f]/g, "");
-
+            const term = document.getElementById('masterSearch').value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const box = document.getElementById('lista-comercios');
             box.innerHTML = "";
             
             let filtrados = COMERCIOS.filter(c => {
-                const searchStr = ((c.nombre || "") + " " + (c.ciudad || "") + " " + (c.direccion || ""))
-                    .toLowerCase()
-                    .normalize("NFD")
-                    .replace(/[\u0300-\u036f]/g, "");
-
+                const searchStr = ((c.nombre || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 const matchesSearch = searchStr.includes(term);
                 const matchesFiltro = FILTRO_ESTADO === 'todos' || (FILTRO_ESTADO === 'inactivo' && c.estado !== 'activo');
                 return matchesSearch && matchesFiltro;
@@ -315,7 +335,6 @@
 
             filtrados.forEach(c => {
                 const estaActivo = c.estado === 'activo';
-                // CORRECCIÓN ID FANTASMA: Priorizamos idComercio que es el que usa el input de edición
                 const displayID = c.idComercio || c.id || "SIN-ID";
                 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
                 
@@ -338,12 +357,9 @@
                             <div class="data-box"><b>Token QR</b><span>${c.tokenQR || '-'}</span></div>
                             <div class="data-box"><b>Reporte</b><span>${c.frecuenciaReporte || 'Semanal'}</span></div>
                             <div class="data-box"><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
-                            
                             <div class="data-box" style="grid-column: span 2"><b>Último Envío</b><span style="color:var(--oro)">${formatearFecha(c.lastSubmission)}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Ciudad</b><span>${c.ciudad || '-'}</span></div>
-
                             <div class="data-box" style="grid-column: span 4"><b>Dirección</b><span>${c.direccion || '-'}</span></div>
-
                             <div class="data-box benefit-box">
                                 <b>Lead</b><span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span>
                             </div>
@@ -351,14 +367,14 @@
                                 <b>VIP</b><span class="highlight-ben" style="color:var(--oro)!important">${c.valVip || 0}% ${c.txtVip || ''}</span>
                             </div>
                         </div>
-
                         <div class="btn-group">
-                            <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
-                            <button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
-                                ${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
-                            </button>
-                            <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
-                            
+                            <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">${idForzado ? 'MODIFICAR MI FICHA' : 'EDITAR'}</button>
+                            ${!idForzado ? `
+                                <button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
+                                    ${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
+                                </button>
+                                <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
+                            ` : ''}
                             <div class="social-inline">
                                 ${webPropia ? `<a href="${webPropia}" target="_blank">🌐 SITIO WEB</a>` : ''}
                                 ${fbLink ? `<a href="${fbLink}" target="_blank">🔵 FACEBOOK</a>` : ''}
@@ -382,7 +398,6 @@
 
             document.getElementById('edit-id').value = id;
             document.getElementById('nombre-input').value = c.nombre || "";
-            // UNIFICACIÓN DE LECTURA DE ID
             let idExistente = c.idComercio || c.id || (c.nombre || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
             document.getElementById('id-input').value = idExistente;
             document.getElementById('token-input').value = c.tokenQR || "";
@@ -403,8 +418,8 @@
             document.getElementById('email-input').value = c.emailDueno || "";
             document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
             
-            document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
-            document.getElementById('btn-cancel-edit').style.display = "block";
+            document.getElementById('titulo-form').innerText = idForzado ? "MI FICHA COMERCIAL" : "📝 EDITANDO COMERCIO";
+            if(!idForzado) document.getElementById('btn-cancel-edit').style.display = "block";
         };
 
         window.guardar = async () => {
@@ -434,17 +449,19 @@
             if(eid) {
                 await updateDoc(doc(db, "comercios", eid), d);
                 await registrarLog("EDICIÓN", `Se actualizó el comercio: ${d.nombre}`);
-            } else {
+                alert("Cambios guardados correctamente.");
+            } else if (!idForzado) {
                 d.estado = "activo";
                 d.fechaCarga = Date.now();
                 d.lastSubmission = null;
                 await addDoc(collection(db, "comercios"), d);
                 await registrarLog("REGISTRO", `Nuevo comercio creado: ${d.nombre}`);
+                window.clear();
             }
-            window.clear();
         };
 
         window.clear = () => {
+            if(idForzado) return;
             document.getElementById('edit-id').value = "";
             document.querySelectorAll('.sidebar input').forEach(i => i.value = "");
             document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
@@ -460,6 +477,7 @@
         };
 
         window.toggleEstado = async (event, id, est, nom) => { 
+            if(idForzado) return;
             if(event) event.preventDefault();
             const nuevoEstado = est === 'activo' ? 'inactivo' : 'activo';
             await updateDoc(doc(db, "comercios", id), { estado: nuevoEstado }); 
@@ -467,6 +485,7 @@
         };
         
         window.del = async (event, id, nom) => { 
+            if(idForzado) return;
             if(event) event.preventDefault();
             if(confirm("¿Eliminar comercio?")) {
                 await deleteDoc(doc(db, "comercios", id)); 
