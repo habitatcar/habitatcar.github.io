@@ -255,7 +255,7 @@
         const db = getFirestore(app);
 
         let todosLosLeads = [];
-        let registroUsuarios = {}; // Mapa para contar usos dinámicamente
+        let mapaUsos = {}; 
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
         // --- CARGA DE DATOS ARGENTINA ---
@@ -290,34 +290,23 @@
         }
         cargarProvincias();
 
-        async function registrarActividad(leadId, nombre, accion) {
-            try {
-                await addDoc(collection(db, "logs_actividad"), {
-                    usuarioId: leadId,
-                    nombre: nombre,
-                    tipo: "LEAD",
-                    accion: accion,
-                    timestamp: Date.now(),
-                    fecha: new Date().toLocaleString()
-                });
-            } catch (e) { console.error("Error log:", e); }
-        }
-
-        // LÓGICA DE AUDITORÍA: Escucha los canjes en tiempo real para contar usos
+        // --- LÓGICA DE DATOS DINÁMICA ---
+        
+        // 1. Escuchar los Canjes desde logs_actividad (Igual que en Auditoría)
         const qLogs = query(collection(db, "logs_actividad"), where("tipo", "==", "canje"));
         onSnapshot(qLogs, (snap) => {
-            registroUsuarios = {};
-            snap.forEach(doc => {
-                const d = doc.data();
-                const uid = d.usuarioId || d.userId;
-                if(uid) registroUsuarios[uid] = (registroUsuarios[uid] || 0) + 1;
+            mapaUsos = {};
+            snap.forEach(d => {
+                const data = d.data();
+                const uid = data.usuarioId || data.userId;
+                if(uid) mapaUsos[uid] = (mapaUsos[uid] || 0) + 1;
             });
-            renderizar(todosLosLeads); // Actualiza la tabla con los nuevos conteos
+            renderizar(todosLosLeads);
         });
 
-        const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
-        
-        onSnapshot(q, (snap) => {
+        // 2. Escuchar la colección Leads
+        const qLeads = query(collection(db, "leads"), where("convertidoVIP", "==", false));
+        onSnapshot(qLeads, (snap) => {
             todosLosLeads = [];
             snap.forEach(d => todosLosLeads.push({id: d.id, ...d.data()}));
             aplicarOrdenYRender();
@@ -351,8 +340,8 @@
                 const rawLastSub = l.lastSubmission || l.fechaRegistro;
                 const lastSub = rawLastSub ? new Date(rawLastSub).toLocaleString() : '---';
                 
-                // USA LA LÓGICA DE AUDITORÍA: Prioriza el conteo dinámico de logs
-                const cantUsos = registroUsuarios[l.id] || 0;
+                // Vinculación real con los logs de actividad
+                const cantUsos = mapaUsos[l.id] || 0;
                 
                 lista.innerHTML += `
                     <tr>
@@ -374,6 +363,24 @@
             });
         }
 
+        window.filtrarLeads = () => {
+            const busq = document.getElementById('buscador').value.toLowerCase();
+            const prov = document.getElementById('filtro-provincia').value;
+            const loc = document.getElementById('filtro-localidad').value;
+
+            const filtrados = todosLosLeads.filter(l => {
+                const matchBusq = (l.apellido && l.apellido.toLowerCase().includes(busq)) || (l.whatsapp && l.whatsapp.includes(busq));
+                const matchProv = prov === "" || l.provincia === prov;
+                const matchLoc = loc === "" || l.localidad === loc;
+                return matchBusq && matchProv && matchLoc;
+            });
+
+            document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l => l.provincia === prov).length : 0;
+            document.getElementById('count-loc').innerText = loc ? todosLosLeads.filter(l => l.localidad === loc).length : 0;
+
+            renderizar(filtrados);
+        };
+
         window.validarYRestablecer = async (tipo) => {
             if (!tipo) return;
             const pass = prompt("Ingrese la contraseña de ADMINISTRADOR:");
@@ -393,30 +400,11 @@
             }
         };
 
-        window.filtrarLeads = () => {
-            const busq = document.getElementById('buscador').value.toLowerCase();
-            const prov = document.getElementById('filtro-provincia').value;
-            const loc = document.getElementById('filtro-localidad').value;
-
-            const filtrados = todosLosLeads.filter(l => {
-                const matchBusq = (l.apellido && l.apellido.toLowerCase().includes(busq)) || (l.whatsapp && l.whatsapp.includes(busq));
-                const matchProv = prov === "" || l.provincia === prov;
-                const matchLoc = loc === "" || l.localidad === loc;
-                return matchBusq && matchProv && matchLoc;
-            });
-
-            // Actualizar contadores dinámicos
-            document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l => l.provincia === prov).length : 0;
-            document.getElementById('count-loc').innerText = loc ? todosLosLeads.filter(l => l.localidad === loc).length : 0;
-
-            renderizar(filtrados);
-        };
-
+        window.borrarLead = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, "leads", id)); };
         window.generarReporte = (tipo) => { if (tipo) alert("Generando reporte..."); };
         window.hacerVIP = async (id, ap, nom) => { /* lógica VIP */ };
         window.restablecerCupones = async (id, ap, nom) => { /* lógica Reset */ };
         window.toggleEstado = async (id, est, nom) => { /* lógica Estado */ };
-        window.borrarLead = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, "leads", id)); };
     </script>
 </body>
 </html>
