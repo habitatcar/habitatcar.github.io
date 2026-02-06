@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.2</title>
+    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.5</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -164,8 +164,8 @@
         .btn-group { margin-top: 25px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; }
         .btn-op { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; font-size: 0.9em; transition: 0.3s; }
 
-        /* BOTÓN VER PANEL CORREGIDO */
-        .btn-bypass-panel {
+        /* BOTÓN ACCESO DIRECTO */
+        .btn-bypass {
             background: var(--celeste-habitat);
             color: white;
             border: none;
@@ -178,24 +178,7 @@
             width: 120px;
             transition: 0.3s;
         }
-        .btn-bypass-panel:hover { background: var(--oro); color: var(--azul-oscuro); }
-        
-        .btn-copiar-link {
-            background: #6c757d;
-            color: white;
-            border: none;
-            padding: 8px 10px;
-            border-radius: 8px;
-            font-size: 10px;
-            font-weight: bold;
-            cursor: pointer;
-            text-transform: uppercase;
-            width: 120px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 5px;
-        }
+        .btn-bypass:hover { background: var(--oro); color: var(--azul-oscuro); }
 
         .social-box { display: flex; align-items: center; gap: 10px; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 15px; }
         .social-link { 
@@ -208,18 +191,12 @@
         .bg-tk { background: #000000; color: white; border: 1px solid #fff; }
         .bg-web { background: #00d2ff; color: white; }
         
-        .owner-email {
-            display: flex; align-items: center; gap: 8px; color: var(--oro); text-decoration: none;
-            font-weight: bold; font-size: 0.9em; padding: 6px 14px; background: rgba(255,193,7,0.15);
-            border-radius: 20px; border: 1px solid var(--oro);
-        }
-
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 5000; justify-content: center; align-items: center; }
         #modal-img { max-width: 90%; max-height: 90%; }
     </style>
 </head>
 <body>
-    <div id="capa-seguridad">VALIDANDO ACCESO SUPER-USUARIO...</div>
+    <div id="capa-seguridad">VALIDANDO ACCESO...</div>
 
     <header class="header">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
@@ -304,7 +281,7 @@
                         <option value="Tucumán">Tucumán</option>
                     </select>
                     <select id="localidad-input">
-                        <option value="" disabled selected>Ciudad / Localidad</option>
+                        <option value="" disabled selected>Localidad...</option>
                     </select>
 
                     <input type="text" id="facebook-input" class="full" placeholder="URL FACEBOOK">
@@ -313,9 +290,8 @@
                     <input type="text" id="sitio-web-input" class="full" placeholder="Sitio Web (URL)">
                     
                     <input type="text" id="telefono-input" class="full" placeholder="WhatsApp (Número)">
-                    
                     <input type="email" id="email-input" class="full" placeholder="Email Dueño">
-                    <input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO" style="border: 2px solid var(--oro)">
+                    <input type="password" id="password-input" class="full" placeholder="CONTRASEÑA" style="border: 2px solid var(--oro)">
                     
                     <select id="reporte-input" class="full">
                         <option value="Semanal">Reporte Semanal</option>
@@ -353,36 +329,34 @@
         let FILTRO_ESTADO = 'todos';
 
         // LÓGICA DE CIUDADES
-        window.cargarLocalidades = async (sel = "") => {
+        window.cargarLocalidades = async (seleccionada = "") => {
             const prov = document.getElementById('provincia-input').value;
             const locSelect = document.getElementById('localidad-input');
             locSelect.innerHTML = '<option value="" disabled selected>Cargando...</option>';
             try {
                 if(prov === "CABA") {
                     const barrios = ["Agronomía", "Almagro", "Balvanera", "Barracas", "Belgrano", "Boedo", "Caballito", "Chacarita", "Coghlan", "Colegiales", "Constitución", "Flores", "Floresta", "La Boca", "La Paternal", "Liniers", "Mataderos", "Monserrat", "Monte Castro", "Nueva Pompeya", "Nuñez", "Palermo", "Parque Avellaneda", "Parque Chacabuco", "Parque Chas", "Parque Patricios", "Puerto Madero", "Recoleta", "Retiro", "Saavedra", "San Cristóbal", "San Nicolás", "San Telmo", "Vélez Sársfield", "Versalles", "Villa Crespo", "Villa del Parque", "Villa Devoto", "Villa General Mitre", "Villa Luro", "Villa Ortúzar", "Villa Pueyrredón", "Villa Real", "Villa Riachuelo", "Villa Santa Rita", "Villa Soldati", "Villa Urquiza"];
-                    llenarLoc(barrios, sel);
+                    llenarLoc(barrios, seleccionada);
                 } else {
                     const r = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${prov}&max=500`);
                     const d = await r.json();
-                    llenarLoc(d.municipios.map(m => m.nombre), sel);
+                    llenarLoc(d.municipios.map(m => m.nombre), seleccionada);
                 }
             } catch (e) { locSelect.innerHTML = '<option value="">Error API</option>'; }
         };
 
         function llenarLoc(arr, sel) {
             const s = document.getElementById('localidad-input');
-            s.innerHTML = '<option value="" disabled selected>Ciudad / Localidad</option>';
+            s.innerHTML = '<option value="" disabled selected>Localidad...</option>';
             [...new Set(arr)].sort().forEach(i => {
                 const o = document.createElement('option'); o.value = i; o.innerText = i; s.appendChild(o);
             });
             if(sel) s.value = sel;
         }
 
-        // FUNCIÓN CLAVE: BYPASS DE LOGIN PARA EL SUPER USUARIO
-        window.accederPanelDirecto = (id) => {
-            // Guardamos el token en localStorage para que persista en la nueva pestaña
+        // SOLUCIÓN LOGIN: Bypass con localStorage
+        window.accederPanel = (id) => {
             localStorage.setItem('token_habitat_' + id, 'admin_master');
-            // Abrimos el panel del dueño directamente
             window.open(`admin_ingreso_duenos.html?id=${id}`, '_blank');
         };
 
@@ -412,14 +386,14 @@
                     <div class="visual-side">
                         <img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
                         <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
-                        <button class="btn-bypass-panel" onclick="window.accederPanelDirecto('${id}')">VER PANEL</button>
+                        <button class="btn-bypass" onclick="window.accederPanel('${id}')">VER PANEL</button>
                     </div>
                     <div class="info-side">
                         <h2 class="comercio-title">${c.nombre || 'Sin Nombre'}</h2>
                         <div class="data-grid">
                             <div class="data-box"><b>ID</b><span>${id}</span></div>
                             <div class="data-box"><b>Token QR</b><span>${c.tokenQR || '-'}</span></div>
-                            <div class="data-box" style="grid-column: span 2"><b>Ciudad</b><span>${c.localidad || '-'}, ${c.provincia || ''}</span></div>
+                            <div class="data-box" style="grid-column: span 2"><b>Ubicación</b><span>${c.localidad || '-'}, ${c.provincia || ''}</span></div>
                             <div class="data-box benefit-box"><b>Lead</b><span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span></div>
                             <div class="data-box benefit-box"><b>VIP</b><span class="highlight-ben" style="color:var(--oro)!important">${c.valVip || 0}% ${c.txtVip || ''}</span></div>
                         </div>
@@ -429,7 +403,6 @@
                                 ${activo ? 'PAUSAR' : 'ACTIVAR'}
                             </button>
                             <div class="social-box">
-                                ${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
                                 ${c.facebook ? `<a href="${c.facebook}" target="_blank" class="social-link bg-fb"><i class="fab fa-facebook-f"></i></a>` : ''}
                                 ${c.instagram ? `<a href="${c.instagram}" target="_blank" class="social-link bg-ig"><i class="fab fa-instagram"></i></a>` : ''}
                                 ${c.web ? `<a href="${c.web}" target="_blank" class="social-link bg-tk"><i class="fab fa-tiktok"></i></a>` : ''}
@@ -469,7 +442,7 @@
             document.getElementById('email-input').value = c.emailDueno || "";
             document.getElementById('password-input').value = c.password || "";
             document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
-            document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
+            document.getElementById('titulo-form').innerText = "📝 EDITANDO";
             document.getElementById('btn-cancel-edit').style.display = 'block';
         };
 
@@ -501,7 +474,7 @@
             try {
                 if(eid) await updateDoc(doc(db, "comercios", eid), d);
                 else { d.estado = "activo"; d.fechaCarga = Date.now(); await addDoc(collection(db, "comercios"), d); }
-                alert("Éxito!"); window.clear();
+                alert("Guardado!"); window.clear();
             } catch(e) { alert("Error: " + e.message); }
         };
 
