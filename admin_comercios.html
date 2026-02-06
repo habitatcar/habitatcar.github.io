@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v6.8</title>
+    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.1</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -360,7 +360,7 @@
         let COMERCIOS = [];
         let FILTRO_ESTADO = 'todos';
 
-        // LÓGICA DE LOCALIDADES SEGÚN PROTOCOLO
+        // CIUDADES SEGÚN PROTOCOLO
         window.cargarLocalidades = async (localidadSeleccionada = "") => {
             const prov = document.getElementById('provincia-input').value;
             const locSelect = document.getElementById('localidad-input');
@@ -404,7 +404,7 @@
             if (idForzado) {
                 const token = sessionStorage.getItem('token_habitat_' + idForzado);
                 if (!token) {
-                    document.body.innerHTML = "<div style='background:#0a192f; height:100vh; color:white; display:flex; justify-content:center; align-items:center; flex-direction:column;'><h1>ACCESO RESTRINGIDO</h1><p>Por favor, ingrese desde el Panel de Auditoría.</p></div>";
+                    document.body.innerHTML = "<div style='background:#0a192f; height:100vh; color:white; display:flex; justify-content:center; align-items:center; flex-direction:column;'><h1>ACCESO RESTRINGIDO</h1></div>";
                     setTimeout(() => window.location.href = 'index.html', 3000);
                     return;
                 }
@@ -464,7 +464,7 @@
                         <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
                         
                         ${!idForzado ? `
-                            <a href="admin_ingreso_duenos.html?id=${displayID}" target="_blank" class="btn-directo">VER PANEL</a>
+                            <a href="admin_ingreso_duenos.html?id=${displayID}" target="_blank" class="btn-directo" onclick="sessionStorage.setItem('token_habitat_${displayID}', 'admin_master')">VER PANEL</a>
                             <button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayID}')">
                                 <i class="fas fa-link"></i> COPIAR LINK
                             </button>
@@ -510,12 +510,7 @@
         window.copiarLinkDirecto = (id) => {
             const urlBase = window.location.origin + window.location.pathname.replace('admin_comercios.html', '');
             const urlFinal = `${urlBase}admin_ingreso_duenos.html?id=${id}`;
-            
-            navigator.clipboard.writeText(urlFinal).then(() => {
-                alert("✅ ¡Enlace copiado al portapapeles!\n\nYa puedes pegarlo en el chat del dueño.");
-            }).catch(err => {
-                console.error('Error al copiar: ', err);
-            });
+            navigator.clipboard.writeText(urlFinal).then(() => alert("✅ ¡Enlace copiado!"));
         };
 
         window.edit = async (event, id) => {
@@ -582,12 +577,11 @@
             try {
                 if(eid) {
                     await updateDoc(doc(db, "comercios", eid), d);
-                    alert("¡Ficha actualizada!");
-                    if(idForzado) window.location.reload(); 
+                    alert("¡Actualizado!");
                 } else {
                     d.estado = "activo"; d.fechaCarga = Date.now(); d.lastSubmission = null;
                     await addDoc(collection(db, "comercios"), d);
-                    alert("Comercio creado");
+                    alert("Creado!");
                     window.clear();
                 }
             } catch(e) { alert("Error: " + e.message); }
