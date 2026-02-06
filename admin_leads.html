@@ -87,11 +87,6 @@
             padding: 0 30px 30px 30px;
         }
 
-        .card-table {
-            background: transparent;
-            width: 100%;
-        }
-
         table { width: 100%; border-collapse: separate; border-spacing: 0; }
 
         thead th {
@@ -104,13 +99,14 @@
             z-index: 20;
             font-size: 12px;
             border-bottom: 2px solid var(--celeste-habitat);
+            cursor: pointer;
         }
 
         td { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
         tr:hover { background: rgba(255,255,255,0.03); }
 
         .btn-action {
-            padding: 12px 15px;
+            padding: 8px 12px;
             border-radius: 6px;
             border: none;
             cursor: pointer;
@@ -118,11 +114,8 @@
             color: white;
             margin-right: 5px;
             transition: 0.2s;
+            font-size: 10px;
             text-transform: uppercase;
-            font-size: 11px;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
         }
         .btn-vip { background: var(--oro-alegre); color: black; }
         .btn-reset { background: #0056b3; }
@@ -205,13 +198,6 @@
                 <option value="pais">A TODO EL PAÍS</option>
             </select>
 
-            <select onchange="generarReporte(this.value); this.value='';" style="border-color: var(--verde); font-weight: bold;">
-                <option value="">REPORTES PDF</option>
-                <option value="localidad">POR LOCALIDAD</option>
-                <option value="provincia">POR PROVINCIA</option>
-                <option value="pais">A TODO EL PAÍS</option>
-            </select>
-
             <div style="margin-left: auto; font-weight: bold; color: var(--oro-alegre);">
                 Total: <span id="contador-total">0</span>
             </div>
@@ -219,28 +205,26 @@
     </div>
 
     <div class="table-wrapper">
-        <div class="card-table">
-            <table>
-                <thead>
-                    <tr>
-                        <th onclick="ordenar('fechaRegistro')">REGISTRO</th>
-                        <th onclick="ordenar('lastSubmission')">ÚLTIMA ACTIVIDAD</th>
-                        <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE</th>
-                        <th>WHATSAPP</th>
-                        <th>PROVINCIA</th>
-                        <th>CIUDAD/LOC</th>
-                        <th style="text-align: center;">CANT. USOS</th>
-                        <th>ACCIONES</th>
-                    </tr>
-                </thead>
-                <tbody id="lista-leads"></tbody>
-            </table>
-        </div>
+        <table>
+            <thead>
+                <tr>
+                    <th onclick="ordenar('fechaRegistro')">REGISTRO ↕</th>
+                    <th onclick="ordenar('lastSubmission')">ÚLT. ACTIVIDAD ↕</th>
+                    <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE ↕</th>
+                    <th>WHATSAPP</th>
+                    <th>PROVINCIA</th>
+                    <th>LOCALIDAD</th>
+                    <th style="text-align: center;">USOS</th>
+                    <th>ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody id="lista-leads"></tbody>
+        </table>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, addDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -255,6 +239,7 @@
         const db = getFirestore(app);
 
         let todosLosLeads = [];
+        let mapaUsos = {}; 
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
         // --- CARGA DE DATOS ARGENTINA ---
@@ -263,13 +248,13 @@
                 const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre");
                 const data = await res.json();
                 const combo = document.getElementById('filtro-provincia');
-                data.provincias.sort((a,b) => a.nombre > b.nombre ? 1 : -1).forEach(p => {
+                data.provincias.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(p => {
                     let opt = document.createElement('option');
                     opt.value = p.nombre.toUpperCase();
                     opt.textContent = p.nombre.toUpperCase();
                     combo.appendChild(opt);
                 });
-            } catch (e) { console.error("Error provincias", e); }
+            } catch (e) { console.error(e); }
         }
 
         window.cargarLocalidades = async (provNombre) => {
@@ -279,34 +264,38 @@
             try {
                 const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${provNombre}&max=1000&campos=id,nombre`);
                 const data = await res.json();
-                data.municipios.sort((a,b) => a.nombre > b.nombre ? 1 : -1).forEach(m => {
+                data.municipios.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(m => {
                     let opt = document.createElement('option');
                     opt.value = m.nombre.toUpperCase();
                     opt.textContent = m.nombre.toUpperCase();
                     comboLoc.appendChild(opt);
                 });
-            } catch (e) { console.error("Error localidades", e); }
+            } catch (e) { console.error(e); }
         }
         cargarProvincias();
 
-        async function registrarActividad(leadId, nombre, accion) {
-            try {
-                await addDoc(collection(db, "logs_actividad"), {
-                    usuarioId: leadId,
-                    nombre: nombre,
-                    tipo: "LEAD",
-                    accion: accion,
-                    timestamp: Date.now(),
-                    fecha: new Date().toLocaleString()
-                });
-            } catch (e) { console.error("Error log:", e); }
-        }
+        // --- VINCULACIÓN DE DATOS (RECUENTO DE USOS) ---
+        onSnapshot(collection(db, "logs_actividad"), (snap) => {
+            mapaUsos = {};
+            snap.forEach(d => {
+                const log = d.data();
+                if(log.tipo === "canje") {
+                    const uid = log.usuarioId || log.userId;
+                    if(uid) mapaUsos[uid] = (mapaUsos[uid] || 0) + 1;
+                }
+            });
+            renderizar(todosLosLeads); // Actualiza la tabla con los nuevos conteos
+        });
 
-        const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
-        
-        onSnapshot(q, (snap) => {
+        // --- ESCUCHA DE LEADS ---
+        onSnapshot(collection(db, "leads"), (snap) => {
             todosLosLeads = [];
-            snap.forEach(d => todosLosLeads.push({id: d.id, ...d.data()}));
+            snap.forEach(d => {
+                const data = d.data();
+                if (data.convertidoVIP !== true) {
+                    todosLosLeads.push({ id: d.id, ...data });
+                }
+            });
             aplicarOrdenYRender();
         });
 
@@ -322,12 +311,6 @@
             filtrarLeads();
         }
 
-        window.ordenar = (campo) => {
-            ordenActual.asc = (ordenActual.campo === campo) ? !ordenActual.asc : true;
-            ordenActual.campo = campo;
-            aplicarOrdenYRender();
-        };
-
         function renderizar(datos) {
             const lista = document.getElementById('lista-leads');
             lista.innerHTML = "";
@@ -335,23 +318,26 @@
 
             datos.forEach(l => {
                 const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
-                const rawLastSub = l.lastSubmission || l.fechaRegistro;
-                const lastSub = rawLastSub ? new Date(rawLastSub).toLocaleString() : '---';
-                const cantUsos = l.cupones_usados ? l.cupones_usados.length : 0;
+                const lastSub = (l.lastSubmission || l.fechaRegistro) ? new Date(l.lastSubmission || l.fechaRegistro).toLocaleString() : '---';
+                
+                // AQUÍ USAMOS EL MAPA DE USOS VINCULADO
+                const cantUsos = mapaUsos[l.id] || 0; 
+                
+                const suspendido = l.estado === 'suspendido';
                 
                 lista.innerHTML += `
-                    <tr>
+                    <tr style="${suspendido ? 'opacity: 0.5; background: rgba(220,53,69,0.05)' : ''}">
                         <td style="color: #8892b0;">${fechaReg}</td>
-                        <td style="color: var(--oro-alegre); font-size: 0.9em;">${lastSub}</td>
-                        <td><b>${l.apellido}, ${l.nombres}</b></td>
-                        <td>${l.whatsapp}</td>
+                        <td style="color: var(--oro-alegre); font-size: 0.85em;">${lastSub}</td>
+                        <td><b>${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}</b></td>
+                        <td>${l.whatsapp || '---'}</td>
                         <td style="color: #8892b0">${l.provincia || '---'}</td>
                         <td style="color: #8892b0">${l.localidad || '---'}</td>
                         <td class="col-usos">${cantUsos}</td>
                         <td style="white-space: nowrap;">
-                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido}', '${l.nombres}')">💎 VIP</button>
-                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido}', '${l.nombres}')">🔄 RESTABLECER</button>
-                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${l.apellido} ${l.nombres}')">🚫 SUSPENDER</button>
+                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido} ${l.nombres}')">💎 VIP</button>
+                            <button class="btn-action btn-reset" onclick="restablecerIndividual('${l.id}')">🔄</button>
+                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}')">${suspendido ? 'ACTIVAR' : 'SUSPENDER'}</button>
                             <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
                         </td>
                     </tr>
@@ -359,23 +345,28 @@
             });
         }
 
-        window.validarYRestablecer = async (tipo) => {
-            if (!tipo) return;
-            const pass = prompt("Ingrese la contraseña de ADMINISTRADOR:");
-            if (pass !== "admin1234") return alert("Incorrecta");
-
-            let filtrados = [];
-            if (tipo === "pais") filtrados = todosLosLeads;
-            else if (tipo === "provincia") filtrados = todosLosLeads.filter(l => l.provincia === document.getElementById('filtro-provincia').value);
-            else if (tipo === "localidad") filtrados = todosLosLeads.filter(l => l.localidad === document.getElementById('filtro-localidad').value);
-
-            if(confirm(`¿Restablecer ${filtrados.length} usuarios?`)) {
-                const batch = writeBatch(db);
-                const ahora = Date.now();
-                filtrados.forEach(l => batch.update(doc(db, "leads", l.id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: ahora }));
-                await batch.commit();
-                alert("Éxito");
+        // --- FUNCIONES DE BOTONES (Expuestas a window) ---
+        window.hacerVIP = async (id, nombre) => {
+            if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
+                document.getElementById('nombre-socio').innerText = nombre;
+                document.getElementById('modal-bienvenida').style.display = 'flex';
             }
+        };
+
+        window.toggleEstado = async (id, estadoActual) => {
+            const nuevo = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
+            await updateDoc(doc(db, "leads", id), { estado: nuevo });
+        };
+
+        window.restablecerIndividual = async (id) => {
+            if(confirm("¿Restablecer cupones de este usuario?")) {
+                await updateDoc(doc(db, "leads", id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: Date.now() });
+            }
+        };
+
+        window.borrarLead = async (id) => {
+            if(confirm("¿Eliminar para siempre?")) await deleteDoc(doc(db, "leads", id));
         };
 
         window.filtrarLeads = () => {
@@ -384,24 +375,42 @@
             const loc = document.getElementById('filtro-localidad').value;
 
             const filtrados = todosLosLeads.filter(l => {
-                const matchBusq = (l.apellido && l.apellido.toLowerCase().includes(busq)) || (l.whatsapp && l.whatsapp.includes(busq));
+                const nombre = `${l.apellido} ${l.nombres}`.toLowerCase();
+                const matchBusq = nombre.includes(busq) || (l.whatsapp && l.whatsapp.includes(busq));
                 const matchProv = prov === "" || l.provincia === prov;
                 const matchLoc = loc === "" || l.localidad === loc;
                 return matchBusq && matchProv && matchLoc;
             });
 
-            // Actualizar contadores dinámicos
             document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l => l.provincia === prov).length : 0;
             document.getElementById('count-loc').innerText = loc ? todosLosLeads.filter(l => l.localidad === loc).length : 0;
-
             renderizar(filtrados);
         };
 
-        window.generarReporte = (tipo) => { if (tipo) alert("Generando reporte..."); };
-        window.hacerVIP = async (id, ap, nom) => { /* lógica VIP */ };
-        window.restablecerCupones = async (id, ap, nom) => { /* lógica Reset */ };
-        window.toggleEstado = async (id, est, nom) => { /* lógica Estado */ };
-        window.borrarLead = async (id) => { if(confirm("¿Borrar?")) await deleteDoc(doc(db, "leads", id)); };
+        window.ordenar = (campo) => {
+            ordenActual.asc = (ordenActual.campo === campo) ? !ordenActual.asc : true;
+            ordenActual.campo = campo;
+            aplicarOrdenYRender();
+        };
+
+        window.validarYRestablecer = async (tipo) => {
+            const pass = prompt("Clave ADMIN:");
+            if(pass !== "admin1234") return alert("Clave incorrecta");
+
+            let aRestablecer = [];
+            if(tipo === "pais") aRestablecer = todosLosLeads;
+            else if(tipo === "provincia") aRestablecer = todosLosLeads.filter(l => l.provincia === document.getElementById('filtro-provincia').value);
+            else if(tipo === "localidad") aRestablecer = todosLosLeads.filter(l => l.localidad === document.getElementById('filtro-localidad').value);
+
+            if(confirm(`¿Restablecer cupones a ${aRestablecer.length} usuarios?`)){
+                const batch = writeBatch(db);
+                aRestablecer.forEach(l => {
+                    batch.update(doc(db, "leads", l.id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: Date.now() });
+                });
+                await batch.commit();
+                alert("Proceso completado");
+            }
+        };
     </script>
 </body>
 </html>
