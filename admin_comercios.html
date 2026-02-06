@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v6.7</title>
+    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v6.8</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -164,7 +164,6 @@
         .btn-group { margin-top: 25px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; }
         .btn-op { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; font-size: 0.9em; transition: 0.3s; }
 
-        /* Botones de Administración en la Card */
         .btn-directo {
             background: var(--celeste-habitat);
             color: white;
@@ -265,24 +264,63 @@
                 <input type="hidden" id="edit-id">
                 <div class="form-grid">
                     <input type="text" id="nombre-input" class="full" placeholder="Nombre Fantasía" oninput="genID()">
+                    
                     <input type="text" id="id-input" class="read-only" placeholder="ID SISTEMA (AUTO)" readonly>
                     <input type="text" id="token-input" class="read-only" placeholder="TOKEN QR (AUTO)" readonly>
+                    
                     <input type="text" id="logo-input" class="full" placeholder="URL Logotipo">
+                    
                     <input type="number" id="val-lead" placeholder="Desc. Lead %">
                     <input type="number" id="vig-lead" placeholder="Vigencia Lead (Días)">
                     <input type="text" id="txt-lead" class="full" placeholder="Detalle Lead (Ej: En servicios)">
+                    
                     <input type="number" id="val-vip" placeholder="Desc. VIP %">
                     <input type="number" id="vig-vip" placeholder="Vigencia VIP (Días)">
                     <input type="text" id="txt-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
+                    
                     <input type="text" id="direccion-input" class="full" placeholder="Dirección">
-                    <input type="text" id="ciudad-input" placeholder="Ciudad">
-                    <input type="text" id="telefono-input" placeholder="WhatsApp (Número)">
+                    
+                    <select id="provincia-input" onchange="window.cargarLocalidades()">
+                        <option value="" disabled selected>Seleccionar Provin...</option>
+                        <option value="Buenos Aires">Buenos Aires</option>
+                        <option value="CABA">CABA</option>
+                        <option value="Catamarca">Catamarca</option>
+                        <option value="Chaco">Chaco</option>
+                        <option value="Chubut">Chubut</option>
+                        <option value="Córdoba">Córdoba</option>
+                        <option value="Corrientes">Corrientes</option>
+                        <option value="Entre Ríos">Entre Ríos</option>
+                        <option value="Formosa">Formosa</option>
+                        <option value="Jujuy">Jujuy</option>
+                        <option value="La Pampa">La Pampa</option>
+                        <option value="La Rioja">La Rioja</option>
+                        <option value="Mendoza">Mendoza</option>
+                        <option value="Misiones">Misiones</option>
+                        <option value="Neuquén">Neuquén</option>
+                        <option value="Río Negro">Río Negro</option>
+                        <option value="Salta">Salta</option>
+                        <option value="San Juan">San Juan</option>
+                        <option value="San Luis">San Luis</option>
+                        <option value="Santa Cruz">Santa Cruz</option>
+                        <option value="Santa Fe">Santa Fe</option>
+                        <option value="Santiago del Estero">Santiago del Estero</option>
+                        <option value="Tierra del Fuego">Tierra del Fuego</option>
+                        <option value="Tucumán">Tucumán</option>
+                    </select>
+                    <select id="localidad-input">
+                        <option value="" disabled selected>Ciudad / Localidad</option>
+                    </select>
+
                     <input type="text" id="facebook-input" class="full" placeholder="URL FACEBOOK">
                     <input type="text" id="instagram-input" class="full" placeholder="URL INSTAGRAM">
                     <input type="text" id="web-input" class="full" placeholder="URL TIK TOK">
                     <input type="text" id="sitio-web-input" class="full" placeholder="Sitio Web (URL)">
+                    
+                    <input type="text" id="telefono-input" class="full" placeholder="WhatsApp (Número)">
+                    
                     <input type="email" id="email-input" class="full" placeholder="Email Dueño">
                     <input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO (OBLIGATORIO)" style="border: 2px solid var(--oro)">
+                    
                     <select id="reporte-input" class="full">
                         <option value="Semanal">Reporte Semanal</option>
                         <option value="Quincenal">Reporte Quincenal</option>
@@ -321,6 +359,46 @@
         const idForzado = urlParams.get('id');
         let COMERCIOS = [];
         let FILTRO_ESTADO = 'todos';
+
+        // LÓGICA DE LOCALIDADES SEGÚN PROTOCOLO
+        window.cargarLocalidades = async (localidadSeleccionada = "") => {
+            const prov = document.getElementById('provincia-input').value;
+            const locSelect = document.getElementById('localidad-input');
+            locSelect.innerHTML = '<option value="" disabled selected>Cargando...</option>';
+
+            try {
+                if(prov === "CABA") {
+                    const barrios = ["Agronomía", "Almagro", "Balvanera", "Barracas", "Belgrano", "Boedo", "Caballito", "Chacarita", "Coghlan", "Colegiales", "Constitución", "Flores", "Floresta", "La Boca", "La Paternal", "Liniers", "Mataderos", "Monserrat", "Monte Castro", "Nueva Pompeya", "Nuñez", "Palermo", "Parque Avellaneda", "Parque Chacabuco", "Parque Chas", "Parque Patricios", "Puerto Madero", "Recoleta", "Retiro", "Saavedra", "San Cristóbal", "San Nicolás", "San Telmo", "Vélez Sársfield", "Versalles", "Villa Crespo", "Villa del Parque", "Villa Devoto", "Villa General Mitre", "Villa Luro", "Villa Ortúzar", "Villa Pueyrredón", "Villa Real", "Villa Riachuelo", "Villa Santa Rita", "Villa Soldati", "Villa Urquiza"];
+                    llenarSelectCombo(barrios, localidadSeleccionada);
+                } else {
+                    const response = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${prov}&max=500`);
+                    const data = await response.json();
+                    let lista = data.municipios.map(m => m.nombre);
+                    if(lista.length === 0) {
+                        const respLoc = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=${prov}&max=1000`);
+                        const dataLoc = await respLoc.json();
+                        lista = dataLoc.localidades.map(l => l.nombre);
+                    }
+                    llenarSelectCombo(lista, localidadSeleccionada);
+                }
+            } catch (e) {
+                console.error("Error API:", e);
+                locSelect.innerHTML = '<option value="">Error al cargar</option>';
+            }
+        };
+
+        function llenarSelectCombo(arr, sel) {
+            const locSelect = document.getElementById('localidad-input');
+            locSelect.innerHTML = '<option value="" disabled selected>Ciudad / Localidad</option>';
+            const unicos = [...new Set(arr)].sort();
+            unicos.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item;
+                opt.innerText = item;
+                locSelect.appendChild(opt);
+            });
+            if(sel) locSelect.value = sel;
+        }
 
         window.addEventListener('load', () => {
             if (idForzado) {
@@ -365,7 +443,7 @@
             box.innerHTML = "";
             
             let filtrados = COMERCIOS.filter(c => {
-                const searchStr = ((c.nombre || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const searchStr = ((c.nombre || "") + " " + (c.localidad || "") + " " + (c.direccion || "") + " " + (c.provincia || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                 const matchesSearch = searchStr.includes(term);
                 const matchesFiltro = FILTRO_ESTADO === 'todos' || (FILTRO_ESTADO === 'inactivo' && c.estado !== 'activo');
                 const matchesForzado = !idForzado || c.idComercio === idForzado;
@@ -379,7 +457,6 @@
                 const displayID = c.idComercio || c.id || "SIN-ID";
                 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
                 
-                // MEJORA: El botón ahora incluye el parámetro 'admin=true' para saltar el login en el panel de dueños
                 box.innerHTML += `
                 <div class="comercio-card ${estaActivo ? '' : 'inactive'}">
                     <div class="visual-side">
@@ -387,7 +464,7 @@
                         <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
                         
                         ${!idForzado ? `
-                            <a href="admin_ingreso_duenos.html?id=${displayID}&admin=true" target="_blank" class="btn-directo">VER PANEL</a>
+                            <a href="admin_ingreso_duenos.html?id=${displayID}" target="_blank" class="btn-directo">VER PANEL</a>
                             <button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayID}')">
                                 <i class="fas fa-link"></i> COPIAR LINK
                             </button>
@@ -401,7 +478,7 @@
                             <div class="data-box"><b>Reporte</b><span>${c.frecuenciaReporte || 'Semanal'}</span></div>
                             <div class="data-box"><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Último Envío</b><span style="color:var(--oro)">${formatearFecha(c.lastSubmission)}</span></div>
-                            <div class="data-box" style="grid-column: span 2"><b>Ciudad</b><span>${c.ciudad || '-'}</span></div>
+                            <div class="data-box" style="grid-column: span 2"><b>Ciudad</b><span>${c.localidad || '-'} ${c.provincia || ''}</span></div>
                             <div class="data-box benefit-box"><b>Lead</b><span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span></div>
                             <div class="data-box benefit-box"><b>VIP</b><span class="highlight-ben" style="color:var(--oro)!important">${c.valVip || 0}% ${c.txtVip || ''}</span></div>
                         </div>
@@ -432,7 +509,6 @@
 
         window.copiarLinkDirecto = (id) => {
             const urlBase = window.location.origin + window.location.pathname.replace('admin_comercios.html', '');
-            // MEJORA: El link para el dueño NO lleva el bypass de admin
             const urlFinal = `${urlBase}admin_ingreso_duenos.html?id=${id}`;
             
             navigator.clipboard.writeText(urlFinal).then(() => {
@@ -442,7 +518,7 @@
             });
         };
 
-        window.edit = (event, id) => {
+        window.edit = async (event, id) => {
             if(event) event.preventDefault();
             const c = COMERCIOS.find(x => x.fbId === id);
             if(!c) return;
@@ -458,7 +534,10 @@
             document.getElementById('txt-vip').value = c.txtVip || "";
             document.getElementById('vig-vip').value = c.vigenciaVip || "";
             document.getElementById('direccion-input').value = c.direccion || "";
-            document.getElementById('ciudad-input').value = c.ciudad || "";
+            
+            document.getElementById('provincia-input').value = c.provincia || "";
+            await window.cargarLocalidades(c.localidad); 
+            
             document.getElementById('telefono-input').value = c.telefono || "";
             document.getElementById('facebook-input').value = c.facebook || "";
             document.getElementById('instagram-input').value = c.instagram || "";
@@ -488,7 +567,8 @@
                 txtVip: document.getElementById('txt-vip').value, 
                 vigenciaVip: document.getElementById('vig-vip').value || "", 
                 direccion: document.getElementById('direccion-input').value, 
-                ciudad: document.getElementById('ciudad-input').value, 
+                localidad: document.getElementById('localidad-input').value,
+                provincia: document.getElementById('provincia-input').value,
                 telefono: document.getElementById('telefono-input').value,
                 facebook: document.getElementById('facebook-input').value,
                 instagram: document.getElementById('instagram-input').value,
@@ -515,7 +595,8 @@
 
         window.clear = () => {
             document.getElementById('edit-id').value = "";
-            document.querySelectorAll('.sidebar input').forEach(i => i.value = "");
+            document.querySelectorAll('.sidebar input, .sidebar select').forEach(i => i.value = "");
+            document.getElementById('localidad-input').innerHTML = '<option value="" disabled selected>Ciudad / Localidad</option>';
             document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
             document.getElementById('btn-cancel-edit').style.display = 'none';
         };
