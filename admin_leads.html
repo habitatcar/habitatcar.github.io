@@ -11,7 +11,7 @@
             --azul-claro: #334766;
             --celeste-habitat: #004a99;
             --blanco-suave: #e6f1ff;
-            --oro-alegre: #ffc107; /* VIP más alegre */
+            --oro-alegre: #ffc107;
             --rojo: #dc3545;
             --verde: #28a745;
             --naranja: #ff9800;
@@ -53,7 +53,6 @@
         }
         .nav-link.active { background: var(--rojo); color: white; box-shadow: 0 0 10px rgba(220,53,69,0.5); }
 
-        /* NUEVA BARRA DE BÚSQUEDA SEGÚN CAPTURA */
         .search-area { padding: 15px 30px; flex-shrink: 0; background: #112240; }
         .search-bar {
             display: flex;
@@ -68,6 +67,7 @@
             border: 1px solid var(--celeste-habitat);
             color: white;
             font-size: 13px;
+            cursor: pointer;
         }
         .input-busqueda { width: 250px; }
         .contador-naranja {
@@ -109,9 +109,8 @@
         td { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
         tr:hover { background: rgba(255,255,255,0.03); }
 
-        /* BOTONES DE ACCIÓN AJUSTADOS (MÁS ALTOS) */
         .btn-action {
-            padding: 12px 15px; /* Altura mejorada */
+            padding: 12px 15px;
             border-radius: 6px;
             border: none;
             cursor: pointer;
@@ -130,7 +129,6 @@
         .btn-suspend { background: var(--naranja); }
         .btn-del { background: var(--rojo); }
         
-        /* ESTILO ESPECÍFICO COLUMNA CANT USOS */
         .col-usos {
             color: var(--rojo);
             font-weight: bold;
@@ -138,7 +136,6 @@
             text-align: center;
         }
 
-        /* MODAL */
         #modal-bienvenida {
             display: none;
             position: fixed;
@@ -192,22 +189,27 @@
             <input type="text" id="buscador" class="input-busqueda" placeholder="Buscar por apellido o WhatsApp..." onkeyup="filtrarLeads()">
             
             <select id="filtro-provincia">
-                <option>PROVINCIA</option>
+                <option value="">PROVINCIA</option>
             </select>
-            <div class="contador-naranja">0</div>
+            <div class="contador-naranja" id="count-prov">0</div>
 
             <select id="filtro-localidad">
-                <option>LOCALIDAD</option>
+                <option value="">LOCALIDAD</option>
             </select>
-            <div class="contador-naranja">0</div>
+            <div class="contador-naranja" id="count-loc">0</div>
 
-            <select onchange="ejecutarAccionMasiva(this.value)">
+            <select onchange="validarYRestablecer(this.value); this.value='';" style="border-color: var(--celeste-habitat); font-weight: bold;">
                 <option value="">RESTABLECER CUPONES</option>
-                <option value="todos">Restablecer Todos</option>
+                <option value="localidad">POR LOCALIDAD</option>
+                <option value="provincia">POR PROVINCIA</option>
+                <option value="pais">A TODO EL PAÍS</option>
             </select>
 
-            <select>
-                <option>REPORTES PDF</option>
+            <select onchange="generarReporte(this.value); this.value='';" style="border-color: var(--verde); font-weight: bold;">
+                <option value="">REPORTES PDF</option>
+                <option value="localidad">POR LOCALIDAD</option>
+                <option value="provincia">POR PROVINCIA</option>
+                <option value="pais">A TODO EL PAÍS</option>
             </select>
 
             <div style="margin-left: auto; font-weight: bold; color: var(--oro-alegre);">
@@ -311,8 +313,8 @@
                         <td style="color: var(--oro-alegre); font-size: 0.9em;">${lastSub}</td>
                         <td><b>${l.apellido}, ${l.nombres}</b></td>
                         <td>${l.whatsapp}</td>
-                        <td style="color: #8892b0">---</td>
-                        <td style="color: #8892b0">---</td>
+                        <td style="color: #8892b0">${l.provincia || '---'}</td>
+                        <td style="color: #8892b0">${l.localidad || '---'}</td>
                         <td class="col-usos">${cantUsos}</td>
                         <td style="white-space: nowrap;">
                             <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido}', '${l.nombres}')">💎 VIP</button>
@@ -325,8 +327,50 @@
             });
         }
 
-        window.ejecutarAccionMasiva = (val) => {
-            if(val === "todos") restablecerTodos();
+        // LÓGICA DE RESTABLECIMIENTO CON CONTRASEÑA
+        window.validarYRestablecer = async (tipo) => {
+            if (!tipo) return;
+            
+            const pass = prompt("Ingrese la contraseña de ADMINISTRADOR para continuar:");
+            if (pass !== "admin1234") { // Cambiar por tu clave real
+                alert("Contraseña incorrecta. Acción cancelada.");
+                return;
+            }
+
+            let filtrados = [];
+            let msj = "";
+
+            if (tipo === "pais") {
+                filtrados = todosLosLeads;
+                msj = "TODO EL PAÍS";
+            } else if (tipo === "provincia") {
+                const prov = document.getElementById('filtro-provincia').value;
+                if (!prov) return alert("Seleccione una provincia primero");
+                filtrados = todosLosLeads.filter(l => l.provincia === prov);
+                msj = "la provincia de " + prov;
+            } else if (tipo === "localidad") {
+                const loc = document.getElementById('filtro-localidad').value;
+                if (!loc) return alert("Seleccione una localidad primero");
+                filtrados = todosLosLeads.filter(l => l.localidad === loc);
+                msj = "la localidad de " + loc;
+            }
+
+            if(confirm(`¿Está seguro de restablecer los cupones de ${msj}? (${filtrados.length} usuarios)`)) {
+                const batch = writeBatch(db);
+                const ahora = Date.now();
+                filtrados.forEach(l => {
+                    batch.update(doc(db, "leads", l.id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: ahora });
+                });
+                await batch.commit();
+                await registrarActividad("MASIVO", "SISTEMA", `RESTABLECER MASIVO: ${msj}`);
+                alert("Restablecimiento completado con éxito.");
+            }
+        };
+
+        window.generarReporte = (tipo) => {
+            if (!tipo) return;
+            alert("Generando reporte PDF " + tipo.toUpperCase() + "...");
+            // Aquí iría tu lógica de jsPDF
         };
 
         window.hacerVIP = async (id, apellido, nombres) => {
@@ -356,19 +400,6 @@
                 alert("Cupones restablecidos.");
             }
         };
-
-        window.restablecerTodos = async () => {
-            if(confirm("¿Restablecer a todos los leads de la lista?")) {
-                const batch = writeBatch(db);
-                const ahora = Date.now();
-                todosLosLeads.forEach(l => {
-                    batch.update(doc(db, "leads", l.id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: ahora });
-                });
-                await batch.commit();
-                await registrarActividad("MASIVO", "SISTEMA", "RESTABLECER TODOS LOS LEADS");
-                alert("Todos los cupones han sido restablecidos.");
-            }
-        }
 
         window.filtrarLeads = () => {
             const b = document.getElementById('buscador').value.toLowerCase();
