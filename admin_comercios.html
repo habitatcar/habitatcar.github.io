@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.1</title>
+    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v6.9</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -264,24 +264,19 @@
                 <input type="hidden" id="edit-id">
                 <div class="form-grid">
                     <input type="text" id="nombre-input" class="full" placeholder="Nombre Fantasía" oninput="genID()">
-                    
                     <input type="text" id="id-input" class="read-only" placeholder="ID SISTEMA (AUTO)" readonly>
                     <input type="text" id="token-input" class="read-only" placeholder="TOKEN QR (AUTO)" readonly>
-                    
                     <input type="text" id="logo-input" class="full" placeholder="URL Logotipo">
-                    
                     <input type="number" id="val-lead" placeholder="Desc. Lead %">
                     <input type="number" id="vig-lead" placeholder="Vigencia Lead (Días)">
                     <input type="text" id="txt-lead" class="full" placeholder="Detalle Lead (Ej: En servicios)">
-                    
                     <input type="number" id="val-vip" placeholder="Desc. VIP %">
                     <input type="number" id="vig-vip" placeholder="Vigencia VIP (Días)">
                     <input type="text" id="txt-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
-                    
                     <input type="text" id="direccion-input" class="full" placeholder="Dirección">
                     
                     <select id="provincia-input" onchange="window.cargarLocalidades()">
-                        <option value="" disabled selected>Seleccionar Provin...</option>
+                        <option value="" disabled selected>Provincia</option>
                         <option value="Buenos Aires">Buenos Aires</option>
                         <option value="CABA">CABA</option>
                         <option value="Catamarca">Catamarca</option>
@@ -308,19 +303,16 @@
                         <option value="Tucumán">Tucumán</option>
                     </select>
                     <select id="localidad-input">
-                        <option value="" disabled selected>Ciudad / Localidad</option>
+                        <option value="" disabled selected>Localidad / Ciudad</option>
                     </select>
 
                     <input type="text" id="facebook-input" class="full" placeholder="URL FACEBOOK">
                     <input type="text" id="instagram-input" class="full" placeholder="URL INSTAGRAM">
                     <input type="text" id="web-input" class="full" placeholder="URL TIK TOK">
                     <input type="text" id="sitio-web-input" class="full" placeholder="Sitio Web (URL)">
-                    
                     <input type="text" id="telefono-input" class="full" placeholder="WhatsApp (Número)">
-                    
                     <input type="email" id="email-input" class="full" placeholder="Email Dueño">
                     <input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO (OBLIGATORIO)" style="border: 2px solid var(--oro)">
-                    
                     <select id="reporte-input" class="full">
                         <option value="Semanal">Reporte Semanal</option>
                         <option value="Quincenal">Reporte Quincenal</option>
@@ -360,51 +352,55 @@
         let COMERCIOS = [];
         let FILTRO_ESTADO = 'todos';
 
-        // CIUDADES SEGÚN PROTOCOLO
-        window.cargarLocalidades = async (localidadSeleccionada = "") => {
-            const prov = document.getElementById('provincia-input').value;
-            const locSelect = document.getElementById('localidad-input');
-            locSelect.innerHTML = '<option value="" disabled selected>Cargando...</option>';
-
-            try {
-                if(prov === "CABA") {
-                    const barrios = ["Agronomía", "Almagro", "Balvanera", "Barracas", "Belgrano", "Boedo", "Caballito", "Chacarita", "Coghlan", "Colegiales", "Constitución", "Flores", "Floresta", "La Boca", "La Paternal", "Liniers", "Mataderos", "Monserrat", "Monte Castro", "Nueva Pompeya", "Nuñez", "Palermo", "Parque Avellaneda", "Parque Chacabuco", "Parque Chas", "Parque Patricios", "Puerto Madero", "Recoleta", "Retiro", "Saavedra", "San Cristóbal", "San Nicolás", "San Telmo", "Vélez Sársfield", "Versalles", "Villa Crespo", "Villa del Parque", "Villa Devoto", "Villa General Mitre", "Villa Luro", "Villa Ortúzar", "Villa Pueyrredón", "Villa Real", "Villa Riachuelo", "Villa Santa Rita", "Villa Soldati", "Villa Urquiza"];
-                    llenarSelectCombo(barrios, localidadSeleccionada);
-                } else {
-                    const response = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${prov}&max=500`);
-                    const data = await response.json();
-                    let lista = data.municipios.map(m => m.nombre);
-                    if(lista.length === 0) {
-                        const respLoc = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=${prov}&max=1000`);
-                        const dataLoc = await respLoc.json();
-                        lista = dataLoc.localidades.map(l => l.nombre);
-                    }
-                    llenarSelectCombo(lista, localidadSeleccionada);
-                }
-            } catch (e) {
-                console.error("Error API:", e);
-                locSelect.innerHTML = '<option value="">Error al cargar</option>';
-            }
+        // BASE DE DATOS DE LOCALIDADES
+        const LOCALIDADES_AR = {
+            "Buenos Aires": ["La Plata", "Mar del Plata", "Bahía Blanca", "Pilar", "San Isidro", "Vicente López", "Tandil", "Quilmes", "Lanús", "Luján", "Mercedes", "San Nicolás"],
+            "CABA": ["Agronomía", "Almagro", "Balvanera", "Belgrano", "Caballito", "Flores", "Palermo", "Recoleta", "San Telmo", "Villa Urquiza", "Villa Crespo"],
+            "Córdoba": ["Córdoba Capital", "Villa Carlos Paz", "Río Cuarto", "Alta Gracia", "Villa María", "Cosquín", "Jesús María"],
+            "Santa Fe": ["Rosario", "Santa Fe Capital", "Rafaela", "Venado Tuerto", "Santo Tomé"],
+            "Mendoza": ["Mendoza Capital", "San Rafael", "Godoy Cruz", "Luján de Cuyo", "Maipú"],
+            "Tucumán": ["San Miguel de Tucumán", "Yerba Buena", "Tafí Viejo"],
+            "Salta": ["Salta Capital", "Cafayate", "Tartagal", "Orán"],
+            "Jujuy": ["San Salvador de Jujuy", "Palpalá", "Perico", "Humahuaca", "Tilcara"],
+            "Entre Ríos": ["Paraná", "Concordia", "Gualeguaychú", "Federación"],
+            "Chaco": ["Resistencia", "Presidencia Roque Sáenz Peña", "Barranqueras"],
+            "Corrientes": ["Corrientes Capital", "Goya", "Paso de los Libres"],
+            "Misiones": ["Posadas", "Puerto Iguazú", "Oberá", "Eldorado"],
+            "San Juan": ["San Juan Capital", "Rivadavia", "Chimbas"],
+            "San Luis": ["San Luis Capital", "Villa Mercedes", "Merlo"],
+            "La Rioja": ["La Rioja Capital", "Chilecito"],
+            "Catamarca": ["San Fernando del Valle de Catamarca"],
+            "Santiago del Estero": ["Santiago del Estero Capital", "La Banda", "Termas de Río Hondo"],
+            "Río Negro": ["Viedma", "Bariloche", "General Roca", "Cipolletti"],
+            "Neuquén": ["Neuquén Capital", "San Martín de los Andes", "Villa La Angostura"],
+            "Chubut": ["Rawson", "Trelew", "Puerto Madryn", "Comodoro Rivadavia"],
+            "Santa Cruz": ["Río Gallegos", "El Calafate", "Caleta Olivia"],
+            "Tierra del Fuego": ["Ushuaia", "Río Grande", "Tolhuin"],
+            "La Pampa": ["Santa Rosa", "General Pico"],
+            "Formosa": ["Formosa Capital", "Clorinda"]
         };
 
-        function llenarSelectCombo(arr, sel) {
+        window.cargarLocalidades = (localidadSeleccionada = "") => {
+            const prov = document.getElementById('provincia-input').value;
             const locSelect = document.getElementById('localidad-input');
-            locSelect.innerHTML = '<option value="" disabled selected>Ciudad / Localidad</option>';
-            const unicos = [...new Set(arr)].sort();
-            unicos.forEach(item => {
-                const opt = document.createElement('option');
-                opt.value = item;
-                opt.innerText = item;
-                locSelect.appendChild(opt);
-            });
-            if(sel) locSelect.value = sel;
-        }
+            locSelect.innerHTML = '<option value="" disabled selected>Localidad / Ciudad</option>';
+            
+            if (LOCALIDADES_AR[prov]) {
+                LOCALIDADES_AR[prov].sort().forEach(loc => {
+                    const opt = document.createElement('option');
+                    opt.value = loc;
+                    opt.innerText = loc;
+                    locSelect.appendChild(opt);
+                });
+            }
+            if (localidadSeleccionada) locSelect.value = localidadSeleccionada;
+        };
 
         window.addEventListener('load', () => {
             if (idForzado) {
                 const token = sessionStorage.getItem('token_habitat_' + idForzado);
                 if (!token) {
-                    document.body.innerHTML = "<div style='background:#0a192f; height:100vh; color:white; display:flex; justify-content:center; align-items:center; flex-direction:column;'><h1>ACCESO RESTRINGIDO</h1></div>";
+                    document.body.innerHTML = "<div style='background:#0a192f; height:100vh; color:white; display:flex; justify-content:center; align-items:center; flex-direction:column;'><h1>ACCESO RESTRINGIDO</h1><p>Por favor, ingrese desde el Panel de Auditoría.</p></div>";
                     setTimeout(() => window.location.href = 'index.html', 3000);
                     return;
                 }
@@ -464,7 +460,7 @@
                         <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
                         
                         ${!idForzado ? `
-                            <a href="admin_ingreso_duenos.html?id=${displayID}" target="_blank" class="btn-directo" onclick="sessionStorage.setItem('token_habitat_${displayID}', 'admin_master')">VER PANEL</a>
+                            <a href="admin_ingreso_duenos.html?id=${displayID}" target="_blank" class="btn-directo">VER PANEL</a>
                             <button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayID}')">
                                 <i class="fas fa-link"></i> COPIAR LINK
                             </button>
@@ -478,7 +474,7 @@
                             <div class="data-box"><b>Reporte</b><span>${c.frecuenciaReporte || 'Semanal'}</span></div>
                             <div class="data-box"><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Último Envío</b><span style="color:var(--oro)">${formatearFecha(c.lastSubmission)}</span></div>
-                            <div class="data-box" style="grid-column: span 2"><b>Ciudad</b><span>${c.localidad || '-'} ${c.provincia || ''}</span></div>
+                            <div class="data-box" style="grid-column: span 2"><b>Ubicación</b><span>${c.localidad || ''}, ${c.provincia || ''}</span></div>
                             <div class="data-box benefit-box"><b>Lead</b><span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span></div>
                             <div class="data-box benefit-box"><b>VIP</b><span class="highlight-ben" style="color:var(--oro)!important">${c.valVip || 0}% ${c.txtVip || ''}</span></div>
                         </div>
@@ -510,10 +506,12 @@
         window.copiarLinkDirecto = (id) => {
             const urlBase = window.location.origin + window.location.pathname.replace('admin_comercios.html', '');
             const urlFinal = `${urlBase}admin_ingreso_duenos.html?id=${id}`;
-            navigator.clipboard.writeText(urlFinal).then(() => alert("✅ ¡Enlace copiado!"));
+            navigator.clipboard.writeText(urlFinal).then(() => {
+                alert("✅ ¡Enlace copiado al portapapeles!");
+            });
         };
 
-        window.edit = async (event, id) => {
+        window.edit = (event, id) => {
             if(event) event.preventDefault();
             const c = COMERCIOS.find(x => x.fbId === id);
             if(!c) return;
@@ -530,8 +528,9 @@
             document.getElementById('vig-vip').value = c.vigenciaVip || "";
             document.getElementById('direccion-input').value = c.direccion || "";
             
+            // LÓGICA DE EDICIÓN PARA DESPLEGABLES DEPENDIENTES
             document.getElementById('provincia-input').value = c.provincia || "";
-            await window.cargarLocalidades(c.localidad); 
+            window.cargarLocalidades(c.localidad); 
             
             document.getElementById('telefono-input').value = c.telefono || "";
             document.getElementById('facebook-input').value = c.facebook || "";
@@ -560,7 +559,7 @@
                 vigenciaLead: document.getElementById('vig-lead').value || "", 
                 valVip: document.getElementById('val-vip').value, 
                 txtVip: document.getElementById('txt-vip').value, 
-                vigenciaVip: document.getElementById('vig-vip').value || "", 
+                vigenciaVip: document.getElementById('vigenciaVip').value || "", 
                 direccion: document.getElementById('direccion-input').value, 
                 localidad: document.getElementById('localidad-input').value,
                 provincia: document.getElementById('provincia-input').value,
@@ -577,11 +576,12 @@
             try {
                 if(eid) {
                     await updateDoc(doc(db, "comercios", eid), d);
-                    alert("¡Actualizado!");
+                    alert("¡Ficha actualizada!");
+                    if(idForzado) window.location.reload(); 
                 } else {
                     d.estado = "activo"; d.fechaCarga = Date.now(); d.lastSubmission = null;
                     await addDoc(collection(db, "comercios"), d);
-                    alert("Creado!");
+                    alert("Comercio creado");
                     window.clear();
                 }
             } catch(e) { alert("Error: " + e.message); }
@@ -590,7 +590,7 @@
         window.clear = () => {
             document.getElementById('edit-id').value = "";
             document.querySelectorAll('.sidebar input, .sidebar select').forEach(i => i.value = "");
-            document.getElementById('localidad-input').innerHTML = '<option value="" disabled selected>Ciudad / Localidad</option>';
+            document.getElementById('localidad-input').innerHTML = '<option value="" disabled selected>Localidad / Ciudad</option>';
             document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
             document.getElementById('btn-cancel-edit').style.display = 'none';
         };
