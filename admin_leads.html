@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Leads | Hábitat-Car</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         :root {
             --azul-oscuro: #0a192f;
@@ -59,29 +60,31 @@
             padding: 15px 25px;
             border-radius: 12px;
             display: flex;
-            gap: 15px;
+            gap: 10px;
             align-items: center;
         }
         .search-bar input, .search-bar select {
-            padding: 12px;
+            padding: 10px;
             border-radius: 8px;
             border: 1px solid var(--azul-claro);
             background: var(--azul-oscuro);
             color: white;
+            font-size: 13px;
         }
-        /* Ajuste de buscador corto solicitado */
-        #buscador { width: 220px; flex: none; }
-        .filtro-geo { flex: 1; min-width: 150px; }
+        
+        #buscador { width: 180px; }
+        .filtro-geo { width: 160px; }
         
         .contador-mini {
-            background: rgba(0,0,0,0.3);
-            border: 1px solid var(--azul-claro);
-            padding: 10px;
-            border-radius: 8px;
-            min-width: 45px;
+            background: rgba(0,0,0,0.4);
+            border: 1px solid var(--oro);
+            padding: 8px;
+            border-radius: 6px;
+            min-width: 35px;
             text-align: center;
             color: var(--oro);
             font-weight: bold;
+            font-size: 14px;
         }
 
         .table-wrapper {
@@ -123,14 +126,18 @@
             margin-right: 5px;
             transition: 0.2s;
             text-transform: uppercase;
-            font-size: 12px;
+            font-size: 11px;
         }
         .btn-vip { background: var(--oro); color: black; }
-        .btn-suspend { background: var(--naranja); }
-        .btn-del { background: var(--rojo); }
-        .btn-reset { background: var(--celeste-habitat); padding: 10px 20px; }
+        .btn-reset { background: var(--celeste-habitat); }
+        .btn-pdf { background: #28a745; color: white; }
         
-        .btn-reset-all { background: white; color: var(--azul-oscuro); padding: 12px 20px; border-radius: 8px; }
+        #btn-restablecer-menu {
+            background: white;
+            color: var(--azul-oscuro);
+            font-weight: black;
+            cursor: pointer;
+        }
 
         /* MODAL */
         #modal-bienvenida {
@@ -182,36 +189,44 @@
     </header>
 
     <div class="search-area">
-        <div class="search-bar">
-            <input type="text" id="buscador" placeholder="Buscar por apellido o WhatsApp..." onkeyup="filtrarYContar()">
+        <div class="search-bar" id="faja-herramientas">
+            <input type="text" id="buscador" placeholder="Buscar Apellido/WA" onkeyup="filtrarYContar()">
             
             <select id="filtroProvincia" class="filtro-geo" onchange="actualizarLocalidadesFiltro()">
-                <option value="TODOS">TODAS LAS PROVINCIAS</option>
+                <option value="TODOS">PROVINCIA</option>
             </select>
             <div id="contProv" class="contador-mini">0</div>
 
             <select id="filtroLocalidad" class="filtro-geo" onchange="filtrarYContar()">
-                <option value="TODOS">TODAS LAS LOCALIDADES</option>
+                <option value="TODOS">LOCALIDAD</option>
             </select>
             <div id="contLoc" class="contador-mini">0</div>
 
-            <button class="btn-action btn-reset-all" onclick="restablecerTodosSeguro()">RESTABLECER TODOS</button>
-            <div id="contador-total" style="font-weight: bold; color: var(--oro);">Total: 0</div>
+            <select id="btn-restablecer-menu" onchange="ejecutarRestablecer(this.value)">
+                <option value="" selected disabled>RESTABLECER TODOS...</option>
+                <option value="ciudad">POR CIUDAD SELEC.</option>
+                <option value="provincia">POR PROVINCIA SELEC.</option>
+                <option value="pais">TODO EL PAÍS</option>
+            </select>
+
+            <button class="btn-action btn-pdf" onclick="generarPDF()">REPORTE PDF</button>
+
+            <div id="contador-total" style="font-weight: bold; color: var(--oro); margin-left: auto;">Total: 0</div>
         </div>
     </div>
 
-    <div class="table-wrapper">
+    <div class="table-wrapper" id="pdf-area">
         <div class="card-table">
             <table>
                 <thead>
                     <tr>
-                        <th onclick="ordenar('fechaRegistro')">REGISTRO</th>
-                        <th onclick="ordenar('lastSubmission')">ÚLTIMA ACTIVIDAD</th>
-                        <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE</th>
+                        <th>REGISTRO</th>
+                        <th>ACTIVIDAD</th>
+                        <th>NOMBRE Y APELLIDO</th>
                         <th>PROVINCIA</th>
-                        <th>CIUDAD/LOC</th>
+                        <th>CIUDAD</th>
                         <th>WHATSAPP</th>
-                        <th>CANT. USOS</th>
+                        <th style="text-align: center;">USOS</th>
                         <th>ACCIONES</th>
                     </tr>
                 </thead>
@@ -237,10 +252,9 @@
         const db = getFirestore(app);
 
         let todosLosLeads = [];
-        let ordenActual = { campo: 'fechaRegistro', asc: false };
         let conteoUsosGlobal = {};
+        let leadsFiltradosActuales = [];
 
-        // Función para cargar provincias en los filtros
         async function cargarProvinciasFiltro() {
             try {
                 const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre");
@@ -248,8 +262,8 @@
                 const select = document.getElementById("filtroProvincia");
                 data.provincias.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(p => {
                     let opt = document.createElement("option");
-                    opt.value = p.nombre;
-                    opt.text = p.nombre;
+                    opt.value = p.nombre.toUpperCase();
+                    opt.text = p.nombre.toUpperCase();
                     select.add(opt);
                 });
             } catch (e) { console.error("Error provincias:", e); }
@@ -258,7 +272,7 @@
         window.actualizarLocalidadesFiltro = async () => {
             const prov = document.getElementById("filtroProvincia").value;
             const selectLoc = document.getElementById("filtroLocalidad");
-            selectLoc.innerHTML = '<option value="TODOS">TODAS LAS LOCALIDADES</option>';
+            selectLoc.innerHTML = '<option value="TODOS">LOCALIDAD</option>';
             
             if(prov !== "TODOS") {
                 try {
@@ -266,8 +280,8 @@
                     const data = await res.json();
                     data.localidades.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(l => {
                         let opt = document.createElement("option");
-                        opt.value = l.nombre;
-                        opt.text = l.nombre;
+                        opt.value = l.nombre.toUpperCase();
+                        opt.text = l.nombre.toUpperCase();
                         selectLoc.add(opt);
                     });
                 } catch (e) { console.error("Error loc:", e); }
@@ -275,28 +289,17 @@
             filtrarYContar();
         };
 
+        // LÓGICA DE AUDITORÍA: Contar canjes reales
         async function obtenerConteoCanjes() {
             const qC = query(collection(db, "logs_actividad"), where("tipo", "==", "canje"));
             const snap = await getDocs(qC);
             conteoUsosGlobal = {};
             snap.forEach(doc => {
                 const d = doc.data();
-                const idU = d.usuarioId || d.whatsapp;
+                // Vincula por usuarioId o por nombre/whatsapp como hace la auditoría
+                const idU = d.usuarioId || d.nombre || d.whatsapp;
                 if(idU) conteoUsosGlobal[idU] = (conteoUsosGlobal[idU] || 0) + 1;
             });
-        }
-
-        async function registrarActividad(leadId, nombre, accion) {
-            try {
-                await addDoc(collection(db, "logs_actividad"), {
-                    usuarioId: leadId,
-                    nombre: nombre,
-                    tipo: "LEAD",
-                    accion: accion,
-                    timestamp: Date.now(),
-                    fecha: new Date().toLocaleString()
-                });
-            } catch (e) { console.error("Error log:", e); }
         }
 
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
@@ -304,45 +307,35 @@
         onSnapshot(q, async (snap) => {
             await obtenerConteoCanjes();
             todosLosLeads = [];
-            snap.forEach(d => todosLosLeads.push({id: d.id, ...d.data()}));
-            aplicarOrdenYRender();
-        });
-
-        function aplicarOrdenYRender() {
-            const { campo, asc } = ordenActual;
-            todosLosLeads.sort((a, b) => {
-                let valA = a[campo] || 0;
-                let valB = b[campo] || 0;
-                if (typeof valA === 'string') valA = valA.toLowerCase();
-                if (typeof valB === 'string') valB = valB.toLowerCase();
-                return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+            snap.forEach(d => {
+                const data = d.data();
+                todosLosLeads.push({
+                    id: d.id, 
+                    ...data,
+                    provincia: data.provincia ? data.provincia.toUpperCase() : "",
+                    localidad: data.localidad ? data.localidad.toUpperCase() : ""
+                });
             });
             filtrarYContar();
-        }
-
-        window.ordenar = (campo) => {
-            ordenActual.asc = (ordenActual.campo === campo) ? !ordenActual.asc : true;
-            ordenActual.campo = campo;
-            aplicarOrdenYRender();
-        };
+        });
 
         window.filtrarYContar = () => {
             const busc = document.getElementById('buscador').value.toLowerCase();
             const prov = document.getElementById('filtroProvincia').value;
             const loc = document.getElementById('filtroLocalidad').value;
 
-            const filtrados = todosLosLeads.filter(l => {
+            leadsFiltradosActuales = todosLosLeads.filter(l => {
                 const matchBusc = (l.apellido && l.apellido.toLowerCase().includes(busc)) || (l.whatsapp && l.whatsapp.includes(busc));
                 const matchProv = prov === "TODOS" || l.provincia === prov;
                 const matchLoc = loc === "TODOS" || l.localidad === loc;
                 return matchBusc && matchProv && matchLoc;
             });
 
-            // Contadores dinámicos solicitados
-            document.getElementById('contProv').innerText = todosLosLeads.filter(l => prov !== "TODOS" && l.provincia === prov).length;
-            document.getElementById('contLoc').innerText = todosLosLeads.filter(l => loc !== "TODOS" && l.localidad === loc).length;
+            // Contadores dinámicos
+            document.getElementById('contProv').innerText = prov === "TODOS" ? "0" : todosLosLeads.filter(l => l.provincia === prov).length;
+            document.getElementById('contLoc').innerText = loc === "TODOS" ? "0" : todosLosLeads.filter(l => l.localidad === loc).length;
             
-            renderizar(filtrados);
+            renderizar(leadsFiltradosActuales);
         };
 
         function renderizar(datos) {
@@ -352,23 +345,20 @@
 
             datos.forEach(l => {
                 const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
-                const rawLastSub = l.lastSubmission || l.fechaRegistro;
-                const lastSub = rawLastSub ? new Date(rawLastSub).toLocaleString() : 'Sin registro';
-                const usos = conteoUsosGlobal[l.id] || conteoUsosGlobal[l.whatsapp] || 0;
+                const usos = conteoUsosGlobal[l.id] || conteoUsosGlobal[l.whatsapp] || conteoUsosGlobal[`${l.apellido}, ${l.nombres}`] || 0;
                 
                 lista.innerHTML += `
                     <tr>
                         <td>${fechaReg}</td>
-                        <td style="color: var(--oro); font-size: 0.9em;">${lastSub}</td>
+                        <td style="color: var(--oro); font-size: 0.8em;">${l.lastSubmission ? new Date(l.lastSubmission).toLocaleDateString() : '---'}</td>
                         <td><b>${l.apellido}, ${l.nombres}</b></td>
-                        <td style="font-size: 0.85em; color: #aaa;">${l.provincia || '---'}</td>
-                        <td style="font-size: 0.85em; color: #aaa;">${l.localidad || '---'}</td>
+                        <td>${l.provincia || '---'}</td>
+                        <td>${l.localidad || '---'}</td>
                         <td>${l.whatsapp}</td>
-                        <td style="text-align: center;"><span style="background: var(--azul-oscuro); padding: 5px 10px; border-radius: 5px; color: var(--oro); font-weight: bold;">${usos}</span></td>
+                        <td style="text-align: center;"><span style="color: var(--oro); font-weight: bold;">${usos}</span></td>
                         <td>
                             <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido}', '${l.nombres}')">💎 VIP</button>
-                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido}', '${l.nombres}')">🔄 RESTABLECER</button>
-                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${l.apellido} ${l.nombres}')">🚫</button>
+                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido}', '${l.nombres}')">🔄</button>
                             <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
                         </td>
                     </tr>
@@ -376,57 +366,60 @@
             });
         }
 
+        window.ejecutarRestablecer = async (tipo) => {
+            const pass = prompt("CONTRASEÑA REQUERIDA:");
+            if(pass !== "admin1234") return alert("Acceso denegado");
+
+            let leadsAModificar = [];
+            const prov = document.getElementById('filtroProvincia').value;
+            const loc = document.getElementById('filtroLocalidad').value;
+
+            if(tipo === "ciudad") {
+                if(loc === "TODOS") return alert("Seleccione una ciudad primero");
+                leadsAModificar = todosLosLeads.filter(l => l.localidad === loc);
+            } else if(tipo === "provincia") {
+                if(prov === "TODOS") return alert("Seleccione una provincia primero");
+                leadsAModificar = todosLosLeads.filter(l => l.provincia === prov);
+            } else {
+                leadsAModificar = todosLosLeads;
+            }
+
+            if(confirm(`¿Restablecer cupones de ${leadsAModificar.length} usuarios?`)) {
+                const batch = writeBatch(db);
+                leadsAModificar.forEach(l => {
+                    batch.update(doc(db, "leads", l.id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: Date.now() });
+                });
+                await batch.commit();
+                alert("Operación exitosa");
+            }
+            document.getElementById('btn-restablecer-menu').value = "";
+        };
+
+        window.generarPDF = () => {
+            const element = document.getElementById('pdf-area');
+            const opt = {
+                margin: 0.5,
+                filename: 'Reporte_Leads_HabitatCar.pdf',
+                image: { type: 'jpeg', quality: 0.98 },
+                html2canvas: { scale: 2, backgroundColor: '#0a192f' },
+                jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
+            };
+            html2pdf().set(opt).from(element).save();
+        };
+
         window.hacerVIP = async (id, apellido, nombres) => {
-            if(confirm(`¿Mover a ${apellido} a VIP?`)) {
-                try {
-                    const ahora = Date.now();
-                    await updateDoc(doc(db, "leads", id), { 
-                        convertidoVIP: true, 
-                        fechaVIP: ahora,
-                        lastSubmission: ahora
-                    });
-                    await registrarActividad(id, `${apellido}, ${nombres}`, "CONVERSIÓN VIP");
-                    document.getElementById('nombre-socio').innerText = `${nombres} ${apellido}`;
-                    document.getElementById('modal-bienvenida').style.display = 'flex';
-                } catch (e) { alert("Error"); }
+            if(confirm(`¿Hacer VIP a ${apellido}?`)) {
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
+                document.getElementById('nombre-socio').innerText = `${nombres} ${apellido}`;
+                document.getElementById('modal-bienvenida').style.display = 'flex';
             }
         };
 
         window.restablecerCupones = async (id, apellido, nombres) => {
-            if(confirm(`¿Restablecer cupones de ${apellido}?`)) {
-                const ahora = Date.now();
-                await updateDoc(doc(db, "leads", id), { 
-                    usados: [], cupones_usados: [], canjes: [],
-                    lastSubmission: ahora 
-                });
-                await registrarActividad(id, `${apellido}, ${nombres}`, "RESTABLECER CUPONES");
-                alert("Cupones restablecidos.");
+            if(confirm(`Restablecer a ${apellido}?`)) {
+                await updateDoc(doc(db, "leads", id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: Date.now() });
+                alert("Restablecido");
             }
-        };
-
-        window.restablecerTodosSeguro = async () => {
-            const pass = prompt("Para restablecer TODOS los cupones, ingrese la contraseña de administrador:");
-            if(pass === "admin1234") { // Cambiar por tu clave real
-                if(confirm("¿ESTÁ SEGURO? Esta acción no se puede deshacer.")) {
-                    const batch = writeBatch(db);
-                    const ahora = Date.now();
-                    todosLosLeads.forEach(l => {
-                        batch.update(doc(db, "leads", l.id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: ahora });
-                    });
-                    await batch.commit();
-                    await registrarActividad("MASIVO", "SISTEMA", "RESTABLECER TODOS LOS LEADS");
-                    alert("Todos los registros han sido restablecidos con éxito.");
-                }
-            } else if (pass !== null) {
-                alert("Contraseña incorrecta. Acción cancelada.");
-            }
-        }
-
-        window.toggleEstado = async (id, est, nombreCompleto) => {
-            const n = est === 'suspendido' ? 'activo' : 'suspendido';
-            const ahora = Date.now();
-            await updateDoc(doc(db, "leads", id), { estado: n, lastSubmission: ahora });
-            await registrarActividad(id, nombreCompleto, `ESTADO: ${n.toUpperCase()}`);
         };
 
         window.borrarLead = async (id) => {
