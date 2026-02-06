@@ -275,12 +275,38 @@
                     <input type="number" id="vig-vip" placeholder="Vigencia VIP (Días)">
                     <input type="text" id="txt-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
                     <input type="text" id="direccion-input" class="full" placeholder="Dirección">
-                    <input type="text" id="ciudad-input" placeholder="Ciudad">
-                    <input type="text" id="telefono-input" placeholder="WhatsApp (Número)">
+                    <select id="provincia-input">
+                        <option value="">Seleccionar Prov.</option>
+                        <option value="Buenos Aires">Buenos Aires</option>
+                        <option value="Catamarca">Catamarca</option>
+                        <option value="Chaco">Chaco</option>
+                        <option value="Chubut">Chubut</option>
+                        <option value="Córdoba">Córdoba</option>
+                        <option value="Corrientes">Corrientes</option>
+                        <option value="Entre Ríos">Entre Ríos</option>
+                        <option value="Formosa">Formosa</option>
+                        <option value="Jujuy">Jujuy</option>
+                        <option value="La Pampa">La Pampa</option>
+                        <option value="La Rioja">La Rioja</option>
+                        <option value="Mendoza">Mendoza</option>
+                        <option value="Misiones">Misiones</option>
+                        <option value="Neuquén">Neuquén</option>
+                        <option value="Río Negro">Río Negro</option>
+                        <option value="Salta">Salta</option>
+                        <option value="San Juan">San Juan</option>
+                        <option value="San Luis">San Luis</option>
+                        <option value="Santa Cruz">Santa Cruz</option>
+                        <option value="Santa Fe">Santa Fe</option>
+                        <option value="Santiago del Estero">Santiago del Estero</option>
+                        <option value="Tierra del Fuego">Tierra del Fuego</option>
+                        <option value="Tucumán">Tucumán</option>
+                    </select>
+                    <input type="text" id="ciudad-input" placeholder="Ciudad / Localidad">
                     <input type="text" id="facebook-input" class="full" placeholder="URL FACEBOOK">
                     <input type="text" id="instagram-input" class="full" placeholder="URL INSTAGRAM">
                     <input type="text" id="web-input" class="full" placeholder="URL TIK TOK">
                     <input type="text" id="sitio-web-input" class="full" placeholder="Sitio Web (URL)">
+                    <input type="text" id="telefono-input" class="full" placeholder="WhatsApp (Número)">
                     <input type="email" id="email-input" class="full" placeholder="Email Dueño">
                     <input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO (OBLIGATORIO)" style="border: 2px solid var(--oro)">
                     <select id="reporte-input" class="full">
@@ -379,7 +405,6 @@
                 const displayID = c.idComercio || c.id || "SIN-ID";
                 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
                 
-                // MEJORA: El botón ahora incluye el parámetro 'admin=true' para saltar el login en el panel de dueños
                 box.innerHTML += `
                 <div class="comercio-card ${estaActivo ? '' : 'inactive'}">
                     <div class="visual-side">
@@ -401,7 +426,7 @@
                             <div class="data-box"><b>Reporte</b><span>${c.frecuenciaReporte || 'Semanal'}</span></div>
                             <div class="data-box"><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Último Envío</b><span style="color:var(--oro)">${formatearFecha(c.lastSubmission)}</span></div>
-                            <div class="data-box" style="grid-column: span 2"><b>Ciudad</b><span>${c.ciudad || '-'}</span></div>
+                            <div class="data-box" style="grid-column: span 2"><b>Ciudad</b><span>${c.ciudad || '-'} (${c.provincia || '-'})</span></div>
                             <div class="data-box benefit-box"><b>Lead</b><span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span></div>
                             <div class="data-box benefit-box"><b>VIP</b><span class="highlight-ben" style="color:var(--oro)!important">${c.valVip || 0}% ${c.txtVip || ''}</span></div>
                         </div>
@@ -432,7 +457,6 @@
 
         window.copiarLinkDirecto = (id) => {
             const urlBase = window.location.origin + window.location.pathname.replace('admin_comercios.html', '');
-            // MEJORA: El link para el dueño NO lleva el bypass de admin
             const urlFinal = `${urlBase}admin_ingreso_duenos.html?id=${id}`;
             
             navigator.clipboard.writeText(urlFinal).then(() => {
@@ -458,6 +482,7 @@
             document.getElementById('txt-vip').value = c.txtVip || "";
             document.getElementById('vig-vip').value = c.vigenciaVip || "";
             document.getElementById('direccion-input').value = c.direccion || "";
+            document.getElementById('provincia-input').value = c.provincia || "";
             document.getElementById('ciudad-input').value = c.ciudad || "";
             document.getElementById('telefono-input').value = c.telefono || "";
             document.getElementById('facebook-input').value = c.facebook || "";
@@ -483,11 +508,12 @@
                 logoUrl: document.getElementById('logo-input').value, 
                 valLead: document.getElementById('val-lead').value, 
                 txtLead: document.getElementById('txt-lead').value, 
-                vigenciaLead: document.getElementById('vig-lead').value || "", 
+                vigenciaLead: document.getElementById('vigenciaLead').value || "", 
                 valVip: document.getElementById('val-vip').value, 
                 txtVip: document.getElementById('txt-vip').value, 
-                vigenciaVip: document.getElementById('vig-vip').value || "", 
+                vigenciaVip: document.getElementById('vigenciaVip').value || "", 
                 direccion: document.getElementById('direccion-input').value, 
+                provincia: document.getElementById('provincia-input').value,
                 ciudad: document.getElementById('ciudad-input').value, 
                 telefono: document.getElementById('telefono-input').value,
                 facebook: document.getElementById('facebook-input').value,
@@ -515,7 +541,7 @@
 
         window.clear = () => {
             document.getElementById('edit-id').value = "";
-            document.querySelectorAll('.sidebar input').forEach(i => i.value = "");
+            document.querySelectorAll('.sidebar input, .sidebar select').forEach(i => i.value = "");
             document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
             document.getElementById('btn-cancel-edit').style.display = 'none';
         };
