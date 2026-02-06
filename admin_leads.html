@@ -72,19 +72,34 @@
             font-size: 13px;
         }
         
-        #buscador { width: 180px; }
-        .filtro-geo { width: 160px; }
+        #buscador { width: 160px; }
+        .filtro-geo { width: 140px; }
         
         .contador-mini {
             background: rgba(0,0,0,0.4);
             border: 1px solid var(--oro);
             padding: 8px;
             border-radius: 6px;
-            min-width: 35px;
+            min-width: 30px;
             text-align: center;
             color: var(--oro);
             font-weight: bold;
-            font-size: 14px;
+            font-size: 13px;
+        }
+
+        .btn-desplegable {
+            background: white;
+            color: var(--azul-oscuro);
+            font-weight: bold;
+            cursor: pointer;
+            text-transform: uppercase;
+        }
+
+        .btn-pdf-desplegable {
+            background: var(--verde);
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
         }
 
         .table-wrapper {
@@ -117,47 +132,19 @@
         tr:hover { background: rgba(255,255,255,0.02); }
 
         .btn-action {
-            padding: 10px 15px;
+            padding: 8px 12px;
             border-radius: 6px;
             border: none;
             cursor: pointer;
             font-weight: bold;
             color: white;
             margin-right: 5px;
-            transition: 0.2s;
-            text-transform: uppercase;
             font-size: 11px;
         }
         .btn-vip { background: var(--oro); color: black; }
         .btn-reset { background: var(--celeste-habitat); }
-        .btn-pdf { background: #28a745; color: white; }
-        
-        #btn-restablecer-menu {
-            background: white;
-            color: var(--azul-oscuro);
-            font-weight: black;
-            cursor: pointer;
-        }
+        .btn-del { background: var(--rojo); }
 
-        /* MODAL */
-        #modal-bienvenida {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85);
-            z-index: 1000;
-            justify-content: center;
-            align-items: center;
-        }
-        .cartel {
-            background: white;
-            color: #0a192f;
-            padding: 40px;
-            border-radius: 20px;
-            text-align: center;
-            max-width: 450px;
-            border: 8px solid var(--oro);
-        }
     </style>
 </head>
 <body>
@@ -189,8 +176,8 @@
     </header>
 
     <div class="search-area">
-        <div class="search-bar" id="faja-herramientas">
-            <input type="text" id="buscador" placeholder="Buscar Apellido/WA" onkeyup="filtrarYContar()">
+        <div class="search-bar">
+            <input type="text" id="buscador" placeholder="Apellido/WA" onkeyup="filtrarYContar()">
             
             <select id="filtroProvincia" class="filtro-geo" onchange="actualizarLocalidadesFiltro()">
                 <option value="TODOS">PROVINCIA</option>
@@ -202,14 +189,19 @@
             </select>
             <div id="contLoc" class="contador-mini">0</div>
 
-            <select id="btn-restablecer-menu" onchange="ejecutarRestablecer(this.value)">
-                <option value="" selected disabled>RESTABLECER TODOS...</option>
-                <option value="ciudad">POR CIUDAD SELEC.</option>
-                <option value="provincia">POR PROVINCIA SELEC.</option>
+            <select class="btn-desplegable" onchange="ejecutarRestablecer(this.value); this.value='';">
+                <option value="" selected disabled>RESTABLECER CUPONES</option>
+                <option value="ciudad">POR CIUDAD</option>
+                <option value="provincia">POR PROVINCIA</option>
                 <option value="pais">TODO EL PAÍS</option>
             </select>
 
-            <button class="btn-action btn-pdf" onclick="generarPDF()">REPORTE PDF</button>
+            <select class="btn-pdf-desplegable" onchange="generarPDF(this.value); this.value='';">
+                <option value="" selected disabled>REPORTES PDF</option>
+                <option value="ciudad">PDF CIUDAD</option>
+                <option value="provincia">PDF PROVINCIA</option>
+                <option value="pais">PDF PAÍS</option>
+            </select>
 
             <div id="contador-total" style="font-weight: bold; color: var(--oro); margin-left: auto;">Total: 0</div>
         </div>
@@ -253,11 +245,10 @@
 
         let todosLosLeads = [];
         let conteoUsosGlobal = {};
-        let leadsFiltradosActuales = [];
 
         async function cargarProvinciasFiltro() {
             try {
-                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre");
+                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
                 const data = await res.json();
                 const select = document.getElementById("filtroProvincia");
                 data.provincias.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(p => {
@@ -273,7 +264,6 @@
             const prov = document.getElementById("filtroProvincia").value;
             const selectLoc = document.getElementById("filtroLocalidad");
             selectLoc.innerHTML = '<option value="TODOS">LOCALIDAD</option>';
-            
             if(prov !== "TODOS") {
                 try {
                     const res = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=${prov}&max=1000&campos=nombre`);
@@ -289,22 +279,18 @@
             filtrarYContar();
         };
 
-        // LÓGICA DE AUDITORÍA: Contar canjes reales
         async function obtenerConteoCanjes() {
             const qC = query(collection(db, "logs_actividad"), where("tipo", "==", "canje"));
             const snap = await getDocs(qC);
             conteoUsosGlobal = {};
             snap.forEach(doc => {
                 const d = doc.data();
-                // Vincula por usuarioId o por nombre/whatsapp como hace la auditoría
                 const idU = d.usuarioId || d.nombre || d.whatsapp;
                 if(idU) conteoUsosGlobal[idU] = (conteoUsosGlobal[idU] || 0) + 1;
             });
         }
 
-        const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
-        
-        onSnapshot(q, async (snap) => {
+        onSnapshot(query(collection(db, "leads"), where("convertidoVIP", "==", false)), async (snap) => {
             await obtenerConteoCanjes();
             todosLosLeads = [];
             snap.forEach(d => {
@@ -312,8 +298,9 @@
                 todosLosLeads.push({
                     id: d.id, 
                     ...data,
-                    provincia: data.provincia ? data.provincia.toUpperCase() : "",
-                    localidad: data.localidad ? data.localidad.toUpperCase() : ""
+                    // Normalización para Jujuy y filtros
+                    provincia: (data.provincia || data.Provincia || "").toString().toUpperCase().trim(),
+                    localidad: (data.localidad || data.Localidad || data.ciudad || "").toString().toUpperCase().trim()
                 });
             });
             filtrarYContar();
@@ -324,32 +311,28 @@
             const prov = document.getElementById('filtroProvincia').value;
             const loc = document.getElementById('filtroLocalidad').value;
 
-            leadsFiltradosActuales = todosLosLeads.filter(l => {
+            const filtrados = todosLosLeads.filter(l => {
                 const matchBusc = (l.apellido && l.apellido.toLowerCase().includes(busc)) || (l.whatsapp && l.whatsapp.includes(busc));
                 const matchProv = prov === "TODOS" || l.provincia === prov;
                 const matchLoc = loc === "TODOS" || l.localidad === loc;
                 return matchBusc && matchProv && matchLoc;
             });
 
-            // Contadores dinámicos
             document.getElementById('contProv').innerText = prov === "TODOS" ? "0" : todosLosLeads.filter(l => l.provincia === prov).length;
             document.getElementById('contLoc').innerText = loc === "TODOS" ? "0" : todosLosLeads.filter(l => l.localidad === loc).length;
             
-            renderizar(leadsFiltradosActuales);
+            renderizar(filtrados);
         };
 
         function renderizar(datos) {
             const lista = document.getElementById('lista-leads');
             lista.innerHTML = "";
             document.getElementById('contador-total').innerText = `Total: ${datos.length}`;
-
             datos.forEach(l => {
-                const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
                 const usos = conteoUsosGlobal[l.id] || conteoUsosGlobal[l.whatsapp] || conteoUsosGlobal[`${l.apellido}, ${l.nombres}`] || 0;
-                
                 lista.innerHTML += `
                     <tr>
-                        <td>${fechaReg}</td>
+                        <td>${l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---'}</td>
                         <td style="color: var(--oro); font-size: 0.8em;">${l.lastSubmission ? new Date(l.lastSubmission).toLocaleDateString() : '---'}</td>
                         <td><b>${l.apellido}, ${l.nombres}</b></td>
                         <td>${l.provincia || '---'}</td>
@@ -357,8 +340,8 @@
                         <td>${l.whatsapp}</td>
                         <td style="text-align: center;"><span style="color: var(--oro); font-weight: bold;">${usos}</span></td>
                         <td>
-                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido}', '${l.nombres}')">💎 VIP</button>
-                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido}', '${l.nombres}')">🔄</button>
+                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido}', '${l.nombres}')">💎</button>
+                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido}')">🔄</button>
                             <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
                         </td>
                     </tr>
@@ -369,59 +352,48 @@
         window.ejecutarRestablecer = async (tipo) => {
             const pass = prompt("CONTRASEÑA REQUERIDA:");
             if(pass !== "admin1234") return alert("Acceso denegado");
+            let target = [];
+            const p = document.getElementById('filtroProvincia').value;
+            const l = document.getElementById('filtroLocalidad').value;
 
-            let leadsAModificar = [];
-            const prov = document.getElementById('filtroProvincia').value;
-            const loc = document.getElementById('filtroLocalidad').value;
+            if(tipo==="ciudad" && l!=="TODOS") target = todosLosLeads.filter(x => x.localidad === l);
+            else if(tipo==="provincia" && p!=="TODOS") target = todosLosLeads.filter(x => x.provincia === p);
+            else if(tipo==="pais") target = todosLosLeads;
+            else return alert("Seleccione provincia/localidad primero");
 
-            if(tipo === "ciudad") {
-                if(loc === "TODOS") return alert("Seleccione una ciudad primero");
-                leadsAModificar = todosLosLeads.filter(l => l.localidad === loc);
-            } else if(tipo === "provincia") {
-                if(prov === "TODOS") return alert("Seleccione una provincia primero");
-                leadsAModificar = todosLosLeads.filter(l => l.provincia === prov);
-            } else {
-                leadsAModificar = todosLosLeads;
-            }
-
-            if(confirm(`¿Restablecer cupones de ${leadsAModificar.length} usuarios?`)) {
+            if(confirm(`¿Restablecer ${target.length} leads?`)) {
                 const batch = writeBatch(db);
-                leadsAModificar.forEach(l => {
-                    batch.update(doc(db, "leads", l.id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: Date.now() });
-                });
+                target.forEach(x => batch.update(doc(db, "leads", x.id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: Date.now() }));
                 await batch.commit();
-                alert("Operación exitosa");
+                alert("Éxito");
             }
-            document.getElementById('btn-restablecer-menu').value = "";
         };
 
-        window.generarPDF = () => {
+        window.generarPDF = (tipo) => {
+            const p = document.getElementById('filtroProvincia').value;
+            const l = document.getElementById('filtroLocalidad').value;
+            let titulo = "REPORTE GENERAL";
+            
+            if(tipo==="ciudad" && l!=="TODOS") titulo = `REPORTE - ${l}`;
+            else if(tipo==="provincia" && p!=="TODOS") titulo = `REPORTE - ${p}`;
+            else if(tipo==="pais") titulo = "REPORTE NACIONAL";
+            else if(tipo!=="pais") return alert("Seleccione ubicación");
+
             const element = document.getElementById('pdf-area');
-            const opt = {
+            html2pdf().set({
                 margin: 0.5,
-                filename: 'Reporte_Leads_HabitatCar.pdf',
-                image: { type: 'jpeg', quality: 0.98 },
+                filename: `${titulo}.pdf`,
                 html2canvas: { scale: 2, backgroundColor: '#0a192f' },
                 jsPDF: { unit: 'in', format: 'letter', orientation: 'landscape' }
-            };
-            html2pdf().set(opt).from(element).save();
+            }).from(element).save();
         };
 
-        window.hacerVIP = async (id, apellido, nombres) => {
-            if(confirm(`¿Hacer VIP a ${apellido}?`)) {
-                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
-                document.getElementById('nombre-socio').innerText = `${nombres} ${apellido}`;
-                document.getElementById('modal-bienvenida').style.display = 'flex';
-            }
+        window.hacerVIP = async (id, ap, nom) => {
+            if(confirm(`¿VIP a ${ap}?`)) await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
         };
-
-        window.restablecerCupones = async (id, apellido, nombres) => {
-            if(confirm(`Restablecer a ${apellido}?`)) {
-                await updateDoc(doc(db, "leads", id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: Date.now() });
-                alert("Restablecido");
-            }
+        window.restablecerCupones = async (id, ap) => {
+            if(confirm(`¿Restablecer ${ap}?`)) await updateDoc(doc(db, "leads", id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: Date.now() });
         };
-
         window.borrarLead = async (id) => {
             if(confirm("¿Borrar?")) await deleteDoc(doc(db, "leads", id));
         };
