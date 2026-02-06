@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.5</title>
+    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.6</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -164,7 +164,6 @@
         .btn-group { margin-top: 25px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; }
         .btn-op { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; font-size: 0.9em; transition: 0.3s; }
 
-        /* BOTÓN ACCESO DIRECTO */
         .btn-bypass {
             background: var(--celeste-habitat);
             color: white;
@@ -178,7 +177,6 @@
             width: 120px;
             transition: 0.3s;
         }
-        .btn-bypass:hover { background: var(--oro); color: var(--azul-oscuro); }
 
         .social-box { display: flex; align-items: center; gap: 10px; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 15px; }
         .social-link { 
@@ -281,7 +279,7 @@
                         <option value="Tucumán">Tucumán</option>
                     </select>
                     <select id="localidad-input">
-                        <option value="" disabled selected>Localidad...</option>
+                        <option value="" disabled selected>Ciudad / Localidad</option>
                     </select>
 
                     <input type="text" id="facebook-input" class="full" placeholder="URL FACEBOOK">
@@ -290,8 +288,9 @@
                     <input type="text" id="sitio-web-input" class="full" placeholder="Sitio Web (URL)">
                     
                     <input type="text" id="telefono-input" class="full" placeholder="WhatsApp (Número)">
+                    
                     <input type="email" id="email-input" class="full" placeholder="Email Dueño">
-                    <input type="password" id="password-input" class="full" placeholder="CONTRASEÑA" style="border: 2px solid var(--oro)">
+                    <input type="password" id="password-input" class="full" placeholder="CONTRASEÑA">
                     
                     <select id="reporte-input" class="full">
                         <option value="Semanal">Reporte Semanal</option>
@@ -328,34 +327,33 @@
         let COMERCIOS = [];
         let FILTRO_ESTADO = 'todos';
 
-        // LÓGICA DE CIUDADES
-        window.cargarLocalidades = async (seleccionada = "") => {
+        // CARGA DE CIUDADES
+        window.cargarLocalidades = async (sel = "") => {
             const prov = document.getElementById('provincia-input').value;
             const locSelect = document.getElementById('localidad-input');
             locSelect.innerHTML = '<option value="" disabled selected>Cargando...</option>';
             try {
                 if(prov === "CABA") {
                     const barrios = ["Agronomía", "Almagro", "Balvanera", "Barracas", "Belgrano", "Boedo", "Caballito", "Chacarita", "Coghlan", "Colegiales", "Constitución", "Flores", "Floresta", "La Boca", "La Paternal", "Liniers", "Mataderos", "Monserrat", "Monte Castro", "Nueva Pompeya", "Nuñez", "Palermo", "Parque Avellaneda", "Parque Chacabuco", "Parque Chas", "Parque Patricios", "Puerto Madero", "Recoleta", "Retiro", "Saavedra", "San Cristóbal", "San Nicolás", "San Telmo", "Vélez Sársfield", "Versalles", "Villa Crespo", "Villa del Parque", "Villa Devoto", "Villa General Mitre", "Villa Luro", "Villa Ortúzar", "Villa Pueyrredón", "Villa Real", "Villa Riachuelo", "Villa Santa Rita", "Villa Soldati", "Villa Urquiza"];
-                    llenarLoc(barrios, seleccionada);
+                    llenarLoc(barrios, sel);
                 } else {
                     const r = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${prov}&max=500`);
                     const d = await r.json();
-                    llenarLoc(d.municipios.map(m => m.nombre), seleccionada);
+                    llenarLoc(d.municipios.map(m => m.nombre), sel);
                 }
             } catch (e) { locSelect.innerHTML = '<option value="">Error API</option>'; }
         };
 
         function llenarLoc(arr, sel) {
             const s = document.getElementById('localidad-input');
-            s.innerHTML = '<option value="" disabled selected>Localidad...</option>';
+            s.innerHTML = '<option value="" disabled selected>Ciudad / Localidad</option>';
             [...new Set(arr)].sort().forEach(i => {
                 const o = document.createElement('option'); o.value = i; o.innerText = i; s.appendChild(o);
             });
             if(sel) s.value = sel;
         }
 
-        // SOLUCIÓN LOGIN: Bypass con localStorage
-        window.accederPanel = (id) => {
+        window.accederPanelDirecto = (id) => {
             localStorage.setItem('token_habitat_' + id, 'admin_master');
             window.open(`admin_ingreso_duenos.html?id=${id}`, '_blank');
         };
@@ -386,7 +384,7 @@
                     <div class="visual-side">
                         <img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
                         <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
-                        <button class="btn-bypass" onclick="window.accederPanel('${id}')">VER PANEL</button>
+                        <button class="btn-bypass" onclick="window.accederPanelDirecto('${id}')">VER PANEL</button>
                     </div>
                     <div class="info-side">
                         <h2 class="comercio-title">${c.nombre || 'Sin Nombre'}</h2>
@@ -474,7 +472,7 @@
             try {
                 if(eid) await updateDoc(doc(db, "comercios", eid), d);
                 else { d.estado = "activo"; d.fechaCarga = Date.now(); await addDoc(collection(db, "comercios"), d); }
-                alert("Guardado!"); window.clear();
+                alert("Éxito!"); window.clear();
             } catch(e) { alert("Error: " + e.message); }
         };
 
