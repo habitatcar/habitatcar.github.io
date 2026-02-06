@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.0</title>
+    <title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.1</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -164,7 +164,6 @@
         .btn-group { margin-top: 25px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; }
         .btn-op { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; font-size: 0.9em; transition: 0.3s; }
 
-        /* Botones de Administración en la Card */
         .btn-directo {
             background: var(--celeste-habitat);
             color: white;
@@ -351,7 +350,6 @@
         let COMERCIOS = [];
         let FILTRO_ESTADO = 'todos';
 
-        // Lógica de carga masiva de localidades
         window.actualizarLocalidades = async (seleccionada = "") => {
             const prov = document.getElementById('provincia-input').value;
             const ciudadSelect = document.getElementById('ciudad-input');
@@ -363,7 +361,6 @@
             }
 
             try {
-                // Usamos la API oficial de Argentina para obtener todas las localidades (base de datos completa y oficial)
                 const response = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${prov}&max=1000&campos=id,nombre`);
                 const data = await response.json();
                 
@@ -377,7 +374,6 @@
                         ciudadSelect.appendChild(opt);
                     });
                 } else {
-                    // Si no tiene municipios (caso CABA o errores de API), intentamos por localidades
                     const respLoc = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=${prov}&max=1000&campos=nombre`);
                     const dataLoc = await respLoc.json();
                     dataLoc.localidades.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(l => {
@@ -506,12 +502,7 @@
         window.copiarLinkDirecto = (id) => {
             const urlBase = window.location.origin + window.location.pathname.replace('admin_comercios.html', '');
             const urlFinal = `${urlBase}admin_ingreso_duenos.html?id=${id}`;
-            
-            navigator.clipboard.writeText(urlFinal).then(() => {
-                alert("✅ ¡Enlace copiado al portapapeles!\n\nYa puedes pegarlo en el chat del dueño.");
-            }).catch(err => {
-                console.error('Error al copiar: ', err);
-            });
+            navigator.clipboard.writeText(urlFinal).then(() => alert("✅ ¡Enlace copiado al portapapeles!"));
         };
 
         window.edit = (event, id) => {
@@ -530,10 +521,8 @@
             document.getElementById('txt-vip').value = c.txtVip || "";
             document.getElementById('vig-vip').value = c.vigenciaVip || "";
             document.getElementById('direccion-input').value = c.direccion || "";
-            
             document.getElementById('provincia-input').value = c.provincia || "";
             window.actualizarLocalidades(c.ciudad);
-            
             document.getElementById('telefono-input').value = c.telefono || "";
             document.getElementById('facebook-input').value = c.facebook || "";
             document.getElementById('instagram-input').value = c.instagram || "";
@@ -561,7 +550,7 @@
                 vigenciaLead: document.getElementById('vig-lead').value || "", 
                 valVip: document.getElementById('val-vip').value, 
                 txtVip: document.getElementById('txt-vip').value, 
-                vigenciaVip: document.getElementById('vigenciaVip').value || "", 
+                vigenciaVip: document.getElementById('vig-vip').value || "", 
                 direccion: document.getElementById('direccion-input').value, 
                 provincia: document.getElementById('provincia-input').value,
                 ciudad: document.getElementById('ciudad-input').value, 
@@ -584,9 +573,9 @@
                     d.estado = "activo"; d.fechaCarga = Date.now(); d.lastSubmission = null;
                     await addDoc(collection(db, "comercios"), d);
                     alert("Comercio creado");
-                    window.clear();
                 }
-            } catch(e) { alert("Error: " + e.message); }
+                window.clear();
+            } catch(e) { console.error(e); alert("Error: " + e.message); }
         };
 
         window.clear = () => {
