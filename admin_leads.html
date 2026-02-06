@@ -1,6 +1,231 @@
-<script type="module">
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel Leads | Hábitat-Car</title>
+    <style>
+        :root {
+            --azul-oscuro: #0a192f;
+            --azul-medio: #172a45; 
+            --azul-claro: #334766;
+            --celeste-habitat: #004a99;
+            --blanco-suave: #e6f1ff;
+            --oro-alegre: #ffc107;
+            --rojo: #dc3545;
+            --verde: #28a745;
+            --naranja: #ff9800;
+        }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--azul-oscuro);
+            color: var(--blanco-suave);
+        }
+
+        body { display: flex; flex-direction: column; }
+
+        .header {
+            background: var(--azul-oscuro);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--celeste-habitat);
+            flex-shrink: 0;
+        }
+        .logo { height: 80px; width: auto; } 
+
+        .nav-menu { display: flex; gap: 8px; flex-wrap: wrap; }
+        .nav-link {
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #8892b0;
+            font-weight: bold;
+            background: rgba(255,255,255,0.05);
+            font-size: 11px;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+        .nav-link.active { background: var(--rojo); color: white; box-shadow: 0 0 10px rgba(220,53,69,0.5); }
+
+        .search-area { padding: 15px 30px; flex-shrink: 0; background: #112240; }
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .search-bar input, .search-bar select {
+            background: var(--azul-oscuro);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--celeste-habitat);
+            color: white;
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .input-busqueda { width: 250px; }
+        .contador-naranja {
+            background: black;
+            color: var(--oro-alegre);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 2px solid var(--oro-alegre);
+            font-weight: bold;
+            min-width: 25px;
+            text-align: center;
+        }
+
+        .table-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 30px 30px 30px;
+        }
+
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+
+        thead th {
+            position: sticky;
+            top: 0;
+            background: var(--azul-oscuro);
+            color: var(--oro-alegre);
+            padding: 15px;
+            text-align: left;
+            z-index: 20;
+            font-size: 12px;
+            border-bottom: 2px solid var(--celeste-habitat);
+            cursor: pointer;
+        }
+
+        td { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
+        tr:hover { background: rgba(255,255,255,0.03); }
+
+        .btn-action {
+            padding: 8px 12px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            margin-right: 5px;
+            transition: 0.2s;
+            font-size: 10px;
+            text-transform: uppercase;
+        }
+        .btn-vip { background: var(--oro-alegre); color: black; }
+        .btn-reset { background: #0056b3; }
+        .btn-suspend { background: var(--naranja); }
+        .btn-del { background: var(--rojo); }
+        
+        .col-usos {
+            color: var(--rojo);
+            font-weight: bold;
+            font-size: 16px;
+            text-align: center;
+        }
+
+        /* Modal VIP */
+        #modal-bienvenida {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .cartel {
+            background: white;
+            color: #0a192f;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 450px;
+            border: 8px solid var(--oro-alegre);
+        }
+    </style>
+</head>
+<body>
+
+    <div id="modal-bienvenida">
+        <div class="cartel">
+            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="width: 140px;">
+            <h2 style="color: var(--celeste-habitat)">¡Socio 💎 VIP Activado!</h2>
+            <p>El usuario ha sido movido a la sección VIP</p>
+            <span id="nombre-socio" style="font-size: 1.8em; font-weight: bold; color: var(--rojo); display: block; margin: 15px 0;">---</span>
+            <button onclick="document.getElementById('modal-bienvenida').style.display='none'" style="margin-top: 20px; padding: 12px 25px; background: var(--azul-oscuro); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">CERRAR</button>
+        </div>
+    </div>
+
+    <header class="header">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
+        <nav class="nav-menu">
+            <a href="admin_comercios.html" class="nav-link">Comercios</a>
+            <a href="admin_leads.html" class="nav-link active">Leads</a>
+            <a href="admin_vips.html" class="nav-link">Vips</a>
+            <a href="admin_tokens_vip.html" class="nav-link">Tokens Vip</a>
+            <a href="admin_curioso.html" class="nav-link">Curioso</a>
+            <a href="admin_estadisticas.html" class="nav-link">Estadísticas</a>
+            <a href="admin_logs.html" class="nav-link">Log</a>
+            <a href="admin_tutoriales.html" class="nav-link">Tutoriales</a>
+            <a href="index.html" class="nav-link">Panel de Ingreso</a>
+            <a href="admin_legales.html" class="nav-link">Legales</a>
+        </nav>
+    </header>
+
+    <div class="search-area">
+        <div class="search-bar">
+            <input type="text" id="buscador" class="input-busqueda" placeholder="Buscar por apellido o WhatsApp..." onkeyup="filtrarLeads()">
+            
+            <select id="filtro-provincia" onchange="cargarLocalidades(this.value); filtrarLeads();">
+                <option value="">PROVINCIA</option>
+            </select>
+            <div class="contador-naranja" id="count-prov">0</div>
+
+            <select id="filtro-localidad" onchange="filtrarLeads();">
+                <option value="">LOCALIDAD</option>
+            </select>
+            <div class="contador-naranja" id="count-loc">0</div>
+
+            <select onchange="validarYRestablecer(this.value); this.value='';" style="border-color: var(--celeste-habitat); font-weight: bold;">
+                <option value="">RESTABLECER CUPONES</option>
+                <option value="localidad">POR LOCALIDAD</option>
+                <option value="provincia">POR PROVINCIA</option>
+                <option value="pais">A TODO EL PAÍS</option>
+            </select>
+
+            <div style="margin-left: auto; font-weight: bold; color: var(--oro-alegre);">
+                Total: <span id="contador-total">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th onclick="ordenar('fechaRegistro')">REGISTRO ↕</th>
+                    <th onclick="ordenar('lastSubmission')">ÚLT. ACTIVIDAD ↕</th>
+                    <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE ↕</th>
+                    <th>WHATSAPP</th>
+                    <th>PROVINCIA</th>
+                    <th>LOCALIDAD</th>
+                    <th style="text-align: center;">USOS</th>
+                    <th>ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody id="lista-leads"></tbody>
+        </table>
+    </div>
+
+    <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, addDoc, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -18,7 +243,7 @@
         let mapaUsos = {}; 
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        // --- CARGA DE DATOS GEOGRÁFICOS ---
+        // --- CARGA DE DATOS ARGENTINA ---
         async function cargarProvincias() {
             try {
                 const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre");
@@ -30,7 +255,7 @@
                     opt.textContent = p.nombre.toUpperCase();
                     combo.appendChild(opt);
                 });
-            } catch (e) { console.error("Error provincias", e); }
+            } catch (e) { console.error(e); }
         }
 
         window.cargarLocalidades = async (provNombre) => {
@@ -46,13 +271,13 @@
                     opt.textContent = m.nombre.toUpperCase();
                     comboLoc.appendChild(opt);
                 });
-            } catch (e) { console.error("Error localidades", e); }
+            } catch (e) { console.error(e); }
         }
         cargarProvincias();
 
-        // --- SINCRONIZACIÓN REAL DE DATOS ---
-        
-        // 1. Logs de actividad (Canjes)
+        // --- FIREBASE: ESCUCHA EN TIEMPO REAL ---
+
+        // 1. Mapa de Usos desde logs_actividad (Actualización viva)
         onSnapshot(collection(db, "logs_actividad"), (snap) => {
             mapaUsos = {};
             snap.forEach(d => {
@@ -65,14 +290,14 @@
             renderizar(todosLosLeads);
         });
 
-        // 2. Leads (SOLUCIÓN: Quitamos el where estricto para asegurar que carguen)
+        // 2. Colección Leads (Solución carga total)
         onSnapshot(collection(db, "leads"), (snap) => {
             todosLosLeads = [];
             snap.forEach(d => {
                 const data = d.data();
-                // Filtramos manualmente: si no tiene el campo, se asume que NO es VIP (es lead)
+                // Si convertidoVIP no existe o es false, es un Lead
                 if (data.convertidoVIP !== true) {
-                    todosLosLeads.push({id: d.id, ...data});
+                    todosLosLeads.push({ id: d.id, ...data });
                 }
             });
             aplicarOrdenYRender();
@@ -97,15 +322,14 @@
 
             datos.forEach(l => {
                 const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
-                const rawLastSub = l.lastSubmission || l.fechaRegistro;
-                const lastSub = rawLastSub ? new Date(rawLastSub).toLocaleString() : '---';
+                const lastSub = (l.lastSubmission || l.fechaRegistro) ? new Date(l.lastSubmission || l.fechaRegistro).toLocaleString() : '---';
                 const cantUsos = mapaUsos[l.id] || 0;
-                const estadoTxt = l.estado === 'suspendido' ? '✅ ACTIVAR' : '🚫 SUSPENDER';
+                const suspendido = l.estado === 'suspendido';
                 
                 lista.innerHTML += `
-                    <tr style="${l.estado === 'suspendido' ? 'opacity: 0.5' : ''}">
+                    <tr style="${suspendido ? 'opacity: 0.5; background: rgba(220,53,69,0.05)' : ''}">
                         <td style="color: #8892b0;">${fechaReg}</td>
-                        <td style="color: var(--oro-alegre); font-size: 0.9em;">${lastSub}</td>
+                        <td style="color: var(--oro-alegre); font-size: 0.85em;">${lastSub}</td>
                         <td><b>${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}</b></td>
                         <td>${l.whatsapp || '---'}</td>
                         <td style="color: #8892b0">${l.provincia || '---'}</td>
@@ -113,8 +337,8 @@
                         <td class="col-usos">${cantUsos}</td>
                         <td style="white-space: nowrap;">
                             <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido} ${l.nombres}')">💎 VIP</button>
-                            <button class="btn-action btn-reset" onclick="restablecerIndividual('${l.id}')">🔄</button>
-                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}')">${estadoTxt}</button>
+                            <button class="btn-action btn-reset" onclick="restablecerIndividual('${l.id}')" title="Resetear Cupones">🔄</button>
+                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}')">${suspendido ? 'ACTIVAR' : 'SUSPENDER'}</button>
                             <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
                         </td>
                     </tr>
@@ -122,39 +346,29 @@
             });
         }
 
-        // --- ACCIONES ---
+        // --- FUNCIONES GLOBALES (Window) ---
 
         window.hacerVIP = async (id, nombre) => {
-            if(confirm(`¿Convertir a ${nombre} en Socio VIP?`)) {
-                await updateDoc(doc(db, "leads", id), { 
-                    convertidoVIP: true,
-                    fechaVIP: Date.now()
-                });
+            if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
                 document.getElementById('nombre-socio').innerText = nombre;
                 document.getElementById('modal-bienvenida').style.display = 'flex';
             }
         };
 
         window.toggleEstado = async (id, estadoActual) => {
-            const nuevoEstado = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
-            await updateDoc(doc(db, "leads", id), { estado: nuevoEstado });
+            const nuevo = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
+            await updateDoc(doc(db, "leads", id), { estado: nuevo });
         };
 
         window.restablecerIndividual = async (id) => {
-            if(confirm("¿Limpiar usos de este usuario?")) {
-                await updateDoc(doc(db, "leads", id), { 
-                    usados: [], 
-                    cupones_usados: [], 
-                    lastSubmission: Date.now() 
-                });
-                alert("Cupones restablecidos");
+            if(confirm("¿Restablecer cupones de este usuario?")) {
+                await updateDoc(doc(db, "leads", id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: Date.now() });
             }
         };
 
         window.borrarLead = async (id) => {
-            if(confirm("¿Eliminar definitivamente? Esta acción no se puede deshacer.")) {
-                await deleteDoc(doc(db, "leads", id));
-            }
+            if(confirm("¿Eliminar para siempre?")) await deleteDoc(doc(db, "leads", id));
         };
 
         window.filtrarLeads = () => {
@@ -163,8 +377,8 @@
             const loc = document.getElementById('filtro-localidad').value;
 
             const filtrados = todosLosLeads.filter(l => {
-                const nombreCompleto = `${l.apellido} ${l.nombres}`.toLowerCase();
-                const matchBusq = nombreCompleto.includes(busq) || (l.whatsapp && l.whatsapp.includes(busq));
+                const nombre = `${l.apellido} ${l.nombres}`.toLowerCase();
+                const matchBusq = nombre.includes(busq) || (l.whatsapp && l.whatsapp.includes(busq));
                 const matchProv = prov === "" || l.provincia === prov;
                 const matchLoc = loc === "" || l.localidad === loc;
                 return matchBusq && matchProv && matchLoc;
@@ -172,7 +386,6 @@
 
             document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l => l.provincia === prov).length : 0;
             document.getElementById('count-loc').innerText = loc ? todosLosLeads.filter(l => l.localidad === loc).length : 0;
-
             renderizar(filtrados);
         };
 
@@ -182,4 +395,24 @@
             aplicarOrdenYRender();
         };
 
+        window.validarYRestablecer = async (tipo) => {
+            const pass = prompt("Clave ADMIN:");
+            if(pass !== "admin1234") return alert("Clave incorrecta");
+
+            let aRestablecer = [];
+            if(tipo === "pais") aRestablecer = todosLosLeads;
+            else if(tipo === "provincia") aRestablecer = todosLosLeads.filter(l => l.provincia === document.getElementById('filtro-provincia').value);
+            else if(tipo === "localidad") aRestablecer = todosLosLeads.filter(l => l.localidad === document.getElementById('filtro-localidad').value);
+
+            if(confirm(`¿Restablecer cupones a ${aRestablecer.length} usuarios?`)){
+                const batch = writeBatch(db);
+                aRestablecer.forEach(l => {
+                    batch.update(doc(db, "leads", l.id), { usados: [], cupones_usados: [], canjes: [], lastSubmission: Date.now() });
+                });
+                await batch.commit();
+                alert("Proceso completado");
+            }
+        };
     </script>
+</body>
+</html>
