@@ -242,7 +242,6 @@
         let mapaUsos = {}; 
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        // --- CARGA DE DATOS ARGENTINA ---
         async function cargarProvincias() {
             try {
                 const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre");
@@ -274,20 +273,18 @@
         }
         cargarProvincias();
 
-        // --- VINCULACIÓN DE DATOS (RECUENTO DE USOS) ---
         onSnapshot(collection(db, "logs_actividad"), (snap) => {
             mapaUsos = {};
             snap.forEach(d => {
                 const log = d.data();
                 if(log.tipo === "canje") {
-                    const uid = log.usuarioId; // Enlace corregido para usar el ID del lead guardado en el log
+                    const uid = log.usuarioId || log.userId; 
                     if(uid) mapaUsos[uid] = (mapaUsos[uid] || 0) + 1;
                 }
             });
             renderizar(todosLosLeads); 
         });
 
-        // --- ESCUCHA DE LEADS ---
         onSnapshot(collection(db, "leads"), (snap) => {
             todosLosLeads = [];
             snap.forEach(d => {
@@ -321,7 +318,6 @@
                 const lastSub = (l.lastSubmission || l.fechaRegistro) ? new Date(l.lastSubmission || l.fechaRegistro).toLocaleString() : '---';
                 
                 const cantUsos = mapaUsos[l.id] || 0; 
-                
                 const suspendido = l.estado === 'suspendido';
                 
                 lista.innerHTML += `
@@ -344,7 +340,6 @@
             });
         }
 
-        // --- FUNCIONES DE BOTONES (Expuestas a window) ---
         window.hacerVIP = async (id, nombre) => {
             if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
                 await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
