@@ -214,7 +214,6 @@
             color: var(--azul-habitat); margin-bottom: 10px;
         }
 
-        /* ESTILOS NUEVOS PARA TRIPLE VALIDACIÓN */
         .seccion-validacion {
             width: 100%; background: #f0f0f0; border-radius: 15px; padding: 15px; 
             margin: 10px 0; box-sizing: border-box; border: 2px solid #ddd;
@@ -369,6 +368,12 @@
         };
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+
+        // --- CAPTURA DE DATOS DEL USUARIO ---
+        const leadId = localStorage.getItem('leadId'); 
+        const leadNombre = localStorage.getItem('leadNombre') || "Usuario";
+        const leadApellido = localStorage.getItem('leadApellido') || "Leads";
+        // ------------------------------------
 
         let deferredPrompt;
         const btnInstalar = document.getElementById('btn-instalar-pwa');
@@ -533,7 +538,6 @@
             }
         };
 
-        // FUNCIÓN NUEVA PARA COPIAR EL ID
         window.copiarID = () => {
             const idTexto = document.getElementById('exito-id-texto').innerText;
             navigator.clipboard.writeText(idTexto).then(() => {
@@ -546,11 +550,8 @@
                 const ahora = Date.now();
                 const ref = doc(db, "comercios", id);
                 
-                // Obtenemos el número actual antes de incrementar para generar el ID visual
                 const snapAntes = await getDoc(ref);
                 const totalActual = (snapAntes.data().totalUsos || 0) + 1;
-                
-                // Generamos el ID Manual (Ej: HAB-0145)
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
                 await updateDoc(ref, {
@@ -562,27 +563,29 @@
                     lastSubmission: ahora
                 });
 
+                // --- ESTA ES LA PARTE QUE REGISTRA EL DATO PARA EL PANEL ---
                 await addDoc(collection(db, "logs_actividad"), {
                     timestamp: ahora,
                     tipo: "canje",
                     accion: "CANJE LEADS",
                     nombre: `Canje en: ${nom}`,
                     comercioId: id,
+                    nombreComercio: nom,
+                    usuarioId: leadId,
+                    nombreUsuario: `${leadApellido} ${leadNombre}`,
                     modulo: "CUPONES",
                     idValidacion: idManual
                 });
 
-                // Mostramos los datos en la pantalla de éxito
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
                 
-                // GENERACIÓN DEL CÓDIGO DE BARRAS
                 JsBarcode("#barcode", idManual, {
                     format: "CODE128",
                     lineColor: "#000",
                     width: 2,
                     height: 80,
-                    displayValue: false // No mostramos el texto abajo porque ya lo tenemos arriba grande
+                    displayValue: false
                 });
 
                 document.getElementById('pantalla-exito').style.display = 'flex';
