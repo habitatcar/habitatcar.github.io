@@ -299,7 +299,7 @@
             <p>¿Avisaste al cajero que usarás el cupón <b>LEADS</b>?</p>
             <p>Si no avisaste, perderás el beneficio.</p>
             <div class="btn-group-alert">
-                <button id="btn-confirmar-final" class="btn-alert btn-si">SÍ</button>
+                <button="btn-confirmar-final" class="btn-alert btn-si">SÍ</button>
                 <button class="btn-alert btn-no" onclick="cerrarAtencion()">NO</button>
             </div>
         </div>
@@ -405,19 +405,6 @@
         const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
         const getUsadosLocal = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
 
-        // Función para obtener el número de usos locales de un comercio específico
-        const getUsosLocales = (comercioId) => {
-            return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
-        };
-
-        // Función para incrementar el número de usos locales de un comercio específico
-        const incrementarUsosLocales = (comercioId) => {
-            const usosActuales = getUsosLocales(comercioId);
-            const nuevosUsos = usosActuales + 1;
-            localStorage.setItem(`uso_lead_${comercioId}`, nuevosUsos);
-            return nuevosUsos;
-        };
-
         // RENDERIZADO GARANTIZADO: Primero los comercios, luego validamos el estado del lead
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-cupones');
@@ -470,9 +457,6 @@
                     infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
                 }
 
-                // Obtenemos el número de usos locales para este comercio
-                const nUso = getUsosLocales(id);
-
                 html += `
                     <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
                         ${htmlLogo}
@@ -484,9 +468,7 @@
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
                             <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=  ${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
-                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">
-                                Usar el Beneficio <span class="contador-nube">${nUso}</span>
-                            </button>
+                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">Usar el Beneficio</button>
                         </div>
                     </div>`;
             });
@@ -569,8 +551,7 @@
                 
                 // 1. Obtener ID de validación (Basado en total usos del comercio)
                 const snapCom = await getDoc(refComercio);
-                const dataCom = snapCom.data();
-                const totalActual = (dataCom.totalUsos || 0) + 1;
+                const totalActual = (snapCom.data().totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
                 // 2. ACTUALIZACIÓN COMERCIO (Estadísticas)
@@ -604,33 +585,26 @@
                     const leadRef = doc(db, "leads", leadId);
                     const leadSnap = await getDoc(leadRef);
                     if (leadSnap.exists()) {
-                        await updateDoc(leadRef, { cupones_usados: arrayUnion(id) });
+                        // ✅ Aquí es la modificación clave:
+                        // 1. Añadimos el ID del comercio al array `cupones_usados`
+                        // 2. Incrementamos el campo `usos_count` en 1
+                        await updateDoc(leadRef, { 
+                            cupones_usados: arrayUnion(id),
+                            usos_count: increment(1) // <-- Esto es lo nuevo
+                        });
                     } else {
-                        // Si no existe, lo creamos para que el panel admin lo vea
+                        // Si no existe, lo creamos con `usos_count` inicializado en 1
                         await setDoc(leadRef, {
                             nombre: leadNombre,
                             apellido: leadApellido,
                             cupones_usados: [id],
+                            usos_count: 1, // <-- Inicializamos en 1
                             fecha_registro: ahora
                         });
                     }
                 } catch(eLead) { console.error("Error Lead:", eLead); }
 
-                // 5. ACTUALIZAR CONTADOR LOCAL
-                const nuevosUsos = incrementarUsosLocales(id);
-
-                // 6. ACTUALIZAR VISUALMENTE EL BOTÓN (OPCIONAL, PERO MEJORA LA UX)
-                const btnUsar = document.getElementById(`btn-usar-${id}`);
-                if (btnUsar) {
-                    // Buscar el span del contador dentro del botón y actualizarlo
-                    const contadorSpan = btnUsar.querySelector('.contador-nube');
-                    if (contadorSpan) {
-                        contadorSpan.textContent = nuevosUsos;
-                    }
-                }
-
-
-                // 7. ÉXITO VISUAL
+                // 5. ÉXITO VISUAL
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
                 JsBarcode("#barcode", idManual, { format: "CODE128", lineColor: "#000", width: 2, height: 80, displayValue: false });
