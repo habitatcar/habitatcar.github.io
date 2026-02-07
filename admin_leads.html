@@ -77,7 +77,7 @@
             border-radius: 8px;
             border: 2px solid var(--oro-alegre);
             font-weight: bold;
-            min-width: 25;
+            min-width: 25px;
             text-align: center;
         }
 
@@ -224,7 +224,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -239,6 +239,7 @@
         const db = getFirestore(app);
 
         let todosLosLeads = [];
+        let logsActividad = []; // Almacenará todos los logs de actividad
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
         async function cargarProvincias() {
@@ -272,43 +273,69 @@
         }
         cargarProvincias();
 
-        const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
-        onSnapshot(q, (snap) => {
+        // --- Escucha en tiempo real para la colección 'leads' ---
+        const qLeads = query(collection(db, "leads"), where("convertidoVIP", "==", false));
+        onSnapshot(qLeads, (snap) => {
             snap.docChanges().forEach(change => {
                 const docId = change.doc.id;
                 const data = change.doc.data();
                 
-                // --- SOLUCIÓN: Asegurar que 'cupones_usados' exista como array ---
-                // Si no existe, lo creamos como un array vacío para que la cuenta funcione.
-                let cuponesArray = data.cupones_usados;
-                if (!Array.isArray(cuponesArray)) {
-                    cuponesArray = [];
-                    // Opcional: Actualizamos el documento en Firebase para que tenga el campo correcto.
-                    // updateDoc(doc(db, "leads", docId), { cupones_usados: [] }).catch(console.error);
-                }
-                const usosCount = cuponesArray.length;
-
                 if (change.type === "added") {
+                    // Nuevo lead o lead recién filtrado
+                    // Inicializamos usos_count como 0, se calculará después
                     todosLosLeads.push({
                         id: docId,
                         ...data,
-                        usos_count: usosCount
+                        usos_count: 0
                     });
                 } else if (change.type === "modified") {
+                    // Lead actualizado
                     const index = todosLosLeads.findIndex(l => l.id === docId);
                     if (index !== -1) {
+                        // Mantenemos el usos_count calculado, solo actualizamos otros datos
+                        const currentUsos = todosLosLeads[index].usos_count;
                         todosLosLeads[index] = {
                             id: docId,
                             ...data,
-                            usos_count: usosCount
+                            usos_count: currentUsos
                         };
                     }
                 } else if (change.type === "removed") {
+                    // Lead eliminado o convertido a VIP
                     todosLosLeads = todosLosLeads.filter(l => l.id !== docId);
                 }
             });
-            aplicarOrdenYRender();
+            // Recalculamos usos y renderizamos después de cualquier cambio en 'leads'
+            recalcularYRenderizar();
         });
+
+        // --- Escucha en tiempo real para la colección 'logs_actividad' ---
+        const qLogs = query(collection(db, "logs_actividad"), where("accion", "==", "CANJE LEADS"));
+        onSnapshot(qLogs, (snap) => {
+            // Reconstruimos el array de logs con los nuevos datos
+            logsActividad = [];
+            snap.forEach(doc => {
+                logsActividad.push(doc.data());
+            });
+            // Recalculamos usos y renderizamos después de cualquier cambio en 'logs_actividad'
+            recalcularYRenderizar();
+        });
+
+        // --- Función para recalcular usos y renderizar ---
+        function recalcularYRenderizar() {
+            // Para cada lead, contamos cuántos logs de 'CANJE LEADS' tiene
+            todosLosLeads.forEach(lead => {
+                // El campo que identifica al usuario en los logs es 'nombreUsuario' según el código de usuarios_cupones_leads.html
+                // El formato es `${leadApellido} ${leadNombre}`
+                // O quizás 'usuarioId' si está disponible. Probemos 'nombreUsuario' primero.
+                const nombreUsuario = `${lead.apellido || ''} ${lead.nombres || ''}`.trim();
+                const usosDelLead = logsActividad.filter(log => log.nombreUsuario === nombreUsuario).length;
+                lead.usos_count = usosDelLead;
+            });
+
+            // Aplicamos filtros, ordenación y renderizamos la tabla
+            aplicarOrdenYRender();
+        }
 
         function aplicarOrdenYRender() {
             const { campo, asc } = ordenActual;
@@ -323,7 +350,7 @@
 
         window.ordenar = (campo) => {
             ordenActual.asc = (ordenActual.campo === campo) ? !ordenActual.asc : true;
-            ordenActual.campo = campo;
+            ordenCurrent.campo = campo;
             aplicarOrdenYRender();
         };
 
