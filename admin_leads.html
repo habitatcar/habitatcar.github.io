@@ -77,7 +77,7 @@
             border-radius: 8px;
             border: 2px solid var(--oro-alegre);
             font-weight: bold;
-            min-width: 25px;
+            min-width: 25;
             text-align: center;
         }
 
@@ -125,9 +125,9 @@
         .btn-del { background: var(--rojo); }
         
         .col-usos {
-            color: var(--rojo);
+            color: var(--oro-alegre);
             font-weight: bold;
-            font-size: 18px;
+            font-size: 16px;
             text-align: center;
         }
 
@@ -214,7 +214,7 @@
                     <th>WHATSAPP</th>
                     <th>PROVINCIA</th>
                     <th>CIUDAD</th>
-                    <th style="text-align: center;">CANT. USOS ↕</th>
+                    <th style="text-align: center;" onclick="ordenar('usos_count')">CANT. USOS ↕</th>
                     <th>ACCIONES</th>
                 </tr>
             </thead>
@@ -224,7 +224,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -241,7 +241,6 @@
         let todosLosLeads = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        // --- Cargar Provincias ---
         async function cargarProvincias() {
             try {
                 const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
@@ -273,33 +272,49 @@
         }
         cargarProvincias();
 
-        // --- LÓGICA DE CONTEO REAL ---
-        async function obtenerConteoUsos(comercioId) {
-            try {
-                const qLogs = query(collection(db, "logs_vip"), where("comercioId", "==", comercioId));
-                const snap = await getDocs(qLogs);
-                return snap.size;
-            } catch (e) {
-                return 0;
-            }
-        }
-
-        // --- Firebase Snap ---
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
-        onSnapshot(q, async (snap) => {
-            const tempLeads = [];
-            snap.forEach(d => {
-                tempLeads.push({ id: d.id, ...d.data() });
+        onSnapshot(q, (snap) => {
+            snap.docChanges().forEach(change => {
+                const docId = change.doc.id;
+                const data = change.doc.data();
+                
+                // --- SOLUCIÓN: Asegurar que 'cupones_usados' exista como array ---
+                // Si no existe, lo creamos como un array vacío para que la cuenta funcione.
+                let cuponesArray = data.cupones_usados;
+                if (!Array.isArray(cuponesArray)) {
+                    cuponesArray = [];
+                    // Opcional: Actualizamos el documento en Firebase para que tenga el campo correcto.
+                    // updateDoc(doc(db, "leads", docId), { cupones_usados: [] }).catch(console.error);
+                }
+                const usosCount = cuponesArray.length;
+
+                if (change.type === "added") {
+                    todosLosLeads.push({
+                        id: docId,
+                        ...data,
+                        usos_count: usosCount
+                    });
+                } else if (change.type === "modified") {
+                    const index = todosLosLeads.findIndex(l => l.id === docId);
+                    if (index !== -1) {
+                        todosLosLeads[index] = {
+                            id: docId,
+                            ...data,
+                            usos_count: usosCount
+                        };
+                    }
+                } else if (change.type === "removed") {
+                    todosLosLeads = todosLosLeads.filter(l => l.id !== docId);
+                }
             });
-            todosLosLeads = tempLeads;
             aplicarOrdenYRender();
         });
 
         function aplicarOrdenYRender() {
             const { campo, asc } = ordenActual;
             todosLosLeads.sort((a, b) => {
-                let valA = a[campo] || '';
-                let valB = b[campo] || '';
+                let valA = a[campo] ?? '';
+                let valB = b[campo] ?? '';
                 if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
                 return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
             });
@@ -330,43 +345,37 @@
             renderizar(filtrados);
         };
 
-        async function renderizar(datos) {
+        function renderizar(datos) {
             const lista = document.getElementById('lista-leads');
             lista.innerHTML = "";
             document.getElementById('contador-total').innerText = datos.length;
 
-            for (const l of datos) {
+            datos.forEach(l => {
                 const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
                 const lastSub = (l.lastSubmission || l.fechaRegistro) ? new Date(l.lastSubmission || l.fechaRegistro).toLocaleString() : '---';
                 const suspendido = l.estado === 'suspendido';
                 const nombreFull = `${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}`;
                 
-                // Obtenemos conteo real desde la base de datos de logs
-                const cantRealUsos = await obtenerConteoUsos(l.id);
-
-                const tr = document.createElement('tr');
-                if (suspendido) tr.style.cssText = "opacity: 0.5; background: rgba(220,53,69,0.05)";
-                
-                tr.innerHTML = `
-                    <td style="color: #8892b0;">${fechaReg}</td>
-                    <td style="color: var(--oro-alegre); font-size: 0.9em;">${lastSub}</td>
-                    <td><b>${nombreFull}</b></td>
-                    <td>${l.whatsapp || '---'}</td>
-                    <td style="color: #8892b0">${l.provincia || '---'}</td>
-                    <td style="color: #8892b0">${l.localidad || '---'}</td>
-                    <td class="col-usos">${cantRealUsos}</td>
-                    <td style="white-space: nowrap;">
-                        <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${nombreFull}')">💎 VIP</button>
-                        <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${nombreFull}')">🔄 RESTABLECER</button>
-                        <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${nombreFull}')">${suspendido ? '✅ ACTIVAR' : '🚫 SUSPENDER'}</button>
-                        <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
-                    </td>
+                lista.innerHTML += `
+                    <tr style="${suspendido ? 'opacity: 0.5; background: rgba(220,53,69,0.05)' : ''}">
+                        <td style="color: #8892b0;">${fechaReg}</td>
+                        <td style="color: var(--oro-alegre); font-size: 0.9em;">${lastSub}</td>
+                        <td><b>${nombreFull}</b></td>
+                        <td>${l.whatsapp || '---'}</td>
+                        <td style="color: #8892b0">${l.provincia || '---'}</td>
+                        <td style="color: #8892b0">${l.localidad || '---'}</td>
+                        <td class="col-usos">${l.usos_count}</td>
+                        <td style="white-space: nowrap;">
+                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${nombreFull}')">💎 VIP</button>
+                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${nombreFull}')">🔄 RESTABLECER</button>
+                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${nombreFull}')">${suspendido ? '✅ ACTIVAR' : '🚫 SUSPENDER'}</button>
+                            <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
+                        </td>
+                    </tr>
                 `;
-                lista.appendChild(tr);
-            }
+            });
         }
 
-        // --- Acciones ---
         window.hacerVIP = async (id, nombre) => {
             if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
                 await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
@@ -377,15 +386,13 @@
 
         window.restablecerCupones = async (id, nombre) => {
             if(confirm(`¿Restablecer todos los cupones de ${nombre}?`)) {
-                // Para borrar los usos, habría que borrar los logs correspondientes o marcarlos como obsoletos
-                // Por ahora, reseteamos los campos internos del lead
                 await updateDoc(doc(db, "leads", id), { 
                     usados: [], 
                     cupones_usados: [], 
                     canjes: [], 
+                    usos: 0,
                     lastSubmission: Date.now() 
                 });
-                alert("Campos de cupón reseteados. Los logs de historial permanecen.");
             }
         };
 
@@ -418,6 +425,7 @@
                         usados: [], 
                         cupones_usados: [], 
                         canjes: [], 
+                        usos: 0,
                         lastSubmission: ahora 
                     });
                 });
