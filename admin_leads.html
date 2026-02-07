@@ -239,43 +239,65 @@
         const db = getFirestore(app);
 
         let todosLosLeads = [];
-        let todosLosLogs = []; // Almacenará los logs de canje
+        let todasLasProvincias = []; // Almacenamos las provincias cargadas
+        let todasLasLocalidades = []; // Almacenamos las localidades cargadas
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
+        // Carga las provincias y las almacena
         async function cargarProvincias() {
             try {
                 const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
                 const data = await res.json();
                 const combo = document.getElementById('filtro-provincia');
-                data.provincias.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(p => {
+                combo.innerHTML = '<option value="">PROVINCIA</option>'; // Limpiamos opciones anteriores
+
+                todasLasProvincias = data.provincias.map(p => p.nombre.toUpperCase()); // Normalizamos a mayúsculas
+                todasLasProvincias.sort((a,b) => a.localeCompare(b));
+
+                todasLasProvincias.forEach(nombreProv => {
                     let opt = document.createElement('option');
-                    opt.value = p.nombre.toUpperCase();
-                    opt.textContent = p.nombre.toUpperCase();
+                    opt.value = nombreProv; // Guardamos el valor normalizado
+                    opt.textContent = nombreProv;
                     combo.appendChild(opt);
                 });
             } catch (e) { console.error(e); }
         }
 
+        // Carga las localidades basadas en la provincia seleccionada, normalizando
         window.cargarLocalidades = async (provNombre) => {
             const comboLoc = document.getElementById('filtro-localidad');
             comboLoc.innerHTML = '<option value="">LOCALIDAD</option>';
-            if(!provNombre) return;
+
+            // Limpiamos localidades si no hay provincia seleccionada o si la provincia no coincide con la normalizada
+            if(!provNombre || !todasLasProvincias.includes(provNombre)) {
+                 todasLasLocalidades = [];
+                 filtrarLeads(); // Refiltrar sin localidad
+                 return;
+            }
+
             try {
-                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${provNombre}&max=1000&campos=nombre`);
+                // Usamos la provincia seleccionada tal cual está en el combo (ya normalizada al guardarla)
+                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provNombre.toLowerCase())}&max=1000&campos=nombre`);
                 const data = await res.json();
-                data.municipios.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(m => {
+                // Normalizamos los nombres de las localidades a mayúsculas
+                todasLasLocalidades = data.municipios.map(m => m.nombre.toUpperCase());
+                todasLasLocalidades.sort((a,b) => a.localeCompare(b));
+
+                todasLasLocalidades.forEach(nombreLoc => {
                     let opt = document.createElement('option');
-                    opt.value = m.nombre.toUpperCase();
-                    opt.textContent = m.nombre.toUpperCase();
+                    opt.value = nombreLoc; // Guardamos el valor normalizado
+                    opt.textContent = nombreLoc;
                     comboLoc.appendChild(opt);
                 });
             } catch (e) { console.error(e); }
         }
-        cargarProvincias();
+        cargarProvincias(); // Cargamos al inicio
+
 
         // --- Escucha en tiempo real para la colección 'leads' ---
-        const qLeads = query(collection(db, "leads"), where("convertidoVIP", "==", false));
-        onSnapshot(qLeads, (snap) => {
+        // Importante: Esta consulta ya NO filtra por provincia/localidad aquí, lo hacemos en JS después
+        const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
+        onSnapshot(q, (snap) => {
             snap.docChanges().forEach(change => {
                 const docId = change.doc.id;
                 const data = change.doc.data();
@@ -285,17 +307,21 @@
                     todosLosLeads.push({
                         id: docId,
                         ...data,
-                        usos_count: 0 // Inicializamos en 0, se calculará después
+                        // Normalizamos provincia y localidad del lead al momento de cargarlo
+                        provincia_normalized: (data.provincia || '').toUpperCase(),
+                        localidad_normalized: (data.localidad || '').toUpperCase()
                     });
                 } else if (change.type === "modified") {
                     // Lead actualizado (otros datos, no necesariamente usos)
                     const index = todosLosLeads.findIndex(l => l.id === docId);
                     if (index !== -1) {
-                        // Mantenemos el usos_count calculado, solo actualizamos otros datos
+                        // Mantenemos el usos_count calculado, solo actualizamos otros datos y la versión normalizada
                         const currentUsos = todosLosLeads[index].usos_count;
                         todosLosLeads[index] = {
                             id: docId,
                             ...data,
+                            provincia_normalized: (data.provincia || '').toUpperCase(), // Actualizamos la versión normalizada
+                            localidad_normalized: (data.localidad || '').toUpperCase(),
                             usos_count: currentUsos
                         };
                     }
@@ -304,47 +330,10 @@
                     todosLosLeads = todosLosLeads.filter(l => l.id !== docId);
                 }
             });
-            // Recalculamos usos y renderizamos después de cualquier cambio en 'leads'
-            recalcularYRenderizar();
+            // Aplicamos filtros JS (buscador, provincia, localidad) y renderizamos
+            filtrarLeads();
         });
 
-        // --- Escucha en tiempo real para la colección 'logs_actividad' ---
-        const qLogs = query(collection(db, "logs_actividad"), where("accion", "==", "CANJE LEADS"));
-        onSnapshot(qLogs, (snap) => {
-            snap.docChanges().forEach(change => {
-                if (change.type === "added") {
-                    // Nuevo log de canje
-                    todosLosLogs.push(change.doc.data());
-                } else if (change.type === "removed") {
-                    // Log removido (poco común, pero por si acaso)
-                    const logData = change.doc.data();
-                    // Filtramos el log eliminado basado en campos únicos si es posible, o reconstruimos todo
-                    // Para simplificar, reconstruimos la lista completa
-                     todosLosLogs = [];
-                     snap.forEach(doc => {
-                         todosLosLogs.push(doc.data());
-                     });
-                }
-                 // Si fuera 'modified', también podríamos reconstruir o filtrar
-            });
-            // Recalculamos usos y renderizamos después de cualquier cambio en 'logs_actividad'
-            recalcularYRenderizar();
-        });
-
-        // --- Función para recalcular usos y renderizar ---
-        function recalcularYRenderizar() {
-            // Para cada lead, contamos cuántos logs de 'CANJE LEADS' tiene
-            todosLosLeads.forEach(lead => {
-                // El campo que identifica al usuario en los logs es 'nombreUsuario' según el código de usuarios_cupones_leads.html
-                // El formato es `${leadApellido} ${leadNombre}`
-                const nombreUsuario = `${lead.apellido || ''} ${lead.nombres || ''}`.trim();
-                const usosDelLead = todosLosLogs.filter(log => log.nombreUsuario === nombreUsuario).length;
-                lead.usos_count = usosDelLead;
-            });
-
-            // Aplicamos filtros, ordenación y renderizamos la tabla
-            aplicarOrdenYRender();
-        }
 
         function aplicarOrdenYRender() {
             const { campo, asc } = ordenActual;
@@ -354,7 +343,7 @@
                 if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
                 return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
             });
-            filtrarLeads();
+            renderizar(todosLosLeads); // Renderizamos la lista filtrada
         }
 
         window.ordenar = (campo) => {
@@ -363,21 +352,25 @@
             aplicarOrdenYRender();
         };
 
+        // Función de filtrado en JS que maneja búsqueda y selección de combos
         window.filtrarLeads = () => {
             const busq = document.getElementById('buscador').value.toLowerCase();
-            const prov = document.getElementById('filtro-provincia').value;
-            const loc = document.getElementById('filtro-localidad').value;
+            const prov = document.getElementById('filtro-provincia').value; // Valor normalizado del combo
+            const loc = document.getElementById('filtro-localidad').value; // Valor normalizado del combo
 
             const filtrados = todosLosLeads.filter(l => {
                 const nombreComp = `${l.apellido || ''} ${l.nombres || ''}`.toLowerCase();
                 const matchBusq = nombreComp.includes(busq) || (l.whatsapp && l.whatsapp.includes(busq));
-                const matchProv = prov === "" || l.provincia === prov;
-                const matchLoc = loc === "" || l.localidad === loc;
+                // Comparamos con los valores normalizados del lead
+                const matchProv = prov === "" || l.provincia_normalized === prov;
+                const matchLoc = loc === "" || l.localidad_normalized === loc;
                 return matchBusq && matchProv && matchLoc;
             });
 
-            document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l => l.provincia === prov).length : 0;
-            document.getElementById('count-loc').innerText = loc ? todosLosLeads.filter(l => l.localidad === loc).length : 0;
+            // Actualizamos contadores de los combos
+            document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l => l.provincia_normalized === prov).length : 0;
+            document.getElementById('count-loc').innerText = loc ? todosLosLeads.filter(l => l.localidad_normalized === loc).length : 0;
+
             renderizar(filtrados);
         };
 
@@ -451,8 +444,8 @@
 
             let filtrados = [];
             if (tipo === "pais") filtrados = todosLosLeads;
-            else if (tipo === "provincia") filtrados = todosLosLeads.filter(l => l.provincia === document.getElementById('filtro-provincia').value);
-            else if (tipo === "localidad") filtrados = todosLosLeads.filter(l => l.localidad === document.getElementById('filtro-localidad').value);
+            else if (tipo === "provincia") filtrados = todosLosLeads.filter(l => l.provincia_normalized === document.getElementById('filtro-provincia').value);
+            else if (tipo === "localidad") filtrados = todosLosLeads.filter(l => l.localidad_normalized === document.getElementById('filtro-localidad').value);
 
             if(confirm(`¿Restablecer cupones de ${filtrados.length} usuarios?`)) {
                 const batch = writeBatch(db);
