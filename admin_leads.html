@@ -125,9 +125,9 @@
         .btn-del { background: var(--rojo); }
         
         .col-usos {
-            color: var(--rojo); /* Cambié el color a rojo para destacarlo */
+            color: var(--rojo); /* Color para destacar la columna de usos */
             font-weight: bold;
-            font-size: 18px; /* Aumenté el tamaño para que sea más visible */
+            font-size: 16px; /* Tamaño ligeramente menor */
             text-align: center;
         }
 
@@ -239,54 +239,59 @@
         const db = getFirestore(app);
 
         let todosLosLeads = [];
-        let todasLasProvincias = []; // Almacenamos las provincias cargadas
-        let todasLasLocalidades = []; // Almacenamos las localidades cargadas
+        let todasLasProvincias = []; // Almacenará las provincias normalizadas
+        let todasLasLocalidades = []; // Almacenará las localidades de la provincia seleccionada, normalizadas
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        // Carga las provincias y las almacena
+        // Carga las provincias desde la API y las almacena en minúsculas
         async function cargarProvincias() {
             try {
                 const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
                 const data = await res.json();
                 const combo = document.getElementById('filtro-provincia');
-                combo.innerHTML = '<option value="">PROVINCIA</option>'; // Limpiamos opciones anteriores
+                combo.innerHTML = '<option value="">PROVINCIA</option>'; // Limpia opciones anteriores
 
-                todasLasProvincias = data.provincias.map(p => p.nombre.toUpperCase()); // Normalizamos a mayúsculas
+                todasLasProvincias = data.provincias.map(p => p.nombre.toLowerCase()); // Normalizamos a minúsculas
                 todasLasProvincias.sort((a,b) => a.localeCompare(b));
 
                 todasLasProvincias.forEach(nombreProv => {
                     let opt = document.createElement('option');
-                    opt.value = nombreProv; // Guardamos el valor normalizado
-                    opt.textContent = nombreProv;
+                    opt.value = nombreProv; // Valor en minúsculas
+                    opt.textContent = pascalCase(nombreProv); // Mostrar con primera letra mayúscula
                     combo.appendChild(opt);
                 });
             } catch (e) { console.error(e); }
         }
 
-        // Carga las localidades basadas en la provincia seleccionada, normalizando
-        window.cargarLocalidades = async (provNombre) => {
+        // Convierte una cadena a formato "Pascal Case" (primera letra de cada palabra en mayúscula)
+        function pascalCase(str) {
+            return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+        }
+
+        // Carga las localidades basadas en la provincia seleccionada, normalizando a minúsculas
+        window.cargarLocalidades = async (provNombreNormalized) => {
             const comboLoc = document.getElementById('filtro-localidad');
             comboLoc.innerHTML = '<option value="">LOCALIDAD</option>';
 
-            // Limpiamos localidades si no hay provincia seleccionada o si la provincia no coincide con la normalizada
-            if(!provNombre || !todasLasProvincias.includes(provNombre)) {
+            // Si no hay provincia seleccionada o no coincide con la lista normalizada, limpiar localidades
+            if(!provNombreNormalized || !todasLasProvincias.includes(provNombreNormalized)) {
                  todasLasLocalidades = [];
                  filtrarLeads(); // Refiltrar sin localidad
                  return;
             }
 
             try {
-                // Usamos la provincia seleccionada tal cual está en el combo (ya normalizada al guardarla)
-                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provNombre.toLowerCase())}&max=1000&campos=nombre`);
+                // Usamos la provincia seleccionada (ya normalizada) para la API
+                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provNombreNormalized)}&max=1000&campos=nombre`);
                 const data = await res.json();
-                // Normalizamos los nombres de las localidades a mayúsculas
-                todasLasLocalidades = data.municipios.map(m => m.nombre.toUpperCase());
+                // Normalizamos los nombres de las localidades a minúsculas
+                todasLasLocalidades = data.municipios.map(m => m.nombre.toLowerCase());
                 todasLasLocalidades.sort((a,b) => a.localeCompare(b));
 
                 todasLasLocalidades.forEach(nombreLoc => {
                     let opt = document.createElement('option');
-                    opt.value = nombreLoc; // Guardamos el valor normalizado
-                    opt.textContent = nombreLoc;
+                    opt.value = nombreLoc; // Valor en minúsculas
+                    opt.textContent = pascalCase(nombreLoc); // Mostrar con primera letra mayúscula
                     comboLoc.appendChild(opt);
                 });
             } catch (e) { console.error(e); }
@@ -295,7 +300,7 @@
 
 
         // --- Escucha en tiempo real para la colección 'leads' ---
-        // Importante: Esta consulta ya NO filtra por provincia/localidad aquí, lo hacemos en JS después
+        // Esta consulta trae todos los leads activos, el filtrado se hace en JS después
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
         onSnapshot(q, (snap) => {
             snap.docChanges().forEach(change => {
@@ -304,12 +309,12 @@
                 
                 if (change.type === "added") {
                     // Nuevo lead o lead recién filtrado
+                    // Normalizamos provincia y localidad del lead al momento de cargarlo
                     todosLosLeads.push({
                         id: docId,
                         ...data,
-                        // Normalizamos provincia y localidad del lead al momento de cargarlo
-                        provincia_normalized: (data.provincia || '').toUpperCase(),
-                        localidad_normalized: (data.localidad || '').toUpperCase()
+                        provincia_normalized: (data.provincia || '').toLowerCase(),
+                        localidad_normalized: (data.localidad || '').toLowerCase()
                     });
                 } else if (change.type === "modified") {
                     // Lead actualizado (otros datos, no necesariamente usos)
@@ -320,13 +325,13 @@
                         todosLosLeads[index] = {
                             id: docId,
                             ...data,
-                            provincia_normalized: (data.provincia || '').toUpperCase(), // Actualizamos la versión normalizada
-                            localidad_normalized: (data.localidad || '').toUpperCase(),
+                            provincia_normalized: (data.provincia || '').toLowerCase(), // Actualizamos la versión normalizada
+                            localidad_normalized: (data.localidad || '').toLowerCase(),
                             usos_count: currentUsos
                         };
                     }
                 } else if (change.type === "removed") {
-                    // Lead eliminado o convertido a VIP (ya no cumple el filtro)
+                    // Lead eliminado o convertido a VIP
                     todosLosLeads = todosLosLeads.filter(l => l.id !== docId);
                 }
             });
@@ -347,27 +352,27 @@
         }
 
         window.ordenar = (campo) => {
-            ordenActual.asc = (ordenActual.campo === campo) ? !ordenCurrent.asc : true;
-            ordenCurrent.campo = campo;
+            ordenActual.asc = (ordenActual.campo === campo) ? !ordenActual.asc : true;
+            ordenActual.campo = campo;
             aplicarOrdenYRender();
         };
 
         // Función de filtrado en JS que maneja búsqueda y selección de combos
         window.filtrarLeads = () => {
             const busq = document.getElementById('buscador').value.toLowerCase();
-            const prov = document.getElementById('filtro-provincia').value; // Valor normalizado del combo
-            const loc = document.getElementById('filtro-localidad').value; // Valor normalizado del combo
+            const prov = document.getElementById('filtro-provincia').value; // Valor normalizado del combo (en minúsculas)
+            const loc = document.getElementById('filtro-localidad').value; // Valor normalizado del combo (en minúsculas)
 
             const filtrados = todosLosLeads.filter(l => {
                 const nombreComp = `${l.apellido || ''} ${l.nombres || ''}`.toLowerCase();
                 const matchBusq = nombreComp.includes(busq) || (l.whatsapp && l.whatsapp.includes(busq));
-                // Comparamos con los valores normalizados del lead
+                // Comparamos con los valores normalizados (en minúsculas) del lead
                 const matchProv = prov === "" || l.provincia_normalized === prov;
                 const matchLoc = loc === "" || l.localidad_normalized === loc;
                 return matchBusq && matchProv && matchLoc;
             });
 
-            // Actualizamos contadores de los combos
+            // Actualizamos contadores de los combos basados en la lista completa de leads
             document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l => l.provincia_normalized === prov).length : 0;
             document.getElementById('count-loc').innerText = loc ? todosLosLeads.filter(l => l.localidad_normalized === loc).length : 0;
 
@@ -391,9 +396,9 @@
                         <td style="color: var(--oro-alegre); font-size: 0.9em;">${lastSub}</td>
                         <td><b>${nombreFull}</b></td>
                         <td>${l.whatsapp || '---'}</td>
-                        <td style="color: #8892b0">${l.provincia || '---'}</td>
-                        <td style="color: #8892b0">${l.localidad || '---'}</td>
-                        <td class="col-usos">${l.usos_count}</td>
+                        <td style="color: #8892b0">${pascalCase(l.provincia || '---')}</td>
+                        <td style="color: #8892b0">${pascalCase(l.localidad || '---')}</td>
+                        <td class="col-usos">${l.usos_count || 0}</td> <!-- Mostramos 0 si no existe el campo -->
                         <td style="white-space: nowrap;">
                             <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${nombreFull}')">💎 VIP</button>
                             <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${nombreFull}')">🔄 RESTABLECER</button>
@@ -420,7 +425,7 @@
                     cupones_usados: [], 
                     canjes: [], 
                     usos: 0,
-                    usos_count: 0, // Reiniciamos también el nuevo campo
+                    usos_count: 0, // Reiniciamos el campo de conteo
                     lastSubmission: Date.now() 
                 });
             }
@@ -456,7 +461,7 @@
                         cupones_usados: [], 
                         canjes: [], 
                         usos: 0,
-                        usos_count: 0, // Reiniciamos también el nuevo campo
+                        usos_count: 0, // Reiniciamos el campo de conteo
                         lastSubmission: ahora 
                     });
                 });
