@@ -125,9 +125,9 @@
         .btn-del { background: var(--rojo); }
         
         .col-usos {
-            color: var(--oro-alegre);
+            color: var(--rojo);
             font-weight: bold;
-            font-size: 16px;
+            font-size: 18px;
             text-align: center;
         }
 
@@ -214,7 +214,7 @@
                     <th>WHATSAPP</th>
                     <th>PROVINCIA</th>
                     <th>CIUDAD</th>
-                    <th style="text-align: center;" onclick="ordenar('usos_count')">CANT. USOS ↕</th>
+                    <th style="text-align: center;">CANT. USOS ↕</th>
                     <th>ACCIONES</th>
                 </tr>
             </thead>
@@ -241,30 +241,7 @@
         let todosLosLeads = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        // --- FUNCIÓN DE DEBUG PARA VER EL CONTENIDO DE UN LEAD ---
-        async function debugPrimerLead() {
-            try {
-                const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
-                const snapshot = await getDocs(q);
-                if (!snapshot.empty) {
-                    const primerDoc = snapshot.docs[0]; // Tomamos el primer documento
-                    const data = primerDoc.data();
-                    const id = primerDoc.id;
-                    const cuponesUsados = data.cupones_usados;
-                    // Mostramos una alerta con el ID, el campo cupones_usados y su tipo
-                    alert(`DEBUG - ID Lead: ${id}\nCampo 'cupones_usados': ${JSON.stringify(cuponesUsados)}\nTipo: ${typeof cuponesUsados}\nEs Array: ${Array.isArray(cuponesUsados)}`);
-                } else {
-                    alert("DEBUG - No se encontraron Leads en la colección.");
-                }
-            } catch (e) {
-                console.error("Error en debugPrimerLead:", e);
-                alert(`DEBUG - Error al leer la colección: ${e.message}`);
-            }
-        }
-        // Ejecutamos la función de debug al cargar el script
-        debugPrimerLead();
-        // ------------------------------
-
+        // --- Cargar Provincias ---
         async function cargarProvincias() {
             try {
                 const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
@@ -296,49 +273,33 @@
         }
         cargarProvincias();
 
-        const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
-        onSnapshot(q, (snap) => {
-            // Recorremos cada documento de lead devuelto por la consulta
-            snap.docChanges().forEach(change => {
-                const docId = change.doc.id;
-                const data = change.doc.data();
-                
-                // Calculamos el número de usos SOLO desde el array 'cupones_usados'
-                // Incluimos el debug aquí también si es el documento que estamos inspeccionando
-                const usosCount = (data.cupones_usados && Array.isArray(data.cupones_usados)) ? data.cupones_usados.length : 0;
-                // console.log("DEBUG: Doc ID:", docId, "cupones_usados:", data.cupones_usados, "longitud:", usosCount);
+        // --- LÓGICA DE CONTEO REAL ---
+        async function obtenerConteoUsos(comercioId) {
+            try {
+                const qLogs = query(collection(db, "logs_vip"), where("comercioId", "==", comercioId));
+                const snap = await getDocs(qLogs);
+                return snap.size;
+            } catch (e) {
+                return 0;
+            }
+        }
 
-                if (change.type === "added") {
-                    // Nuevo lead o lead recién filtrado
-                    todosLosLeads.push({
-                        id: docId,
-                        ...data,
-                        usos_count: usosCount
-                    });
-                } else if (change.type === "modified") {
-                    // Lead actualizado (potencialmente cambiaron sus usos)
-                    const index = todosLosLeads.findIndex(l => l.id === docId);
-                    if (index !== -1) {
-                        todosLosLeads[index] = {
-                            id: docId,
-                            ...data,
-                            usos_count: usosCount
-                        };
-                    }
-                } else if (change.type === "removed") {
-                    // Lead eliminado o convertido a VIP (ya no cumple el filtro)
-                    todosLosLeads = todosLosLeads.filter(l => l.id !== docId);
-                }
+        // --- Firebase Snap ---
+        const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
+        onSnapshot(q, async (snap) => {
+            const tempLeads = [];
+            snap.forEach(d => {
+                tempLeads.push({ id: d.id, ...d.data() });
             });
-            // Aplicamos filtros, ordenación y renderizamos la tabla completa
+            todosLosLeads = tempLeads;
             aplicarOrdenYRender();
         });
 
         function aplicarOrdenYRender() {
             const { campo, asc } = ordenActual;
             todosLosLeads.sort((a, b) => {
-                let valA = a[campo] ?? '';
-                let valB = b[campo] ?? '';
+                let valA = a[campo] || '';
+                let valB = b[campo] || '';
                 if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
                 return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
             });
@@ -369,37 +330,43 @@
             renderizar(filtrados);
         };
 
-        function renderizar(datos) {
+        async function renderizar(datos) {
             const lista = document.getElementById('lista-leads');
             lista.innerHTML = "";
             document.getElementById('contador-total').innerText = datos.length;
 
-            datos.forEach(l => {
+            for (const l of datos) {
                 const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
                 const lastSub = (l.lastSubmission || l.fechaRegistro) ? new Date(l.lastSubmission || l.fechaRegistro).toLocaleString() : '---';
                 const suspendido = l.estado === 'suspendido';
                 const nombreFull = `${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}`;
                 
-                lista.innerHTML += `
-                    <tr style="${suspendido ? 'opacity: 0.5; background: rgba(220,53,69,0.05)' : ''}">
-                        <td style="color: #8892b0;">${fechaReg}</td>
-                        <td style="color: var(--oro-alegre); font-size: 0.9em;">${lastSub}</td>
-                        <td><b>${nombreFull}</b></td>
-                        <td>${l.whatsapp || '---'}</td>
-                        <td style="color: #8892b0">${l.provincia || '---'}</td>
-                        <td style="color: #8892b0">${l.localidad || '---'}</td>
-                        <td class="col-usos">${l.usos_count}</td>
-                        <td style="white-space: nowrap;">
-                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${nombreFull}')">💎 VIP</button>
-                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${nombreFull}')">🔄 RESTABLECER</button>
-                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${nombreFull}')">${suspendido ? '✅ ACTIVAR' : '🚫 SUSPENDER'}</button>
-                            <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
-                        </td>
-                    </tr>
+                // Obtenemos conteo real desde la base de datos de logs
+                const cantRealUsos = await obtenerConteoUsos(l.id);
+
+                const tr = document.createElement('tr');
+                if (suspendido) tr.style.cssText = "opacity: 0.5; background: rgba(220,53,69,0.05)";
+                
+                tr.innerHTML = `
+                    <td style="color: #8892b0;">${fechaReg}</td>
+                    <td style="color: var(--oro-alegre); font-size: 0.9em;">${lastSub}</td>
+                    <td><b>${nombreFull}</b></td>
+                    <td>${l.whatsapp || '---'}</td>
+                    <td style="color: #8892b0">${l.provincia || '---'}</td>
+                    <td style="color: #8892b0">${l.localidad || '---'}</td>
+                    <td class="col-usos">${cantRealUsos}</td>
+                    <td style="white-space: nowrap;">
+                        <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${nombreFull}')">💎 VIP</button>
+                        <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${nombreFull}')">🔄 RESTABLECER</button>
+                        <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${nombreFull}')">${suspendido ? '✅ ACTIVAR' : '🚫 SUSPENDER'}</button>
+                        <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
+                    </td>
                 `;
-            });
+                lista.appendChild(tr);
+            }
         }
 
+        // --- Acciones ---
         window.hacerVIP = async (id, nombre) => {
             if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
                 await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
@@ -410,13 +377,15 @@
 
         window.restablecerCupones = async (id, nombre) => {
             if(confirm(`¿Restablecer todos los cupones de ${nombre}?`)) {
+                // Para borrar los usos, habría que borrar los logs correspondientes o marcarlos como obsoletos
+                // Por ahora, reseteamos los campos internos del lead
                 await updateDoc(doc(db, "leads", id), { 
                     usados: [], 
                     cupones_usados: [], 
                     canjes: [], 
-                    usos: 0,
                     lastSubmission: Date.now() 
                 });
+                alert("Campos de cupón reseteados. Los logs de historial permanecen.");
             }
         };
 
@@ -449,7 +418,6 @@
                         usados: [], 
                         cupones_usados: [], 
                         canjes: [], 
-                        usos: 0,
                         lastSubmission: ahora 
                     });
                 });
