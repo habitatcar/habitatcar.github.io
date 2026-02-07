@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="Hábitat-Car">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIExlYWRzIiwKICAic2hvcnRfbmFtZSI6ICJIYeWiaXRhdC1DYXIiLAogIClY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyLmdpdGh1Yi5pby9ibG9iL21haW4vbG9nby5wbmc/cmF3PXRydWUiLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNKYWJsZSIKICAgIH0KICBdLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAwNDU5MCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDQ1OTAiCn0=">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIExlYWRzIiwKICAic2hvcnRfbmFtZSI6ICJIYeWiaXRhdC1DYXIiLAogIClY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyLmdpdGh1Yi5pby9ibG9iL21haW4vbG9nby5wbmc/cmF3PXRydWUiLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNJYWJsZSIKICAgIH0KICBdLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAwNDU5MCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDQ1OTAiCn0=">
 
     <script src="https://unpkg.com/html5-qrcode  "></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js  "></script>
@@ -602,16 +602,22 @@
                     });
                 } catch(eLog) { console.error("Error Log:", eLog); }
 
-                // 4. PERSISTENCIA EN FICHA DEL LEAD
+                // 4. PERSISTENCIA EN FICHA DEL LEAD (CORREGIDO)
                 try {
                     const leadRef = doc(db, "leads", leadId);
                     const leadSnap = await getDoc(leadRef);
                     if (leadSnap.exists()) {
-                        // ✅ Actualización corregida: incrementar usos_count
+                        const leadData = leadSnap.data();
+                        // Leemos el valor actual de usos_count o asumimos 0 si no existe
+                        const currentUsosCount = typeof leadData.usos_count === 'number' ? leadData.usos_count : 0;
+                        // Calculamos el nuevo valor
+                        const newUsosCount = currentUsosCount + 1;
+                        // Actualizamos el documento con el nuevo valor calculado
                         await updateDoc(leadRef, { 
                             cupones_usados: arrayUnion(id),
-                            usos_count: increment(1) // <-- Esto es lo que se agregó antes
+                            usos_count: newUsosCount // <-- Asignamos el nuevo valor calculado
                         });
+                        console.log("Documento Lead actualizado. Nuevo usos_count:", newUsosCount);
                     } else {
                         // Si no existe, lo creamos con usos_count inicializado en 1
                         await setDoc(leadRef, {
@@ -621,8 +627,12 @@
                             usos_count: 1, // <-- Inicializamos en 1
                             fecha_registro: ahora
                         });
+                        console.log("Documento Lead creado. usos_count inicializado en 1");
                     }
-                } catch(eLead) { console.error("Error Lead:", eLead); }
+                } catch(eLead) { 
+                    console.error("Error Lead:", eLead); 
+                    alert("Error al actualizar tu perfil: " + eLead.message);
+                }
 
                 // 5. ACTUALIZAR CONTADOR LOCAL
                 const nuevosUsos = getUsosLocales(id) + 1;
