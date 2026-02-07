@@ -239,6 +239,7 @@
         const db = getFirestore(app);
 
         let todosLosLeads = [];
+        let todosLosLogs = []; // Almacenará los logs de canje
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
         async function cargarProvincias() {
@@ -273,32 +274,29 @@
         cargarProvincias();
 
         // --- Escucha en tiempo real para la colección 'leads' ---
-        const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
-        onSnapshot(q, (snap) => {
+        const qLeads = query(collection(db, "leads"), where("convertidoVIP", "==", false));
+        onSnapshot(qLeads, (snap) => {
             snap.docChanges().forEach(change => {
                 const docId = change.doc.id;
                 const data = change.doc.data();
                 
-                // --- LÓGICA DE CONTEO CORREGIDA ---
-                // Ahora leemos EXCLUSIVAMENTE el campo 'usos_count' que se actualiza en usuarios_cupones_leads.html
-                // Si el campo no existe, asumimos 0 usos.
-                const usosCount = typeof data.usos_count === 'number' ? data.usos_count : 0;
-
                 if (change.type === "added") {
                     // Nuevo lead o lead recién filtrado
                     todosLosLeads.push({
                         id: docId,
                         ...data,
-                        usos_count: usosCount
+                        usos_count: 0 // Inicializamos en 0, se calculará después
                     });
                 } else if (change.type === "modified") {
-                    // Lead actualizado (potencialmente cambiaron sus usos)
+                    // Lead actualizado (otros datos, no necesariamente usos)
                     const index = todosLosLeads.findIndex(l => l.id === docId);
                     if (index !== -1) {
+                        // Mantenemos el usos_count calculado, solo actualizamos otros datos
+                        const currentUsos = todosLosLeads[index].usos_count;
                         todosLosLeads[index] = {
                             id: docId,
                             ...data,
-                            usos_count: usosCount
+                            usos_count: currentUsos
                         };
                     }
                 } else if (change.type === "removed") {
@@ -306,9 +304,47 @@
                     todosLosLeads = todosLosLeads.filter(l => l.id !== docId);
                 }
             });
-            // Aplicamos filtros, ordenación y renderizamos la tabla completa
-            aplicarOrdenYRender();
+            // Recalculamos usos y renderizamos después de cualquier cambio en 'leads'
+            recalcularYRenderizar();
         });
+
+        // --- Escucha en tiempo real para la colección 'logs_actividad' ---
+        const qLogs = query(collection(db, "logs_actividad"), where("accion", "==", "CANJE LEADS"));
+        onSnapshot(qLogs, (snap) => {
+            snap.docChanges().forEach(change => {
+                if (change.type === "added") {
+                    // Nuevo log de canje
+                    todosLosLogs.push(change.doc.data());
+                } else if (change.type === "removed") {
+                    // Log removido (poco común, pero por si acaso)
+                    const logData = change.doc.data();
+                    // Filtramos el log eliminado basado en campos únicos si es posible, o reconstruimos todo
+                    // Para simplificar, reconstruimos la lista completa
+                     todosLosLogs = [];
+                     snap.forEach(doc => {
+                         todosLosLogs.push(doc.data());
+                     });
+                }
+                 // Si fuera 'modified', también podríamos reconstruir o filtrar
+            });
+            // Recalculamos usos y renderizamos después de cualquier cambio en 'logs_actividad'
+            recalcularYRenderizar();
+        });
+
+        // --- Función para recalcular usos y renderizar ---
+        function recalcularYRenderizar() {
+            // Para cada lead, contamos cuántos logs de 'CANJE LEADS' tiene
+            todosLosLeads.forEach(lead => {
+                // El campo que identifica al usuario en los logs es 'nombreUsuario' según el código de usuarios_cupones_leads.html
+                // El formato es `${leadApellido} ${leadNombre}`
+                const nombreUsuario = `${lead.apellido || ''} ${lead.nombres || ''}`.trim();
+                const usosDelLead = todosLosLogs.filter(log => log.nombreUsuario === nombreUsuario).length;
+                lead.usos_count = usosDelLead;
+            });
+
+            // Aplicamos filtros, ordenación y renderizamos la tabla
+            aplicarOrdenYRender();
+        }
 
         function aplicarOrdenYRender() {
             const { campo, asc } = ordenActual;
@@ -391,8 +427,8 @@
                     cupones_usados: [], 
                     canjes: [], 
                     usos: 0,
-                    lastSubmission: Date.now(),
-                    usos_count: 0 // Reiniciamos también el nuevo campo
+                    usos_count: 0, // Reiniciamos también el nuevo campo
+                    lastSubmission: Date.now() 
                 });
             }
         };
