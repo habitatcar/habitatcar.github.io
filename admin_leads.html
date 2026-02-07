@@ -67,6 +67,7 @@
             border: 1px solid var(--celeste-habitat);
             color: white;
             font-size: 13px;
+            outline: none;
         }
         .input-busqueda { width: 250px; }
         .contador-naranja {
@@ -98,15 +99,13 @@
             font-size: 12px;
             border-bottom: 2px solid var(--celeste-habitat);
             cursor: pointer;
-            transition: background 0.2s;
         }
-        thead th:hover { background: var(--azul-medio); }
 
         td { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
         tr:hover { background: rgba(255,255,255,0.03); }
 
         .btn-action {
-            padding: 8px 12px;
+            padding: 10px 14px;
             border-radius: 6px;
             border: none;
             cursor: pointer;
@@ -116,9 +115,12 @@
             transition: 0.2s;
             text-transform: uppercase;
             font-size: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
         .btn-vip { background: var(--oro-alegre); color: black; }
-        .btn-reset { background: var(--celeste-habitat); }
+        .btn-reset { background: #0056b3; }
         .btn-suspend { background: var(--naranja); }
         .btn-del { background: var(--rojo); }
         
@@ -155,7 +157,7 @@
         <div class="cartel">
             <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="width: 140px;">
             <h2 style="color: var(--celeste-habitat)">¡Socio 💎 VIP Activado!</h2>
-            <p>El usuario ahora tiene acceso a beneficios exclusivos.</p>
+            <p>El usuario ha sido movido a la sección VIP</p>
             <span id="nombre-socio" style="font-size: 1.8em; font-weight: bold; color: var(--rojo); display: block; margin: 15px 0;">---</span>
             <button onclick="document.getElementById('modal-bienvenida').style.display='none'" style="margin-top: 20px; padding: 12px 25px; background: var(--azul-oscuro); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">CERRAR</button>
         </div>
@@ -171,7 +173,7 @@
             <a href="admin_curioso.html" class="nav-link">Curioso</a>
             <a href="admin_estadisticas.html" class="nav-link">Estadísticas</a>
             <a href="admin_logs.html" class="nav-link">Log</a>
-            <a href="index.html" class="nav-link">Salir</a>
+            <a href="index.html" class="nav-link">Panel Ingreso</a>
         </nav>
     </header>
 
@@ -180,24 +182,24 @@
             <input type="text" id="buscador" class="input-busqueda" placeholder="Buscar por apellido o WhatsApp..." onkeyup="filtrarLeads()">
             
             <select id="filtro-provincia" onchange="cargarLocalidades(this.value); filtrarLeads();">
-                <option value="">PROVINCIA (TODAS)</option>
+                <option value="">PROVINCIA</option>
             </select>
             <div class="contador-naranja" id="count-prov">0</div>
 
             <select id="filtro-localidad" onchange="filtrarLeads();">
-                <option value="">LOCALIDAD (TODAS)</option>
+                <option value="">LOCALIDAD</option>
             </select>
             <div class="contador-naranja" id="count-loc">0</div>
 
-            <select onchange="validarYRestablecerMasivo(this.value); this.value='';" style="border-color: var(--oro-alegre); font-weight: bold;">
-                <option value="">⚡ ACCIÓN MASIVA</option>
-                <option value="localidad">RESTABLECER LOCALIDAD</option>
-                <option value="provincia">RESTABLECER PROVINCIA</option>
-                <option value="pais">RESTABLECER TODO EL PAÍS</option>
+            <select onchange="validarYRestablecerMasivo(this.value); this.value='';" style="border-color: var(--celeste-habitat); font-weight: bold;">
+                <option value="">RESTABLECER CUPONES</option>
+                <option value="localidad">POR LOCALIDAD</option>
+                <option value="provincia">POR PROVINCIA</option>
+                <option value="pais">A TODO EL PAÍS</option>
             </select>
 
             <div style="margin-left: auto; font-weight: bold; color: var(--oro-alegre);">
-                Total Leads: <span id="contador-total">0</span>
+                Total: <span id="contador-total">0</span>
             </div>
         </div>
     </div>
@@ -207,12 +209,12 @@
             <thead>
                 <tr>
                     <th onclick="ordenar('fechaRegistro')">REGISTRO ↕</th>
-                    <th onclick="ordenar('lastSubmission')">ACTIVIDAD ↕</th>
+                    <th onclick="ordenar('lastSubmission')">ÚLT. ACTIVIDAD ↕</th>
                     <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE ↕</th>
                     <th>WHATSAPP</th>
-                    <th onclick="ordenar('provincia')">PROVINCIA ↕</th>
-                    <th onclick="ordenar('localidad')">LOCALIDAD ↕</th>
-                    <th style="text-align: center;" onclick="ordenar('usos_count')">USOS ↕</th>
+                    <th>PROVINCIA</th>
+                    <th>CIUDAD</th>
+                    <th style="text-align: center;" onclick="ordenar('usos_count')">CANT. USOS ↕</th>
                     <th>ACCIONES</th>
                 </tr>
             </thead>
@@ -239,10 +241,10 @@
         let todosLosLeads = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        // --- Cargar Provincias desde API ---
+        // --- Cargar Provincias ---
         async function cargarProvincias() {
             try {
-                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=id,nombre");
+                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
                 const data = await res.json();
                 const combo = document.getElementById('filtro-provincia');
                 data.provincias.sort((a,b) => a.nombre.localeCompare(b.nombre)).forEach(p => {
@@ -251,12 +253,12 @@
                     opt.textContent = p.nombre.toUpperCase();
                     combo.appendChild(opt);
                 });
-            } catch (e) { console.error("Error provincias:", e); }
+            } catch (e) { console.error(e); }
         }
 
         window.cargarLocalidades = async (provNombre) => {
             const comboLoc = document.getElementById('filtro-localidad');
-            comboLoc.innerHTML = '<option value="">LOCALIDAD (TODAS)</option>';
+            comboLoc.innerHTML = '<option value="">LOCALIDAD</option>';
             if(!provNombre) return;
             try {
                 const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${provNombre}&max=1000&campos=nombre`);
@@ -267,16 +269,16 @@
                     opt.textContent = m.nombre.toUpperCase();
                     comboLoc.appendChild(opt);
                 });
-            } catch (e) { console.error("Error localidades:", e); }
+            } catch (e) { console.error(e); }
         }
+        cargarProvincias();
 
-        // --- Escucha de Datos en Tiempo Real ---
+        // --- Firebase Snap ---
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
         onSnapshot(q, (snap) => {
             todosLosLeads = [];
             snap.forEach(d => {
                 const data = d.data();
-                // Inyectamos un campo virtual para ordenar por cantidad de usos
                 todosLosLeads.push({
                     id: d.id, 
                     ...data,
@@ -291,10 +293,7 @@
             todosLosLeads.sort((a, b) => {
                 let valA = a[campo] || '';
                 let valB = b[campo] || '';
-                if (typeof valA === 'string') {
-                    valA = valA.toLowerCase();
-                    valB = valB.toLowerCase();
-                }
+                if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
                 return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
             });
             filtrarLeads();
@@ -312,17 +311,15 @@
             const loc = document.getElementById('filtro-localidad').value;
 
             const filtrados = todosLosLeads.filter(l => {
-                const nombreComp = `${l.apellido} ${l.nombres}`.toLowerCase();
+                const nombreComp = `${l.apellido || ''} ${l.nombres || ''}`.toLowerCase();
                 const matchBusq = nombreComp.includes(busq) || (l.whatsapp && l.whatsapp.includes(busq));
                 const matchProv = prov === "" || l.provincia === prov;
                 const matchLoc = loc === "" || l.localidad === loc;
                 return matchBusq && matchProv && matchLoc;
             });
 
-            // Actualizar contadores dinámicos de los selectores
             document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l => l.provincia === prov).length : 0;
             document.getElementById('count-loc').innerText = loc ? todosLosLeads.filter(l => l.localidad === loc).length : 0;
-            
             renderizar(filtrados);
         };
 
@@ -335,20 +332,21 @@
                 const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
                 const lastSub = (l.lastSubmission || l.fechaRegistro) ? new Date(l.lastSubmission || l.fechaRegistro).toLocaleString() : '---';
                 const suspendido = l.estado === 'suspendido';
+                const nombreFull = `${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}`;
                 
                 lista.innerHTML += `
                     <tr style="${suspendido ? 'opacity: 0.5; background: rgba(220,53,69,0.05)' : ''}">
                         <td style="color: #8892b0;">${fechaReg}</td>
-                        <td style="color: var(--oro-alegre); font-size: 0.85em;">${lastSub}</td>
-                        <td><b>${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}</b></td>
+                        <td style="color: var(--oro-alegre); font-size: 0.9em;">${lastSub}</td>
+                        <td><b>${nombreFull}</b></td>
                         <td>${l.whatsapp || '---'}</td>
-                        <td style="color: #8892b0; font-size: 0.85em;">${l.provincia || '---'}</td>
-                        <td style="color: #8892b0; font-size: 0.85em;">${l.localidad || '---'}</td>
+                        <td style="color: #8892b0">${l.provincia || '---'}</td>
+                        <td style="color: #8892b0">${l.localidad || '---'}</td>
                         <td class="col-usos">${l.usos_count}</td>
                         <td style="white-space: nowrap;">
-                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${l.apellido} ${l.nombres}')">💎 VIP</button>
-                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${l.apellido} ${l.nombres}')">🔄</button>
-                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${l.apellido} ${l.nombres}')">${suspendido ? '✅' : '🚫'}</button>
+                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${nombreFull}')">💎 VIP</button>
+                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${nombreFull}')">🔄 RESTABLECER</button>
+                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${nombreFull}')">${suspendido ? '✅ ACTIVAR' : '🚫 SUSPENDER'}</button>
                             <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
                         </td>
                     </tr>
@@ -356,21 +354,17 @@
             });
         }
 
-        // --- Funciones de Acción ---
+        // --- Acciones de Botón ---
         window.hacerVIP = async (id, nombre) => {
             if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
-                await updateDoc(doc(db, "leads", id), { 
-                    convertidoVIP: true, 
-                    fechaVIP: Date.now(),
-                    estado: 'activo' 
-                });
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
                 document.getElementById('nombre-socio').innerText = nombre;
                 document.getElementById('modal-bienvenida').style.display = 'flex';
             }
         };
 
         window.restablecerCupones = async (id, nombre) => {
-            if(confirm(`¿Vaciar usos y canjes de ${nombre}?`)) {
+            if(confirm(`¿Restablecer todos los cupones de ${nombre}?`)) {
                 await updateDoc(doc(db, "leads", id), { 
                     usados: [], 
                     cupones_usados: [], 
@@ -388,46 +382,34 @@
         };
 
         window.borrarLead = async (id) => {
-            if(confirm("¿ELIMINAR DEFINITIVAMENTE de la base de datos?")) {
-                await deleteDoc(doc(db, "leads", id));
-            }
+            if(confirm("¿Eliminar este lead de forma permanente?")) await deleteDoc(doc(db, "leads", id));
         };
 
         window.validarYRestablecerMasivo = async (tipo) => {
             if (!tipo) return;
-            const pass = prompt("Clave Maestra ADMIN:");
-            if (pass !== "admin1234") return alert("Clave incorrecta");
+            const pass = prompt("Clave ADMIN:");
+            if (pass !== "admin1234") return alert("Clave Incorrecta");
 
             let filtrados = [];
             if (tipo === "pais") filtrados = todosLosLeads;
-            else if (tipo === "provincia") {
-                const p = document.getElementById('filtro-provincia').value;
-                if(!p) return alert("Seleccione una provincia primero");
-                filtrados = todosLosLeads.filter(l => l.provincia === p);
-            }
-            else if (tipo === "localidad") {
-                const l = document.getElementById('filtro-localidad').value;
-                if(!l) return alert("Seleccione una localidad primero");
-                filtrados = todosLosLeads.filter(l => l.localidad === l);
-            }
+            else if (tipo === "provincia") filtrados = todosLosLeads.filter(l => l.provincia === document.getElementById('filtro-provincia').value);
+            else if (tipo === "localidad") filtrados = todosLosLeads.filter(l => l.localidad === document.getElementById('filtro-localidad').value);
 
             if(confirm(`¿Restablecer cupones de ${filtrados.length} usuarios?`)) {
                 const batch = writeBatch(db);
+                const ahora = Date.now();
                 filtrados.forEach(l => {
                     batch.update(doc(db, "leads", l.id), { 
                         usados: [], 
                         cupones_usados: [], 
                         canjes: [], 
-                        lastSubmission: Date.now() 
+                        lastSubmission: ahora 
                     });
                 });
                 await batch.commit();
-                alert("Operación masiva completada.");
+                alert("Restablecimiento masivo completado.");
             }
         };
-
-        // Iniciar
-        cargarProvincias();
     </script>
 </body>
 </html>
