@@ -293,13 +293,14 @@
         </div>
     </div>
 
+    <!-- Overlay de Confirmación Original -->
     <div id="overlay-atencion" class="custom-overlay">
         <div class="custom-alert">
             <h2 style="color:#e63946">⚠️ ATENCIÓN</h2>
             <p>¿Avisaste al cajero que usarás el cupón <b>LEADS</b>?</p>
             <p>Si no avisaste, perderás el beneficio.</p>
             <div class="btn-group-alert">
-                <button="btn-confirmar-final" class="btn-alert btn-si">SÍ</button>
+                <button id="btn-confirmar-final" class="btn-alert btn-si">SÍ</button>
                 <button class="btn-alert btn-no" onclick="cerrarAtencion()">NO</button>
             </div>
         </div>
@@ -498,11 +499,10 @@
         window.cerrarAtencion = () => { document.getElementById('overlay-atencion').style.display = 'none'; };
 
         window.confirmarAtencion = (id, nom) => {
-            const overlay = document.getElementById('overlay-atencion');
-            overlay.style.display = 'flex';
-            const btnSi = document.getElementById('btn-confirmar-final');
-            btnSi.onclick = () => {
-                overlay.style.display = 'none';
+            document.getElementById('overlay-atencion').style.display = 'flex'; // Muestra el overlay original
+            // Configura el botón "SÍ" para llamar a finalizar
+            document.getElementById('btn-confirmar-final').onclick = () => {
+                document.getElementById('overlay-atencion').style.display = 'none';
                 finalizar(id, nom);
             };
         };
@@ -551,7 +551,8 @@
                 
                 // 1. Obtener ID de validación (Basado en total usos del comercio)
                 const snapCom = await getDoc(refComercio);
-                const totalActual = (snapCom.data().totalUsos || 0) + 1;
+                const dataCom = snapCom.data();
+                const totalActual = (dataCom.totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
                 // 2. ACTUALIZACIÓN COMERCIO (Estadísticas)
@@ -585,15 +586,13 @@
                     const leadRef = doc(db, "leads", leadId);
                     const leadSnap = await getDoc(leadRef);
                     if (leadSnap.exists()) {
-                        // ✅ Aquí es la modificación clave:
-                        // 1. Añadimos el ID del comercio al array `cupones_usados`
-                        // 2. Incrementamos el campo `usos_count` en 1
+                        // ✅ Actualización corregida: incrementar usos_count
                         await updateDoc(leadRef, { 
                             cupones_usados: arrayUnion(id),
-                            usos_count: increment(1) // <-- Esto es lo nuevo
+                            usos_count: increment(1) // <-- Esto es lo que se agregó antes
                         });
                     } else {
-                        // Si no existe, lo creamos con `usos_count` inicializado en 1
+                        // Si no existe, lo creamos con usos_count inicializado en 1
                         await setDoc(leadRef, {
                             nombre: leadNombre,
                             apellido: leadApellido,
