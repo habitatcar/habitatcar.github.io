@@ -125,9 +125,9 @@
         .btn-del { background: var(--rojo); }
         
         .col-usos {
-            color: var(--rojo);
+            color: var(--oro-alegre); /* Cambié el color a oro para destacarlo */
             font-weight: bold;
-            font-size: 18px;
+            font-size: 16px;
             text-align: center;
         }
 
@@ -272,28 +272,40 @@
         }
         cargarProvincias();
 
+        // --- Escucha en tiempo real para la colección 'leads' ---
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
         onSnapshot(q, (snap) => {
-            todosLosLeads = [];
-            snap.forEach(d => {
-                const data = d.data();
+            // Recorremos cada documento de lead devuelto por la consulta
+            snap.docChanges().forEach(change => {
+                const docId = change.doc.id;
+                const data = change.doc.data();
                 
-                // --- LÓGICA DE CONTEO ROBUSTA ---
-                // Sumamos o tomamos el máximo de todos los posibles campos de uso
-                const c1 = (data.cupones_usados && Array.isArray(data.cupones_usados)) ? data.cupones_usados.length : 0;
-                const c2 = (data.usados && Array.isArray(data.usados)) ? data.usados.length : 0;
-                const c3 = (data.canjes && Array.isArray(data.canjes)) ? data.canjes.length : 0;
-                const c4 = typeof data.usos === 'number' ? data.usos : 0;
-                
-                // Definimos el total real de usos detectados
-                const realUsos = Math.max(c1, c2, c3, c4);
+                // Calculamos el número de usos SOLO desde el array 'cupones_usados'
+                const usosCount = (data.cupones_usados && Array.isArray(data.cupones_usados)) ? data.cupones_usados.length : 0;
 
-                todosLosLeads.push({
-                    id: d.id, 
-                    ...data,
-                    usos_count: realUsos
-                });
+                if (change.type === "added") {
+                    // Nuevo lead o lead recién filtrado
+                    todosLosLeads.push({
+                        id: docId,
+                        ...data,
+                        usos_count: usosCount
+                    });
+                } else if (change.type === "modified") {
+                    // Lead actualizado (potencialmente cambiaron sus usos)
+                    const index = todosLosLeads.findIndex(l => l.id === docId);
+                    if (index !== -1) {
+                        todosLosLeads[index] = {
+                            id: docId,
+                            ...data,
+                            usos_count: usosCount
+                        };
+                    }
+                } else if (change.type === "removed") {
+                    // Lead eliminado o convertido a VIP (ya no cumple el filtro)
+                    todosLosLeads = todosLosLeads.filter(l => l.id !== docId);
+                }
             });
+            // Aplicamos filtros, ordenación y renderizamos la tabla completa
             aplicarOrdenYRender();
         });
 
