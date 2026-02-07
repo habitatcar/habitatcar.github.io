@@ -125,7 +125,7 @@
         .btn-del { background: var(--rojo); }
         
         .col-usos {
-            color: var(--oro-alegre); /* Cambié el color a oro para destacarlo */
+            color: var(--oro-alegre);
             font-weight: bold;
             font-size: 16px;
             text-align: center;
@@ -224,7 +224,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -240,6 +240,30 @@
 
         let todosLosLeads = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
+
+        // --- FUNCIÓN DE DEBUG PARA VER EL CONTENIDO DE UN LEAD ---
+        async function debugPrimerLead() {
+            try {
+                const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
+                const snapshot = await getDocs(q);
+                if (!snapshot.empty) {
+                    const primerDoc = snapshot.docs[0]; // Tomamos el primer documento
+                    const data = primerDoc.data();
+                    const id = primerDoc.id;
+                    const cuponesUsados = data.cupones_usados;
+                    // Mostramos una alerta con el ID, el campo cupones_usados y su tipo
+                    alert(`DEBUG - ID Lead: ${id}\nCampo 'cupones_usados': ${JSON.stringify(cuponesUsados)}\nTipo: ${typeof cuponesUsados}\nEs Array: ${Array.isArray(cuponesUsados)}`);
+                } else {
+                    alert("DEBUG - No se encontraron Leads en la colección.");
+                }
+            } catch (e) {
+                console.error("Error en debugPrimerLead:", e);
+                alert(`DEBUG - Error al leer la colección: ${e.message}`);
+            }
+        }
+        // Ejecutamos la función de debug al cargar el script
+        debugPrimerLead();
+        // ------------------------------
 
         async function cargarProvincias() {
             try {
@@ -272,7 +296,6 @@
         }
         cargarProvincias();
 
-        // --- Escucha en tiempo real para la colección 'leads' ---
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
         onSnapshot(q, (snap) => {
             // Recorremos cada documento de lead devuelto por la consulta
@@ -281,7 +304,9 @@
                 const data = change.doc.data();
                 
                 // Calculamos el número de usos SOLO desde el array 'cupones_usados'
+                // Incluimos el debug aquí también si es el documento que estamos inspeccionando
                 const usosCount = (data.cupones_usados && Array.isArray(data.cupones_usados)) ? data.cupones_usados.length : 0;
+                // console.log("DEBUG: Doc ID:", docId, "cupones_usados:", data.cupones_usados, "longitud:", usosCount);
 
                 if (change.type === "added") {
                     // Nuevo lead o lead recién filtrado
