@@ -127,7 +127,7 @@
         .col-usos {
             color: var(--rojo);
             font-weight: bold;
-            font-size: 16px;
+            font-size: 18px;
             text-align: center;
         }
 
@@ -241,7 +241,6 @@
         let todosLosLeads = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        // --- Cargar Provincias ---
         async function cargarProvincias() {
             try {
                 const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
@@ -273,16 +272,26 @@
         }
         cargarProvincias();
 
-        // --- Firebase Snap ---
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", false));
         onSnapshot(q, (snap) => {
             todosLosLeads = [];
             snap.forEach(d => {
                 const data = d.data();
+                
+                // --- LÓGICA DE CONTEO ROBUSTA ---
+                // Sumamos o tomamos el máximo de todos los posibles campos de uso
+                const c1 = (data.cupones_usados && Array.isArray(data.cupones_usados)) ? data.cupones_usados.length : 0;
+                const c2 = (data.usados && Array.isArray(data.usados)) ? data.usados.length : 0;
+                const c3 = (data.canjes && Array.isArray(data.canjes)) ? data.canjes.length : 0;
+                const c4 = typeof data.usos === 'number' ? data.usos : 0;
+                
+                // Definimos el total real de usos detectados
+                const realUsos = Math.max(c1, c2, c3, c4);
+
                 todosLosLeads.push({
                     id: d.id, 
                     ...data,
-                    usos_count: data.cupones_usados ? data.cupones_usados.length : 0
+                    usos_count: realUsos
                 });
             });
             aplicarOrdenYRender();
@@ -291,8 +300,8 @@
         function aplicarOrdenYRender() {
             const { campo, asc } = ordenActual;
             todosLosLeads.sort((a, b) => {
-                let valA = a[campo] || '';
-                let valB = b[campo] || '';
+                let valA = a[campo] ?? '';
+                let valB = b[campo] ?? '';
                 if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
                 return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
             });
@@ -354,7 +363,6 @@
             });
         }
 
-        // --- Acciones de Botón ---
         window.hacerVIP = async (id, nombre) => {
             if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
                 await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
@@ -369,6 +377,7 @@
                     usados: [], 
                     cupones_usados: [], 
                     canjes: [], 
+                    usos: 0,
                     lastSubmission: Date.now() 
                 });
             }
@@ -403,6 +412,7 @@
                         usados: [], 
                         cupones_usados: [], 
                         canjes: [], 
+                        usos: 0,
                         lastSubmission: ahora 
                     });
                 });
