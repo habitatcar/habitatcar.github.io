@@ -356,7 +356,7 @@
         localStorage.setItem('habitat_auth', 'true');
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -402,80 +402,83 @@
         let idEnProceso = "";
         let tokenEsperado = "";
         
-        const getUsados = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
         const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
 
-        onSnapshot(collection(db, "comercios"), (snap) => {
-            const contenedor = document.getElementById('contenedor-cupones');
-            const usados = getUsados();
-            const inicios = getInicios();
-            let html = "";
-            let huboCambioInicio = false;
+        // ESCUCHA DE DATOS (COMERCIOS + ESTADO DEL LEAD EN FIREBASE)
+        onSnapshot(doc(db, "leads", leadId), (leadSnap) => {
+            const cuponesUsadosEnFirebase = leadSnap.exists() ? (leadSnap.data().cupones_usados || []) : [];
+            
+            onSnapshot(collection(db, "comercios"), (snap) => {
+                const contenedor = document.getElementById('contenedor-cupones');
+                const inicios = getInicios();
+                let html = "";
+                let huboCambioInicio = false;
 
-            snap.forEach(docSnap => {
-                const c = docSnap.data();
-                const id = docSnap.id;
-                if (c.estado === "inactivo") return;
+                snap.forEach(docSnap => {
+                    const c = docSnap.data();
+                    const id = docSnap.id;
+                    if (c.estado === "inactivo") return;
 
-                const esUsado = usados.includes(id);
-                const nombre = c.nombre || "Local";
-                const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
-                
-                let diasRestantes = vigenciaTotal;
-                let mostrarReloj = vigenciaTotal > 0;
+                    const esUsado = cuponesUsadosEnFirebase.includes(id);
+                    const nombre = c.nombre || "Local";
+                    const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
+                    
+                    let diasRestantes = vigenciaTotal;
+                    let mostrarReloj = vigenciaTotal > 0;
 
-                if (mostrarReloj) {
-                    if (!inicios[id]) {
-                        inicios[id] = Date.now();
-                        huboCambioInicio = true;
+                    if (mostrarReloj) {
+                        if (!inicios[id]) {
+                            inicios[id] = Date.now();
+                            huboCambioInicio = true;
+                        }
+                        const transcurrido = Date.now() - inicios[id];
+                        const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
+                        diasRestantes = vigenciaTotal - diasPasados;
                     }
-                    const transcurrido = Date.now() - inicios[id];
-                    const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
-                    diasRestantes = vigenciaTotal - diasPasados;
+
+                    if (mostrarReloj && diasRestantes < 0) return;
+
+                    let htmlLogo = "";
+                    if (c.logoUrl && c.logoUrl.trim() !== "") {
+                        htmlLogo = `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>`;
+                    }
+
+                    const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
+                    const token = c.tokenQR || "";
+                    const ig = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/${c.instagram.replace('@','')}`) : "";
+                    const web = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : "";
+                    const tieneRedes = (ig !== "" || web !== "");
+                    
+                    let infoVencimiento = "";
+                    if (!mostrarReloj) {
+                        infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)`;
+                    } else if (diasRestantes <= 3) {
+                        infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>`;
+                    } else {
+                        infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
+                    }
+
+                    html += `
+                        <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
+                            ${htmlLogo}
+                            <div class="nombre-c">${nombre}</div>
+                            <div class="beneficio-c">${beneficio}</div>
+                            <span class="info-txt">${infoVencimiento}</span>
+                            ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
+                            <div class="btn-stack">
+                                ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
+                                <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
+                                <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
+                                <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">Usar el Beneficio</button>
+                            </div>
+                        </div>`;
+                });
+
+                if (huboCambioInicio) {
+                    localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
                 }
-
-                if (mostrarReloj && diasRestantes < 0) return;
-
-                let htmlLogo = "";
-                if (c.logoUrl && c.logoUrl.trim() !== "") {
-                    htmlLogo = `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>`;
-                }
-
-                const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
-                const token = c.tokenQR || "";
-                const ig = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/${c.instagram.replace('@','')}`) : "";
-                const web = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : "";
-                const tieneRedes = (ig !== "" || web !== "");
-                
-                let infoVencimiento = "";
-                if (!mostrarReloj) {
-                    infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)`;
-                } else if (diasRestantes <= 3) {
-                    infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>`;
-                } else {
-                    infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
-                }
-
-                html += `
-                    <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
-                        ${htmlLogo}
-                        <div class="nombre-c">${nombre}</div>
-                        <div class="beneficio-c">${beneficio}</div>
-                        <span class="info-txt">${infoVencimiento}</span>
-                        ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
-                        <div class="btn-stack">
-                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
-                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
-                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">Usar el Beneficio</button>
-                        </div>
-                    </div>`;
+                contenedor.innerHTML = html;
             });
-
-            if (huboCambioInicio) {
-                localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
-            }
-            contenedor.innerHTML = html;
         });
 
         window.cerrarValidado = () => {
@@ -549,11 +552,13 @@
             try {
                 const ahora = Date.now();
                 const ref = doc(db, "comercios", id);
+                const leadRef = doc(db, "leads", leadId);
                 
                 const snapAntes = await getDoc(ref);
                 const totalActual = (snapAntes.data().totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
+                // 1. Actualizar contador en comercio
                 await updateDoc(ref, {
                     totalUsos: increment(1),
                     usosHoy: increment(1),
@@ -563,7 +568,12 @@
                     lastSubmission: ahora
                 });
 
-                // --- ESTA ES LA PARTE QUE REGISTRA EL DATO PARA EL PANEL ---
+                // 2. REGISTRAR USO EN LA FICHA DEL LEAD (PARA PANEL ADMIN Y PERSISTENCIA)
+                await updateDoc(leadRef, {
+                    cupones_usados: arrayUnion(id)
+                });
+
+                // 3. Registrar Log de Actividad
                 await addDoc(collection(db, "logs_actividad"), {
                     timestamp: ahora,
                     tipo: "canje",
@@ -596,9 +606,6 @@
                     document.getElementById('countdown').innerText = s;
                     if(s <= 0) { 
                         clearInterval(t); 
-                        const u = getUsados(); 
-                        u.push(id); 
-                        localStorage.setItem('usados_v16_ok', JSON.stringify(u)); 
                         location.reload(); 
                     }
                 }, 1000);
