@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="Hábitat-Car">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIExlYWRzIiwKICAic2hvcnRfbmFtZSI6ICJIYeWiaXRhdC1DYXIiLAogIClY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyLmdpdGh1Yi5pby9ibG9iL21haW4vbG9nby5wbmc/cmF3PXRydWUiLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNKYWJsZSIKICAgIH0KICBdLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAwNDU5MCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDQ1OTAiCn0=">
+    <link rel="manifest" href="application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIExlYWRzIiwKICAic2hvcnRfbmFtZSI6ICJIYeWiaXRhdC1DYXIiLAogIClY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyLmdpdGh1Yi5pby9ibG9iL21haW4vbG9nby5wbmc/cmF3PXRydWUiLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNKYWJsZSIKICAgIH0KICBdLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAwNDU5MCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDQ1OTAiCn0=">
 
     <script src="https://unpkg.com/html5-qrcode  "></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js  "></script>
@@ -422,10 +422,11 @@
             return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
         };
 
-        // ESCUCHA PRIMERO LOS DATOS DEL USUARIO PARA TENER LOS USOS DE LA NUBE
+        // ESCUCHAMOS AL USUARIO PARA TENER LOS CONTEOS DE LA NUBE
         onSnapshot(doc(db, "leads", leadId), (leadSnap) => {
             const leadData = leadSnap.data() || {};
-            
+            // const conteosNube = leadData.conteos_por_comercio || {}; // Ya no se usa
+
             onSnapshot(collection(db, "comercios"), (snap) => {
                 const contenedor = document.getElementById('contenedor-cupones');
                 const inicios = getInicios();
@@ -437,14 +438,17 @@
                     const id = docSnap.id;
                     if (c.estado === "inactivo") return;
 
-                    // LÓGICA DE NUBE: Lee el campo "usos" que mostraste en tu foto
-                    // Si el comercio es "Almacén La Esquina", busca leadData["Almacén La Esquina"].usos
-                    const dataComercioUsuario = leadData[c.nombre] || {};
-                    const nUso = dataComercioUsuario.usos || 0;
-                    const esUsado = nUso > 0; // Se bloquea (pone gris) si ya se usó
+                    // NUEVA LÓGICA: Leemos el contador de este comercio desde la nube
+                    // const nUso = conteosNube[c.nombre] || 0; // Línea antigua
+                    const nombre = c.nombre || "Local"; // Definimos nombre aquí
+                    // const nUso = (leadData[nombre] && leadData[nombre].usos) ? leadData[nombre].usos : 0; // <-- Anteriormente aplicado
+                    // const nUso = (leadData && leadData[nombre]) ? leadData[nombre].usos : 0; // <-- Aplicando cambio solicitado Paso 2
+                    const nUso = (leadData[c.nombre] && leadData[c.nombre].usos) ? leadData[c.nombre].usos : 0; // <-- Aplicando cambio solicitado Paso 2 (corregido)
 
-                    const nombre = c.nombre || "Local";
+                    const esUsado = nUso > 0; // Se bloquea si ya se usó al menos una vez
+
                     const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
+                    
                     let diasRestantes = vigenciaTotal;
                     let mostrarReloj = vigenciaTotal > 0;
 
@@ -457,16 +461,28 @@
                         const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
                         diasRestantes = vigenciaTotal - diasPasados;
                     }
+
                     if (mostrarReloj && diasRestantes < 0) return;
 
-                    let htmlLogo = (c.logoUrl && c.logoUrl.trim() !== "") ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : "";
+                    let htmlLogo = "";
+                    if (c.logoUrl && c.logoUrl.trim() !== "") {
+                        htmlLogo = `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>`;
+                    }
+
                     const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
                     const token = c.tokenQR || "";
                     const ig = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/  ${c.instagram.replace('@','')}`) : "";
                     const web = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : "";
                     const tieneRedes = (ig !== "" || web !== "");
                     
-                    let infoVencimiento = !mostrarReloj ? `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)` : (diasRestantes <= 3 ? `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>` : `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`);
+                    let infoVencimiento = "";
+                    if (!mostrarReloj) {
+                        infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)`;
+                    } else if (diasRestantes <= 3) {
+                        infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>`;
+                    } else {
+                        infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
+                    }
 
                     html += `
                         <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
@@ -480,12 +496,15 @@
                                 <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=  ${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
                                 <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
                                 <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">
-                                    Usar el Beneficio <span class="contador-nube">${nUso}</span>
+                                    Usar el Beneficio <span class="contador-nube">${nUso || 0}</span> <!-- Aplicando cambio solicitado Paso 2 -->
                                 </button>
                             </div>
                         </div>`;
                 });
-                if (huboCambioInicio) localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
+
+                if (huboCambioInicio) {
+                    localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
+                }
                 contenedor.innerHTML = html;
             });
         });
@@ -554,6 +573,7 @@
             navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
         };
 
+        // Reemplazo de la función window.finalizar (Línea 367 aprox.)
         window.finalizar = async (id, nom) => {
             try {
                 const ahora = new Date();
@@ -561,25 +581,23 @@
                 const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const timestamp = ahora.getTime();
 
+                // 1. OBTENER DATOS DEL COMERCIO
                 const refComercio = doc(db, "comercios", id);
                 const snapCom = await getDoc(refComercio);
                 const totalActual = (snapCom.data().totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
-                // 1. ACTUALIZACIÓN COMERCIO
+                // 2. ACTUALIZAR COMERCIO Y LOGS
                 await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
-
-                // 2. LOG DE ACTIVIDAD
                 await addDoc(collection(db, "logs_actividad"), {
                     timestamp: timestamp, tipo: "canje", accion: "CANJE LEADS",
                     nombreComercio: nom, usuarioId: leadId, idValidacion: idManual
                 });
 
-                // 3. ACTUALIZACIÓN DINÁMICA DEL LEAD (Estructura según tu foto)
+                // 3. GUARDADO FORZOSO EN LEADS (Evita el error de sesión no válida)
                 const leadRef = doc(db, "leads", leadId);
                 
-                // Usamos setDoc con {merge: true} para asegurar que se cree el campo si no existe
-                // Esto suma 1 al campo 'usos' dentro del objeto con el nombre del comercio
+                // Usamos setDoc con {merge: true} para que si el documento NO EXISTE, lo cree.
                 await setDoc(leadRef, {
                     [nom]: {
                         usos: increment(1),
@@ -587,14 +605,17 @@
                         ultima_fecha: fechaLegible
                     },
                     cupones_detallados: arrayUnion({
-                        comercio: nom, fecha: fechaLegible, hora: horaLegible,
-                        codigo: idManual, timestamp: timestamp
+                        comercio: nom,
+                        fecha: fechaLegible,
+                        hora: horaLegible,
+                        codigo: idManual,
+                        timestamp: timestamp
                     }),
                     usos_count: increment(1),
                     ultimo_canje: timestamp
                 }, { merge: true });
 
-                // 4. ÉXITO VISUAL
+                // 4. MOSTRAR ÉXITO
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
                 JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
@@ -608,8 +629,8 @@
                 }, 1000);
 
             } catch(e) { 
-                alert("Error crítico: El usuario no existe en la base de datos."); 
-                console.error(e);
+                console.error("Error Real de Firebase:", e);
+                alert("Error al guardar: " + e.message); 
             }
         };
 
