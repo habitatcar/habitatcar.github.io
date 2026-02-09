@@ -380,14 +380,13 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-       // LEEMOS EL ID REAL QUE DEJÓ EL REGISTRO
+        // --- LÓGICA DE VÍNCULO CON EL REGISTRO (ANTI-FANTASMAS) ---
         const leadId = localStorage.getItem('leadId_habitat'); 
         
-        // SEGURIDAD: Si no hay ID, lo mandamos a registrarse (Evita Fantasmas)
         if (!leadId) {
             window.location.replace("usuarios_registro_lead.html");
         }
-        // ------------------------------------
+        // ---------------------------------------------------------
 
         let deferredPrompt;
         const btnInstalar = document.getElementById('btn-instalar-pwa');
@@ -419,12 +418,10 @@
         const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
         const getUsadosLocal = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
 
-        // Función para obtener el número de usos locales de un comercio específico
         const getUsosLocales = (comercioId) => {
             return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
         };
 
-        // RENDERIZADO GARANTIZADO: Primero los comercios, luego validamos el estado del lead
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-cupones');
             const inicios = getInicios();
@@ -476,7 +473,6 @@
                     infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
                 }
 
-                // Obtenemos el número de usos locales para este comercio
                 const nUso = getUsosLocales(id);
 
                 html += `
@@ -502,20 +498,6 @@
             }
             contenedor.innerHTML = html;
         });
-
-        // Sync con Firebase para cupones usados si el lead existe
-        const syncUsados = async () => {
-            try {
-                const lSnap = await getDoc(doc(db, "leads", leadId));
-                if (lSnap.exists()) {
-                    const deFirebase = lSnap.data().cupones_usados || [];
-                    const locales = getUsadosLocal();
-                    const combinados = [...new Set([...locales, ...deFirebase])];
-                    localStorage.setItem('usados_v16_ok', JSON.stringify(combinados));
-                }
-            } catch(e) {}
-        };
-        syncUsados();
 
         window.cerrarValidado = () => { document.getElementById('overlay-validado').style.display = 'none'; };
         window.cerrarErrorQR = () => { document.getElementById('overlay-error-qr').style.display = 'none'; };
@@ -566,10 +548,11 @@
             navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
         };
 
-        try {
+        window.finalizar = async (id, nom) => {
+            try {
                 const ahora = new Date();
                 const fechaLegible = ahora.toLocaleDateString();
-                const horaLegible = ahora.toLocaleTimeString();
+                const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const timestamp = ahora.getTime();
 
                 const refComercio = doc(db, "comercios", id);
@@ -578,7 +561,7 @@
                 const totalActual = (dataCom.totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
-                // 1. ACTUALIZACIÓN ESTADÍSTICAS COMERCIO
+                // 1. ACTUALIZACIÓN COMERCIO
                 await updateDoc(refComercio, {
                     totalUsos: increment(1),
                     lastSubmission: timestamp
@@ -594,10 +577,8 @@
                     idValidacion: idManual
                 });
 
-                // 3. GUARDADO DINÁMICO EN EL DOCUMENTO DEL LEAD (SOLO INSERCIÓN)
+                // 3. ACTUALIZACIÓN DINÁMICA DEL LEAD (TU PEDIDO)
                 const leadRef = doc(db, "leads", leadId);
-                
-                // Creamos el objeto con toda la información que querías ver
                 const datosCanje = {
                     comercio: nom,
                     fecha: fechaLegible,
@@ -607,11 +588,11 @@
                 };
 
                 await updateDoc(leadRef, { 
-                    cupones_detallados: arrayUnion(datosCanje), // Aquí se guarda la info completa
+                    cupones_detallados: arrayUnion(datosCanje),
                     ultimo_canje: timestamp
                 });
 
-                // 4. ACTUALIZAR CONTADOR LOCAL Y VISUAL
+                // 4. PERSISTENCIA LOCAL Y ÉXITO VISUAL
                 const nuevosUsos = getUsosLocales(id) + 1;
                 localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
 
@@ -626,63 +607,6 @@
                     document.getElementById('countdown').innerText = s;
                     if(s <= 0) { 
                         clearInterval(t); 
-                        location.reload(); 
-                    }
-                }, 1000);
-                } catch(eLog) { console.error("Error Log:", eLog); }
-
-                try {
-                    const leadRef = doc(db, "leads", leadId);
-                    const leadSnap = await getDoc(leadRef);
-                    if (leadSnap.exists()) {
-                        const leadData = leadSnap.data();
-                        const currentUsosCount = typeof leadData.usos_count === 'number' ? leadData.usos_count : 0;
-                        const newUsosCount = currentUsosCount + 1;
-                        await updateDoc(leadRef, { 
-                            cupones_usados: arrayUnion(id),
-                            usos_count: newUsosCount
-                        });
-                    } else {
-                        await setDoc(leadRef, {
-                            nombres: leadNombre,
-                            apellido: leadApellido,
-                            cupones_usados: [id],
-                            usos_count: 1,
-                            fechaRegistro: ahora,
-                            estado: "activo",
-                            tipo: "VIP"
-                        });
-                    }
-                } catch(eLead) { 
-                    console.error("Error Lead:", eLead); 
-                    alert("Error al actualizar perfil: " + eLead.message);
-                }
-
-                const nuevosUsos = getUsosLocales(id) + 1;
-                localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
-
-                const btnUsar = document.getElementById(`btn-usar-${id}`);
-                if (btnUsar) {
-                    const contadorSpan = btnUsar.querySelector('.contador-nube');
-                    if (contadorSpan) {
-                        contadorSpan.textContent = nuevosUsos;
-                    }
-                }
-
-                document.getElementById('exito-comercio').innerText = nom;
-                document.getElementById('exito-id-texto').innerText = idManual;
-                JsBarcode("#barcode", idManual, { format: "CODE128", lineColor: "#000", width: 2, height: 80, displayValue: false });
-                document.getElementById('pantalla-exito').style.display = 'flex';
-                
-                let s = 30;
-                const t = setInterval(() => {
-                    s--; 
-                    document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { 
-                        clearInterval(t); 
-                        const u = getUsadosLocal(); 
-                        u.push(id); 
-                        localStorage.setItem('usados_v16_ok', JSON.stringify(u)); 
                         location.reload(); 
                     }
                 }, 1000);
@@ -709,4 +633,3 @@
     </script>
 </body>
 </html>
-
