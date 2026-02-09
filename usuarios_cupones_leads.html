@@ -370,12 +370,10 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- FORZADO DE ID REAL DE TU BASE DE DATOS ---
-        // Esto asegura que NO se cree un registro nuevo bajo ningún concepto.
+        // ID FIJO DE TU BASE DE DATOS
         const leadId = "invitado_1770593292676"; 
         const leadNombre = "Usuario";
         const leadApellido = "Leads";
-        // ----------------------------------------------
 
         let scanner = null;
         let idEnProceso = "";
@@ -412,11 +410,18 @@
                 let htmlLogo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : "";
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
                 const nUso = getUsosLocales(id);
+                
+                // Configuración de redes para el botón "Conozca el Comercio"
+                const ig = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/${c.instagram.replace('@','')}`) : "";
+                const web = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : "";
+                const tieneRedes = (ig !== "" || web !== "");
 
                 html += `<div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
                     ${htmlLogo}<div class="nombre-c">${nombre}</div><div class="beneficio-c">${beneficio}</div>
                     <span class="info-txt">${mostrarReloj ? (diasRestantes <= 3 ? `<span class="box-vence-3">⏳ Vence en ${diasRestantes} días</span>` : `⏳ Vence en ${diasRestantes} días`) : '⏳ Un solo uso'}</span>
                     <div class="btn-stack">
+                        ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
+                        <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
                         <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${c.tokenQR || ''}')">Validar Cupón con QR</button>
                         <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">Usar Beneficio <span class="contador-nube">${nUso}</span></button>
                     </div>
@@ -425,6 +430,16 @@
             if (huboCambioInicio) localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
             contenedor.innerHTML = html;
         });
+
+        window.abrirPopup = (nom, ig, web) => {
+            document.getElementById('pop-nombre').innerText = nom;
+            document.getElementById('lnk-ig').href = ig || "#";
+            document.getElementById('lnk-ig').style.display = ig ? 'block' : 'none';
+            document.getElementById('lnk-web').href = web || "#";
+            document.getElementById('lnk-web').style.display = web ? 'block' : 'none';
+            document.getElementById('popup-redes').style.display = 'flex';
+        };
+        window.cerrarPopup = () => document.getElementById('popup-redes').style.display = 'none';
 
         window.cerrarValidado = () => document.getElementById('overlay-validado').style.display = 'none';
         window.cerrarErrorQR = () => document.getElementById('overlay-error-qr').style.display = 'none';
@@ -461,29 +476,36 @@
             try {
                 const ahora = Date.now();
                 const refComercio = doc(db, "comercios", id);
-                const leadRef = doc(db, "leads", leadId); // APUNTA AL ID FIJO
+                const leadRef = doc(db, "leads", leadId);
 
-                // 1. OBTENER DATOS PARA VALIDACIÓN
                 const snapCom = await getDoc(refComercio);
                 const totalActual = (snapCom.data().totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
-                // 2. ACTUALIZAR COMERCIO
                 await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: ahora });
 
-                // 3. ACTUALIZAR FICHA DE LEAD (SOLO EL REGISTRO REAL)
-                // Usamos updateDoc para asegurar que solo toque el documento existente.
-                await updateDoc(leadRef, { 
-                    cupones_usados: arrayUnion(id),
-                    usos_count: increment(1)
-                });
+                // Lógica mejorada para evitar el error del cartel
+                const snapLead = await getDoc(leadRef);
+                if (snapLead.exists()) {
+                    await updateDoc(leadRef, { 
+                        cupones_usados: arrayUnion(id),
+                        usos_count: increment(1)
+                    });
+                } else {
+                    // Si por alguna razón el documento no existiera, lo crea para evitar el error
+                    await setDoc(leadRef, {
+                        nombre: leadNombre,
+                        apellido: leadApellido,
+                        cupones_usados: [id],
+                        usos_count: 1,
+                        fecha_registro: ahora
+                    });
+                }
 
-                // 4. LOG DE ACTIVIDAD
                 await addDoc(collection(db, "logs_actividad"), {
                     timestamp: ahora, tipo: "canje", nombreComercio: nom, usuarioId: leadId, idValidacion: idManual
                 });
 
-                // 5. LOCAL STORAGE Y UI
                 localStorage.setItem(`uso_lead_${id}`, getUsosLocales(id) + 1);
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
@@ -503,7 +525,7 @@
 
             } catch(e) { 
                 console.error(e);
-                alert("Error: Asegúrate de que el documento 'invitado_1770593292676' existe en la colección 'leads'"); 
+                alert("Error al procesar el canje: " + e.message); 
             }
         };
 
