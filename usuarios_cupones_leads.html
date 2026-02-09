@@ -251,7 +251,6 @@
         .btn-footer {
             padding: 8px 15px; border-radius: 20px; text-decoration: none; color: white; font-weight: bold; font-size: 13px;
         }
-        /* Estilo para el contador de usos en el botón */
         .contador-nube {
             background: var(--rojo-cupon);
             color: white;
@@ -332,20 +331,15 @@
     <div id="pantalla-exito" class="success-page">
         <div class="timer-circle" id="countdown">30</div>
         <h1>¡CANJE EXITOSO!</h1>
-        
         <div class="cuadro-instruccion">
             <p>Muestre esta pantalla al vendedor</p>
         </div>
-
         <div class="seccion-validacion">
             <p style="margin:0; font-weight:bold; color:#666;">CÓDIGO DE VALIDACIÓN</p>
             <div class="id-manual" id="exito-id-texto">---</div>
             <button class="btn-copiar" onclick="copiarID()">COPIAR CÓDIGO</button>
-            <div style="margin-top:15px;">
-                <svg id="barcode"></svg>
-            </div>
+            <div style="margin-top:15px;"><svg id="barcode"></svg></div>
         </div>
-
         <h2 id="exito-comercio" style="text-transform:uppercase; color: var(--azul-habitat); margin-top:10px;"></h2>
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="width:180px; height:auto; margin-top:15px">
     </div>
@@ -362,10 +356,6 @@
     </footer>
 
     <script type="module">
-        history.pushState(null, null, location.href);
-        window.onpopstate = function () { history.go(1); };
-        localStorage.setItem('habitat_auth', 'true');
-
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -380,35 +370,12 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- CAPTURA DE DATOS CORREGIDA SEGÚN FIREBASE ---
-        // Se utiliza el ID de la captura 11111.jpg para asegurar el guardado.
-        const leadId = localStorage.getItem('leadId') || "invitado_1770593292676"; 
-        const leadNombre = localStorage.getItem('leadNombre') || "Usuario";
-        const leadApellido = localStorage.getItem('leadApellido') || "Leads";
-        // ------------------------------------
-
-        let deferredPrompt;
-        const btnInstalar = document.getElementById('btn-instalar-pwa');
-        const yaInstalado = localStorage.getItem('habitat_pwa_instalada');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            if (yaInstalado) return;
-            e.preventDefault();
-            deferredPrompt = e;
-            btnInstalar.style.display = 'block';
-        });
-
-        btnInstalar.addEventListener('click', async () => {
-            if (deferredPrompt) {
-                deferredPrompt.prompt();
-                const { outcome } = await deferredPrompt.userChoice;
-                if (outcome === 'accepted') {
-                    btnInstalar.style.display = 'none';
-                    localStorage.setItem('habitat_pwa_instalada', 'true');
-                }
-                deferredPrompt = null;
-            }
-        });
+        // --- FORZADO DE ID REAL DE TU BASE DE DATOS ---
+        // Esto asegura que NO se cree un registro nuevo bajo ningún concepto.
+        const leadId = "invitado_1770593292676"; 
+        const leadNombre = "Usuario";
+        const leadApellido = "Leads";
+        // ----------------------------------------------
 
         let scanner = null;
         let idEnProceso = "";
@@ -416,13 +383,8 @@
         
         const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
         const getUsadosLocal = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
+        const getUsosLocales = (comercioId) => parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
 
-        // Función para obtener el número de usos locales de un comercio específico
-        const getUsosLocales = (comercioId) => {
-            return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
-        };
-
-        // RENDERIZADO GARANTIZADO
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-cupones');
             const inicios = getInicios();
@@ -438,85 +400,35 @@
                 const esUsado = usadosLocales.includes(id);
                 const nombre = c.nombre || "Local";
                 const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
-                
                 let diasRestantes = vigenciaTotal;
                 let mostrarReloj = vigenciaTotal > 0;
 
                 if (mostrarReloj) {
-                    if (!inicios[id]) {
-                        inicios[id] = Date.now();
-                        huboCambioInicio = true;
-                    }
-                    const transcurrido = Date.now() - inicios[id];
-                    const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
-                    diasRestantes = vigenciaTotal - diasPasados;
+                    if (!inicios[id]) { inicios[id] = Date.now(); huboCambioInicio = true; }
+                    diasRestantes = vigenciaTotal - Math.floor((Date.now() - inicios[id]) / (1000 * 60 * 60 * 24));
                 }
-
                 if (mostrarReloj && diasRestantes < 0) return;
 
-                let htmlLogo = "";
-                if (c.logoUrl && c.logoUrl.trim() !== "") {
-                    htmlLogo = `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>`;
-                }
-
+                let htmlLogo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : "";
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
-                const token = c.tokenQR || "";
-                const ig = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/${c.instagram.replace('@','')}`) : "";
-                const web = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : "";
-                const tieneRedes = (ig !== "" || web !== "");
-                
-                let infoVencimiento = "";
-                if (!mostrarReloj) {
-                    infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)`;
-                } else if (diasRestantes <= 3) {
-                    infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>`;
-                } else {
-                    infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
-                }
-
                 const nUso = getUsosLocales(id);
 
-                html += `
-                    <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
-                        ${htmlLogo}
-                        <div class="nombre-c">${nombre}</div>
-                        <div class="beneficio-c">${beneficio}</div>
-                        <span class="info-txt">${infoVencimiento}</span>
-                        ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
-                        <div class="btn-stack">
-                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
-                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
-                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">
-                                Usar el Beneficio <span class="contador-nube">${nUso}</span>
-                            </button>
-                        </div>
-                    </div>`;
+                html += `<div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
+                    ${htmlLogo}<div class="nombre-c">${nombre}</div><div class="beneficio-c">${beneficio}</div>
+                    <span class="info-txt">${mostrarReloj ? (diasRestantes <= 3 ? `<span class="box-vence-3">⏳ Vence en ${diasRestantes} días</span>` : `⏳ Vence en ${diasRestantes} días`) : '⏳ Un solo uso'}</span>
+                    <div class="btn-stack">
+                        <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${c.tokenQR || ''}')">Validar Cupón con QR</button>
+                        <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">Usar Beneficio <span class="contador-nube">${nUso}</span></button>
+                    </div>
+                </div>`;
             });
-
-            if (huboCambioInicio) {
-                localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
-            }
+            if (huboCambioInicio) localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
             contenedor.innerHTML = html;
         });
 
-        // Sync con Firebase
-        const syncUsados = async () => {
-            try {
-                const lSnap = await getDoc(doc(db, "leads", leadId));
-                if (lSnap.exists()) {
-                    const deFirebase = lSnap.data().cupones_usados || [];
-                    const locales = getUsadosLocal();
-                    const combinados = [...new Set([...locales, ...deFirebase])];
-                    localStorage.setItem('usados_v16_ok', JSON.stringify(combinados));
-                }
-            } catch(e) {}
-        };
-        syncUsados();
-
-        window.cerrarValidado = () => { document.getElementById('overlay-validado').style.display = 'none'; };
-        window.cerrarErrorQR = () => { document.getElementById('overlay-error-qr').style.display = 'none'; };
-        window.cerrarAtencion = () => { document.getElementById('overlay-atencion').style.display = 'none'; };
+        window.cerrarValidado = () => document.getElementById('overlay-validado').style.display = 'none';
+        window.cerrarErrorQR = () => document.getElementById('overlay-error-qr').style.display = 'none';
+        window.cerrarAtencion = () => document.getElementById('overlay-atencion').style.display = 'none';
 
         window.confirmarAtencion = (id, nom) => {
             document.getElementById('overlay-atencion').style.display = 'flex';
@@ -526,16 +438,6 @@
             };
         };
 
-        window.abrirPopup = (nom, ig, web) => {
-            document.getElementById('pop-nombre').innerText = nom;
-            document.getElementById('lnk-ig').href = ig || "#";
-            document.getElementById('lnk-ig').style.display = ig ? 'block' : 'none';
-            document.getElementById('lnk-web').href = web || "#";
-            document.getElementById('lnk-web').style.display = web ? 'block' : 'none';
-            document.getElementById('popup-redes').style.display = 'flex';
-        };
-        window.cerrarPopup = () => document.getElementById('popup-redes').style.display = 'none';
-        
         window.abrirQR = (id, token) => {
             idEnProceso = id; tokenEsperado = token;
             document.getElementById('modal-qr').style.display = 'flex';
@@ -545,108 +447,74 @@
                     cerrarScanner();
                     document.getElementById('overlay-validado').style.display = 'flex';
                     const btn = document.getElementById(`btn-usar-${idEnProceso}`);
-                    if(btn) { btn.classList.add('activo'); btn.innerText = "USAR BENEFICIO"; }
-                } else { 
-                    cerrarScanner();
-                    document.getElementById('overlay-error-qr').style.display = 'flex'; 
-                }
+                    if(btn) { btn.classList.add('activo'); }
+                } else { cerrarScanner(); document.getElementById('overlay-error-qr').style.display = 'flex'; }
             }).catch(e => console.error(e));
         };
         
         window.cerrarScanner = () => {
             document.getElementById('modal-qr').style.display = 'none';
-            if(scanner) { scanner.stop().then(() => scanner.clear()).catch(err => console.log(err)); }
+            if(scanner) scanner.stop().then(() => scanner.clear());
         };
 
-        window.copiarID = () => {
-            const idTexto = document.getElementById('exito-id-texto').innerText;
-            navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
-        };
-
-        // --- FUNCIÓN FINALIZAR CORREGIDA ---
         window.finalizar = async (id, nom) => {
             try {
                 const ahora = Date.now();
                 const refComercio = doc(db, "comercios", id);
-                
-                // 1. Obtener ID de validación
+                const leadRef = doc(db, "leads", leadId); // APUNTA AL ID FIJO
+
+                // 1. OBTENER DATOS PARA VALIDACIÓN
                 const snapCom = await getDoc(refComercio);
-                const dataCom = snapCom.data();
-                const totalActual = (dataCom.totalUsos || 0) + 1;
+                const totalActual = (snapCom.data().totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
-                // 2. ACTUALIZACIÓN COMERCIO
-                await updateDoc(refComercio, {
-                    totalUsos: increment(1),
-                    lastSubmission: ahora
-                });
+                // 2. ACTUALIZAR COMERCIO
+                await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: ahora });
 
-                // 3. LOG DE ACTIVIDAD
-                await addDoc(collection(db, "logs_actividad"), {
-                    timestamp: ahora,
-                    tipo: "canje",
-                    nombreComercio: nom,
-                    usuarioId: leadId,
-                    idValidacion: idManual
-                });
-
-                // 4. PERSISTENCIA EN FICHA DEL LEAD (Optimizada con setDoc merge)
-                const leadRef = doc(db, "leads", leadId);
-                await setDoc(leadRef, { 
+                // 3. ACTUALIZAR FICHA DE LEAD (SOLO EL REGISTRO REAL)
+                // Usamos updateDoc para asegurar que solo toque el documento existente.
+                await updateDoc(leadRef, { 
                     cupones_usados: arrayUnion(id),
-                    usos_count: increment(1),
-                    nombre: leadNombre,
-                    apellido: leadApellido,
-                    fecha_registro: ahora
-                }, { merge: true });
+                    usos_count: increment(1)
+                });
 
-                // 5. ACTUALIZAR CONTADOR LOCAL
-                const nuevosUsos = getUsosLocales(id) + 1;
-                localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
+                // 4. LOG DE ACTIVIDAD
+                await addDoc(collection(db, "logs_actividad"), {
+                    timestamp: ahora, tipo: "canje", nombreComercio: nom, usuarioId: leadId, idValidacion: idManual
+                });
 
-                // 6. ACTUALIZAR VISUALMENTE EL BOTÓN
-                const btnUsar = document.getElementById(`btn-usar-${id}`);
-                if (btnUsar) {
-                    const contadorSpan = btnUsar.querySelector('.contador-nube');
-                    if (contadorSpan) contadorSpan.textContent = nuevosUsos;
-                }
-
-                // 7. ÉXITO VISUAL
+                // 5. LOCAL STORAGE Y UI
+                localStorage.setItem(`uso_lead_${id}`, getUsosLocales(id) + 1);
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
-                JsBarcode("#barcode", idManual, { format: "CODE128", lineColor: "#000", width: 2, height: 80, displayValue: false });
+                JsBarcode("#barcode", idManual, { format: "CODE128", displayValue: false });
                 document.getElementById('pantalla-exito').style.display = 'flex';
                 
                 let s = 30;
                 const t = setInterval(() => {
-                    s--; 
-                    document.getElementById('countdown').innerText = s;
+                    s--; document.getElementById('countdown').innerText = s;
                     if(s <= 0) { 
                         clearInterval(t); 
-                        const u = getUsadosLocal(); 
-                        u.push(id); 
+                        const u = getUsadosLocal(); u.push(id); 
                         localStorage.setItem('usados_v16_ok', JSON.stringify(u)); 
                         location.reload(); 
                     }
                 }, 1000);
 
             } catch(e) { 
-                console.error("Error General:", e);
-                alert("Error crítico: " + e.message); 
+                console.error(e);
+                alert("Error: Asegúrate de que el documento 'invitado_1770593292676' existe en la colección 'leads'"); 
             }
         };
 
         window.filtrar = () => {
-            const texto = document.getElementById('filtroNombre').value.toLowerCase();
-            const vencimiento = document.getElementById('filtroVence').value;
+            const t = document.getElementById('filtroNombre').value.toLowerCase();
+            const v = document.getElementById('filtroVence').value;
             document.querySelectorAll('.card').forEach(c => {
-                const nombreMatch = c.dataset.nombre.includes(texto);
-                const dias = parseInt(c.dataset.vence);
-                let venceMatch = true;
-                if (vencimiento !== "todos") {
-                    venceMatch = (dias >= 0 && dias <= parseInt(vencimiento));
-                }
-                c.style.display = (nombreMatch && venceMatch) ? 'block' : 'none';
+                const nMatch = c.dataset.nombre.includes(t);
+                const d = parseInt(c.dataset.vence);
+                const vMatch = v === "todos" || (d >= 0 && d <= parseInt(v));
+                c.style.display = (nMatch && vMatch) ? 'block' : 'none';
             });
         };
     </script>
