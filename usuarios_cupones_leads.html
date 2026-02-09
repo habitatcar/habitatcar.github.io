@@ -380,8 +380,10 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- ID ESTRICTO SEGÚN CAPTURA ---
+        // --- ID ESTRICTO SEGÚN CAPTURA DE PANTALLA ---
         const leadId = "UoNTJpB2yluMS1IOHSvG"; 
+        const leadNombre = "01";
+        const leadApellido = "01";
         // ------------------------------------
 
         let deferredPrompt;
@@ -517,8 +519,7 @@
         window.cerrarAtencion = () => { document.getElementById('overlay-atencion').style.display = 'none'; };
 
         window.confirmarAtencion = (id, nom) => {
-            document.getElementById('overlay-atencion').style.display = 'flex'; // Muestra el overlay original
-            // Configura el botón "SÍ" para llamar a finalizar
+            document.getElementById('overlay-atencion').style.display = 'flex'; 
             document.getElementById('btn-confirmar-final').onclick = () => {
                 document.getElementById('overlay-atencion').style.display = 'none';
                 finalizar(id, nom);
@@ -567,13 +568,11 @@
                 const ahora = Date.now();
                 const refComercio = doc(db, "comercios", id);
                 
-                // 1. Obtener ID de validación (Basado en total usos del comercio)
                 const snapCom = await getDoc(refComercio);
                 const dataCom = snapCom.data();
                 const totalActual = (dataCom.totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
-                // 2. ACTUALIZACIÓN COMERCIO (Estadísticas)
                 await updateDoc(refComercio, {
                     totalUsos: increment(1),
                     usosHoy: increment(1),
@@ -583,7 +582,6 @@
                     lastSubmission: ahora
                 });
 
-                // 3. LOG DE ACTIVIDAD
                 try {
                     await addDoc(collection(db, "logs_actividad"), {
                         timestamp: ahora,
@@ -593,39 +591,42 @@
                         comercioId: id,
                         nombreComercio: nom,
                         usuarioId: leadId,
+                        nombreUsuario: `${leadApellido} ${leadNombre}`,
                         modulo: "CUPONES",
                         idValidacion: idManual
                     });
                 } catch(eLog) { console.error("Error Log:", eLog); }
 
-                // 4. PERSISTENCIA EN FICHA DEL LEAD (ESTRICTO)
                 try {
                     const leadRef = doc(db, "leads", leadId);
                     const leadSnap = await getDoc(leadRef);
-                    
-                    if (!leadSnap.exists()) {
-                        throw new Error(`Asegúrate de que el documento '${leadId}' existe en la colección 'leads'`);
+                    if (leadSnap.exists()) {
+                        const leadData = leadSnap.data();
+                        const currentUsosCount = typeof leadData.usos_count === 'number' ? leadData.usos_count : 0;
+                        const newUsosCount = currentUsosCount + 1;
+                        await updateDoc(leadRef, { 
+                            cupones_usados: arrayUnion(id),
+                            usos_count: newUsosCount
+                        });
+                    } else {
+                        await setDoc(leadRef, {
+                            nombres: leadNombre,
+                            apellido: leadApellido,
+                            cupones_usados: [id],
+                            usos_count: 1,
+                            fechaRegistro: ahora,
+                            estado: "activo",
+                            tipo: "VIP"
+                        });
                     }
-
-                    const leadData = leadSnap.data();
-                    const currentUsosCount = typeof leadData.usos_count === 'number' ? leadData.usos_count : 0;
-                    const newUsosCount = currentUsosCount + 1;
-
-                    await updateDoc(leadRef, { 
-                        cupones_usados: arrayUnion(id),
-                        usos_count: newUsosCount
-                    });
                 } catch(eLead) { 
                     console.error("Error Lead:", eLead); 
-                    alert("Error: " + eLead.message);
-                    return; // Detenemos el proceso si el documento no existe
+                    alert("Error al actualizar perfil: " + eLead.message);
                 }
 
-                // 5. ACTUALIZAR CONTADOR LOCAL
                 const nuevosUsos = getUsosLocales(id) + 1;
                 localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
 
-                // 6. ACTUALIZAR VISUALMENTE EL BOTÓN
                 const btnUsar = document.getElementById(`btn-usar-${id}`);
                 if (btnUsar) {
                     const contadorSpan = btnUsar.querySelector('.contador-nube');
@@ -634,7 +635,6 @@
                     }
                 }
 
-                // 7. ÉXITO VISUAL
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
                 JsBarcode("#barcode", idManual, { format: "CODE128", lineColor: "#000", width: 2, height: 80, displayValue: false });
