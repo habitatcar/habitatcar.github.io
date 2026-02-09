@@ -422,10 +422,11 @@
             return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
         };
 
-        // ESCUCHA PRIMERO LOS DATOS DEL USUARIO PARA TENER LOS USOS DE LA NUBE
+        // Primero leemos al usuario
         onSnapshot(doc(db, "leads", leadId), (leadSnap) => {
-            const leadData = leadSnap.data() || {};
-            
+            const conteos = leadSnap.data() || {}; // Esto trae los usos de la nube
+
+            // Adentro corre tu código de siempre
             onSnapshot(collection(db, "comercios"), (snap) => {
                 const contenedor = document.getElementById('contenedor-cupones');
                 const inicios = getInicios();
@@ -437,14 +438,13 @@
                     const id = docSnap.id;
                     if (c.estado === "inactivo") return;
 
-                    // LÓGICA DE NUBE: Lee el campo "usos" que mostraste en tu foto
-                    // Si el comercio es "Almacén La Esquina", busca leadData["Almacén La Esquina"].usos
-                    const dataComercioUsuario = leadData[c.nombre] || {};
-                    const nUso = dataComercioUsuario.usos || 0;
-                    const esUsado = nUso > 0; // Se bloquea (pone gris) si ya se usó
-
+                    // Lógica de nube: se bloquea si el conteo para este comercio es > 0
                     const nombre = c.nombre || "Local";
+                    const esUsado = (conteos[nombre] && conteos[nombre].usos > 0); // <-- Aplicando cambio de la IA
+                    const nUso = conteos[nombre] ? conteos[nombre].usos : 0; // <-- Aplicando cambio de la IA
+
                     const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
+                    
                     let diasRestantes = vigenciaTotal;
                     let mostrarReloj = vigenciaTotal > 0;
 
@@ -457,19 +457,31 @@
                         const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
                         diasRestantes = vigenciaTotal - diasPasados;
                     }
+
                     if (mostrarReloj && diasRestantes < 0) return;
 
-                    let htmlLogo = (c.logoUrl && c.logoUrl.trim() !== "") ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : "";
+                    let htmlLogo = "";
+                    if (c.logoUrl && c.logoUrl.trim() !== "") {
+                        htmlLogo = `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>`;
+                    }
+
                     const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
                     const token = c.tokenQR || "";
                     const ig = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/  ${c.instagram.replace('@','')}`) : "";
                     const web = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : "";
                     const tieneRedes = (ig !== "" || web !== "");
                     
-                    let infoVencimiento = !mostrarReloj ? `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)` : (diasRestantes <= 3 ? `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>` : `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`);
+                    let infoVencimiento = "";
+                    if (!mostrarReloj) {
+                        infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)`;
+                    } else if (diasRestantes <= 3) {
+                        infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>`;
+                    } else {
+                        infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
+                    }
 
                     html += `
-                        <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
+                        <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}"> <!-- Aplicando cambio de la IA -->
                             ${htmlLogo}
                             <div class="nombre-c">${nombre}</div>
                             <div class="beneficio-c">${beneficio}</div>
@@ -480,12 +492,15 @@
                                 <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=  ${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
                                 <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
                                 <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">
-                                    Usar el Beneficio <span class="contador-nube">${nUso}</span>
+                                    Usar el Beneficio <span class="contador-nube">${nUso}</span> <!-- Aplicando cambio de la IA -->
                                 </button>
                             </div>
                         </div>`;
                 });
-                if (huboCambioInicio) localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
+
+                if (huboCambioInicio) {
+                    localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
+                }
                 contenedor.innerHTML = html;
             });
         });
@@ -556,60 +571,80 @@
 
         window.finalizar = async (id, nom) => {
             try {
-                const ahora = new Date();
-                const fechaLegible = ahora.toLocaleDateString();
-                const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const timestamp = ahora.getTime();
-
+                const ahora = Date.now();
+                const fechaLegible = new Date().toLocaleDateString('es-AR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                const horaLegible = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+                const timestamp = ahora; // Puedes usar 'ahora' o 'timestamp' segun necesites
                 const refComercio = doc(db, "comercios", id);
+                
+                // 1. Obtener ID de validación (Basado en total usos del comercio)
                 const snapCom = await getDoc(refComercio);
-                const totalActual = (snapCom.data().totalUsos || 0) + 1;
+                const dataCom = snapCom.data();
+                const totalActual = (dataCom.totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
-                // 1. ACTUALIZACIÓN COMERCIO
-                await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
-
-                // 2. LOG DE ACTIVIDAD
-                await addDoc(collection(db, "logs_actividad"), {
-                    timestamp: timestamp, tipo: "canje", accion: "CANJE LEADS",
-                    nombreComercio: nom, usuarioId: leadId, idValidacion: idManual
+                // 2. ACTUALIZACIÓN COMERCIO (Estadísticas)
+                await updateDoc(refComercio, {
+                    totalUsos: increment(1),
+                    usosHoy: increment(1),
+                    usosSemana: increment(1),
+                    usosMes: increment(1),
+                    usosAnio: increment(1),
+                    lastSubmission: ahora
                 });
 
-                // 3. ACTUALIZACIÓN DINÁMICA DEL LEAD (Estructura según tu foto)
+                // 3. LOG DE ACTIVIDAD
+                try {
+                    await addDoc(collection(db, "logs_actividad"), {
+                        timestamp: ahora,
+                        tipo: "canje",
+                        accion: "CANJE LEADS",
+                        nombre: `Canje en: ${nom}`,
+                        comercioId: id,
+                        nombreComercio: nom,
+                        usuarioId: leadId,
+                        nombreUsuario: `${leadApellido} ${leadNombre}`,
+                        modulo: "CUPONES",
+                        idValidacion: idManual
+                    });
+                } catch(eLog) { console.error("Error Log:", eLog); }
+
+                // 4. ACTUALIZACIÓN DINÁMICA DEL LEAD
                 const leadRef = doc(db, "leads", leadId);
-                
-                // Usamos setDoc con {merge: true} para asegurar que se cree el campo si no existe
-                // Esto suma 1 al campo 'usos' dentro del objeto con el nombre del comercio
-                await setDoc(leadRef, {
-                    [nom]: {
-                        usos: increment(1),
-                        ultimo_codigo: idManual,
-                        ultima_fecha: fechaLegible
-                    },
+                const campoDinamico = `conteos_por_comercio.${nom}`; // <--- SUMA AL COMERCIO ESPECÍFICO
+
+                await updateDoc(leadRef, { 
+                    [campoDinamico]: increment(1), // <--- ESTO ES LO QUE BLOQUEA EL BOTÓN
                     cupones_detallados: arrayUnion({
-                        comercio: nom, fecha: fechaLegible, hora: horaLegible,
-                        codigo: idManual, timestamp: timestamp
+                        comercio: nom,
+                        fecha: fechaLegible,
+                        hora: horaLegible,
+                        codigo: idManual,
+                        timestamp: timestamp
                     }),
                     usos_count: increment(1),
                     ultimo_canje: timestamp
-                }, { merge: true });
+                });
 
-                // 4. ÉXITO VISUAL
+                // 5. ÉXITO VISUAL (Sin persistencia local para evitar errores)
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
-                JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
+                JsBarcode("#barcode", idManual, { format: "CODE128", lineColor: "#000", width: 2, height: 80, displayValue: false });
                 document.getElementById('pantalla-exito').style.display = 'flex';
                 
                 let s = 30;
                 const t = setInterval(() => {
                     s--; 
                     document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { clearInterval(t); location.reload(); }
+                    if(s <= 0) { 
+                        clearInterval(t); 
+                        location.reload(); 
+                    }
                 }, 1000);
 
             } catch(e) { 
-                alert("Error crítico: El usuario no existe en la base de datos."); 
-                console.error(e);
+                console.error("Error General:", e);
+                alert("Error crítico: " + e.message); 
             }
         };
 
