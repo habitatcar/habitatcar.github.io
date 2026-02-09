@@ -1,530 +1,145 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel VIPs | Hábitat-Car</title>
-    <style>
-        :root {
-            --azul-oscuro: #0a192f;
-            --azul-medio: #334766; 
-            --azul-claro: #415a77;
-            --celeste-habitat: #004a99;
-            --blanco-suave: #e6f1ff;
-            --oro: #ffc107;
-            --rojo: #dc3545;
-            --verde: #28a745;
-            --naranja: #ff9800;
-        }
+1. El Panel de Búsqueda y Filtros
+Buscá la sección que empieza con <div class="search-container"> (aprox. línea 141) y reemplazala exactamente por esto para incluir los contadores y el reseteo:
 
-        html, body {
-            height: 100%;
-            margin: 0;
-            overflow: hidden;
-            font-family: 'Segoe UI', sans-serif;
-            background-color: var(--azul-oscuro);
-            color: var(--blanco-suave);
-        }
+HTML
 
-        body { display: flex; flex-direction: column; }
-
-        .header {
-            background: var(--azul-medio);
-            padding: 20px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 4px solid var(--celeste-habitat);
-            flex-shrink: 0;
-        }
-        .logo { height: 120px; width: auto; } 
-
-        .nav-menu { display: flex; gap: 8px; flex-wrap: wrap; }
-        .nav-link {
-            padding: 8px 14px;
-            border-radius: 6px;
-            text-decoration: none;
-            color: white;
-            font-weight: bold;
-            background: var(--azul-claro);
-            font-size: 11px;
-            transition: 0.3s;
-            text-transform: uppercase;
-        }
-        .nav-link.active { background: var(--rojo); box-shadow: 0 0 10px rgba(220,53,69,0.5); }
-
-        /* NUEVO ESTILO PARA LA BARRA DE FILTROS */
-        .search-container {
-            padding: 20px 30px;
-            flex-shrink: 0;
-            background: #112240;
-        }
-        .search-container > div:first-child {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-        .search-container input, .search-container select {
-            background: var(--azul-oscuro);
-            padding: 10px 15px;
-            border-radius: 8px;
-            border: 1px solid var(--celeste-habitat);
-            color: white;
-            font-size: 13px;
-            outline: none;
-        }
-        .stats-mini { display: flex; gap: 15px; }
-        .stats-mini span { font-weight: bold; color: var(--oro); }
-
-        .btn-oro {
-            padding: 10px 15px;
-            border-radius: 8px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            color: black;
-            background: var(--oro);
-            transition: 0.3s;
-            text-transform: uppercase;
-            font-size: 11px;
-        }
-        .btn-oro:hover { opacity: 0.9; }
-
-        .table-wrapper {
-            flex: 1;
-            overflow-y: auto;
-            padding: 0 30px 30px 30px;
-        }
-
-        .card-table {
-            background: var(--azul-medio);
-            border-radius: 15px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-            width: 100%; 
-        }
-
-        table { width: 100%; border-collapse: separate; border-spacing: 0; }
-
-        thead th {
-            position: sticky;
-            top: 0;
-            background: #25334a; 
-            color: var(--oro);
-            padding: 15px;
-            text-align: left;
-            z-index: 20;
-            cursor: pointer;
-            user-select: none;
-            border-bottom: 2px solid var(--celeste-habitat);
-        }
-
-        td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
-        tr:hover { background: rgba(255,255,255,0.02); }
-
-        .badge-usos {
-            color: var(--rojo); /* Color para destacar el número de usos */
-            font-weight: bold;
-            font-size: 16px; /* Tamaño del texto */
-            text-align: center;
-            display: block; /* Asegura que ocupe todo el ancho disponible en la celda */
-        }
-
-        /* Estilo para las etiquetas de comercios en la columna de detalle */
-        .tag-comercio {
-            display: inline-block;
-            background: rgba(255, 193, 7, 0.1); /* Oro con baja opacidad */
-            color: var(--oro);
-            padding: 2px 6px;
-            border-radius: 10px;
-            border: 1px solid var(--oro);
-            font-size: 11px;
-            margin: 2px;
-            white-space: nowrap;
-        }
-
-        .estado-activo { color: var(--verde); font-weight: bold; }
-        .estado-suspendido { color: var(--naranja); font-weight: bold; opacity: 0.7; }
-
-        .acciones { white-space: nowrap; }
-        .btn-accion {
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            font-weight: bold;
-            color: white;
-            margin-right: 5px;
-            transition: 0.2s;
-            text-transform: uppercase;
-            font-size: 10px;
-            display: inline-flex;
-            align-items: center;
-            gap: 4px;
-        }
-        .btn-oro-accion { background: var(--oro); color: black; }
-        .btn-azul { background: var(--celeste-habitat); }
-        .btn-del { background: var(--rojo); }
-        .btn-action:hover { filter: brightness(1.2); }
-    </style>
-</head>
-<body>
-
-    <header class="header">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true  " class="logo">
-        <nav class="nav-menu">
-            <a href="admin_comercios.html" class="nav-link">Comercios</a>
-            <a href="admin_leads.html" class="nav-link">Leads</a>
-            <a href="admin_vips.html" class="nav-link active">Vips</a>
-            <a href="admin_tokens_vip.html" class="nav-link">Tokens Vip</a>
-            <a href="admin_curioso.html" class="nav-link">Curioso</a>
-            <a href="admin_estadisticas.html" class="nav-link">Estadísticas</a>
-            <a href="admin_logs.html" class="nav-link">Log</a>
-            <a href="admin_tutoriales.html" class="nav-link">Tutoriales</a>
-            <a href="index.html" class="nav-link">Panel de Ingreso</a>
-            <a href="admin_legales.html" class="nav-link">Legales</a>
-        </nav>
-    </header>
-
-    <!-- NUEVA BARRA DE FILTROS -->
     <div class="search-container">
         <div style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-            <input type="text" id="buscador" placeholder="Buscar por Apellido o WhatsApp..." onkeyup="filtrarVips()">
+            <input type="text" id="buscador" placeholder="Buscar..." onkeyup="filtrarVips()" style="width:150px;">
             
-            <select id="filtro-pais" onchange="cargarProvinciasDesdePais(this.value); filtrarVips();"> <!-- Agregamos onchange para país -->
+            <select id="filtro-pais" onchange="filtrarVips()">
                 <option value="">País: Todos</option>
-                <!-- Opciones de países se cargarán dinámicamente -->
             </select>
-            <select id="filtro-provincia" onchange="cargarLocalidadesDesdeProvincia(this.value); filtrarVips();">
+            <select id="filtro-provincia" onchange="filtrarVips()">
                 <option value="">Provincia: Todas</option>
-                <!-- Opciones de provincias se cargarán dinámicamente -->
             </select>
-            <select id="filtro-localidad" onchange="filtrarVips();">
+            <select id="filtro-localidad" onchange="filtrarVips()">
                 <option value="">Localidad: Todas</option>
-                <!-- Opciones de localidades se cargarán dinámicamente -->
             </select>
             
-            <div class="stats-mini">
+            <div class="stats-mini" style="display:flex; gap:10px; font-size:0.9em; color:var(--oro);">
                 <span>País: <b id="count-pais">0</b></span>
                 <span>Prov: <b id="count-prov">0</b></span>
                 <span>Loc: <b id="count-loc">0</b></span>
             </div>
         </div>
 
-        <div style="display:flex; gap:10px; margin-top: 15px;">
-            <button class="btn-oro" onclick="validarYRestablecerVips('localidad')">Restablecer Localidad</button>
-            <button class="btn-oro" onclick="validarYRestablecerVips('provincia')">Restablecer Provincia</button>
-            <button class="btn-oro" onclick="validarYRestablecerVips('pais')" style="background:#ffc107; color:#000;">Restablecer PAÍS</button>
+        <div style="display:flex; gap:10px;">
+            <select id="tipo-reseteo" style="padding:5px; border-radius:5px; background:var(--azul-medio); color:white; border:1px solid var(--oro);">
+                <option value="">Restablecer Cupones...</option>
+                <option value="localidad">Por Localidad</option>
+                <option value="provincia">Por Provincia</option>
+                <option value="pais">Por País (TODO)</option>
+            </select>
+            <button class="btn-oro" onclick="ejecutarReseteoMasivo()">Ejecutar Reset</button>
         </div>
     </div>
+2. Los Encabezados de la Tabla
+En la línea 161 aprox., agregá las 3 columnas nuevas en el <thead>:
 
-    <div class="table-wrapper">
-        <div class="card-table">
-            <table>
-                <thead>
-                    <tr>
-                        <th onclick="ordenar('fechaVIP')">FECHA VIP ↕</th>
-                        <th onclick="ordenar('lastSubmission')">ÚLTIMA ACTIVIDAD ↕</th>
-                        <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE ↕</th>
-                        <th>WHATSAPP</th>
-                        <th onclick="ordenar('provincia')">PROVINCIA</th>
-                        <th onclick="ordenar('localidad')">CIUDAD</th>
-                        <th style="text-align: center;" onclick="ordenar('usos_count')">CANT. USOS ↕</th>
-                        <th>DETALLE POR COMERCIO</th> <!-- Nueva columna -->
-                        <th>ESTADO</th>
-                        <th>ACCIONES</th>
-                    </tr>
-                </thead>
-                <tbody id="lista-vips"></tbody>
-            </table>
-        </div>
-    </div>
+HTML
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js  ";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch, addDoc, arrayRemove, increment, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  ";
+            <thead>
+                <tr>
+                    <th>Nombre y Apellido</th>
+                    <th>WhatsApp</th>
+                    <th>Provincia</th> <th>Ciudad</th>    <th>Cant. Usos</th> <th>Detalle por Comercio</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+3. La Lógica Interna de Renderizado
+Buscá la función window.renderizar (línea 195 aprox.) y reemplazala para que dibuje las 3 columnas y el desglose de comercios:
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
-            authDomain: "habitatcar-pro.firebaseapp.com",
-            projectId: "habitatcar-pro",
-            storageBucket: "habitatcar-pro.firebasestorage.app",
-            messagingSenderId: "311691258694",
-            appId: "1:311691258694:web:17a09051dcea7707af9347"
-        };
+JavaScript
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+        window.renderizar = (lista) => {
+            const cuerpo = document.getElementById('cuerpo-tabla');
+            cuerpo.innerHTML = "";
+            lista.forEach(v => {
+                const id = v.id;
+                const apellido = v.apellido || "";
+                const nombres = v.nombres || "";
+                const whatsapp = v.whatsapp || "";
+                const estado = v.estado || "activo";
+                const provincia = v.provincia || "-";
+                const ciudad = v.localidad || "-";
+                const cantUsos = v.usos_count || 0;
 
-        let todosLosVips = [];
-        let ordenActual = { campo: 'fechaVIP', asc: false };
-        let todasLasProvincias = []; // Para el filtro de país/provincia
-        let todasLasLocalidades = []; // Para el filtro de provincia/localidad
-
-        // --- FUNCIONES DE FILTRO Y RESETEO (Cambio 2 y 3 aplicados) ---
-
-        // Cargar países (simulado con Argentina por ahora)
-        window.cargarPaises = () => {
-            const combo = document.getElementById('filtro-pais');
-            combo.innerHTML = '<option value="">País: Todos</option>';
-            // En el futuro, puedes traer una lista real de países
-            const opt = document.createElement('option');
-            opt.value = 'ARGENTINA'; // Normalizamos a mayúsculas
-            opt.textContent = 'Argentina';
-            combo.appendChild(opt);
-        };
-        cargarPaises();
-
-        // Cargar provincias según país seleccionado
-        window.cargarProvinciasDesdePais = async (paisSeleccionado) => {
-            const comboProv = document.getElementById('filtro-provincia');
-            comboProv.innerHTML = '<option value="">Provincia: Todas</option>';
-            if (!paisSeleccionado || paisSeleccionado !== 'ARGENTINA') return; // Asumimos Argentina
-
-            try {
-                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
-                const data = await res.json();
-                todasLasProvincias = data.provincias.map(p => p.nombre.toUpperCase()); // Normalizamos
-                todasLasProvincias.sort((a, b) => a.localeCompare(b));
-                todasLasProvincias.forEach(nombre => {
-                    const opt = document.createElement('option');
-                    opt.value = nombre; // Valor normalizado
-                    opt.textContent = nombre;
-                    comboProv.appendChild(opt);
+                let detalleComercios = "";
+                Object.keys(v).forEach(key => {
+                    if (v[key] && typeof v[key] === 'object' && v[key].usos !== undefined) {
+                        detalleComercios += `<span style="display:inline-block; background:rgba(255,193,7,0.1); border:1px solid var(--oro); padding:2px 5px; border-radius:3px; font-size:0.8em; margin:2px;">${key}: ${v[key].usos}</span>`;
+                    }
                 });
-            } catch (e) { console.error("Error al cargar provincias:", e); }
+
+                const fila = document.createElement('tr');
+                fila.innerHTML = `
+                    <td>${apellido}, ${nombres}</td>
+                    <td>${whatsapp}</td>
+                    <td>${provincia}</td>
+                    <td>${ciudad}</td>
+                    <td><b style="color:var(--oro)">${cantUsos}</b></td>
+                    <td>${detalleComercios || "-"}</td>
+                    <td><span class="estado-${estado}">${estado.toUpperCase()}</span></td>
+                    <td class="acciones">
+                        <button class="btn-oro" onclick="restablecer('${id}', '${apellido}', '${nombres}')">🔄</button>
+                        <button class="btn-azul" onclick="toggleEstado('${id}', '${estado}', '${apellido} ${nombres}')">🚫</button>
+                        <button class="btn-rojo" onclick="bajaVip('${id}', '${apellido}', '${nombres}')">📉</button>
+                    </td>
+                `;
+                cuerpo.appendChild(fila);
+            });
         };
+4. La Lógica de Filtros y Reseteo Masivo
+Pegá estas funciones al final de tu <script> antes de la última llave:
 
-        // Cargar localidades según provincia seleccionada
-        window.cargarLocalidadesDesdeProvincia = async (provNombre) => {
-            const comboLoc = document.getElementById('filtro-localidad');
-            comboLoc.innerHTML = '<option value="">Localidad: Todas</option>';
-            if (!provNombre) return;
+JavaScript
 
-            try {
-                // Primero municipios
-                const resMun = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=  ${encodeURIComponent(provNombre.toLowerCase())}&max=1000&campos=nombre`);
-                const dataMun = await resMun.json();
-                todasLasLocalidades = dataMun.municipios.map(m => m.nombre.toUpperCase()); // Normalizamos
-
-                // Si no hay municipios, intentamos con localidades
-                if (todasLasLocalidades.length === 0) {
-                    const resLoc = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=  ${encodeURIComponent(provNombre.toLowerCase())}&max=1000&campos=nombre`);
-                    const dataLoc = await resLoc.json();
-                    todasLasLocalidades = dataLoc.localidades.map(l => l.nombre.toUpperCase()); // Normalizamos
-                }
-
-                todasLasLocalidades.sort((a, b) => a.localeCompare(b));
-                todasLasLocalidades.forEach(nombre => {
-                    const opt = document.createElement('option');
-                    opt.value = nombre; // Valor normalizado
-                    opt.textContent = nombre;
-                    comboLoc.appendChild(opt);
-                });
-            } catch (e) { console.error("Error al cargar localidades:", e); }
-        };
-
-        // Filtra y actualiza los contadores de la faja
         window.filtrarVips = () => {
             const b = document.getElementById('buscador').value.toLowerCase();
-            const pais = document.getElementById('filtro-pais').value; // Valor normalizado
-            const prov = document.getElementById('filtro-provincia').value; // Valor normalizado
-            const loc = document.getElementById('filtro-localidad').value; // Valor normalizado
-
-            const filtrados = todosLosVips.filter(v => {
-                const nombreComp = `${v.apellido || ''} ${v.nombres || ''}`.toLowerCase();
-                const matchBusqueda = nombreComp.includes(b) || (v.whatsapp && v.whatsapp.includes(b));
-                // Comparamos con valores normalizados del lead
-                const matchPais = !pais || v.pais_normalized === pais;
-                const matchProv = !prov || v.provincia_normalized === prov;
-                const matchLoc = !loc || v.localidad_normalized === loc;
-                return matchBusqueda && matchPais && matchProv && matchLoc;
-            });
-
-            // Actualizar contadores de la faja
-            document.getElementById('count-pais').innerText = pais ? todosLosVips.filter(v => v.pais_normalized === pais).length : 0;
-            document.getElementById('count-prov').innerText = prov ? todosLosVips.filter(v => v.provincia_normalized === prov).length : 0;
-            document.getElementById('count-loc').innerText = loc ? todosLosVips.filter(v => v.localidad_normalized === loc).length : 0;
-
-            renderizar(filtrados);
-        };
-
-        // Reseteo Masivo con Clave (adaptado para la colección leads, buscando campos de comercios)
-        window.validarYRestablecerVips = async (tipo) => {
-            const pass = prompt("Clave ADMIN para RESETEO MASIVO VIP:");
-            if (pass !== "admin1234") return alert("Clave incorrecta");
-
-            let aRestablecer = [];
             const pais = document.getElementById('filtro-pais').value;
             const prov = document.getElementById('filtro-provincia').value;
             const loc = document.getElementById('filtro-localidad').value;
 
-            if (tipo === "pais" && pais) aRestablecer = todosLosVips.filter(v => v.pais_normalized === pais);
-            else if (tipo === "provincia" && prov) aRestablecer = todosLosVips.filter(v => v.provincia_normalized === prov);
-            else if (tipo === "localidad" && loc) aRestablecer = todosLosVips.filter(v => v.localidad_normalized === loc);
-            else if (tipo === "pais" && !pais) aRestablecer = todosLosVips; // Si se elige "PAÍS" pero no se seleccionó ninguno, aplica a todos
+            const filtrados = todosLosVips.filter(v => {
+                const mBusqueda = (v.apellido && v.apellido.toLowerCase().includes(b)) || (v.whatsapp && v.whatsapp.includes(b));
+                const mPais = !pais || v.pais === pais;
+                const mProv = !prov || v.provincia === prov;
+                const mLoc = !loc || v.localidad === loc;
+                return mBusqueda && mPais && mProv && mLoc;
+            });
 
-            if (aRestablecer.length === 0) return alert("No hay usuarios seleccionados en este filtro.");
+            document.getElementById('count-pais').innerText = pais ? todosLosVips.filter(v => v.pais === pais).length : 0;
+            document.getElementById('count-prov').innerText = prov ? todosLosVips.filter(v => v.provincia === prov).length : 0;
+            document.getElementById('count-loc').innerText = loc ? todosLosVips.filter(v => v.localidad === loc).length : 0;
 
-            if (confirm(`¿Restablecer cupones por comercio a ${aRestablecer.length} usuarios VIP?`)) {
+            renderizar(filtrados);
+        };
+
+        window.ejecutarReseteoMasivo = async () => {
+            const tipo = document.getElementById('tipo-reseteo').value;
+            if(!tipo) return alert("Seleccioná un nivel de reseteo (Localidad, Provincia o País)");
+            
+            const pass = prompt("CONTRASEÑA ADMIN REQUERIDA:");
+            if(pass !== "admin1234") return alert("Contraseña incorrecta.");
+
+            let seleccion = [];
+            if(tipo === "pais") seleccion = todosLosVips;
+            if(tipo === "provincia") seleccion = todosLosVips.filter(v => v.provincia === document.getElementById('filtro-provincia').value);
+            if(tipo === "localidad") seleccion = todosLosVips.filter(v => v.localidad === document.getElementById('filtro-localidad').value);
+
+            if(seleccion.length === 0) return alert("No hay Vips en la selección actual.");
+
+            if(confirm(`¿Restablecer cupones de ${seleccion.length} usuarios?`)){
                 const batch = writeBatch(db);
-                const ahora = Date.now();
-                aRestablecer.forEach(v => {
-                    const vRef = doc(db, "leads", v.id);
-                    
-                    // Preparamos objeto de limpieza
-                    let limpieza = { usos_count: 0, cupones_detallados: [] };
-                    // Buscamos campos de comercios (objetos con propiedad 'usos') para borrarlos
-                    Object.keys(v).forEach(key => {
-                        if (v[key] && typeof v[key] === 'object' && v[key].usos !== undefined) {
-                            limpieza[key] = { usos: 0 }; // Reiniciamos solo el contador interno, no borramos el objeto entero
-                            // Si se quisiera borrar el objeto entero: limpieza[key] = deleteField();
-                        }
-                    });
-                    batch.update(vRef, limpieza);
+                seleccion.forEach(v => {
+                    const vRef = doc(db, "vips", v.id);
+                    let clean = { usos_count: 0, cupones_detallados: [] };
+                    Object.keys(v).forEach(k => { if(v[k] && v[k].usos !== undefined) clean[k] = deleteField(); });
+                    batch.update(vRef, clean);
                 });
                 await batch.commit();
-                alert("✅ Cupones restablecidos correctamente.");
+                alert("Reseteo completado con éxito.");
             }
         };
-
-        // --- FIN FUNCIONES DE FILTRO Y RESETEO ---
-
-        async function registrarActividad(usuarioId, nombre, accion) {
-            try {
-                await addDoc(collection(db, "logs_actividad"), {
-                    usuarioId: usuarioId,
-                    nombre: nombre,
-                    tipo: "VIP",
-                    accion: accion,
-                    timestamp: Date.now(),
-                    fecha: new Date().toLocaleString()
-                });
-            } catch (e) { console.error("Error log:", e); }
-        }
-
-        const q = query(collection(db, "leads"), where("convertidoVIP", "==", true));
-        
-        onSnapshot(q, (snap) => {
-            todosLosVips = [];
-            snap.forEach(d => {
-                const data = d.data();
-                // Normalizamos los campos de ubicación al cargar el lead
-                todosLosVips.push({
-                    id: d.id,
-                    ...data,
-                    pais_normalized: (data.pais || 'ARGENTINA').toUpperCase(), // Asumimos ARGENTINA si no está definido
-                    provincia_normalized: (data.provincia || '').toUpperCase(),
-                    localidad_normalized: (data.localidad || '').toUpperCase()
-                });
-            });
-            aplicarOrdenYRender();
-        });
-
-        function aplicarOrdenYRender() {
-            const { campo, asc } = ordenActual;
-            todosLosVips.sort((a, b) => {
-                let valA = a[campo] || 0;
-                let valB = b[campo] || 0;
-                if (typeof valA === 'string') valA = valA.toLowerCase();
-                if (typeof valB === 'string') valB = valB.toLowerCase();
-                return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
-            });
-            filtrarVips(); // Aplicamos filtros después de ordenar
-        }
-
-        window.ordenar = (campo) => {
-            ordenActual.asc = (ordenActual.campo === campo) ? !ordenActual.asc : true;
-            ordenActual.campo = campo;
-            aplicarOrdenYRender();
-        };
-
-        // --- FUNCIÓN DE RENDERIZADO MODIFICADA (Cambio 3 aplicado) ---
-        function renderizar(datos) {
-            const lista = document.getElementById('lista-vips');
-            lista.innerHTML = "";
-            document.getElementById('contador-total').innerText = `Total VIPs: ${datos.length}`;
-
-            datos.forEach(v => {
-                const fecha = v.fechaVIP ? new Date(v.fechaVIP).toLocaleDateString() : '---';
-                const lastSub = v.lastSubmission ? new Date(v.lastSubmission).toLocaleString() : '---';
-                const nombreFull = `${v.apellido || ''}, ${v.nombres || ''}`;
-                const whatsapp = v.whatsapp || '';
-                const provincia = v.provincia || '---';
-                const localidad = v.localidad || '---';
-                const usosCount = v.usos_count || 0; // Valor principal de usos
-                const estado = v.estado || 'activo';
-
-                // --- CÁLCULO DEL DETALLE POR COMERCIO ---
-                let detalleComercios = "";
-                // Iteramos sobre todas las claves del objeto del lead
-                Object.keys(v).forEach(key => {
-                    // Verificamos si la clave es un objeto y tiene una propiedad 'usos'
-                    if (v[key] && typeof v[key] === 'object' && v[key].usos !== undefined) {
-                        // Mostramos la clave (nombre del comercio) y el número de usos
-                        detalleComercios += `<span class="tag-comercio">${key}: <b>${v[key].usos}</b></span>`;
-                    }
-                });
-                // Si no hay detalles, mostramos un guion
-                if (detalleComercios === "") {
-                    detalleComercios = '-';
-                }
-                // --- FIN CÁLCULO DEL DETALLE ---
-
-                lista.innerHTML += `
-                    <tr>
-                        <td style="color: #8892b0;">${fecha}</td>
-                        <td style="color: var(--oro); font-size: 0.9em;">${lastSub}</td>
-                        <td><b>${nombreFull}</b></td>
-                        <td>${whatsapp}</td>
-                        <td style="color: #8892b0">${provincia}</td>
-                        <td style="color: #8892b0">${localidad}</td>
-                        <td class="col-usos"><span class="badge-usos">${usosCount}</span></td>
-                        <td>${detalleComercios}</td> <!-- Columna con detalle -->
-                        <td><span class="estado-${estado}">${estado.toUpperCase()}</span></td>
-                        <td class="acciones">
-                            <button class="btn-accion btn-oro-accion" onclick="restablecerCupones('${v.id}', '${nombreFull}')">🔄</button>
-                            <button class="btn-accion btn-azul" onclick="toggleEstado('${v.id}', '${estado}', '${nombreFull}')">${estado === 'suspendido' ? '✅ ACTIVAR' : '🚫 SUSPENDER'}</button>
-                            <button class="btn-accion btn-del" onclick="bajaVip('${v.id}', '${nombreFull}')">🗑️ QUITAR</button>
-                        </td>
-                    </tr>
-                `;
-            });
-        }
-        // --- FIN FUNCIÓN DE RENDERIZADO MODIFICADA ---
-
-        window.restablecerCupones = async (id, nombre) => {
-            if(confirm(`¿Restablecer cupones de ${nombre}?`)) {
-                const ahora = Date.now();
-                // Reiniciamos el contador principal y el array detallado
-                await updateDoc(doc(db, "leads", id), { 
-                    usos_count: 0,
-                    cupones_detallados: [],
-                    lastSubmission: ahora 
-                });
-                // Opcional: Reiniciar también los contadores individuales por comercio si existen
-                // Esto requiere conocer todos los nombres de comercios posibles o recorrer el doc como en el reset masivo.
-                // Por simplicidad, aquí solo reiniciamos el total y el array.
-                await registrarActividad(id, nombre, "RESTABLECER CUPONES VIP");
-                alert("Cupones restablecidos.");
-            }
-        };
-
-        window.toggleEstado = async (id, est, nombreCompleto) => {
-            const n = est === 'suspendido' ? 'activo' : 'suspendido';
-            const ahora = Date.now();
-            await updateDoc(doc(db, "leads", id), { estado: n, lastSubmission: ahora });
-            await registrarActividad(id, nombreCompleto, `ESTADO VIP: ${n.toUpperCase()}`);
-        };
-
-        window.bajaVip = async (id, nombre) => {
-            if(confirm(`¿Quitar estado VIP a ${nombre}? Volverá a la lista de Leads.`)) {
-                const ahora = Date.now();
-                await updateDoc(doc(db, "leads", id), { convertidoVIP: false, lastSubmission: ahora });
-                await registrarActividad(id, nombre, "BAJA VIP (VUELVE A LEAD)");
-                await addDoc(collection(db, "logs"), { fecha: ahora, tipo: "BAJA VIP", detalle: `Socio ${nombre} volvió a ser Lead` });
-            }
-        };
-    </script>
-</body>
-</html>
