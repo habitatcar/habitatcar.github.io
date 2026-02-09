@@ -380,10 +380,13 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- ID ESTRICTO SEGÚN CAPTURA DE PANTALLA ---
-        const leadId = "UoNTJpB2yluMS1IOHSvG"; 
-        const leadNombre = "01";
-        const leadApellido = "01";
+       // LEEMOS EL ID REAL QUE DEJÓ EL REGISTRO
+        const leadId = localStorage.getItem('leadId_habitat'); 
+        
+        // SEGURIDAD: Si no hay ID, lo mandamos a registrarse (Evita Fantasmas)
+        if (!leadId) {
+            window.location.replace("usuarios_registro_lead.html");
+        }
         // ------------------------------------
 
         let deferredPrompt;
@@ -563,38 +566,69 @@
             navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
         };
 
-        window.finalizar = async (id, nom) => {
-            try {
-                const ahora = Date.now();
+        try {
+                const ahora = new Date();
+                const fechaLegible = ahora.toLocaleDateString();
+                const horaLegible = ahora.toLocaleTimeString();
+                const timestamp = ahora.getTime();
+
                 const refComercio = doc(db, "comercios", id);
-                
                 const snapCom = await getDoc(refComercio);
                 const dataCom = snapCom.data();
                 const totalActual = (dataCom.totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
+                // 1. ACTUALIZACIÓN ESTADÍSTICAS COMERCIO
                 await updateDoc(refComercio, {
                     totalUsos: increment(1),
-                    usosHoy: increment(1),
-                    usosSemana: increment(1),
-                    usosMes: increment(1),
-                    usosAnio: increment(1),
-                    lastSubmission: ahora
+                    lastSubmission: timestamp
                 });
 
-                try {
-                    await addDoc(collection(db, "logs_actividad"), {
-                        timestamp: ahora,
-                        tipo: "canje",
-                        accion: "CANJE LEADS",
-                        nombre: `Canje en: ${nom}`,
-                        comercioId: id,
-                        nombreComercio: nom,
-                        usuarioId: leadId,
-                        nombreUsuario: `${leadApellido} ${leadNombre}`,
-                        modulo: "CUPONES",
-                        idValidacion: idManual
-                    });
+                // 2. LOG DE ACTIVIDAD
+                await addDoc(collection(db, "logs_actividad"), {
+                    timestamp: timestamp,
+                    tipo: "canje",
+                    accion: "CANJE LEADS",
+                    nombreComercio: nom,
+                    usuarioId: leadId,
+                    idValidacion: idManual
+                });
+
+                // 3. GUARDADO DINÁMICO EN EL DOCUMENTO DEL LEAD (SOLO INSERCIÓN)
+                const leadRef = doc(db, "leads", leadId);
+                
+                // Creamos el objeto con toda la información que querías ver
+                const datosCanje = {
+                    comercio: nom,
+                    fecha: fechaLegible,
+                    hora: horaLegible,
+                    codigo: idManual,
+                    timestamp: timestamp
+                };
+
+                await updateDoc(leadRef, { 
+                    cupones_detallados: arrayUnion(datosCanje), // Aquí se guarda la info completa
+                    ultimo_canje: timestamp
+                });
+
+                // 4. ACTUALIZAR CONTADOR LOCAL Y VISUAL
+                const nuevosUsos = getUsosLocales(id) + 1;
+                localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
+
+                document.getElementById('exito-comercio').innerText = nom;
+                document.getElementById('exito-id-texto').innerText = idManual;
+                JsBarcode("#barcode", idManual, { format: "CODE128", lineColor: "#000", width: 2, height: 80, displayValue: false });
+                document.getElementById('pantalla-exito').style.display = 'flex';
+                
+                let s = 30;
+                const t = setInterval(() => {
+                    s--; 
+                    document.getElementById('countdown').innerText = s;
+                    if(s <= 0) { 
+                        clearInterval(t); 
+                        location.reload(); 
+                    }
+                }, 1000);
                 } catch(eLog) { console.error("Error Log:", eLog); }
 
                 try {
@@ -675,3 +709,4 @@
     </script>
 </body>
 </html>
+
