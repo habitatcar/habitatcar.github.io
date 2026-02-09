@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="Hábitat-Car">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
-    <link rel="manifest" href="application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIExlYWRzIiwKICAic2hvcnRfbmFtZSI6ICJIYeWiaXRhdC1DYXIiLAogIClY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyLmdpdGh1Yi5pby9ibG9iL21haW4vbG9nby5wbmc/cmF3PXRydWUiLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNKYWJsZSIKICAgIH0KICBdLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAwNDU5MCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDQ1OTAiCn0=">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIExlYWRzIiwKICAic2hvcnRfbmFtZSI6ICJIYeWiaXRhdC1DYXIiLAogIClY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyLmdpdGh1Yi5pby9ibG9iL21haW4vbG9nby5wbmc/cmF3PXRydWUiLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNKYWJsZSIKICAgIH0KICBdLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAwNDU5MCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDQ1OTAiCn0=">
 
     <script src="https://unpkg.com/html5-qrcode  "></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js  "></script>
@@ -382,7 +382,15 @@
         const db = getFirestore(app);
 
         // --- CAPTURA DE DATOS PROTEGIDA ---
-        const leadId = localStorage.getItem('leadId') || "invitado_" + Date.now(); 
+        // CAMBIO A: Forzar la validación del ID al inicio
+        let leadId = localStorage.getItem('leadId_habitat');
+        
+        // Si el ID es de invitado o no existe, lo obligamos a registrarse con su WhatsApp
+        if (!leadId || leadId.startsWith('invitado_')) { 
+            console.error("ID no válido detectado:", leadId);
+            window.location.replace("usuarios_registro_lead.html"); 
+        }
+        // La captura de nombre y apellido puede seguir usando los valores anteriores si es necesario para mostrarlos
         const leadNombre = localStorage.getItem('leadNombre') || "Usuario";
         const leadApellido = localStorage.getItem('leadApellido') || "Leads";
         // ------------------------------------
@@ -441,11 +449,15 @@
                     // NUEVA LÓGICA: Leemos el contador de este comercio desde la nube
                     // const nUso = conteosNube[c.nombre] || 0; // Línea antigua
                     const nombre = c.nombre || "Local"; // Definimos nombre aquí
-                    // const nUso = (leadData[nombre] && leadData[nombre].usos) ? leadData[nombre].usos : 0; // <-- Anteriormente aplicado
-                    // const nUso = (leadData && leadData[nombre]) ? leadData[nombre].usos : 0; // <-- Aplicando cambio solicitado Paso 2
-                    const datosComercio = leadData[c.nombre] || {}; // <-- Aplicando cambio solicitado Paso 2
-                    const nUso = datosComercio.usos || 0; // <-- Aplicando cambio solicitado Paso 2
-                    const esUsado = nUso > 0; // <-- Aplicando cambio solicitado Paso 2 Esto bloquea la tarjeta si ya tiene un uso en Firebase
+                    // const datosComercio = leadData[nombre] || {};
+                    // const nUso = datosComercio.usos || 0;
+                    // const esUsado = nUso > 0; // <-- Aplicando cambio solicitado Paso 2
+                    
+                    // Aplicando el cambio específico solicitado para leer el conteo
+                    const datosComercio = leadData[c.nombre] || {};
+                    const nUso = datosComercio.usos || 0;
+                    const esUsado = nUso > 0; // Esto bloquea la tarjeta si ya tiene un uso en Firebase
+
 
                     const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
                     
@@ -495,8 +507,8 @@
                                 ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
                                 <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=  ${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
                                 <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
-                                <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">
-                                    Usar el Beneficio <span class="contador-nube">${nUso}</span> <!-- Aplicando cambio solicitado Paso 2 -->
+                                <button class="btn-act btn-usar ${esUsado ? 'usado' : ''}" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">
+                                    Usar el Beneficio <span class="contador-nube">${nUso}</span>
                                 </button>
                             </div>
                         </div>`;
@@ -573,37 +585,37 @@
             navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
         };
 
-        // Reemplazo de la función window.finalizar (Línea 367 aprox.)
+        // --- REEMPLAZO DE LA FUNCIÓN window.finalizar (CAMBIO B) ---
         window.finalizar = async (id, nom) => {
             try {
-                // VALIDACIÓN CRÍTICA: Si no hay un ID real, no dejamos avanzar
-                if (!leadId || leadId.startsWith('invitado_')) {
-                    alert("Error: No se detectó una sesión válida. Por favor, regístrese nuevamente.");
-                    window.location.replace("usuarios_registro_lead.html");
-                    return;
-                }
-
                 const ahora = new Date();
                 const fechaLegible = ahora.toLocaleDateString();
                 const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const timestamp = ahora.getTime();
 
+                // 1. OBTENEMOS ID DE VALIDACIÓN DEL COMERCIO
                 const refComercio = doc(db, "comercios", id);
                 const snapCom = await getDoc(refComercio);
                 const totalActual = (snapCom.data().totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
-                // 1. ACTUALIZACIÓN EN LA COLECCIÓN COMERCIOS
+                // 2. ACTUALIZACIÓN COMERCIO (Estadísticas)
                 await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
 
-                // 2. LOG DE ACTIVIDAD GENERAL
-                await addDoc(collection(db, "logs_actividad"), {
-                    timestamp: timestamp, tipo: "canje", accion: "CANJE LEADS",
-                    nombreComercio: nom, usuarioId: leadId, idValidacion: idManual
-                });
+                // 3. LOG DE ACTIVIDAD
+                try {
+                    await addDoc(collection(db, "logs_actividad"), {
+                        timestamp: timestamp,
+                        tipo: "canje",
+                        accion: "CANJE LEADS",
+                        nombreComercio: nom,
+                        usuarioId: leadId, // <-- Usamos el leadId obtenido al inicio
+                        idValidacion: idManual
+                    });
+                } catch(eLog) { console.error("Error Log:", eLog); }
 
-                // 3. ACTUALIZACIÓN EN TU DOCUMENTO DE LEAD (USANDO TUS CAMPOS)
-                const leadRef = doc(db, "leads", leadId);
+                // 4. ACTUALIZACIÓN EN TU DOCUMENTO DE LEAD (USANDO TUS CAMPOS)
+                const leadRef = doc(db, "leads", leadId); // <-- Usamos el leadId obtenido al inicio
                 
                 // Definimos la ruta exacta: NombreDelComercio.usos
                 // Esto sumará 1 al campo 'usos' dentro del objeto del comercio en Firebase
@@ -624,7 +636,7 @@
                     ultimo_canje: timestamp
                 });
 
-                // 4. ÉXITO VISUAL
+                // 5. ÉXITO VISUAL
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
                 JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
@@ -634,14 +646,23 @@
                 const t = setInterval(() => {
                     s--; 
                     document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { clearInterval(t); location.reload(); }
+                    if(s <= 0) { 
+                        clearInterval(t); 
+                        // Actualizar local storage y recargar para reflejar cambios
+                        const usadosLocales = getUsadosLocal();
+                        usadosLocales.push(id);
+                        localStorage.setItem('usados_v16_ok', JSON.stringify(usadosLocales));
+                        location.reload(); 
+                    }
                 }, 1000);
 
             } catch(e) { 
-                console.error("Error en Firebase:", e);
-                alert("Error crítico de base de datos. Verifique su conexión o registro."); 
+                console.error("Error de Validación:", e);
+                alert("ERROR: El número " + leadId + " no está registrado. Por favor, pase por el registro primero.");
+                window.location.replace("usuarios_registro_lead.html");
             }
         };
+        // --- FIN REEMPLAZO ---
 
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
