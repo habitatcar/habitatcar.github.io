@@ -83,19 +83,6 @@
         .btn-usar.activo { background: var(--verde); pointer-events: auto; box-shadow: 0 4px #1b5e20; }
         .btn-usar.activo:active { transform: translateY(2px); box-shadow: 0 2px #1b5e20; }
 
-        /* Estilo para el campo de usos solicitado */
-        .usos-counter {
-            background: #eee;
-            color: #333;
-            display: inline-block;
-            padding: 5px 15px;
-            border-radius: 20px;
-            font-weight: 800;
-            font-size: 16px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-        }
-
         .custom-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 3000; }
         .custom-alert { background: white; width: 85%; max-width: 350px; border-radius: 20px; border: 5px solid var(--azul-habitat); text-align: center; padding: 25px; box-sizing: border-box; }
         
@@ -173,25 +160,23 @@
 
         let scanner = null;
 
-        // Escuchar datos del Lead para obtener los conteos de uso y bloquear
         onSnapshot(doc(db, "leads", leadId), (leadDoc) => {
             const leadData = leadDoc.data() || {};
             const conteos = leadData.conteos_por_comercio || {};
 
-            onSnapshot(collection(db, "comercios"), (snapshot) => {
+            onSnapshot(collection(db, "comercios"), (querySnapshot) => {
                 const contenedor = document.getElementById('contenedor-cupones');
                 let html = "";
 
-                snapshot.forEach(docSnap => {
+                querySnapshot.forEach(docSnap => {
                     const c = docSnap.data();
                     const id = docSnap.id;
                     const nombreComercio = c.nombre;
 
                     if (c.estado === "inactivo") return;
 
-                    // Lógica de conteo y bloqueo
-                    const nUsos = conteos[nombreComercio] || 0;
-                    const esUsado = nUsos >= 1; 
+                    const nUsos = (conteos && conteos[nombreComercio]) ? conteos[nombreComercio] : 0;
+                    const esUsado = nUsos > 0; 
 
                     const hoy = new Date();
                     const vence = new Date(c.vencimiento);
@@ -206,7 +191,9 @@
                             <div class="nombre-c">${nombreComercio}</div>
                             <div class="beneficio-c">${c.valLead}% OFF</div>
                             
-                            <div class="usos-counter">Usos: ${nUsos}</div>
+                            <div style="font-weight: 800; color: #555; margin-bottom: 10px; background: #eee; display: inline-block; padding: 2px 12px; border-radius: 5px; font-size: 15px;">
+                                Usos: ${nUsos}
+                            </div>
 
                             <span class="info-txt">Vence en: ${diff} días</span>
                             <div class="btn-stack">
@@ -262,16 +249,13 @@
             try {
                 const comRef = doc(db, "comercios", id);
                 const comSnap = await getDoc(comRef);
-                const nuevoCorrelativo = (comSnap.data().totalUsos || 0) + 1;
-                const idManual = "HAB-" + String(nuevoCorrelativo).padStart(4, '0');
+                const idManual = "HAB-" + String((comSnap.data().totalUsos || 0) + 1).padStart(4, '0');
 
-                // 1. Actualizar comercio
                 await updateDoc(comRef, { totalUsos: increment(1) });
 
-                // 2. Actualizar Lead (Campo Usos solicitado y contador general)
-                const campoUsoComercio = `conteos_por_comercio.${nom}`;
+                const campoDinamico = `conteos_por_comercio.${nom}`;
                 await updateDoc(doc(db, "leads", leadId), {
-                    [campoUsoComercio]: increment(1),
+                    [campoDinamico]: increment(1),
                     usos_count: increment(1),
                     cupones_detallados: arrayUnion({
                         comercio: nom,
@@ -280,26 +264,19 @@
                     })
                 });
 
-                // Registro de Log
-                await updateDoc(doc(db, "config", "stats"), { totalCanjes: increment(1) });
-
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
-                JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
+                JsBarcode("#barcode", idManual, { format: "CODE128", lineColor: "#000", width: 2, height: 80, displayValue: false });
                 document.getElementById('pantalla-exito').style.display = 'flex';
                 
                 let s = 30;
                 const t = setInterval(() => {
                     s--; 
                     document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { 
-                        clearInterval(t); 
-                        location.reload(); 
-                    }
+                    if(s <= 0) { clearInterval(t); location.reload(); }
                 }, 1000);
 
             } catch(e) { 
-                console.error("Error General:", e);
                 alert("Error crítico: " + e.message); 
             }
         };
