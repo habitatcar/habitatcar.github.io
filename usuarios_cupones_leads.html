@@ -251,7 +251,6 @@
         .btn-footer {
             padding: 8px 15px; border-radius: 20px; text-decoration: none; color: white; font-weight: bold; font-size: 13px;
         }
-        /* Estilo para el contador de usos en el botón */
         .contador-nube {
             background: var(--rojo-cupon);
             color: white;
@@ -332,11 +331,9 @@
     <div id="pantalla-exito" class="success-page">
         <div class="timer-circle" id="countdown">30</div>
         <h1>¡CANJE EXITOSO!</h1>
-        
         <div class="cuadro-instruccion">
             <p>Muestre esta pantalla al vendedor</p>
         </div>
-
         <div class="seccion-validacion">
             <p style="margin:0; font-weight:bold; color:#666;">CÓDIGO DE VALIDACIÓN</p>
             <div class="id-manual" id="exito-id-texto">---</div>
@@ -345,7 +342,6 @@
                 <svg id="barcode"></svg>
             </div>
         </div>
-
         <h2 id="exito-comercio" style="text-transform:uppercase; color: var(--azul-habitat); margin-top:10px;"></h2>
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true  " style="width:180px; height:auto; margin-top:15px">
     </div>
@@ -380,13 +376,8 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- LÓGICA DE VÍNCULO CON EL REGISTRO (ANTI-FANTASMAS) ---
         const leadId = localStorage.getItem('leadId_habitat'); 
-        
-        if (!leadId) {
-            window.location.replace("usuarios_registro_lead.html");
-        }
-        // ---------------------------------------------------------
+        if (!leadId) { window.location.replace("usuarios_registro_lead.html"); }
 
         let deferredPrompt;
         const btnInstalar = document.getElementById('btn-instalar-pwa');
@@ -417,10 +408,7 @@
         
         const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
         const getUsadosLocal = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
-
-        const getUsosLocales = (comercioId) => {
-            return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
-        };
+        const getUsosLocales = (comercioId) => parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
 
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-cupones');
@@ -442,15 +430,11 @@
                 let mostrarReloj = vigenciaTotal > 0;
 
                 if (mostrarReloj) {
-                    if (!inicios[id]) {
-                        inicios[id] = Date.now();
-                        huboCambioInicio = true;
-                    }
+                    if (!inicios[id]) { inicios[id] = Date.now(); huboCambioInicio = true; }
                     const transcurrido = Date.now() - inicios[id];
                     const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
                     diasRestantes = vigenciaTotal - diasPasados;
                 }
-
                 if (mostrarReloj && diasRestantes < 0) return;
 
                 let htmlLogo = "";
@@ -460,18 +444,12 @@
 
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
                 const token = c.tokenQR || "";
-                const ig = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/  ${c.instagram.replace('@','')}`) : "";
+                const ig = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/${c.instagram.replace('@','')}`) : "";
                 const web = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : "";
                 const tieneRedes = (ig !== "" || web !== "");
                 
-                let infoVencimiento = "";
-                if (!mostrarReloj) {
-                    infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)`;
-                } else if (diasRestantes <= 3) {
-                    infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>`;
-                } else {
-                    infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
-                }
+                let infoVencimiento = !mostrarReloj ? `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)` : 
+                    (diasRestantes <= 3 ? `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>` : `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`);
 
                 const nUso = getUsosLocales(id);
 
@@ -484,7 +462,7 @@
                         ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
                         <div class="btn-stack">
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
-                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=  ${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
+                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
                             <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">
                                 Usar el Beneficio <span class="contador-nube">${nUso}</span>
@@ -493,16 +471,13 @@
                     </div>`;
             });
 
-            if (huboCambioInicio) {
-                localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
-            }
+            if (huboCambioInicio) localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
             contenedor.innerHTML = html;
         });
 
         window.cerrarValidado = () => { document.getElementById('overlay-validado').style.display = 'none'; };
         window.cerrarErrorQR = () => { document.getElementById('overlay-error-qr').style.display = 'none'; };
         window.cerrarAtencion = () => { document.getElementById('overlay-atencion').style.display = 'none'; };
-
         window.confirmarAtencion = (id, nom) => {
             document.getElementById('overlay-atencion').style.display = 'flex'; 
             document.getElementById('btn-confirmar-final').onclick = () => {
@@ -562,41 +537,31 @@
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
                 // 1. ACTUALIZACIÓN COMERCIO
-                await updateDoc(refComercio, {
-                    totalUsos: increment(1),
-                    lastSubmission: timestamp
-                });
+                await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
 
                 // 2. LOG DE ACTIVIDAD
                 await addDoc(collection(db, "logs_actividad"), {
-                    timestamp: timestamp,
-                    tipo: "canje",
-                    accion: "CANJE LEADS",
-                    nombreComercio: nom,
-                    usuarioId: leadId,
-                    idValidacion: idManual
+                    timestamp: timestamp, tipo: "canje", accion: "CANJE LEADS",
+                    nombreComercio: nom, usuarioId: leadId, idValidacion: idManual
                 });
 
-                // 3. ACTUALIZACIÓN DINÁMICA DEL LEAD (Suma total y agrega detalle)
+                // 3. ACTUALIZACIÓN LEAD (Contador general + Contador por comercio específico)
                 const leadRef = doc(db, "leads", leadId);
-                const datosCanje = {
-                    comercio: nom,
-                    fecha: fechaLegible,
-                    hora: horaLegible,
-                    codigo: idManual,
-                    timestamp: timestamp
-                };
+                const datosCanje = { comercio: nom, fecha: fechaLegible, hora: horaLegible, codigo: idManual, timestamp: timestamp };
+                
+                // Preparamos el campo dinámico para el comercio específico
+                const campoConteoComercio = `conteos_por_comercio.${nom}`;
 
                 await updateDoc(leadRef, { 
                     cupones_detallados: arrayUnion(datosCanje),
-                    usos_count: increment(1), // <--- ESTO SUMA EL TOTAL QUE FALTABA
-                    ultimo_canje: timestamp
+                    usos_count: increment(1),
+                    ultimo_canje: timestamp,
+                    [campoConteoComercio]: increment(1) // <--- CONTEO DINÁMICO POR LOCAL
                 });
 
                 // 4. PERSISTENCIA LOCAL Y ÉXITO VISUAL
                 const nuevosUsos = getUsosLocales(id) + 1;
                 localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
-
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
                 JsBarcode("#barcode", idManual, { format: "CODE128", lineColor: "#000", width: 2, height: 80, displayValue: false });
@@ -604,18 +569,11 @@
                 
                 let s = 30;
                 const t = setInterval(() => {
-                    s--; 
-                    document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { 
-                        clearInterval(t); 
-                        location.reload(); 
-                    }
+                    s--; document.getElementById('countdown').innerText = s;
+                    if(s <= 0) { clearInterval(t); location.reload(); }
                 }, 1000);
 
-            } catch(e) { 
-                console.error("Error General:", e);
-                alert("Error crítico: " + e.message); 
-            }
+            } catch(e) { console.error("Error General:", e); alert("Error crítico: " + e.message); }
         };
 
         window.filtrar = () => {
@@ -624,10 +582,7 @@
             document.querySelectorAll('.card').forEach(c => {
                 const nombreMatch = c.dataset.nombre.includes(texto);
                 const dias = parseInt(c.dataset.vence);
-                let venceMatch = true;
-                if (vencimiento !== "todos") {
-                    venceMatch = (dias >= 0 && dias <= parseInt(vencimiento));
-                }
+                let venceMatch = (vencimiento === "todos") || (dias >= 0 && dias <= parseInt(vencimiento));
                 c.style.display = (nombreMatch && venceMatch) ? 'block' : 'none';
             });
         };
