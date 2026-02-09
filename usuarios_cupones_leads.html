@@ -5,86 +5,369 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Beneficios Leads | Hábitat-Car</title>
 
-    <link rel="icon" type="image/png" href="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true">
-    
-    <script src="https://unpkg.com/html5-qrcode"></script>
-    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <link rel="icon" type="image/png" href="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true  ">
+    <link rel="apple-touch-icon" href="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true  ">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Hábitat-Car">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIExlYWRzIiwKICAic2hvcnRfbmFtZSI6ICJIYeWiaXRhdC1DYXIiLAogIClY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyLmdpdGh1Yi5pby9ibG9iL21haW4vbG9nby5wbmc/cmF3PXRydWUiLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNJYWJsZSIKICAgIH0KICBdLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAwNDU5MCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDQ1OTAiCn0=">
+
+    <script src="https://unpkg.com/html5-qrcode  "></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js  "></script>
 
     <style>
         :root {
             --azul-habitat: #003d80; 
             --rojo-cupon: #e60000;
+            --naranja: #ff8c00;
+            --celeste: #0288d1;
+            --verde: #2e7d32;
+            --rosa: #c2185b;
+            --negro: #000000;
+            --azul-validar: #0d124a;
         }
 
-        body { margin: 0; background-color: var(--azul-habitat); font-family: sans-serif; }
+        body { 
+            margin: 0; padding: 0; 
+            background-color: var(--azul-habitat); 
+            font-family: 'Segoe UI', Arial, sans-serif; 
+            padding-bottom: 100px; 
+        }
 
-        .header-white { padding: 20px; text-align: center; background: white; border-bottom: 4px solid var(--rojo-cupon); }
-        .header-white img { max-width: 200px; }
+        .header-white { 
+            padding: 30px 15px; 
+            text-align: center; 
+            background: white; 
+            border-bottom: 6px solid var(--rojo-cupon);
+        }
+        .header-white img { width: 100%; max-width: 300px; height: auto; display: block; margin: 0 auto; }
 
-        .grid { padding: 15px; display: grid; gap: 20px; }
+        #btn-instalar-pwa {
+            display: none;
+            margin: 15px auto 5px;
+            padding: 12px 25px;
+            background: var(--azul-habitat);
+            color: white;
+            border: none;
+            border-radius: 30px;
+            font-weight: 900;
+            font-size: 0.9em;
+            text-transform: uppercase;
+            cursor: pointer;
+            width: 85%;
+            max-width: 300px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
 
-        /* EL DISEÑO DE TU TARJETA */
+        .filtro-container {
+            padding: 15px;
+            display: flex;
+            gap: 10px;
+            background: rgba(255,255,255,0.1);
+        }
+        
+        .search-wrapper {
+            position: relative;
+            flex: 1;
+        }
+        .search-wrapper::before {
+            content: "🔍";
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1;
+        }
+        .search-wrapper input {
+            width: 100%;
+            padding: 12px 12px 12px 35px;
+            border-radius: 8px;
+            border: none;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+
+        .filtro-container select {
+            flex: 1; padding: 12px; border-radius: 8px; border: none; font-size: 16px;
+        }
+
+        .grid { padding: 15px; display: grid; grid-template-columns: 1fr; gap: 20px; }
+
         .card {
-            background: white; border-radius: 10px; overflow: hidden; position: relative;
-            text-align: center; padding-bottom: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            position: relative;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            text-align: center;
+            padding-bottom: 20px;
         }
 
-        /* LÓGICA DE BLOQUEO (Lo que pediste recomponer) */
-        .card.usado { filter: grayscale(1); opacity: 0.7; }
-        .card.usado .btn-validar { pointer-events: none; background: #666 !important; }
+        @keyframes pulsoRecuadro {
+            0% { border-color: rgba(230,0,0,0.2); box-shadow: 0 0 2px rgba(230,0,0,0.1); }
+            50% { border-color: rgba(230,0,0,1); box-shadow: 0 0 10px rgba(230,0,0,0.4); }
+            100% { border-color: rgba(230,0,0,0.2); box-shadow: 0 0 2px rgba(230,0,0,0.1); }
+        }
+
+        @keyframes parpadeoVerde {
+            0% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.8; transform: scale(1.02); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes parpadeoSuave {
+            0% { background-color: white; }
+            50% { background-color: #ffebeb; }
+            100% { background-color: white; }
+        }
+
+        .box-vence-3 {
+            display: inline-block;
+            padding: 5px 10px;
+            border: 2px solid var(--rojo-cupon);
+            border-radius: 8px;
+            animation: pulsoRecuadro 3s infinite ease-in-out;
+        }
+
+        .card.usado { filter: grayscale(1); opacity: 0.7; pointer-events: none; }
         .card.usado::after {
             content: "CANJEADO";
-            position: absolute; top: 50%; left: 50%;
-            transform: translate(-50%, -50%) rotate(-15deg);
-            font-size: 35px; font-weight: bold; color: var(--rojo-cupon);
-            border: 4px solid var(--rojo-cupon); padding: 5px 10px; z-index: 10;
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%) rotate(-20deg);
+            font-size: 40px; font-weight: bold; color: rgba(230,0,0,0.5);
+            border: 5px solid rgba(230,0,0,0.5); padding: 10px; border-radius: 10px;
         }
 
-        .logo-container { height: 120px; display: flex; align-items: center; justify-content: center; }
-        .logo-c { max-height: 100px; max-width: 80%; }
+        .logo-container { height: 250px; display: flex; align-items: center; justify-content: center; background: #f9f9f9; padding: 15px; }
+        .logo-c { max-height: 220px; max-width: 95%; object-fit: contain; }
 
-        .nombre-c { font-weight: bold; font-size: 18px; margin: 5px; }
-        .beneficio-c { color: var(--rojo-cupon); font-size: 22px; font-weight: 900; margin-bottom: 5px; }
+        .nombre-c { font-weight: 900; font-size: 24px; color: var(--negro); margin: 10px 0; text-transform: uppercase; }
+        .beneficio-c { color: var(--rojo-cupon); font-size: 28px; font-weight: 900; margin: 10px 0; }
 
-        /* CAMPO DE CONTEO (Lo nuevo que agregué según tu imagen) */
-        .usos-info { font-size: 14px; font-weight: bold; color: #555; margin-bottom: 10px; }
+        .info-txt { display: block; font-size: 18px; color: #444; margin: 12px 0; font-weight: 600; }
+        .ico-large { font-size: 27px; vertical-align: middle; margin-right: 8px; }
 
-        .btn-validar { 
-            background: #0d124a; color: white; border: none; padding: 10px 20px; 
-            border-radius: 5px; font-weight: bold; cursor: pointer; width: 80%;
+        .btn-stack { padding: 0 15px; display: flex; flex-direction: column; gap: 10px; margin-top: 15px; }
+        .btn-act {
+            padding: 15px; border-radius: 10px; border: none; 
+            font-weight: bold; font-size: 16px; color: white; cursor: pointer;
         }
-        .btn-usar { 
-            background: #2e7d32; color: white; border: none; padding: 10px 20px; 
-            border-radius: 5px; font-weight: bold; margin-top: 10px; display: none; width: 80%;
+        .btn-conozca { background: var(--naranja); }
+        .btn-llegar { background: var(--celeste); }
+        .btn-validar { background: var(--azul-validar); }
+        .btn-usar { background: #ccc; pointer-events: none; transition: 0.3s; }
+        .btn-usar.activo { 
+            background: var(--verde); 
+            pointer-events: auto; 
+            animation: parpadeoVerde 1.5s infinite; 
         }
 
-        .custom-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); display: none; z-index: 100; }
-        .success-page { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: white; display: none; flex-direction: column; align-items: center; justify-content: center; z-index: 200; }
+        .custom-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7); display: none; align-items: center; justify-content: center; z-index: 3000;
+        }
+        .custom-alert {
+            background: white; width: 85%; max-width: 350px; border-radius: 20px;
+            border: 5px solid var(--azul-habitat); 
+            text-align: center; padding: 25px; box-sizing: border-box;
+        }
+        .custom-alert img.check-icon { width: 60px; margin-bottom: 15px; }
+        .custom-alert h2 { margin: 10px 0; font-size: 22px; font-weight: 900; color: black; }
+        .custom-alert p { font-size: 17px; color: #333; margin: 15px 0; line-height: 1.4; }
+        
+        .btn-group-alert { display: flex; gap: 10px; justify-content: center; margin-top: 20px; }
+        .btn-alert { 
+            flex: 1; padding: 12px; border: none; border-radius: 10px; 
+            font-weight: bold; font-size: 16px; cursor: pointer; text-transform: uppercase;
+        }
+        .btn-si { background: #e63946; color: white; }
+        .btn-no { background: #8e8e93; color: white; }
+
+        .modal {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9); display: none; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 1000;
+        }
+        #reader { width: 300px; background: white; border-radius: 10px; overflow: hidden; }
+
+        .popup-redes {
+            position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            background: white; padding: 25px; border-radius: 20px; box-shadow: 0 0 50px rgba(0,0,0,0.5);
+            display: none; flex-direction: column; gap: 15px; z-index: 1100; width: 80%; max-width: 300px; text-align: center;
+        }
+        .btn-red { padding: 12px; border-radius: 10px; border: none; color: white; font-weight: bold; text-decoration: none; display: block; }
+
+        .success-page {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: white; z-index: 2000; display: none; flex-direction: column;
+            align-items: center; justify-content: center; text-align: center; padding: 20px;
+            box-sizing: border-box; overflow-y: auto;
+        }
+        .success-page h1 { color: var(--verde); font-size: 28px; margin: 10px 0; font-weight: 900; }
+        
+        .timer-circle {
+            width: 70px; height: 70px; border-radius: 50%;
+            border: 6px solid var(--azul-habitat); display: flex;
+            align-items: center; justify-content: center; font-size: 30px; font-weight: bold;
+            color: var(--azul-habitat); margin-bottom: 10px;
+        }
+
+        .seccion-validacion {
+            width: 100%; background: #f0f0f0; border-radius: 15px; padding: 15px; 
+            margin: 10px 0; box-sizing: border-box; border: 2px solid #ddd;
+        }
+        .id-manual { font-size: 32px; font-weight: 900; color: var(--negro); letter-spacing: 2px; margin: 10px 0; }
+        .barcode-svg { width: 100%; max-width: 300px; height: auto; }
+        .btn-copiar { 
+            background: var(--azul-habitat); color: white; border: none; padding: 8px 15px; 
+            border-radius: 5px; font-weight: bold; cursor: pointer; font-size: 14px;
+        }
+
+        .cuadro-instruccion {
+            border: 4px solid var(--rojo-cupon);
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 15px;
+            animation: parpadeoSuave 2s infinite ease-in-out;
+        }
+        .cuadro-instruccion p {
+            margin: 0;
+            font-size: 18px;
+            font-weight: 900;
+            text-transform: uppercase;
+        }
+
+        .footer-identificacion {
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: white; border-top: 4px solid var(--rojo-cupon);
+            padding: 10px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 900;
+            box-shadow: 0 -2px 10px rgba(0,0,0,0.2);
+        }
+        .footer-row { display: flex; justify-content: center; align-items: center; gap: 20px; width: 100%; }
+        .footer-link { text-decoration: none; color: var(--azul-habitat); font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 5px; }
+        
+        .btn-footer {
+            padding: 8px 15px; border-radius: 20px; text-decoration: none; color: white; font-weight: bold; font-size: 13px;
+        }
+        /* Estilo para el contador de usos en el botón */
+        .contador-nube {
+            background: var(--rojo-cupon);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 5px;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
 
     <div class="header-white">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true  ">
+        <button id="btn-instalar-pwa">INSTALAR ÍCONO HÁBITAT-CAR</button>
+    </div>
+
+    <div class="filtro-container">
+        <div class="search-wrapper">
+            <input type="text" id="filtroNombre" placeholder="Buscar local..." onkeyup="filtrar()">
+        </div>
+        <select id="filtroVence" onchange="filtrar()">
+            <option value="todos">Vence en...</option>
+            <option value="3">3 días o menos</option>
+            <option value="7">7 días o menos</option>
+            <option value="15">15 días o menos</option>
+        </select>
     </div>
 
     <div id="contenedor-cupones" class="grid"></div>
 
-    <div id="modal-qr" class="custom-overlay">
-        <div id="reader" style="width: 300px; margin: auto; margin-top: 20%;"></div>
-        <button onclick="cerrarScanner()" style="display:block; margin: 20px auto;">CERRAR</button>
+    <div id="overlay-validado" class="custom-overlay">
+        <div class="custom-alert">
+            <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png  " class="check-icon">
+            <h2>QR VALIDADO</h2>
+            <p style="font-size: 22px; font-weight: 900;">Ahora pulse el botón "USAR BENEFICIO"</p>
+            <button class="btn-alert btn-si" style="background:var(--azul-habitat)" onclick="cerrarValidado()">ENTENDIDO</button>
+        </div>
+    </div>
+
+    <div id="overlay-error-qr" class="custom-overlay">
+        <div class="custom-alert" style="border-color: var(--rojo-cupon);">
+            <img src="https://cdn-icons-png.flaticon.com/512/753/753345.png  " class="check-icon">
+            <h2 style="color: var(--rojo-cupon);">❌ ERROR DE VALIDACIÓN</h2>
+            <p><b>El código escaneado no coincide con este comercio.</b></p>
+            <p style="font-weight: 900; color: var(--azul-habitat);">Hábitat-Car le pide que escanee el QR correcto ubicado en el mostrador.</p>
+            <button class="btn-alert btn-si" style="background:var(--rojo-cupon)" onclick="cerrarErrorQR()">REINTENTAR</button>
+        </div>
+    </div>
+
+    <div id="overlay-atencion" class="custom-overlay">
+        <div class="custom-alert">
+            <h2 style="color:#e63946">⚠️ ATENCIÓN</h2>
+            <p>¿Avisaste al cajero que usarás el cupón?</p>
+            <p>Si no avisaste, perderás el beneficio.</p>
+            <div class="btn-group-alert">
+                <button id="btn-confirmar-final" class="btn-alert btn-si">SÍ</button>
+                <button class="btn-alert btn-no" onclick="cerrarAtencion()">NO</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="popup-redes" class="popup-redes">
+        <h3 id="pop-nombre" style="margin:0; color:var(--negro)"></h3>
+        <a id="lnk-ig" class="btn-red" style="background:#e1306c" target="_blank">INSTAGRAM</a>
+        <a id="lnk-web" class="btn-red" style="background:var(--azul-habitat)" target="_blank">SITIO WEB</a>
+        <button onclick="cerrarPopup()" style="border:none; background:none; color:#666; font-weight:bold; cursor:pointer; margin-top:10px">CERRAR</button>
+    </div>
+
+    <div id="modal-qr" class="modal">
+        <h2 style="color:white">Escanee el QR del local</h2>
+        <div id="reader"></div>
+        <button onclick="cerrarScanner()" style="margin-top:20px; padding:10px 20px; background:white; border:none; border-radius:5px; font-weight:bold;">CANCELAR</button>
     </div>
 
     <div id="pantalla-exito" class="success-page">
-        <h1 style="color:green">¡CANJEADO!</h1>
-        <div id="codigo-barras"></div>
-        <svg id="barcode"></svg>
-        <p>Volviendo en <span id="countdown">10</span>s...</p>
+        <div class="timer-circle" id="countdown">30</div>
+        <h1>¡CANJE EXITOSO!</h1>
+        
+        <div class="cuadro-instruccion">
+            <p>Muestre esta pantalla al vendedor</p>
+        </div>
+
+        <div class="seccion-validacion">
+            <p style="margin:0; font-weight:bold; color:#666;">CÓDIGO DE VALIDACIÓN</p>
+            <div class="id-manual" id="exito-id-texto">---</div>
+            <button class="btn-copiar" onclick="copiarID()">COPIAR CÓDIGO</button>
+            <div style="margin-top:15px;">
+                <svg id="barcode"></svg>
+            </div>
+        </div>
+
+        <h2 id="exito-comercio" style="text-transform:uppercase; color: var(--azul-habitat); margin-top:10px;"></h2>
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true  " style="width:180px; height:auto; margin-top:15px">
     </div>
 
+    <footer class="footer-identificacion">
+        <div class="footer-row">
+            <a href="soy_curioso.html" class="btn-footer" style="background: var(--celeste);">SOY CURIOSO</a>
+            <a href="tutorial.html" class="btn-footer" style="background: var(--naranja);">TUTORIAL</a>
+        </div>
+        <div class="footer-row">
+            <a href="https://www.habitatcar.com.ar  " class="footer-link" target="_blank">www.habitatcar.com.ar</a>
+            <a href="https://wa.me/543884618228  " class="footer-link" target="_blank">Cel: 388-4618228</a>
+        </div>
+    </footer>
+
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        history.pushState(null, null, location.href);
+        window.onpopstate = function () { history.go(1); };
+        localStorage.setItem('habitat_auth', 'true');
+
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js  ";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  ";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -97,61 +380,256 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        const leadId = localStorage.getItem('leadId_habitat');
+        // --- LÓGICA DE VÍNCULO CON EL REGISTRO (ANTI-FANTASMAS) ---
+        const leadId = localStorage.getItem('leadId_habitat'); 
+        
+        if (!leadId) {
+            window.location.replace("usuarios_registro_lead.html");
+        }
+        // ---------------------------------------------------------
 
-        // Escuchamos los datos para actualizar el contador y el bloqueo
-        onSnapshot(doc(db, "leads", leadId), (docLead) => {
-            const dataLead = docLead.data();
-            const conteos = dataLead.conteos_por_comercio || {};
+        let deferredPrompt;
+        const btnInstalar = document.getElementById('btn-instalar-pwa');
+        const yaInstalado = localStorage.getItem('habitat_pwa_instalada');
 
-            onSnapshot(collection(db, "comercios"), (snap) => {
-                const contenedor = document.getElementById('contenedor-cupones');
-                let html = "";
-                snap.forEach(d => {
-                    const c = d.data();
-                    const nUsos = conteos[c.nombre] || 0;
-                    const yaUsado = nUsos > 0; // BLOQUEO SI YA SE USÓ AL MENOS 1 VEZ
-
-                    html += `
-                        <div class="card ${yaUsado ? 'usado' : ''}">
-                            <div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>
-                            <div class="nombre-c">${c.nombre}</div>
-                            <div class="beneficio-c">${c.valLead}% OFF</div>
-                            
-                            <div class="usos-info">Usos: ${nUsos}</div>
-
-                            <button class="btn-validar" onclick="abrirQR('${d.id}', '${c.tokenQR}')">
-                                ${yaUsado ? 'CUPÓN USADO' : 'VALIDAR QR'}
-                            </button>
-                            <button id="btn-usar-${d.id}" class="btn-usar" onclick="confirmarCanje('${d.id}', '${c.nombre}')">CONFIRMAR USO</button>
-                        </div>`;
-                });
-                contenedor.innerHTML = html;
-            });
+        window.addEventListener('beforeinstallprompt', (e) => {
+            if (yaInstalado) return;
+            e.preventDefault();
+            deferredPrompt = e;
+            btnInstalar.style.display = 'block';
         });
 
-        window.abrirQR = (id, token) => {
-            document.getElementById('modal-qr').style.display = 'block';
-            let scanner = new Html5Qrcode("reader");
-            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
-                if(text === token) {
-                    scanner.stop();
-                    document.getElementById('modal-qr').style.display = 'none';
-                    document.getElementById(`btn-usar-${id}`).style.display = 'inline-block';
+        btnInstalar.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    btnInstalar.style.display = 'none';
+                    localStorage.setItem('habitat_pwa_instalada', 'true');
                 }
-            });
+                deferredPrompt = null;
+            }
+        });
+
+        let scanner = null;
+        let idEnProceso = "";
+        let tokenEsperado = "";
+        
+        const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
+        const getUsadosLocal = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
+
+        const getUsosLocales = (comercioId) => {
+            return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
         };
 
-        window.confirmarCanje = async (id, nombreComercio) => {
-            const campo = `conteos_por_comercio.${nombreComercio}`;
-            await updateDoc(doc(db, "leads", leadId), {
-                [campo]: increment(1)
+        onSnapshot(collection(db, "comercios"), (snap) => {
+            const contenedor = document.getElementById('contenedor-cupones');
+            const inicios = getInicios();
+            const usadosLocales = getUsadosLocal();
+            let html = "";
+            let huboCambioInicio = false;
+
+            snap.forEach(docSnap => {
+                const c = docSnap.data();
+                const id = docSnap.id;
+                if (c.estado === "inactivo") return;
+
+                const esUsado = usadosLocales.includes(id);
+                const nombre = c.nombre || "Local";
+                const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
+                
+                let diasRestantes = vigenciaTotal;
+                let mostrarReloj = vigenciaTotal > 0;
+
+                if (mostrarReloj) {
+                    if (!inicios[id]) {
+                        inicios[id] = Date.now();
+                        huboCambioInicio = true;
+                    }
+                    const transcurrido = Date.now() - inicios[id];
+                    const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
+                    diasRestantes = vigenciaTotal - diasPasados;
+                }
+
+                if (mostrarReloj && diasRestantes < 0) return;
+
+                let htmlLogo = "";
+                if (c.logoUrl && c.logoUrl.trim() !== "") {
+                    htmlLogo = `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>`;
+                }
+
+                const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
+                const token = c.tokenQR || "";
+                const ig = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/  ${c.instagram.replace('@','')}`) : "";
+                const web = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : "";
+                const tieneRedes = (ig !== "" || web !== "");
+                
+                let infoVencimiento = "";
+                if (!mostrarReloj) {
+                    infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)`;
+                } else if (diasRestantes <= 3) {
+                    infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>`;
+                } else {
+                    infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
+                }
+
+                const nUso = getUsosLocales(id);
+
+                html += `
+                    <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
+                        ${htmlLogo}
+                        <div class="nombre-c">${nombre}</div>
+                        <div class="beneficio-c">${beneficio}</div>
+                        <span class="info-txt">${infoVencimiento}</span>
+                        ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
+                        <div class="btn-stack">
+                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
+                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=  ${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
+                            <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
+                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">
+                                Usar el Beneficio <span class="contador-nube">${nUso}</span>
+                            </button>
+                        </div>
+                    </div>`;
             });
 
-            document.getElementById('pantalla-exito').style.display = 'flex';
-            JsBarcode("#barcode", "CANJE-" + id.substring(0,5));
-            
-            setTimeout(() => { location.reload(); }, 5000);
+            if (huboCambioInicio) {
+                localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
+            }
+            contenedor.innerHTML = html;
+        });
+
+        window.cerrarValidado = () => { document.getElementById('overlay-validado').style.display = 'none'; };
+        window.cerrarErrorQR = () => { document.getElementById('overlay-error-qr').style.display = 'none'; };
+        window.cerrarAtencion = () => { document.getElementById('overlay-atencion').style.display = 'none'; };
+
+        window.confirmarAtencion = (id, nom) => {
+            document.getElementById('overlay-atencion').style.display = 'flex'; 
+            document.getElementById('btn-confirmar-final').onclick = () => {
+                document.getElementById('overlay-atencion').style.display = 'none';
+                finalizar(id, nom);
+            };
+        };
+
+        window.abrirPopup = (nom, ig, web) => {
+            document.getElementById('pop-nombre').innerText = nom;
+            document.getElementById('lnk-ig').href = ig || "#";
+            document.getElementById('lnk-ig').style.display = ig ? 'block' : 'none';
+            document.getElementById('lnk-web').href = web || "#";
+            document.getElementById('lnk-web').style.display = web ? 'block' : 'none';
+            document.getElementById('popup-redes').style.display = 'flex';
+        };
+        window.cerrarPopup = () => document.getElementById('popup-redes').style.display = 'none';
+        
+        window.abrirQR = (id, token) => {
+            idEnProceso = id; tokenEsperado = token;
+            document.getElementById('modal-qr').style.display = 'flex';
+            scanner = new Html5Qrcode("reader");
+            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+                if (text.trim() === tokenEsperado.trim()) {
+                    cerrarScanner();
+                    document.getElementById('overlay-validado').style.display = 'flex';
+                    const btn = document.getElementById(`btn-usar-${idEnProceso}`);
+                    if(btn) { btn.classList.add('activo'); btn.innerText = "USAR BENEFICIO"; }
+                } else { 
+                    cerrarScanner();
+                    document.getElementById('overlay-error-qr').style.display = 'flex'; 
+                }
+            }).catch(e => console.error(e));
+        };
+        
+        window.cerrarScanner = () => {
+            document.getElementById('modal-qr').style.display = 'none';
+            if(scanner) { scanner.stop().then(() => scanner.clear()).catch(err => console.log(err)); }
+        };
+
+        window.copiarID = () => {
+            const idTexto = document.getElementById('exito-id-texto').innerText;
+            navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
+        };
+
+        window.finalizar = async (id, nom) => {
+            try {
+                const ahora = new Date();
+                const fechaLegible = ahora.toLocaleDateString();
+                const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const timestamp = ahora.getTime();
+
+                const refComercio = doc(db, "comercios", id);
+                const snapCom = await getDoc(refComercio);
+                const dataCom = snapCom.data();
+                const totalActual = (dataCom.totalUsos || 0) + 1;
+                const idManual = "HAB-" + String(totalActual).padStart(4, '0');
+
+                // 1. ACTUALIZACIÓN COMERCIO
+                await updateDoc(refComercio, {
+                    totalUsos: increment(1),
+                    lastSubmission: timestamp
+                });
+
+                // 2. LOG DE ACTIVIDAD
+                await addDoc(collection(db, "logs_actividad"), {
+                    timestamp: timestamp,
+                    tipo: "canje",
+                    accion: "CANJE LEADS",
+                    nombreComercio: nom,
+                    usuarioId: leadId,
+                    idValidacion: idManual
+                });
+
+                // 3. ACTUALIZACIÓN DINÁMICA DEL LEAD (Suma total y agrega detalle)
+                const leadRef = doc(db, "leads", leadId);
+                const datosCanje = {
+                    comercio: nom,
+                    fecha: fechaLegible,
+                    hora: horaLegible,
+                    codigo: idManual,
+                    timestamp: timestamp
+                };
+
+                await updateDoc(leadRef, { 
+                    cupones_detallados: arrayUnion(datosCanje),
+                    usos_count: increment(1), // <--- ESTO SUMA EL TOTAL QUE FALTABA
+                    ultimo_canje: timestamp
+                });
+
+                // 4. PERSISTENCIA LOCAL Y ÉXITO VISUAL
+                const nuevosUsos = getUsosLocales(id) + 1;
+                localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
+
+                document.getElementById('exito-comercio').innerText = nom;
+                document.getElementById('exito-id-texto').innerText = idManual;
+                JsBarcode("#barcode", idManual, { format: "CODE128", lineColor: "#000", width: 2, height: 80, displayValue: false });
+                document.getElementById('pantalla-exito').style.display = 'flex';
+                
+                let s = 30;
+                const t = setInterval(() => {
+                    s--; 
+                    document.getElementById('countdown').innerText = s;
+                    if(s <= 0) { 
+                        clearInterval(t); 
+                        location.reload(); 
+                    }
+                }, 1000);
+
+            } catch(e) { 
+                console.error("Error General:", e);
+                alert("Error crítico: " + e.message); 
+            }
+        };
+
+        window.filtrar = () => {
+            const texto = document.getElementById('filtroNombre').value.toLowerCase();
+            const vencimiento = document.getElementById('filtroVence').value;
+            document.querySelectorAll('.card').forEach(c => {
+                const nombreMatch = c.dataset.nombre.includes(texto);
+                const dias = parseInt(c.dataset.vence);
+                let venceMatch = true;
+                if (vencimiento !== "todos") {
+                    venceMatch = (dias >= 0 && dias <= parseInt(vencimiento));
+                }
+                c.style.display = (nombreMatch && venceMatch) ? 'block' : 'none';
+            });
         };
     </script>
 </body>
