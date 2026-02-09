@@ -143,7 +143,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, getDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, getDoc, addDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             storageBucket: "habitat-car.firebasestorage.app",
@@ -210,39 +210,46 @@
             });
         };
 
-        async function registrarActividad(id, nombre, accion) {
-            await addDoc(collection(db, "logs_actividad"), {
-                usuarioId: id,
-                nombreUsuario: nombre,
-                accion: accion,
-                timestamp: Date.now()
-            });
+        async function registrarActividad(usuarioId, nombre, accion) {
+            try {
+                await addDoc(collection(db, "logs_actividad"), {
+                    usuarioId: usuarioId,
+                    nombre: nombre,
+                    tipo: "VIP",
+                    accion: accion,
+                    timestamp: Date.now(),
+                    fecha: new Date().toLocaleString()
+                });
+            } catch (e) { console.error("Error log:", e); }
         }
 
         window.restablecer = async (id, apellido, nombres) => {
-            // Lógica replicada de Leads para limpieza profunda y registro de actividad
-            const clave = prompt("Ingrese clave ADMIN para restablecer cupones VIP:");
+            const clave = prompt("Ingrese clave ADMIN:");
             if (clave !== "admin1234") return alert("Clave incorrecta");
 
-            if(confirm(`¿Desea restablecer a CERO todos los usos de cupones de ${apellido}?`)) {
+            if(confirm(`¿Restablecer usos de ${apellido}?`)) {
                 try {
                     const docRef = doc(db, "leads", id);
                     const docSnap = await getDoc(docRef);
-                    const data = docSnap.data();
-
-                    // Limpiamos el objeto de cupones por comercio si existiera, 
-                    // y reseteamos contadores tal como en la lógica de Leads
-                    await updateDoc(docRef, {
+                    const v = docSnap.data();
+                    
+                    let updateObj = {
                         usos_count: 0,
-                        cupones_detallados: [], // Para el registro de comercios específicos
                         lastSubmission: Date.now()
+                    };
+
+                    // Borramos los contadores individuales de comercios (Lógica sincronizada)
+                    Object.keys(v).forEach(key => {
+                        if (v[key] && typeof v[key] === 'object' && v[key].usos !== undefined) {
+                            updateObj[key] = deleteField();
+                        }
                     });
 
-                    await registrarActividad(id, `${apellido}, ${nombres}`, "RESTABLECER CUPONES VIP (TOTAL)");
-                    alert("Cupones restablecidos correctamente.");
+                    await updateDoc(docRef, updateObj);
+                    await registrarActividad(id, `${apellido}, ${nombres}`, "RESTABLECER CUPONES VIP");
+                    alert("Cupones restablecidos.");
                 } catch (error) {
-                    console.error("Error al restablecer:", error);
-                    alert("Error en la operación.");
+                    alert("Error al restablecer.");
                 }
             }
         };
@@ -271,10 +278,10 @@
         };
 
         window.bajaVip = async (id, apellido, nombres) => {
-            if(confirm(`¿Quitar estado VIP a ${apellido}? Volverá a la lista de Leads.`)) {
+            if(confirm(`¿Quitar estado VIP a ${apellido}?`)) {
                 const ahora = Date.now();
                 await updateDoc(doc(db, "leads", id), { convertidoVIP: false, lastSubmission: ahora });
-                await registrarActividad(id, `${apellido}, ${nombres}`, "BAJA VIP (VUELVE A LEAD)");
+                await registrarActividad(id, `${apellido}, ${nombres}`, "BAJA VIP");
             }
         };
     </script>
