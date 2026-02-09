@@ -425,7 +425,7 @@
         // ESCUCHAMOS AL USUARIO PARA TENER LOS CONTEOS DE LA NUBE
         onSnapshot(doc(db, "leads", leadId), (leadSnap) => {
             const leadData = leadSnap.data() || {};
-            // const conteosNube = leadData.conteos_por_comercio || {}; // Ya no se usa
+            const conteosNube = leadData.conteos_por_comercio || {};
 
             onSnapshot(collection(db, "comercios"), (snap) => {
                 const contenedor = document.getElementById('contenedor-cupones');
@@ -439,11 +439,10 @@
                     if (c.estado === "inactivo") return;
 
                     // NUEVA LÓGICA: Leemos el contador de este comercio desde la nube
-                    // const nUso = conteosNube[c.nombre] || 0; // Línea antigua
-                    const nombre = c.nombre || "Local"; // Definimos nombre aquí
-                    const nUso = (leadData[nombre] && leadData[nombre].usos) ? leadData[nombre].usos : 0; // <-- Aplicando cambio solicitado
+                    const nUso = conteosNube[c.nombre] || 0;
                     const esUsado = nUso > 0; // Se bloquea si ya se usó al menos una vez
 
+                    const nombre = c.nombre || "Local";
                     const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
                     
                     let diasRestantes = vigenciaTotal;
@@ -570,70 +569,82 @@
             navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
         };
 
-        // Reemplazo de la función window.finalizar (Línea 367 aprox.)
         window.finalizar = async (id, nom) => {
             try {
-                // VALIDACIÓN CRÍTICA: Si no hay un ID real, no dejamos avanzar
-                if (!leadId || leadId.startsWith('invitado_')) {
-                    alert("Error: No se detectó una sesión válida. Por favor, regístrese nuevamente.");
-                    window.location.replace("usuarios_registro_lead.html");
-                    return;
-                }
-
-                const ahora = new Date();
-                const fechaLegible = ahora.toLocaleDateString();
-                const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const timestamp = ahora.getTime();
-
+                const ahora = Date.now();
+                const fechaLegible = new Date().toLocaleDateString('es-AR', { year: 'numeric', month: '2-digit', day: '2-digit' });
+                const horaLegible = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+                const timestamp = ahora; // Puedes usar 'ahora' o 'timestamp' segun necesites
                 const refComercio = doc(db, "comercios", id);
+                
+                // 1. Obtener ID de validación (Basado en total usos del comercio)
                 const snapCom = await getDoc(refComercio);
-                const totalActual = (snapCom.data().totalUsos || 0) + 1;
+                const dataCom = snapCom.data();
+                const totalActual = (dataCom.totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
-                // 1. ACTUALIZACIÓN EN LA COLECCIÓN COMERCIOS
-                await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
-
-                // 2. LOG DE ACTIVIDAD GENERAL
-                await addDoc(collection(db, "logs_actividad"), {
-                    timestamp: timestamp, tipo: "canje", accion: "CANJE LEADS",
-                    nombreComercio: nom, usuarioId: leadId, idValidacion: idManual
+                // 2. ACTUALIZACIÓN COMERCIO (Estadísticas)
+                await updateDoc(refComercio, {
+                    totalUsos: increment(1),
+                    usosHoy: increment(1),
+                    usosSemana: increment(1),
+                    usosMes: increment(1),
+                    usosAnio: increment(1),
+                    lastSubmission: ahora
                 });
 
-                // 3. ACTUALIZACIÓN EN TU DOCUMENTO DE LEAD (USANDO TUS CAMPOS)
+                // 3. LOG DE ACTIVIDAD
+                try {
+                    await addDoc(collection(db, "logs_actividad"), {
+                        timestamp: ahora,
+                        tipo: "canje",
+                        accion: "CANJE LEADS",
+                        nombre: `Canje en: ${nom}`,
+                        comercioId: id,
+                        nombreComercio: nom,
+                        usuarioId: leadId,
+                        nombreUsuario: `${leadApellido} ${leadNombre}`,
+                        modulo: "CUPONES",
+                        idValidacion: idManual
+                    });
+                } catch(eLog) { console.error("Error Log:", eLog); }
+
+                // 3. ACTUALIZACIÓN DINÁMICA DEL LEAD
                 const leadRef = doc(db, "leads", leadId);
-                
-                // Creamos el nombre del campo dinámico para que coincida con tu foto de Firebase
-                // Esto sumará 1 al contador específico de ese comercio en la nube
-                const campoDinamicoUsos = `${nom}.usos`;
+                const campoComercio = `conteos_por_comercio.${nom}`; // Campo dinámico para el contador individual
 
                 await updateDoc(leadRef, { 
-                    [campoDinamicoUsos]: increment(1), 
-                    [`${nom}.ultimo_codigo`]: idManual,
-                    [`${nom}.ultima_fecha`]: fechaLegible,
+                    [campoComercio]: increment(1), // <--- SUMA 1 AL COMERCIO ESPECÍFICO
                     cupones_detallados: arrayUnion({
-                        comercio: nom, fecha: fechaLegible, hora: horaLegible,
-                        codigo: idManual, timestamp: timestamp
+                        comercio: nom,
+                        fecha: fechaLegible,
+                        hora: horaLegible,
+                        codigo: idManual,
+                        timestamp: timestamp
                     }),
                     usos_count: increment(1),
                     ultimo_canje: timestamp
                 });
 
-                // 4. ÉXITO VISUAL
+                // 4. ÉXITO VISUAL (Sin persistencia local para evitar errores)
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
-                JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
+                JsBarcode("#barcode", idManual, { format: "CODE128", lineColor: "#000", width: 2, height: 80, displayValue: false });
                 document.getElementById('pantalla-exito').style.display = 'flex';
                 
                 let s = 30;
                 const t = setInterval(() => {
                     s--; 
                     document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { clearInterval(t); location.reload(); }
+                    if(s <= 0) { 
+                        clearInterval(t); 
+                        location.reload(); 
+                    }
                 }, 1000);
 
             } catch(e) { 
-                console.error("Error en Firebase:", e);
-                alert("Error crítico de base de datos. Verifique su conexión o registro."); 
+                console.error("Error General:", e);
+                alert("Error crítico: " + e.message); 
             }
         };
 
