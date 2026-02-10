@@ -50,7 +50,6 @@
 
         h2 { color: var(--oro-vip); margin-bottom: 25px; text-transform: uppercase; letter-spacing: 1px; }
 
-        /* MODAL VIP ADVERTENCIA */
         .custom-overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.85); display: none; align-items: center; justify-content: center; z-index: 3000;
@@ -88,73 +87,36 @@
         }
         select option { background: #0a192f; color: white; }
 
-        .terminos-box {
-            margin: 20px 0;
-            color: #ccc;
-            font-size: 0.85em;
-        }
-        .terminos-box a {
-            color: var(--oro-brillante);
-            text-decoration: underline;
-            font-weight: bold;
-        }
+        .terminos-box { margin: 20px 0; color: #ccc; font-size: 0.85em; }
+        .terminos-box a { color: var(--oro-brillante); text-decoration: underline; font-weight: bold; }
 
         .btn-vip {
-            width: 100%;
-            padding: 18px;
+            width: 100%; padding: 18px;
             background: linear-gradient(45deg, var(--oro-vip), var(--oro-brillante));
-            color: #000;
-            border: none;
-            border-radius: 12px;
-            font-weight: bold;
-            font-size: 1.1rem;
-            cursor: pointer;
-            text-transform: uppercase;
-            transition: 0.3s;
+            color: #000; border: none; border-radius: 12px;
+            font-weight: bold; font-size: 1.1rem; cursor: pointer;
+            text-transform: uppercase; transition: 0.3s;
         }
         .btn-vip:disabled { background: #444; color: #888; cursor: not-allowed; filter: grayscale(1); }
 
         #notificacion {
-            display: none;
-            position: fixed;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            background: #000000;
-            color: var(--oro-vip);
-            padding: 30px 50px;
-            border-radius: 20px;
-            z-index: 1000;
-            text-align: center;
-            font-weight: bold;
-            border: 2px solid var(--oro-vip);
-            font-size: 1.2em;
+            display: none; position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%); background: #000000;
+            color: var(--oro-vip); padding: 30px 50px; border-radius: 20px;
+            z-index: 4000; text-align: center; font-weight: bold;
+            border: 2px solid var(--oro-vip); font-size: 1.2em;
             box-shadow: 0 10px 40px rgba(0,0,0,0.8);
         }
 
         .footer-identificacion {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            width: 100%;
-            background: white;
-            border-top: 4px solid var(--azul-habitat);
-            padding: 10px 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            gap: 20px;
-            z-index: 900;
-            box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+            position: fixed; bottom: 0; left: 0; width: 100%;
+            background: white; border-top: 4px solid var(--azul-habitat);
+            padding: 10px 0; display: flex; justify-content: center;
+            align-items: center; gap: 20px; z-index: 900;
         }
         .footer-link {
-            text-decoration: none;
-            color: var(--azul-habitat);
-            font-weight: bold;
-            font-size: 14px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
+            text-decoration: none; color: var(--azul-habitat);
+            font-weight: bold; font-size: 14px; display: flex; align-items: center; gap: 5px;
         }
     </style>
 </head>
@@ -163,7 +125,7 @@
     <div id="notificacion">
         <span style="font-size: 1.5em;">💎</span><br>
         <strong>¡BIENVENIDO AL CLUB VIP!</strong><br>
-        <span style="font-size: 0.8em; font-weight: normal;">Activando cuenta...</span>
+        <span style="font-size: 0.8em; font-weight: normal;">Activando cuenta premium...</span>
     </div>
 
     <div id="overlay-error" class="custom-overlay">
@@ -255,10 +217,6 @@
     </footer>
 
     <script type="module">
-        if (localStorage.getItem('habitat_vip_auth') === 'true') {
-            window.location.replace("usuarios_cupones_vips.html");
-        }
-
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, query, where, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -278,97 +236,74 @@
         const tokenInterno = urlParams.get('t');
         let idDocumentoToken = "";
 
+        // Si ya es VIP, saltar registro
+        if (localStorage.getItem('habitat_vip_auth') === 'true') {
+            window.location.replace("usuarios_cupones_vips.html");
+        }
+
         window.actualizarLocalidades = async () => {
             const prov = document.getElementById('provincia').value;
             const locSelect = document.getElementById('localidad');
+            if (!prov) return;
             locSelect.innerHTML = '<option value="">Cargando...</option>';
-
-            if (!prov) {
-                locSelect.innerHTML = '<option value="">Seleccionar Localidad</option>';
-                return;
-            }
-
             try {
                 const response = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${prov}&max=1000&campos=nombre`);
                 const data = await response.json();
                 locSelect.innerHTML = '<option value="">Seleccionar Localidad</option>';
-                
-                if (data.municipios && data.municipios.length > 0) {
-                    data.municipios.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(m => {
-                        const opt = document.createElement('option');
-                        opt.value = m.nombre;
-                        opt.textContent = m.nombre;
-                        locSelect.appendChild(opt);
-                    });
-                } else {
-                    const respLoc = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=${prov}&max=1000&campos=nombre`);
-                    const dataLoc = await respLoc.json();
-                    dataLoc.localidades.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(l => {
-                        const opt = document.createElement('option');
-                        opt.value = l.nombre;
-                        opt.textContent = l.nombre;
-                        locSelect.appendChild(opt);
-                    });
-                }
-            } catch (e) {
-                locSelect.innerHTML = '<option value="">Error al cargar</option>';
-            }
+                data.municipios.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(m => {
+                    const opt = document.createElement('option');
+                    opt.value = m.nombre; opt.textContent = m.nombre;
+                    locSelect.appendChild(opt);
+                });
+            } catch (e) { locSelect.innerHTML = '<option value="">Error al cargar</option>'; }
         };
 
         window.mostrarError = (titulo, msg, conSoporte = false) => {
             document.getElementById('error-titulo').innerText = titulo;
             let contenido = `<p>${msg}</p>`;
-            if(conSoporte) {
-                contenido += `<a href="https://wa.me/543884618228" target="_blank" class="soporte-link">Contactar a Soporte (388-4618228)</a>`;
-            }
+            if(conSoporte) contenido += `<a href="https://wa.me/543884618228" target="_blank" class="soporte-link">Soporte (388-4618228)</a>`;
             document.getElementById('error-contenido').innerHTML = contenido;
             document.getElementById('overlay-error').style.display = 'flex';
         };
 
-        window.cerrarError = () => {
-            document.getElementById('overlay-error').style.display = 'none';
-        };
+        window.cerrarError = () => { document.getElementById('overlay-error').style.display = 'none'; };
 
         async function validarTokenInterno() {
             const msg = document.getElementById('msg-validacion');
             const btn = document.getElementById('btnRegistro');
-
             if (!tokenInterno) {
                 msg.innerText = "⚠️ Enlace VIP no válido.";
                 msg.className = "invalido";
                 return;
             }
-
             try {
                 const q = query(collection(db, "tokens_vip"), where("token", "==", tokenInterno), where("estado", "==", "disponible"));
                 const snap = await getDocs(q);
-
                 if (!snap.empty) {
                     msg.innerText = "✅ Invitación VIP Confirmada";
                     msg.className = "valido";
                     btn.disabled = false;
                     idDocumentoToken = snap.docs[0].id;
                 } else {
-                    msg.innerText = "❌ Este código no existe o ya fue utilizado.";
+                    msg.innerText = "❌ Enlace usado o inválido.";
                     msg.className = "invalido";
                 }
-            } catch (e) {
-                msg.innerText = "Error de conexión.";
-                console.error(e);
-            }
+            } catch (e) { msg.innerText = "Error de conexión."; }
         }
 
         window.registrarVIP = async () => {
             const btn = document.getElementById('btnRegistro');
-            const nom = document.getElementById('nombres').value.trim();
-            const ape = document.getElementById('apellido').value.trim();
-            const tel = document.getElementById('whatsapp').value.trim();
-            const mail = document.getElementById('email').value.trim();
-            const prov = document.getElementById('provincia').value;
-            const loc = document.getElementById('localidad').value;
+            const fields = {
+                nom: document.getElementById('nombres').value.trim(),
+                ape: document.getElementById('apellido').value.trim(),
+                tel: document.getElementById('whatsapp').value.trim(),
+                mail: document.getElementById('email').value.trim(),
+                prov: document.getElementById('provincia').value,
+                loc: document.getElementById('localidad').value
+            };
 
-            if(!nom || !ape || !tel || !mail || !prov || !loc) {
-                mostrarError("DATOS INCOMPLETOS", "Para activar su membresía VIP Premium, debe completar todos los campos del formulario.");
+            if(Object.values(fields).some(v => !v)) {
+                mostrarError("DATOS INCOMPLETOS", "Complete todos los campos para activar su membresía.");
                 return;
             }
 
@@ -376,80 +311,53 @@
             btn.innerText = "Procesando...";
 
             try {
-                const qCheck = query(collection(db, "leads"), where("whatsapp", "==", tel));
+                const qCheck = query(collection(db, "leads"), where("whatsapp", "==", fields.tel));
                 const snapCheck = await getDocs(qCheck);
                 
-                if (!snapCheck.empty && snapCheck.docs[0].data().convertidoVIP === true) {
-                    mostrarError("NÚMERO YA REGISTRADO", "Este número de WhatsApp ya se encuentra registrado como miembro VIP.", true);
-                    btn.disabled = false;
-                    btn.innerText = "Activar Membresía VIP";
-                    return;
-                }
-
                 const ahora = Date.now();
-                let accionLog = "";
-                let finalLeadId = null;
+                let finalLeadId = "";
 
                 if (!snapCheck.empty) {
-                    accionLog = "INSCRIPCIÓN VIP (CONVERSIÓN)";
                     finalLeadId = snapCheck.docs[0].id;
                     await updateDoc(doc(db, "leads", finalLeadId), {
                         convertidoVIP: true,
                         estado: "activo",
                         fechaVIP: ahora,
-                        lastSubmission: ahora,
-                        email: mail,
-                        provincia: prov,
-                        localidad: loc
+                        email: fields.mail,
+                        provincia: fields.prov,
+                        localidad: fields.loc
                     });
                 } else {
-                    accionLog = "NUEVO REGISTRO VIP";
                     const docRef = await addDoc(collection(db, "leads"), {
-                        nombres: nom,
-                        apellido: ape,
-                        whatsapp: tel,
-                        email: mail,
-                        provincia: prov,
-                        localidad: loc,
-                        convertidoVIP: true,
-                        estado: "activo",
-                        fechaVIP: ahora,
-                        fechaRegistro: ahora,
-                        lastSubmission: ahora,
-                        tipo: "VIP",
-                        origen: "Registro Directo VIP"
+                        nombres: fields.nom, apellido: fields.ape,
+                        whatsapp: fields.tel, email: fields.mail,
+                        provincia: fields.prov, localidad: fields.loc,
+                        convertidoVIP: true, estado: "activo",
+                        fechaVIP: ahora, fechaRegistro: ahora,
+                        tipo: "VIP", origen: "Registro Directo VIP"
                     });
                     finalLeadId = docRef.id;
                 }
 
-                await addDoc(collection(db, "logs_actividad"), {
-                    nombre: `${ape}, ${nom} (${loc}, ${prov})`,
-                    tipo: "VIP",
-                    accion: accionLog,
-                    timestamp: ahora,
-                    fecha: new Date().toLocaleString()
-                });
-
+                // Quemar token
                 await updateDoc(doc(db, "tokens_vip", idDocumentoToken), {
-                    estado: "usado",
-                    whatsapp: tel,
-                    nombreVip: nom,
-                    fechaUso: ahora
+                    estado: "usado", whatsapp: fields.tel, fechaUso: ahora
                 });
 
-                // ✅ SINCRONIZACIÓN CON CUPONES
+                // --- CLAVE DEL ÉXITO: SINCRONIZACIÓN DE LOCALSTORAGE ---
                 localStorage.setItem('habitat_vip_auth', 'true');
-                localStorage.setItem('leadId_v16', finalLeadId);
-
+                localStorage.setItem('leadId_v16', finalLeadId); // Para cupones VIP
+                localStorage.setItem('leadId_habitat', finalLeadId); // Respaldo para cupones Lead
+                
                 document.getElementById('notificacion').style.display = 'block';
                 
                 setTimeout(() => { 
                     window.location.replace("usuarios_cupones_vips.html");
-                }, 2500);
+                }, 2000);
 
             } catch (e) { 
                 console.error(e);
-                mostrarError("ERROR DE REGISTRO", "No se pudo procesar la membresía.");
+                mostrarError("ERROR", "No se pudo activar la membresía.");
                 btn.disabled = false;
                 btn.innerText = "Activar Membresía VIP";
             }
