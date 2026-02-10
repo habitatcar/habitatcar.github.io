@@ -210,7 +210,7 @@
         <table>
             <thead>
                 <tr>
-                    <th onclick="ordenar('fechaRegistro')">REGISTRO ↕</th>
+                    <th onclick="ordenar('fechaVIP')">REGISTRO VIP ↕</th>
                     <th onclick="ordenar('lastSubmission')">ÚLT. ACTIVIDAD ↕</th>
                     <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE ↕</th>
                     <th>WHATSAPP</th>
@@ -226,7 +226,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js  ";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  ";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, deleteDoc, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  ";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -243,7 +243,7 @@
         let todosLosVips = [];
         let todasLasProvincias = []; // Almacenará las provincias normalizadas
         let todasLasLocalidades = []; // Almacenará las localidades de la provincia seleccionada, normalizadas
-        let ordenActual = { campo: 'fechaRegistro', asc: false };
+        let ordenActual = { campo: 'fechaVIP', asc: false }; // Cambiado a 'fechaVIP'
 
         // Carga las provincias desde la API y las almacena en minúsculas
         async function cargarProvincias() {
@@ -275,7 +275,7 @@
             const comboLoc = document.getElementById('filtro-localidad');
             comboLoc.innerHTML = '<option value="">LOCALIDAD</option>';
 
-            // Limpiamos localidades si no hay provincia seleccionada o si la provincia no coincide con la lista normalizada
+            // Limpiamos localidades si no hay provincia seleccionada o si la provincia no coincide con la normalizada
             if(!provNombreNormalized || !todasLasProvincias.includes(provNombreNormalized)) {
                  todasLasLocalidades = [];
                  filtrarVips(); // Refiltrar sin localidad
@@ -302,8 +302,7 @@
 
 
         // --- Escucha en tiempo real para la colección 'leads' (VIPs) ---
-        // Esta consulta trae todos los leads que son VIPs
-        const q = query(collection(db, "leads"), where("convertidoVIP", "==", true));
+        const q = query(collection(db, "leads"), where("convertidoVIP", "==", true)); // Filtramos por VIPs
         onSnapshot(q, (snap) => {
             snap.docChanges().forEach(change => {
                 const docId = change.doc.id;
@@ -312,47 +311,27 @@
                 if (change.type === "added") {
                     // Nuevo VIP o VIP recién filtrado
                     // Normalizamos provincia y localidad del VIP al momento de cargarlo
-                    // y calculamos el usos_count y el detalle por comercio
+                    // y calculamos el usos_count
                     const usosCount = data.usos_count || 0; // Asumimos que el campo se guarda directamente
-
-                    // --- CÁLCULO DEL DETALLE POR COMERCIO ---
-                    let detalleComercios = "";
-                    // Iteramos sobre todas las claves del objeto del usuario
-                    Object.keys(data).forEach(key => {
-                        // Verificamos si la clave es un objeto y tiene una propiedad 'usos'
-                        if (data[key] && typeof data[key] === 'object' && data[key].usos !== undefined) {
-                            // Creamos una "etiqueta" con el nombre del comercio y el número de usos
-                            detalleComercios += `<span class="tag-comercio">${key}: ${data[key].usos}</span>`;
-                        }
-                    });
-                    // Si no hay detalles, mostramos un guion
-                    if (detalleComercios === "") {
-                        detalleComercios = "-";
-                    }
-                    // --- FIN CÁLCULO DEL DESGLOSE ---
-
                     todosLosVips.push({
                         id: docId,
                         ...data,
-                        provincia_normalized: (data.provincia || '').toLowerCase(), // Versión normalizada para filtrar
-                        localidad_normalized: (data.localidad || '').toLowerCase(), // Versión normalizada para filtrar
-                        usos_count: usosCount, // <-- Agregamos el campo de conteo
-                        detalle_comercios_html: detalleComercios // <-- Agregamos el HTML del detalle
+                        provincia_normalized: (data.provincia || '').toLowerCase(),
+                        localidad_normalized: (data.localidad || '').toLowerCase(),
+                        usos_count: usosCount // <-- Agregamos el campo de conteo
                     });
                 } else if (change.type === "modified") {
                     // VIP actualizado (otros datos, no necesariamente usos)
                     const index = todosLosVips.findIndex(v => v.id === docId);
                     if (index !== -1) {
-                        // Mantenemos el usos_count y detalle_comercios_html calculados, solo actualizamos otros datos y la versión normalizada
+                        // Mantenemos el usos_count calculado, solo actualizamos otros datos y la versión normalizada
                         const currentUsos = todosLosVips[index].usos_count;
-                        const currentDetalle = todosLosVips[index].detalle_comercios_html;
                         todosLosVips[index] = {
                             id: docId,
                             ...data,
                             provincia_normalized: (data.provincia || '').toLowerCase(), // Actualizamos la versión normalizada
                             localidad_normalized: (data.localidad || '').toLowerCase(),
-                            usos_count: currentUsos, // <-- Mantenemos el conteo actual
-                            detalle_comercios_html: currentDetalle // <-- Mantenemos el detalle actual
+                            usos_count: currentUsos // <-- Mantenemos el conteo actual
                         };
                     }
                 } else if (change.type === "removed") {
@@ -385,8 +364,8 @@
         // Función de filtrado en JS que maneja búsqueda y selección de combos
         window.filtrarVips = () => {
             const busq = document.getElementById('buscador').value.toLowerCase();
-            const prov = document.getElementById('filtro-provincia').value; // Valor normalizado del combo (en minúsculas)
-            const loc = document.getElementById('filtro-localidad').value; // Valor normalizado del combo (en minúsculas)
+            const prov = document.getElementById('filtro-provincia').value; // Valor normalizado del combo
+            const loc = document.getElementById('filtro-localidad').value; // Valor normalizado del combo
 
             const filtrados = todosLosVips.filter(v => {
                 const nombreComp = `${v.apellido || ''} ${v.nombres || ''}`.toLowerCase();
@@ -397,7 +376,7 @@
                 return matchBusq && matchProv && matchLoc;
             });
 
-            // Actualizamos contadores de los combos basados en la lista completa de leads
+            // Actualizamos contadores de los combos
             document.getElementById('count-prov').innerText = prov ? todosLosVips.filter(v => v.provincia_normalized === prov).length : 0;
             document.getElementById('count-loc').innerText = loc ? todosLosVips.filter(v => v.localidad_normalized === loc).length : 0;
 
@@ -410,9 +389,9 @@
             document.getElementById('contador-total').innerText = datos.length;
 
             datos.forEach(v => {
-                const fechaReg = v.fechaRegistro ? new Date(v.fechaRegistro).toLocaleDateString() : '---';
-                const lastSub = (v.lastSubmission || v.fechaRegistro) ? new Date(v.lastSubmission || v.fechaRegistro).toLocaleString() : '---';
-                const suspendido = v.estado === 'suspendido';
+                const fechaReg = v.fechaVIP ? new Date(v.fechaVIP).toLocaleDateString() : '---'; // Cambiado a fechaVIP
+                const lastSub = (v.lastSubmission || v.fechaVIP) ? new Date(v.lastSubmission || v.fechaVIP).toLocaleString() : '---'; // Cambiado a fechaVIP
+                const suspendido = v.estado === 'suspendido'; // Cambiado a 'suspendido'
                 const nombreFull = `${(v.apellido || '').toUpperCase()}, ${(v.nombres || '').toUpperCase()}`;
                 
                 lista.innerHTML += `
@@ -423,86 +402,80 @@
                         <td>${v.whatsapp || '---'}</td>
                         <td style="color: #8892b0">${pascalCase(v.provincia || '---')}</td>
                         <td style="color: #8892b0">${pascalCase(v.localidad || '---')}</td>
-                        <td class="col-usos">${v.usos_count || 0}</td> <!-- Mostramos el campo de conteo total -->
+                        <td class="col-usos">${v.usos_count || 0}</td> <!-- Mostramos el campo de conteo -->
                         <td style="white-space: nowrap;">
                             <button class="btn-action btn-vip" onclick="hacerVIP('${v.id}', '${nombreFull}')">💎 VIP</button>
                             <button class="btn-action btn-reset" onclick="restablecerCupones('${v.id}', '${nombreFull}')">🔄 RESTABLECER</button>
                             <button class="btn-action btn-suspend" onclick="toggleEstado('${v.id}', '${v.estado}', '${nombreFull}')">${suspendido ? '✅ ACTIVAR' : '🚫 SUSPENDER'}</button>
-                            <button class="btn-action btn-del" onclick="quitarVIP('${v.id}', '${nombreFull}')">🗑️ QUITAR VIP</button>
+                            <button class="btn-action btn-del" onclick="bajaVip('${v.id}', '${nombreFull}')">🗑️ QUITAR</button>
                         </td>
                     </tr>
                 `;
             });
         }
 
-        // --- FUNCIÓN MODIFICADA: window.restablecerCupones ---
-        window.restablecerCupones = async (id, apellido, nombres) => {
-            if(confirm(`¿Restablecer cupones de ${apellido}?`)) {
-                try {
-                    const docRef = doc(db, "leads", id); // Referencia al documento del Lead/VIP
-                    const docSnap = await getDoc(docRef);
-                    
-                    if (!docSnap.exists()) {
-                        // Si el documento no existe, lanzamos un error específico
-                        throw new Error("USUARIO_NO_EXISTE");
-                    }
-
-                    const userData = docSnap.data();
-
-                    // Lógica de seguridad: Si el campo usos_count no es número o no existe, lo tratamos como 0
-                    // Lo mismo para cualquier campo de comercio individual (por si acaso)
-                    let usosGlobalesPrevios = (userData.usos_count && typeof userData.usos_count === 'number') ? userData.usos_count : 0;
-
-                    // Creamos un objeto para actualizar múltiples campos de una sola vez
-                    let updateObj = {
-                        usos_count: 0, // Reiniciamos el contador global
-                        lastSubmission: Date.now() // Actualizamos la última actividad
-                    };
-
-                    // REGLA DE ORO: Recorremos todos los campos del documento del usuario en Firebase
-                    Object.keys(userData).forEach(key => {
-                        // Si el campo es un objeto y tiene una propiedad 'usos', lo reiniciamos a 0
-                        // También podríamos borrarlo por completo con deleteField(), pero reiniciarlo a 0 es más conservador.
-                        if (userData[key] && typeof userData[key] === 'object' && typeof userData[key].usos === 'number') {
-                             updateObj[`${key}.usos`] = 0; // Reiniciamos el contador de usos del comercio
-                             // Opcional: Reiniciar otros campos dentro del objeto del comercio
-                             updateObj[`${key}.ultimo_codigo`] = null; // Por ejemplo, borrar el último código
-                             updateObj[`${key}.ultima_fecha`] = null; // Y la última fecha
-                        }
-                        // Opcional: Si se quiere borrar completamente el objeto del comercio si solo tiene la propiedad 'usos':
-                        // if (userData[key] && typeof userData[key] === 'object' && Object.keys(userData[key]).length === 1 && userData[key].usos !== undefined) {
-                        //     updateObj[key] = deleteField(); // Esto lo borraría por completo
-                        // }
-                    });
-
-                    await updateDoc(docRef, updateObj); // Aplicamos todas las actualizaciones
-
-                    await registrarActividad(id, `${apellido}, ${nombres}`, "RESTABLECER CUPONES VIP");
-                    alert("Cupones de " + apellido + " restablecidos.");
-                } catch(e) {
-                    console.error("Error al restablecer:", e);
-                    if (e.message === "USUARIO_NO_EXISTE") {
-                        alert("ERROR: El número no está registrado en la base de datos.");
-                    } else {
-                        alert("Error técnico al restablecer.");
-                    }
-                }
+        window.hacerVIP = async (id, nombre) => {
+            if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
+                document.getElementById('nombre-socio').innerText = nombre;
+                document.getElementById('modal-bienvenida').style.display = 'flex';
             }
         };
-        // --- FIN FUNCIÓN MODIFICADA ---
 
-        window.filtrar = () => {
-            const texto = document.getElementById('filtroNombre').value.toLowerCase();
-            const vencimiento = document.getElementById('filtroVence').value;
-            document.querySelectorAll('.card').forEach(c => {
-                const nombreMatch = c.dataset.nombre.includes(texto);
-                const dias = parseInt(c.dataset.vence);
-                let venceMatch = true;
-                if (vencimiento !== "todos") {
-                    venceMatch = (dias >= 0 && dias <= parseInt(vencimiento));
-                }
-                c.style.display = (nombreMatch && venceMatch) ? 'block' : 'none';
-            });
+        window.restablecerCupones = async (id, nombre) => {
+            if(confirm(`¿Restablecer todos los cupones de ${nombre}?`)) {
+                await updateDoc(doc(db, "leads", id), { 
+                    usados: [], 
+                    cupones_usados: [], 
+                    canjes: [], 
+                    usos: 0,
+                    usos_count: 0, // Reiniciamos el campo de conteo
+                    lastSubmission: Date.now() 
+                });
+            }
+        };
+
+        window.toggleEstado = async (id, estadoActual, nombre) => {
+            const nuevo = estadoActual === 'suspendido' ? 'activo' : 'suspendido'; // Cambiado a 'suspendido'
+            if(confirm(`¿${nuevo === 'suspendido' ? 'Suspender' : 'Activar'} a ${nombre}?`)) {
+                await updateDoc(doc(db, "leads", id), { estado: nuevo });
+            }
+        };
+
+        window.bajaVip = async (id, nombre) => {
+            if(confirm(`¿Quitar estado VIP a ${nombre}? Volverá a la lista de Leads.`)) {
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: false, lastSubmission: Date.now() });
+                await registrarActividad(id, `${nombre}`, "BAJA VIP (VUELVE A LEAD)");
+                await addDoc(collection(db, "logs"), { fecha: Date.now(), tipo: "BAJA VIP", detalle: `Socio ${nombre} volvió a ser Lead` });
+            }
+        };
+
+        window.validarYRestablecerMasivo = async (tipo) => {
+            if (!tipo) return;
+            const pass = prompt("Clave ADMIN:");
+            if (pass !== "admin1234") return alert("Clave Incorrecta");
+
+            let filtrados = [];
+            if (tipo === "pais") filtrados = todosLosVips;
+            else if (tipo === "provincia") filtrados = todosLosVips.filter(v => v.provincia_normalized === document.getElementById('filtro-provincia').value);
+            else if (tipo === "localidad") filtrados = todosLosVips.filter(v => v.localidad_normalized === document.getElementById('filtro-localidad').value);
+
+            if(confirm(`¿Restablecer cupones de ${filtrados.length} usuarios?`)) {
+                const batch = writeBatch(db);
+                const ahora = Date.now();
+                filtrados.forEach(v => {
+                    batch.update(doc(db, "leads", v.id), { 
+                        usados: [], 
+                        cupones_usados: [], 
+                        canjes: [], 
+                        usos: 0,
+                        usos_count: 0, // Reiniciamos el campo de conteo
+                        lastSubmission: ahora 
+                    });
+                });
+                await batch.commit();
+                alert("Restablecimiento masivo completado.");
+            }
         };
 
         async function registrarActividad(usuarioId, nombre, accion) {
@@ -517,29 +490,6 @@
                 });
             } catch (e) { console.error("Error log:", e); }
         }
-
-        window.hacerVIP = async (id, nombre) => {
-            if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
-                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
-                document.getElementById('nombre-socio').innerText = nombre;
-                document.getElementById('modal-bienvenida').style.display = 'flex';
-            }
-        };
-
-        window.toggleEstado = async (id, estadoActual, nombre) => {
-            const nuevo = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
-            if(confirm(`¿${nuevo === 'suspendido' ? 'Suspender' : 'Activar'} a ${nombre}?`)) {
-                await updateDoc(doc(db, "leads", id), { estado: nuevo });
-            }
-        };
-
-        window.quitarVIP = async (id, nombre) => {
-            if(confirm(`¿Quitar estado VIP a ${nombre}? Volverá a la lista de Leads.`)) {
-                await updateDoc(doc(db, "leads", id), { convertidoVIP: false, lastSubmission: Date.now() });
-                await registrarActividad(id, `${nombre}`, "BAJA VIP (VUELVE A LEAD)");
-                await addDoc(collection(db, "logs"), { fecha: Date.now(), tipo: "BAJA VIP", detalle: `Socio ${nombre} volvió a ser Lead` });
-            }
-        };
     </script>
 </body>
 </html>
