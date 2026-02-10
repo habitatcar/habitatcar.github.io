@@ -388,13 +388,12 @@
 
                 const ahora = Date.now();
                 let accionLog = "";
-                let docId = null;
-                let docRef = null;
+                let finalLeadId = null;
 
                 if (!snapCheck.empty) {
                     accionLog = "INSCRIPCIÓN VIP (CONVERSIÓN)";
-                    docId = snapCheck.docs[0].id;
-                    await updateDoc(doc(db, "leads", docId), {
+                    finalLeadId = snapCheck.docs[0].id;
+                    await updateDoc(doc(db, "leads", finalLeadId), {
                         convertidoVIP: true,
                         estado: "activo",
                         fechaVIP: ahora,
@@ -405,7 +404,7 @@
                     });
                 } else {
                     accionLog = "NUEVO REGISTRO VIP";
-                    docRef = await addDoc(collection(db, "leads"), {
+                    const docRef = await addDoc(collection(db, "leads"), {
                         nombres: nom,
                         apellido: ape,
                         whatsapp: tel,
@@ -420,6 +419,7 @@
                         tipo: "VIP",
                         origen: "Registro Directo VIP"
                     });
+                    finalLeadId = docRef.id;
                 }
 
                 await addDoc(collection(db, "logs_actividad"), {
@@ -437,9 +437,9 @@
                     fechaUso: ahora
                 });
 
-                // ✅ GUARDAMOS LAS CLAVES NECESARIAS PARA CUPONES_VIPS.HTML
+                // ✅ SINCRONIZACIÓN CON CUPONES
                 localStorage.setItem('habitat_vip_auth', 'true');
-                localStorage.setItem('leadId_v16', docId || docRef.id);
+                localStorage.setItem('leadId_v16', finalLeadId);
 
                 document.getElementById('notificacion').style.display = 'block';
                 
@@ -448,6 +448,7 @@
                 }, 2500);
 
             } catch (e) { 
+                console.error(e);
                 mostrarError("ERROR DE REGISTRO", "No se pudo procesar la membresía.");
                 btn.disabled = false;
                 btn.innerText = "Activar Membresía VIP";
