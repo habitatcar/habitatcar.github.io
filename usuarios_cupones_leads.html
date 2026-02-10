@@ -368,7 +368,7 @@
         localStorage.setItem('habitat_auth', 'true');
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js  ";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  ";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  "; // Agregamos deleteField
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -382,10 +382,9 @@
         const db = getFirestore(app);
 
         // --- CAPTURA DE DATOS PROTEGIDA ---
-        // 1. Cambiar la forma en que el sistema obtiene el ID (Línea 225 aprox.)
-        const leadId = localStorage.getItem('leadId_habitat'); // <-- Usando la clave correcta
+        // PASO 1 (del mensaje anterior): Cambiamos cómo obtenemos el ID
+        let leadId = localStorage.getItem('leadId_habitat'); // Usamos la clave correcta
         
-        // Si no existe, lo mandamos a registrarse para que ponga su WhatsApp
         if (!leadId) { 
             window.location.replace("usuarios_registro_lead.html"); 
         }
@@ -576,8 +575,9 @@
             navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
         };
 
-        // 2. Modificar la función de guardado (Línea 367 aprox.)
-        window.finalizar = async (id, nom) => {
+        // PASO 1 (del mensaje anterior): Modificar la función de guardado (Línea 367 aprox.)
+        // Cambiamos el nombre de la función de 'finalizar' a 'finalizarCanje'
+        window.finalizarCanje = async (id, nom) => {
             try {
                 // Quitamos la validación de "invitado" para que use el leadId (WhatsApp) que encuentre
                 const ahora = new Date();
@@ -585,59 +585,67 @@
                 const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const timestamp = ahora.getTime();
 
+                // 1. OBTENEMOS ID DE VALIDACIÓN DEL COMERCIO
                 const refComercio = doc(db, "comercios", id);
                 const snapCom = await getDoc(refComercio);
                 const totalActual = (snapCom.data().totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
-                // 1. ACTUALIZACIÓN COMERCIO (Estadísticas)
+                // 2. ACTUALIZACIÓN COMERCIO (Estadísticas)
                 await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
 
-                // 2. ACTUALIZACIÓN EN TU DOCUMENTO DE LEAD (USANDO TUS CAMPOS)
-                const leadRef = doc(db, "leads", leadId); // <-- Usamos el leadId (WhatsApp) como ID del documento
-                const docSnap = await getDoc(leadRef);
-                
-                if (!docSnap.exists()) {
-                    // Si el documento no existe, lanzamos un error específico
-                    throw new Error("USUARIO_NO_EXISTE");
-                }
-
-                const userData = docSnap.data();
-
-                // Lógica de seguridad: Si el campo del comercio no es número o no existe, lo tratamos como 0
-                let usosPreviosComercio = (userData[nom] && typeof userData[nom] === 'object' && typeof userData[nom].usos === 'number') ? userData[nom].usos : 0;
-                let usosPreviosGlobales = (userData.usos_count && typeof userData.usos_count === 'number') ? userData.usos_count : 0;
-
-                await updateDoc(leadRef, { 
-                    [`${nom}.usos`]: usosPreviosComercio + 1, // Incrementa el contador específico del comercio
-                    usos_count: usosPreviosGlobales + 1,      // Incrementa el contador total
-                    [`${nom}.ultimo_codigo`]: idManual,
-                    [`${nom}.ultima_fecha`]: fechaLegible,
-                    lastSubmission: timestamp
-                });
-
-                // Registro de log (opcional, pero recomendado para auditoría)
-                await addDoc(collection(db, "logs_actividad"), {
-                    usuarioId: leadId,
-                    nombreUsuario: `${userData.apellido || ''} ${userData.nombres || ''}`,
-                    accion: `CANJE EN: ${nom}`,
-                    tipo: "LEAD",
-                    timestamp: timestamp
-                });
-
-                // 3. LOG DE ACTIVIDAD (anterior)
+                // 3. LOG DE ACTIVIDAD
                 try {
                     await addDoc(collection(db, "logs_actividad"), {
                         timestamp: timestamp,
                         tipo: "canje",
                         accion: "CANJE LEADS",
                         nombreComercio: nom,
-                        usuarioId: leadId,
+                        usuarioId: leadId, // <-- Usamos el leadId obtenido al inicio
                         idValidacion: idManual
                     });
                 } catch(eLog) { console.error("Error Log:", eLog); }
 
-                // 4. ÉXITO VISUAL
+                // 4. ACTUALIZACIÓN EN TU DOCUMENTO DE LEAD (USANDO TUS CAMPOS)
+                const leadRef = doc(db, "leads", leadId); // <-- Usamos el leadId (WhatsApp) como ID del documento
+                const docSnap = await getDoc(leadRef);
+
+                if (!docSnap.exists()) {
+                    throw new Error("USUARIO_NO_EXISTE");
+                }
+
+                const userData = docSnap.data();
+
+                // Lógica de seguridad: Si el campo del comercio no es número o no existe, lo tratamos como 0
+                // También para el contador global
+                let usosPreviosComercio = (userData[nom] && typeof userData[nom] === 'object' && typeof userData[nom].usos === 'number') ? userData[nom].usos : 0;
+                let usosPreviosGlobales = (userData.usos_count && typeof userData.usos_count === 'number') ? userData.usos_count : 0;
+
+                await updateDoc(leadRef, { 
+                    [`${nom}.usos`]: usosPreviosComercio + 1, // Incrementa el contador específico del comercio
+                    usos_count: usosPreviosGlobales + 1,       // Incrementa el contador total (PASO 1: ESTE ES EL CAMBIO CLAVE)
+                    [`${nom}.ultimo_codigo`]: idManual,
+                    [`${nom}.ultima_fecha`]: fechaLegible,
+                    cupones_detallados: arrayUnion({
+                        comercio: nom,
+                        fecha: fechaLegible,
+                        hora: horaLegible,
+                        codigo: idManual,
+                        timestamp: timestamp
+                    }),
+                    lastSubmission: timestamp
+                });
+
+                // Registrar en logs_actividad para auditoría
+                await addDoc(collection(db, "logs_actividad"), {
+                    usuarioId: leadId,
+                    nombre: `${userData.apellido || ''} ${userData.nombres || ''}`,
+                    accion: `USO CUPÓN: ${nom}`,
+                    tipo: "LEAD",
+                    timestamp: timestamp
+                });
+
+                // 5. ÉXITO VISUAL
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
                 JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
@@ -660,10 +668,12 @@
                     window.location.replace("usuarios_registro_lead.html");
                 } else {
                     alert("Error técnico con este comercio. Por favor avisar a administración.");
-                    // Opcional: Reintentar o mostrar botón para reintentar
                 }
             }
         };
+
+        // Aseguramos que la función que se llama desde el botón sea la nueva
+        window.finalizar = window.finalizarCanje;
 
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
