@@ -382,12 +382,10 @@
         const db = getFirestore(app);
 
         // --- CAPTURA DE DATOS PROTEGIDA ---
-        // CAMBIO A: Forzar la validación del ID al inicio
-        let leadId = localStorage.getItem('leadId_habitat');
+        // 1. Cambiar la forma en que el sistema obtiene el ID (Línea 225 aprox.)
+        let leadId = localStorage.getItem('leadId_habitat'); 
         
-        // Si el ID es de invitado o no existe, lo obligamos a registrarse con su WhatsApp
-        if (!leadId || leadId.startsWith('invitado_')) { 
-            console.error("ID no válido detectado:", leadId);
+        if (!leadId) { 
             window.location.replace("usuarios_registro_lead.html"); 
         }
         // La captura de nombre y apellido puede seguir usando los valores anteriores si es necesario para mostrarlos
@@ -433,7 +431,6 @@
         // ESCUCHAMOS AL USUARIO PARA TENER LOS CONTEOS DE LA NUBE
         onSnapshot(doc(db, "leads", leadId), (leadSnap) => {
             const leadData = leadSnap.data() || {};
-            // const conteosNube = leadData.conteos_por_comercio || {}; // Ya no se usa
 
             onSnapshot(collection(db, "comercios"), (snap) => {
                 const contenedor = document.getElementById('contenedor-cupones');
@@ -446,19 +443,12 @@
                     const id = docSnap.id;
                     if (c.estado === "inactivo") return;
 
-                    // NUEVA LÓGICA: Leemos el contador de este comercio desde la nube
-                    // const nUso = conteosNube[c.nombre] || 0; // Línea antigua
-                    const nombre = c.nombre || "Local"; // Definimos nombre aquí
-                    // const datosComercio = leadData[nombre] || {};
-                    // const nUso = datosComercio.usos || 0;
-                    // const esUsado = nUso > 0; // <-- Aplicando cambio solicitado Paso 2
-                    
-                    // Aplicando el cambio específico solicitado para leer el conteo
+                    // Lógica de nube: se lee el campo .usos dentro del objeto del comercio
                     const datosComercio = leadData[c.nombre] || {};
                     const nUso = datosComercio.usos || 0;
-                    const esUsado = nUso > 0; // Esto bloquea la tarjeta si ya tiene un uso en Firebase
+                    const esUsado = nUso > 0; // Se bloquea si ya se usó al menos una vez
 
-
+                    const nombre = c.nombre || "Local";
                     const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
                     
                     let diasRestantes = vigenciaTotal;
@@ -585,7 +575,7 @@
             navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
         };
 
-        // --- REEMPLAZO DE LA FUNCIÓN window.finalizar (CAMBIO B) ---
+        // 2. Modificar la función de guardado (Línea 367 aprox.)
         window.finalizar = async (id, nom) => {
             try {
                 const ahora = new Date();
@@ -614,26 +604,36 @@
                     });
                 } catch(eLog) { console.error("Error Log:", eLog); }
 
-                // 4. ACTUALIZACIÓN EN TU DOCUMENTO DE LEAD (USANDO TUS CAMPOS)
-                const leadRef = doc(db, "leads", leadId); // <-- Usamos el leadId obtenido al inicio
-                
-                // Definimos la ruta exacta: NombreDelComercio.usos
-                // Esto sumará 1 al campo 'usos' dentro del objeto del comercio en Firebase
-                const campoUsos = `${nom}.usos`;
+                // 4. ACTUALIZACIÓN SEGURA EN EL DOCUMENTO DEL LEAD (USANDO TUS CAMPOS)
+                const leadRef = doc(db, "leads", leadId); // <-- Usamos el leadId (WhatsApp) como ID del documento
+                const docSnap = await getDoc(leadRef);
 
-                await updateDoc(leadRef, { 
-                    [campoUsos]: increment(1), 
+                if (!docSnap.exists()) {
+                    throw new Error("El documento del Lead no existe en la base de datos.");
+                }
+
+                const userData = docSnap.data();
+
+                // SEGURIDAD: Validamos que el contador del comercio sea un número
+                // Si no existe o es "basura", lo inicializamos en 0 para que no de error
+                let usosComercioPrevios = (userData[nom] && typeof userData[nom] === 'object' && typeof userData[nom].usos === 'number') ? userData[nom].usos : 0;
+                let usosTotalesPrevios = (userData.usos_count && typeof userData.usos_count === 'number') ? userData.usos_count : 0;
+
+                await updateDoc(leadRef, {
+                    [`${nom}.usos`]: usosComercioPrevios + 1, // Incrementa el contador específico del comercio
+                    usos_count: usosTotalesPrevios + 1,       // Incrementa el contador total
                     [`${nom}.ultimo_codigo`]: idManual,
                     [`${nom}.ultima_fecha`]: fechaLegible,
-                    cupones_detallados: arrayUnion({
-                        comercio: nom,
-                        fecha: fechaLegible,
-                        hora: horaLegible,
-                        codigo: idManual,
-                        timestamp: timestamp
-                    }),
-                    usos_count: increment(1),
-                    ultimo_canje: timestamp
+                    lastSubmission: timestamp
+                });
+
+                // Registrar en logs_actividad para auditoría
+                await addDoc(collection(db, "logs_actividad"), {
+                    usuarioId: leadId,
+                    nombre: `${userData.apellido || ''} ${userData.nombres || ''}`,
+                    accion: `USO CUPÓN: ${nom}`,
+                    tipo: "LEAD",
+                    timestamp: timestamp
                 });
 
                 // 5. ÉXITO VISUAL
@@ -648,10 +648,6 @@
                     document.getElementById('countdown').innerText = s;
                     if(s <= 0) { 
                         clearInterval(t); 
-                        // Actualizar local storage y recargar para reflejar cambios
-                        const usadosLocales = getUsadosLocal();
-                        usadosLocales.push(id);
-                        localStorage.setItem('usados_v16_ok', JSON.stringify(usadosLocales));
                         location.reload(); 
                     }
                 }, 1000);
@@ -662,7 +658,6 @@
                 window.location.replace("usuarios_registro_lead.html");
             }
         };
-        // --- FIN REEMPLAZO ---
 
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
