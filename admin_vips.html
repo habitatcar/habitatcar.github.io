@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel VIPs | Hábitat-Car</title>
+    <!-- Librerías para generación de PDF y gráficos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
             --azul-oscuro: #0a192f;
@@ -474,7 +479,7 @@
             }
         };
 
-        // ✅ FUNCIÓN SEGURA DE GENERACIÓN DE REPORTE PDF (NO INTERFIERE CON FIREBASE)
+        // ✅ FUNCIÓN COMPLETA DE GENERACIÓN DE REPORTE PDF
         window.generarReportePDF = async (tipo) => {
             const provSeleccionada = document.getElementById('filtro-provincia').value;
             const locSeleccionada = document.getElementById('filtro-localidad').value;
@@ -508,63 +513,42 @@
                 return;
             }
 
-            const btn = event.target;
-            const originalText = btn.innerHTML;
-            btn.innerHTML = "🖨️ Cargando...";
-            btn.disabled = true;
+            // Mostrar mensaje de carga
+            const originalBtnText = event.target.innerHTML;
+            event.target.innerHTML = "🖨️ Generando...";
+            event.target.disabled = true;
 
             try {
-                await cargarLibreriasPDF();
                 await crearPDFReporte(titulo, datosFiltrados, tipo, provSeleccionada, locSeleccionada);
             } catch (error) {
                 console.error("Error al generar PDF:", error);
                 alert("❌ Error al generar el reporte.");
             } finally {
-                btn.innerHTML = originalText;
-                btn.disabled = false;
+                event.target.innerHTML = originalBtnText;
+                event.target.disabled = false;
             }
         };
-
-        function cargarLibreriasPDF() {
-            return new Promise((resolve, reject) => {
-                if (window.jspdf && window.Chart && window.html2canvas) return resolve();
-
-                const libs = [
-                    'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js',
-                    'https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js',
-                    'https://cdn.jsdelivr.net/npm/chart.js',
-                    'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
-                ];
-
-                let loaded = 0;
-                libs.forEach(src => {
-                    const script = document.createElement('script');
-                    script.src = src;
-                    script.onload = () => {
-                        if (++loaded === libs.length) resolve();
-                    };
-                    script.onerror = reject;
-                    document.head.appendChild(script);
-                });
-            });
-        }
 
         async function crearPDFReporte(titulo, datos, nivel, provSel, locSel) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
+            // -- LOGO --
             const logoUrl = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
             const imgProps = doc.getImageProperties(logoUrl);
             const logoWidth = 40;
             const logoHeight = (imgProps.height * logoWidth) / imgProps.width;
             doc.addImage(logoUrl, 'PNG', 15, 10, logoWidth, logoHeight);
 
+            // -- TÍTULO --
             doc.setFontSize(18);
-            doc.setTextColor(0, 74, 153);
+            doc.setTextColor(0, 74, 153); // celeste-habitat
             doc.text("HÁBITAT-CAR", 105, 20, null, null, "center");
             doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
             doc.text(titulo, 105, 30, null, null, "center");
 
+            // -- RESUMEN --
             const total = datos.length;
             const usosTotales = datos.reduce((sum, v) => sum + (v.usos_count || 0), 0);
             const activos = datos.filter(v => v.estado !== 'suspendido').length;
@@ -576,8 +560,10 @@
             doc.text(`Activos: ${activos}`, 130, 45);
             doc.text(`Suspendidos: ${suspendidos}`, 160, 45);
 
+            // -- GRÁFICO --
             let canvas;
             if (nivel === 'pais') {
+                // Agrupar por provincia
                 const provStats = {};
                 datos.forEach(v => {
                     const p = v.provincia || 'Sin provincia';
@@ -587,6 +573,7 @@
                 const values = Object.values(provStats).slice(0, 10);
                 canvas = await renderBarChart("VIPs por Provincia", labels, values);
             } else if (nivel === 'provincia' && !locSel) {
+                // Agrupar por localidad dentro de la provincia
                 const locStats = {};
                 datos.forEach(v => {
                     const l = v.localidad || 'Sin localidad';
@@ -598,7 +585,7 @@
             }
 
             if (canvas) {
-                const chartImg = await window.html2canvas(canvas).then(c => c.toDataURL('image/png'));
+                const chartImg = await html2canvas(canvas).then(c => c.toDataURL('image/png'));
                 const chartWidth = 180;
                 const chartHeight = 60;
                 doc.addImage(chartImg, 'PNG', 15, 55, chartWidth, chartHeight);
@@ -607,6 +594,7 @@
                 var yOffset = 50;
             }
 
+            // -- TABLA --
             const tablaData = datos.map(v => [
                 `${(v.apellido || '').toUpperCase()}, ${(v.nombres || '').toUpperCase()}`,
                 v.whatsapp || '---',
@@ -635,12 +623,7 @@
                 }
             });
 
-            const finalY = doc.autoTable.previous.finalY + 10;
-            doc.setFontSize(10);
-            doc.setTextColor(0, 74, 153);
-            doc.text("ⓘ Para imprimir: Abra el PDF y use Ctrl+P", 15, finalY);
-            doc.text("ⓘ Para compartir: Adjunte este archivo", 15, finalY + 5);
-
+            // -- PIE DE PÁGINA --
             const pageCount = doc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 doc.setPage(i);
@@ -649,6 +632,7 @@
                 doc.text(`Generado el ${new Date().toLocaleString()} | Página ${i} de ${pageCount}`, 105, 290, null, null, "center");
             }
 
+            // Guardar PDF
             doc.save(`Reporte_HabitatCar_${titulo.replace(/\s+/g, '_')}.pdf`);
         }
 
@@ -661,11 +645,11 @@
             const ctx = canvas.getContext('2d');
             new Chart(ctx, {
                 type: 'bar',
-                 {
+                data: {
                     labels: labels,
                     datasets: [{
                         label: 'Cantidad de VIPs',
-                         data,
+                        data: data,
                         backgroundColor: 'rgba(0, 74, 153, 0.7)',
                         borderColor: 'rgba(0, 74, 153, 1)',
                         borderWidth: 1
