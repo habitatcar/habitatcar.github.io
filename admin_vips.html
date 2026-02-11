@@ -4,121 +4,229 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel VIPs | Hábitat-Car</title>
-    <link rel="icon" type="image/png" href="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true">
     <style>
         :root {
-            --azul-habitat: #004a99;
-            --celeste: #0288d1;
-            --verde: #2e7d32;
-            --rojo: #d32f2f;
-            --gris-fondo: #f5f5f5;
-            --blanco: #ffffff;
+            --azul-oscuro: #0a192f;
+            --azul-medio: #334766; 
+            --azul-claro: #415a77;
+            --celeste-habitat: #004a99;
+            --blanco-suave: #e6f1ff;
+            --oro: #ffc107;
+            --rojo: #dc3545;
+            --verde: #28a745;
+            --naranja: #ff9800;
         }
-        body {
-            font-family: 'Segoe UI', Arial, sans-serif;
+
+        html, body {
+            height: 100%;
             margin: 0;
-            background-color: var(--gris-fondo);
+            overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--azul-oscuro);
+            color: var(--blanco-suave);
         }
+
+        body { display: flex; flex-direction: column; }
+
         .header {
-            background: var(--azul-habitat);
-            color: white;
-            padding: 15px 20px;
+            background: var(--azul-medio);
+            padding: 20px 30px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            border-bottom: 4px solid var(--celeste-habitat);
+            flex-shrink: 0;
         }
-        .header img { height: 40px; }
-        .nav-links { display: flex; gap: 15px; }
-        .nav-links a { color: white; text-decoration: none; font-weight: bold; }
-        .container { padding: 20px; }
-        .filtros { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; }
-        .filtros select, .filtros button { padding: 8px 12px; border: 1px solid #ccc; border-radius: 4px; }
-        .tabla-container { overflow-x: auto; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #ddd; }
-        th { background-color: var(--azul-habitat); color: white; cursor: pointer; }
-        .col-usos { font-weight: bold; color: var(--verde); }
-        .notificacion {
+        .logo { height: 120px; width: auto; } 
+
+        .nav-menu { display: flex; gap: 8px; flex-wrap: wrap; }
+        .nav-link {
+            padding: 8px 12px;
+            border-radius: 6px;
+            text-decoration: none;
+            color: #8892b0;
+            font-weight: bold;
+            background: rgba(255,255,255,0.05);
+            font-size: 11px;
+            transition: 0.3s;
+            text-transform: uppercase;
+        }
+        .nav-link.active { background: var(--rojo); color: white; box-shadow: 0 0 10px rgba(220,53,69,0.5); }
+
+        .search-area { padding: 15px 30px; flex-shrink: 0; background: #112240; }
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .search-bar input, .search-bar select {
+            background: var(--azul-oscuro);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--celeste-habitat);
+            color: white;
+            font-size: 13px;
+            outline: none;
+        }
+        .input-busqueda { width: 250px; }
+        .contador-naranja {
+            background: black;
+            color: var(--oro);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 2px solid var(--oro);
+            font-weight: bold;
+            min-width: 25px;
+            text-align: center;
+        }
+
+        .table-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 30px 30px 30px;
+        }
+
+        table { width: 100%; border-collapse: separate; border-spacing: 0; }
+        thead th {
+            position: sticky;
+            top: 0;
+            background: var(--azul-oscuro);
+            color: var(--oro);
+            padding: 15px;
+            text-align: left;
+            z-index: 20;
+            font-size: 12px;
+            border-bottom: 2px solid var(--celeste-habitat);
+            cursor: pointer;
+        }
+
+        td { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
+        tr:hover { background: rgba(255,255,255,0.03); }
+
+        .btn-action {
+            padding: 10px 14px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            margin-right: 5px;
+            transition: 0.2s;
+            text-transform: uppercase;
+            font-size: 10px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-vip { background: var(--oro); color: black; }
+        .btn-reset { background: #0056b3; }
+        .btn-suspend { background: var(--naranja); }
+        .btn-del { background: var(--rojo); }
+        
+        .col-usos {
+            color: var(--rojo); /* Color para destacar la columna de usos */
+            font-weight: bold;
+            font-size: 16px; /* Tamaño ligeramente mayor */
+            text-align: center;
+        }
+
+        #modal-bienvenida {
             display: none;
             position: fixed;
-            top: 20px; right: 20px;
-            background: var(--azul-habitat);
-            color: white;
-            padding: 15px 25px;
-            border-radius: 5px;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
             z-index: 1000;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            justify-content: center;
+            align-items: center;
         }
-        .acciones-btn { padding: 5px 10px; margin: 2px; border: none; border-radius: 4px; cursor: pointer; }
-        .btn-reset { background: var(--rojo); color: white; }
-        .btn-ver { background: var(--celeste); color: white; }
+        .cartel {
+            background: white;
+            color: #0a192f;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 450px;
+            border: 8px solid var(--oro);
+        }
     </style>
 </head>
 <body>
 
-    <div class="header">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" alt="Logo">
-        <div class="nav-links">
-            <a href="admin_comercios.html">Comercios</a>
-            <a href="admin_leads.html">Leads</a>
-            <a href="admin_vips.html">Vips</a>
-            <a href="admin_tokens_vip.html">Tokens Vip</a>
-            <a href="admin_curioso.html">Curioso</a>
-            <a href="admin_estadisticas.html">Estadísticas</a>
-            <a href="admin_logs.html">Log</a>
-            <a href="admin_tutoriales.html">Tutoriales</a>
-            <a href="index.html">Panel Ingreso</a>
-            <a href="admin_legales.html">Legales</a>
+    <div id="modal-bienvenida">
+        <div class="cartel">
+            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true  " style="width: 140px;">
+            <h2 style="color: var(--celeste-habitat)">¡Socio 💎 VIP Activado!</h2>
+            <p>El usuario ha sido movido a la sección VIP</p>
+            <span id="nombre-socio" style="font-size: 1.8em; font-weight: bold; color: var(--rojo); display: block; margin: 15px 0;">---</span>
+            <button onclick="document.getElementById('modal-bienvenida').style.display='none'" style="margin-top: 20px; padding: 12px 25px; background: var(--azul-oscuro); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">CERRAR</button>
         </div>
     </div>
 
-    <div class="container">
-        <div class="filtros">
-            <select id="filtroProvincia">
+    <header class="header">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true  " class="logo">
+        <nav class="nav-menu">
+            <a href="admin_comercios.html" class="nav-link">Comercios</a>
+            <a href="admin_leads.html" class="nav-link">Leads</a>
+            <a href="admin_vips.html" class="nav-link active">Vips</a>
+            <a href="admin_tokens_vip.html" class="nav-link">Tokens Vip</a>
+            <a href="admin_curioso.html" class="nav-link">Curioso</a>
+            <a href="admin_estadisticas.html" class="nav-link">Estadísticas</a>
+            <a href="admin_logs.html" class="nav-link">Log</a>
+            <a href="admin_tutoriales.html" class="nav-link">Tutoriales</a>
+            <a href="index.html" class="nav-link">Panel Ingreso</a>
+            <a href="admin_legales.html" class="nav-link">Legales</a>
+        </nav>
+    </header>
+
+    <div class="search-area">
+        <div class="search-bar">
+            <input type="text" id="buscador" class="input-busqueda" placeholder="Buscar por apellido o WhatsApp..." onkeyup="filtrarVips()">
+            
+            <select id="filtro-provincia" onchange="cargarLocalidades(this.value); filtrarVips();">
                 <option value="">PROVINCIA</option>
             </select>
-            <select id="filtroLocalidad">
+            <div class="contador-naranja" id="count-prov">0</div>
+
+            <select id="filtro-localidad" onchange="filtrarVips();">
                 <option value="">LOCALIDAD</option>
             </select>
-            <button class="btn-reset" onclick="restablecerCupones()">RESTABLECER CUPONES</button>
-            <select id="filtroAlcance">
+            <div class="contador-naranja" id="count-loc">0</div>
+
+            <select onchange="validarYRestablecerMasivo(this.value); this.value='';" style="border-color: var(--celeste-habitat); font-weight: bold;">
+                <option value="">RESTABLECER CUPONES</option>
                 <option value="localidad">POR LOCALIDAD</option>
                 <option value="provincia">POR PROVINCIA</option>
                 <option value="pais">A TODO EL PAÍS</option>
             </select>
-        </div>
 
-        <div>Total: <span id="total-vips">0</span></div>
-
-        <div class="tabla-container">
-            <table id="tabla-vips">
-                <thead>
-                    <tr>
-                        <th>REGISTRO VIP ↕</th>
-                        <th>ÚLT. ACTIVIDAD ↕</th>
-                        <th>APELLIDO Y NOMBRE ↕</th>
-                        <th>WHATSAPP</th>
-                        <th>PROVINCIA</th>
-                        <th>CIUDAD</th>
-                        <th>CANT. USOS ↕</th>
-                        <th>ACCIONES</th>
-                    </tr>
-                </thead>
-                <tbody id="cuerpo-tabla">
-                    <!-- Los datos se cargarán aquí -->
-                </tbody>
-            </table>
+            <div style="margin-left: auto; font-weight: bold; color: var(--oro);">
+                Total: <span id="contador-total">0</span>
+            </div>
         </div>
     </div>
 
-    <div class="notificacion" id="notificacion">
-        ¡Socio 💎 VIP Activado!<br>
-        El usuario ha sido movido a la sección VIP
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th onclick="ordenar('fechaRegistro')">REGISTRO VIP ↕</th>
+                    <th onclick="ordenar('lastSubmission')">ÚLT. ACTIVIDAD ↕</th>
+                    <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE ↕</th>
+                    <th>WHATSAPP</th>
+                    <th>PROVINCIA</th>
+                    <th>CIUDAD</th>
+                    <th style="text-align: center;" onclick="ordenar('usos_count')">CANT. USOS ↕</th>
+                    <th>ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody id="lista-vips"></tbody>
+        </table>
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, getDocs, doc, updateDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js  ";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  ";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -133,63 +241,258 @@
         const db = getFirestore(app);
 
         let todosLosVips = [];
+        let todasLasProvincias = []; // Almacenará las provincias normalizadas
+        let todasLasLocalidades = []; // Almacenará las localidades de la provincia seleccionada, normalizadas
+        let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        function formatearFecha(timestamp) {
-            if (!timestamp) return "---";
-            const date = new Date(timestamp);
-            return date.toLocaleDateString();
+        // Carga las provincias desde la API y las almacena en minúsculas
+        async function cargarProvincias() {
+            try {
+                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre  ");
+                const data = await res.json();
+                const combo = document.getElementById('filtro-provincia');
+                combo.innerHTML = '<option value="">PROVINCIA</option>'; // Limpia opciones anteriores
+
+                todasLasProvincias = data.provincias.map(p => p.nombre.toLowerCase()); // Normalizamos a minúsculas
+                todasLasProvincias.sort((a,b) => a.localeCompare(b));
+
+                todasLasProvincias.forEach(nombreProv => {
+                    let opt = document.createElement('option');
+                    opt.value = nombreProv; // Guardamos el valor normalizado
+                    opt.textContent = pascalCase(nombreProv); // Mostrar con primera letra mayúscula
+                    combo.appendChild(opt);
+                });
+            } catch (e) { console.error(e); }
         }
 
-        async function cargarVips() {
-            const querySnapshot = await getDocs(collection(db, "leads"));
-            todosLosVips = [];
-            querySnapshot.forEach((doc) => {
-                const data = doc.data();
-                if (data.convertidoVIP === true) {
-                    todosLosVips.push({ id: doc.id, ...data });
+        // Convierte una cadena a formato "Pascal Case" (primera letra de cada palabra en mayúscula)
+        function pascalCase(str) {
+            return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+        }
+
+        // Carga las localidades basadas en la provincia seleccionada, normalizando
+        window.cargarLocalidades = async (provNombreNormalized) => {
+            const comboLoc = document.getElementById('filtro-localidad');
+            comboLoc.innerHTML = '<option value="">LOCALIDAD</option>';
+
+            // Limpiamos localidades si no hay provincia seleccionada o si la provincia no coincide con la lista normalizada
+            if(!provNombreNormalized || !todasLasProvincias.includes(provNombreNormalized)) {
+                 todasLasLocalidades = [];
+                 filtrarVips(); // Refiltrar sin localidad
+                 return;
+            }
+
+            try {
+                // Usamos la provincia seleccionada tal cual está en el combo (ya normalizada al guardarla)
+                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=  ${encodeURIComponent(provNombreNormalized.toLowerCase())}&max=1000&campos=nombre  `);
+                const data = await res.json();
+                // Normalizamos los nombres de las localidades a minúsculas
+                todasLasLocalidades = data.municipios.map(m => m.nombre.toLowerCase());
+                todasLasLocalidades.sort((a,b) => a.localeCompare(b));
+
+                todasLasLocalidades.forEach(nombreLoc => {
+                    let opt = document.createElement('option');
+                    opt.value = nombreLoc; // Guardamos el valor normalizado
+                    opt.textContent = pascalCase(nombreLoc); // Mostrar con primera letra mayúscula
+                    comboLoc.appendChild(opt);
+                });
+            } catch (e) { console.error(e); }
+        }
+        cargarProvincias(); // Cargamos al inicio
+
+
+        // --- Escucha en tiempo real para la colección 'leads' (VIPs) ---
+        // Esta consulta trae todos los leads que son VIPs
+        const q = query(collection(db, "leads"), where("convertidoVIP", "==", true));
+        onSnapshot(q, (snap) => {
+            snap.docChanges().forEach(change => {
+                const docId = change.doc.id;
+                const data = change.doc.data();
+                
+                if (change.type === "added") {
+                    // Nuevo VIP o VIP recién filtrado
+                    // Normalizamos provincia y localidad del VIP al momento de cargarlo
+                    // y calculamos el usos_count
+                    const usosCount = data.usos_count || 0; // Asumimos que el campo se guarda directamente
+
+                    todosLosVips.push({
+                        id: docId,
+                        ...data,
+                        provincia_normalized: (data.provincia || '').toLowerCase(), // Versión normalizada para filtrar
+                        localidad_normalized: (data.localidad || '').toLowerCase(), // Versión normalizada para filtrar
+                        usos_count: usosCount // <-- Agregamos el campo de conteo
+                    });
+                } else if (change.type === "modified") {
+                    // VIP actualizado (otros datos, no necesariamente usos)
+                    const index = todosLosVips.findIndex(v => v.id === docId);
+                    if (index !== -1) {
+                        // Mantenemos el usos_count calculado, solo actualizamos otros datos y la versión normalizada
+                        const currentUsos = todosLosVips[index].usos_count;
+                        todosLosVips[index] = {
+                            id: docId,
+                            ...data,
+                            provincia_normalized: (data.provincia || '').toLowerCase(), // Actualizamos la versión normalizada
+                            localidad_normalized: (data.localidad || '').toLowerCase(),
+                            usos_count: currentUsos // <-- Mantenemos el conteo actual
+                        };
+                    }
+                } else if (change.type === "removed") {
+                    // VIP eliminado o convertido de nuevo a Lead (raro, pero posible)
+                    todosLosVips = todosLosVips.filter(v => v.id !== docId);
                 }
             });
-            renderizarVips(todosLosVips);
-            document.getElementById('total-vips').textContent = todosLosVips.length;
+            // Aplicamos filtros JS (buscador, provincia, localidad) y renderizamos
+            filtrarVips();
+        });
+
+
+        function aplicarOrdenYRender() {
+            const { campo, asc } = ordenActual;
+            todosLosVips.sort((a, b) => {
+                let valA = a[campo] ?? '';
+                let valB = b[campo] ?? '';
+                if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
+                return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+            });
+            renderizar(todosLosVips); // Renderizamos la lista filtrada
         }
 
-        function renderizarVips(vips) {
-            const cuerpo = document.getElementById('cuerpo-tabla');
-            cuerpo.innerHTML = '';
+        window.ordenar = (campo) => {
+            ordenActual.asc = (ordenActual.campo === campo) ? !ordenActual.asc : true;
+            ordenActual.campo = campo;
+            aplicarOrdenYRender();
+        };
 
-            vips.forEach(vip => {
-                // --- CORRECCIÓN: Usar usos_count o 0 ---
-                const usosCount = vip.usos_count || 0;
+        // Función de filtrado en JS que maneja búsqueda y selección de combos
+        window.filtrarVips = () => {
+            const busq = document.getElementById('buscador').value.toLowerCase();
+            const prov = document.getElementById('filtro-provincia').value; // Valor normalizado del combo
+            const loc = document.getElementById('filtro-localidad').value; // Valor normalizado del combo
 
-                const fila = document.createElement('tr');
-                fila.innerHTML = `
-                    <td>${formatearFecha(vip.fechaVIP || vip.fechaRegistro)}</td>
-                    <td>${formatearFecha(vip.lastSubmission)}</td>
-                    <td style="font-weight:bold;">${vip.apellido}, ${vip.nombres}</td>
-                    <td>${vip.whatsapp}</td>
-                    <td>${vip.provincia}</td>
-                    <td>${vip.localidad}</td>
-                    <td class="col-usos">${usosCount}</td> 
-                    <td>
-                        <button class="acciones-btn btn-ver" onclick="verDetalles('${vip.id}')">Ver</button>
-                    </td>
+            const filtrados = todosLosVips.filter(v => {
+                const nombreComp = `${v.apellido || ''} ${v.nombres || ''}`.toLowerCase();
+                const matchBusq = nombreComp.includes(busq) || (v.whatsapp && v.whatsapp.includes(busq));
+                // Comparamos con los valores normalizados del VIP (ahora es 'v')
+                const matchProv = prov === "" || v.provincia_normalized === prov;
+                const matchLoc = loc === "" || v.localidad_normalized === loc;
+                return matchBusq && matchProv && matchLoc;
+            });
+
+            // Actualizamos contadores de los combos
+            document.getElementById('count-prov').innerText = prov ? todosLosVips.filter(v => v.provincia_normalized === prov).length : 0;
+            document.getElementById('count-loc').innerText = loc ? todosLosVips.filter(v => v.localidad_normalized === loc).length : 0;
+
+            renderizar(filtrados);
+        };
+
+        function renderizar(datos) {
+            const lista = document.getElementById('lista-vips');
+            lista.innerHTML = "";
+            document.getElementById('contador-total').innerText = datos.length;
+
+            datos.forEach(v => {
+                const fechaReg = v.fechaRegistro ? new Date(v.fechaRegistro).toLocaleDateString() : '---';
+                const lastSub = (v.lastSubmission || v.fechaRegistro) ? new Date(v.lastSubmission || v.fechaRegistro).toLocaleString() : '---';
+                const suspendido = v.estado === 'suspendido';
+                const nombreFull = `${(v.apellido || '').toUpperCase()}, ${(v.nombres || '').toUpperCase()}`;
+                
+                lista.innerHTML += `
+                    <tr style="${suspendido ? 'opacity: 0.5; background: rgba(220,53,69,0.05)' : ''}">
+                        <td style="color: #8892b0;">${fechaReg}</td>
+                        <td style="color: var(--oro); font-size: 0.9em;">${lastSub}</td>
+                        <td><b>${nombreFull}</b></td>
+                        <td>${v.whatsapp || '---'}</td>
+                        <td style="color: #8892b0">${pascalCase(v.provincia || '---')}</td>
+                        <td style="color: #8892b0">${pascalCase(v.localidad || '---')}</td>
+                        <!-- Paso 2: Asegurar que la variable usos lea el campo correcto -->
+                        <td class="col-usos">${v.usos_count || 0}</td> <!-- Mostramos el campo de conteo total -->
+                        <td style="white-space: nowrap;">
+                            <button class="btn-action btn-vip" onclick="hacerVIP('${v.id}', '${nombreFull}')">💎 VIP</button>
+                            <button class="btn-action btn-reset" onclick="restablecer('${v.id}', '${v.apellido}', '${v.nombres}')">🔄 RESTABLECER</button>
+                            <button class="btn-action btn-suspend" onclick="toggleEstado('${v.id}', '${v.estado}', '${nombreFull}')">${suspendido ? '✅ ACTIVAR' : '🚫 SUSPENDER'}</button>
+                            <button class="btn-action btn-del" onclick="quitarVIP('${v.id}', '${nombreFull}')">🗑️ QUITAR VIP</button>
+                        </td>
+                    </tr>
                 `;
-                cuerpo.appendChild(fila);
             });
         }
 
-        function verDetalles(id) {
-            alert("Detalles del usuario con ID: " + id);
-        }
+        // --- FUNCIÓN MODIFICADA: window.restablecer (Paso 3) ---
+        window.restablecer = async (id, apellido, nombres) => {
+            const pass = prompt("Clave ADMIN para RESTABLECER:");
+            if (pass !== "admin1234") return alert("Clave incorrecta");
 
-        function restablecerCupones() {
-            if (confirm("¿Está seguro de restablecer todos los cupones?")) {
-                alert("Funcionalidad de restablecer cupones aún no implementada.");
+            try {
+                const docRef = doc(db, "leads", id);
+                const docSnap = await getDoc(docRef);
+                const data = docSnap.data();
+                
+                // 1. Empezamos el objeto de actualización con el contador global y la fecha
+                let updateObj = {
+                    usos_count: 0, // El contador principal que usan los VIPs
+                    lastSubmission: Date.now()
+                };
+
+                // 2. REGLA DE ORO: Recorremos todos los campos del usuario en Firebase
+                Object.keys(data).forEach(key => {
+                    // Si el campo es un número, significa que es un contador de comercio
+                    // (Exceptuando campos protegidos como el ID o el WhatsApp)
+                    if (typeof data[key] === 'number' && key !== 'whatsapp' && key !== 'timestamp' && key !== 'usos_count') {
+                        // Usamos deleteField() para borrar el rastro del comercio
+                        updateObj[key] = deleteField();
+                    }
+                });
+
+                // 3. Mandamos la actualización completa a Firebase
+                await updateDoc(docRef, updateObj);
+                
+                // 4. Registramos en el log
+                await registrarActividad(id, `${apellido}, ${nombres}`, "RESTABLECER TODO");
+                
+                alert("Datos de " + apellido + " restablecidos por completo.");
+            } catch (error) {
+                console.error(error);
+                alert("Error técnico al restablecer.");
             }
+        };
+        // --- FIN FUNCIÓN MODIFICADA ---
+
+
+        async function registrarActividad(usuarioId, nombre, accion) {
+            try {
+                await addDoc(collection(db, "logs_actividad"), {
+                    usuarioId: usuarioId,
+                    nombre: nombre,
+                    tipo: "VIP",
+                    accion: accion,
+                    timestamp: Date.now(),
+                    fecha: new Date().toLocaleString()
+                });
+            } catch (e) { console.error("Error log:", e); }
         }
 
-        // Inicializar
-        cargarVips();
+        window.hacerVIP = async (id, nombre) => {
+            if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
+                document.getElementById('nombre-socio').innerText = nombre;
+                document.getElementById('modal-bienvenida').style.display = 'flex';
+            }
+        };
+
+        window.toggleEstado = async (id, estadoActual, nombre) => {
+            const nuevo = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
+            if(confirm(`¿${nuevo === 'suspendido' ? 'Suspender' : 'Activar'} a ${nombre}?`)) {
+                await updateDoc(doc(db, "leads", id), { estado: nuevo });
+            }
+        };
+
+        window.quitarVIP = async (id, nombre) => {
+            if(confirm(`¿Quitar estado VIP a ${nombre}? Volverá a la lista de Leads.`)) {
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: false, lastSubmission: Date.now() });
+                await registrarActividad(id, `${nombre}`, "BAJA VIP (VUELVE A LEAD)");
+                await addDoc(collection(db, "logs"), { fecha: Date.now(), tipo: "BAJA VIP", detalle: `Socio ${nombre} volvió a ser Lead` });
+            }
+        };
     </script>
 </body>
 </html>
