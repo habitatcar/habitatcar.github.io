@@ -226,7 +226,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        // ⬇️ IMPORTANTE: se agregó deleteDoc al final
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -241,110 +242,86 @@
         const db = getFirestore(app);
 
         let todosLosVips = [];
-        let todasLasProvincias = []; // Almacenará las provincias normalizadas
-        let todasLasLocalidades = []; // Almacenará las localidades de la provincia seleccionada, normalizadas
+        let todasLasProvincias = [];
+        let todasLasLocalidades = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        // Carga las provincias desde la API y las almacena en minúsculas
         async function cargarProvincias() {
             try {
                 const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
                 const data = await res.json();
                 const combo = document.getElementById('filtro-provincia');
-                combo.innerHTML = '<option value="">PROVINCIA</option>'; // Limpia opciones anteriores
-
-                todasLasProvincias = data.provincias.map(p => p.nombre.toLowerCase()); // Normalizamos a minúsculas
+                combo.innerHTML = '<option value="">PROVINCIA</option>';
+                todasLasProvincias = data.provincias.map(p => p.nombre.toLowerCase());
                 todasLasProvincias.sort((a,b) => a.localeCompare(b));
-
                 todasLasProvincias.forEach(nombreProv => {
                     let opt = document.createElement('option');
-                    opt.value = nombreProv; // Guardamos el valor normalizado
-                    opt.textContent = pascalCase(nombreProv); // Mostrar con primera letra mayúscula
+                    opt.value = nombreProv;
+                    opt.textContent = pascalCase(nombreProv);
                     combo.appendChild(opt);
                 });
             } catch (e) { console.error(e); }
         }
 
-        // Convierte una cadena a formato "Pascal Case" (primera letra de cada palabra en mayúscula)
         function pascalCase(str) {
             return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
         }
 
-        // Carga las localidades basadas en la provincia seleccionada, normalizando
         window.cargarLocalidades = async (provNombreNormalized) => {
             const comboLoc = document.getElementById('filtro-localidad');
             comboLoc.innerHTML = '<option value="">LOCALIDAD</option>';
-
-            // Limpiamos localidades si no hay provincia seleccionada o si la provincia no coincide con la lista normalizada
             if(!provNombreNormalized || !todasLasProvincias.includes(provNombreNormalized)) {
                  todasLasLocalidades = [];
-                 filtrarVips(); // Refiltrar sin localidad
+                 filtrarVips();
                  return;
             }
-
             try {
-                // Usamos la provincia seleccionada tal cual está en el combo (ya normalizada al guardarla)
                 const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provNombreNormalized.toLowerCase())}&max=1000&campos=nombre`);
                 const data = await res.json();
-                // Normalizamos los nombres de las localidades a minúsculas
                 todasLasLocalidades = data.municipios.map(m => m.nombre.toLowerCase());
                 todasLasLocalidades.sort((a,b) => a.localeCompare(b));
-
                 todasLasLocalidades.forEach(nombreLoc => {
                     let opt = document.createElement('option');
-                    opt.value = nombreLoc; // Guardamos el valor normalizado
-                    opt.textContent = pascalCase(nombreLoc); // Mostrar con primera letra mayúscula
+                    opt.value = nombreLoc;
+                    opt.textContent = pascalCase(nombreLoc);
                     comboLoc.appendChild(opt);
                 });
             } catch (e) { console.error(e); }
         }
-        cargarProvincias(); // Cargamos al inicio
+        cargarProvincias();
 
-
-        // --- Escucha en tiempo real para la colección 'leads' (VIPs) ---
-        // Esta consulta trae todos los leads que son VIPs
         const q = query(collection(db, "leads"), where("convertidoVIP", "==", true));
         onSnapshot(q, (snap) => {
             snap.docChanges().forEach(change => {
                 const docId = change.doc.id;
                 const data = change.doc.data();
-                
                 if (change.type === "added") {
-                    // Nuevo VIP o VIP recién filtrado
-                    // Normalizamos provincia y localidad del VIP al momento de cargarlo
-                    // y calculamos el usos_count
-                    const usosCount = data.usos_count || 0; // Asumimos que el campo se guarda directamente
-
+                    const usosCount = data.usos_count || 0;
                     todosLosVips.push({
                         id: docId,
                         ...data,
-                        provincia_normalized: (data.provincia || '').toLowerCase(), // Versión normalizada para filtrar
-                        localidad_normalized: (data.localidad || '').toLowerCase(), // Versión normalizada para filtrar
-                        usos_count: usosCount // <-- Agregamos el campo de conteo
+                        provincia_normalized: (data.provincia || '').toLowerCase(),
+                        localidad_normalized: (data.localidad || '').toLowerCase(),
+                        usos_count: usosCount
                     });
                 } else if (change.type === "modified") {
-                    // VIP actualizado (otros datos, no necesariamente usos)
                     const index = todosLosVips.findIndex(v => v.id === docId);
                     if (index !== -1) {
-                        // Mantenemos el usos_count calculado, solo actualizamos otros datos y la versión normalizada
                         const currentUsos = todosLosVips[index].usos_count;
                         todosLosVips[index] = {
                             id: docId,
                             ...data,
-                            provincia_normalized: (data.provincia || '').toLowerCase(), // Actualizamos la versión normalizada
+                            provincia_normalized: (data.provincia || '').toLowerCase(),
                             localidad_normalized: (data.localidad || '').toLowerCase(),
-                            usos_count: currentUsos // <-- Mantenemos el conteo actual
+                            usos_count: currentUsos
                         };
                     }
                 } else if (change.type === "removed") {
-                    // VIP eliminado o convertido de nuevo a Lead (raro, pero posible)
                     todosLosVips = todosLosVips.filter(v => v.id !== docId);
                 }
             });
-            // Aplicamos filtros JS (buscador, provincia, localidad) y renderizamos
             filtrarVips();
         });
-
 
         function aplicarOrdenYRender() {
             const { campo, asc } = ordenActual;
@@ -354,7 +331,7 @@
                 if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
                 return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
             });
-            renderizar(todosLosVips); // Renderizamos la lista filtrada
+            renderizar(todosLosVips);
         }
 
         window.ordenar = (campo) => {
@@ -363,25 +340,19 @@
             aplicarOrdenYRender();
         };
 
-        // Función de filtrado en JS que maneja búsqueda y selección de combos
         window.filtrarVips = () => {
             const busq = document.getElementById('buscador').value.toLowerCase();
-            const prov = document.getElementById('filtro-provincia').value; // Valor normalizado del combo
-            const loc = document.getElementById('filtro-localidad').value; // Valor normalizado del combo
-
+            const prov = document.getElementById('filtro-provincia').value;
+            const loc = document.getElementById('filtro-localidad').value;
             const filtrados = todosLosVips.filter(v => {
                 const nombreComp = `${v.apellido || ''} ${v.nombres || ''}`.toLowerCase();
                 const matchBusq = nombreComp.includes(busq) || (v.whatsapp && v.whatsapp.includes(busq));
-                // Comparamos con los valores normalizados del VIP (ahora es 'v')
                 const matchProv = prov === "" || v.provincia_normalized === prov;
                 const matchLoc = loc === "" || v.localidad_normalized === loc;
                 return matchBusq && matchProv && matchLoc;
             });
-
-            // Actualizamos contadores de los combos
             document.getElementById('count-prov').innerText = prov ? todosLosVips.filter(v => v.provincia_normalized === prov).length : 0;
             document.getElementById('count-loc').innerText = loc ? todosLosVips.filter(v => v.localidad_normalized === loc).length : 0;
-
             renderizar(filtrados);
         };
 
@@ -389,13 +360,11 @@
             const lista = document.getElementById('lista-vips');
             lista.innerHTML = "";
             document.getElementById('contador-total').innerText = datos.length;
-
             datos.forEach(v => {
                 const fechaReg = v.fechaRegistro ? new Date(v.fechaRegistro).toLocaleDateString() : '---';
                 const lastSub = (v.lastSubmission || v.fechaRegistro) ? new Date(v.lastSubmission || v.fechaRegistro).toLocaleString() : '---';
                 const suspendido = v.estado === 'suspendido';
                 const nombreFull = `${(v.apellido || '').toUpperCase()}, ${(v.nombres || '').toUpperCase()}`;
-                
                 lista.innerHTML += `
                     <tr style="${suspendido ? 'opacity: 0.5; background: rgba(220,53,69,0.05)' : ''}">
                         <td style="color: #8892b0;">${fechaReg}</td>
@@ -404,8 +373,7 @@
                         <td>${v.whatsapp || '---'}</td>
                         <td style="color: #8892b0">${pascalCase(v.provincia || '---')}</td>
                         <td style="color: #8892b0">${pascalCase(v.localidad || '---')}</td>
-                        <!-- Paso 2: Asegurar que la variable usos lea el campo correcto -->
-                        <td class="col-usos">${v.usos_count || 0}</td> <!-- Mostramos el campo de conteo total -->
+                        <td class="col-usos">${v.usos_count || 0}</td>
                         <td style="white-space: nowrap; text-align: center;">
                             <button class="btn-action btn-reset" onclick="restablecer('${v.id}', '${v.apellido}', '${v.nombres}')">🔄 RESTABLECER</button>
                             <button class="btn-action btn-suspend" onclick="toggleEstado('${v.id}', '${v.estado}', '${nombreFull}')">${suspendido ? '✅ ACTIVAR' : '🚫 SUSPENDER'}</button>
@@ -417,46 +385,30 @@
             });
         }
 
-        // --- FUNCIÓN MODIFICADA: window.restablecer (Paso 3) ---
         window.restablecer = async (id, apellido, nombres) => {
             const pass = prompt("Clave ADMIN para RESTABLECER:");
             if (pass !== "admin1234") return alert("Clave incorrecta");
-
             try {
                 const docRef = doc(db, "leads", id);
                 const docSnap = await getDoc(docRef);
                 const data = docSnap.data();
-                
-                // 1. Empezamos el objeto de actualización con el contador global y la fecha
                 let updateObj = {
-                    usos_count: 0, // El contador principal que usan los VIPs
+                    usos_count: 0,
                     lastSubmission: Date.now()
                 };
-
-                // 2. REGLA DE ORO: Recorremos todos los campos del usuario en Firebase
                 Object.keys(data).forEach(key => {
-                    // Si el campo es un número, significa que es un contador de comercio
-                    // (Exceptuando campos protegidos como el ID o el WhatsApp)
                     if (typeof data[key] === 'number' && key !== 'whatsapp' && key !== 'timestamp' && key !== 'usos_count') {
-                        // Usamos deleteField() para borrar el rastro del comercio
                         updateObj[key] = deleteField();
                     }
                 });
-
-                // 3. Mandamos la actualización completa a Firebase
                 await updateDoc(docRef, updateObj);
-                
-                // 4. Registramos en el log
                 await registrarActividad(id, `${apellido}, ${nombres}`, "RESTABLECER TODO");
-                
                 alert("Datos de " + apellido + " restablecidos por completo.");
             } catch (error) {
                 console.error(error);
                 alert("Error técnico al restablecer.");
             }
         };
-        // --- FIN FUNCIÓN MODIFICADA ---
-
 
         async function registrarActividad(usuarioId, nombre, accion) {
             try {
@@ -491,6 +443,28 @@
                 await updateDoc(doc(db, "leads", id), { convertidoVIP: false, lastSubmission: Date.now() });
                 await registrarActividad(id, `${nombre}`, "BAJA VIP (VUELVE A LEAD)");
                 await addDoc(collection(db, "logs"), { fecha: Date.now(), tipo: "BAJA VIP", detalle: `Socio ${nombre} volvió a ser Lead` });
+            }
+        };
+
+        // ✅ FUNCIÓN AGREGADA: eliminarVIP
+        window.eliminarVIP = async (id, nombre) => {
+            if (!confirm(`⚠️ ¿ELIMINAR DEFINITIVAMENTE a ${nombre}?\nEsta acción NO se puede deshacer.`)) {
+                return;
+            }
+
+            const pass = prompt("🔒 Clave ADMIN para ELIMINAR PERMANENTEMENTE:");
+            if (pass !== "admin1234") {
+                alert("❌ Clave incorrecta. Eliminación cancelada.");
+                return;
+            }
+
+            try {
+                await deleteDoc(doc(db, "leads", id));
+                await registrarActividad(id, nombre, "ELIMINAR VIP (DEFINITIVO)");
+                alert(`✅ Usuario ${nombre} eliminado permanentemente.`);
+            } catch (error) {
+                console.error("Error al eliminar VIP:", error);
+                alert("🚨 Error técnico al intentar eliminar al usuario.");
             }
         };
     </script>
