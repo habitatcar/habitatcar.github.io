@@ -155,7 +155,369 @@
 
     <div id="modal-bienvenida">
         <div class="cartel">
-            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true      " style="width: 140px;">
+            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true    " style="width: 140px;">
             <h2 style="color: var(--celeste-habitat)">¡Socio 💎 VIP Activado!</h2>
             <p>El usuario ha sido movido a la sección VIP</p>
-            <span id="nombre-socio" style="font-size: 1.
+            <span id="nombre-socio" style="font-size: 1.8em; font-weight: bold; color: var(--rojo); display: block; margin: 15px 0;">---</span>
+            <button onclick="document.getElementById('modal-bienvenida').style.display='none'" style="margin-top: 20px; padding: 12px 25px; background: var(--azul-oscuro); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: bold;">CERRAR</button>
+        </div>
+    </div>
+
+    <header class="header">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true    " class="logo">
+        <nav class="nav-menu">
+            <a href="admin_comercios.html" class="nav-link">Comercios</a>
+            <a href="admin_leads.html" class="nav-link active">Leads</a>
+            <a href="admin_vips.html" class="nav-link">Vips</a>
+            <a href="admin_tokens_vip.html" class="nav-link">Tokens Vip</a>
+            <a href="admin_curioso.html" class="nav-link">Curioso</a>
+            <a href="admin_estadisticas.html" class="nav-link">Estadísticas</a>
+            <a href="admin_logs.html" class="nav-link">Log</a>
+            <a href="admin_tutoriales.html" class="nav-link">Tutoriales</a>
+            <a href="index.html" class="nav-link">Panel Ingreso</a>
+            <a href="admin_legales.html" class="nav-link">Legales</a>
+        </nav>
+    </header>
+
+    <div class="search-area">
+        <div class="search-bar">
+            <input type="text" id="buscador" class="input-busqueda" placeholder="Buscar por apellido o WhatsApp..." onkeyup="filtrarLeads()">
+            
+            <select id="filtro-provincia" onchange="cargarLocalidades(this.value); filtrarLeads();">
+                <option value="">PROVINCIA</option>
+            </select>
+            <div class="contador-naranja" id="count-prov">0</div>
+
+            <select id="filtro-localidad" onchange="filtrarLeads();">
+                <option value="">LOCALIDAD</option>
+            </select>
+            <div class="contador-naranja" id="count-loc">0</div>
+
+            <select onchange="validarYRestablecerMasivo(this.value); this.value='';" style="border-color: var(--celeste-habitat); font-weight: bold;">
+                <option value="">RESTABLECER CUPONES</option>
+                <option value="localidad">POR LOCALIDAD</option>
+                <option value="provincia">POR PROVINCIA</option>
+                <option value="pais">A TODO EL PAÍS</option>
+            </select>
+
+            <div style="margin-left: auto; font-weight: bold; color: var(--oro);">
+                Total: <span id="contador-total">0</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="table-wrapper">
+        <table>
+            <thead>
+                <tr>
+                    <th onclick="ordenar('fechaRegistro')">REGISTRO ↕</th>
+                    <th onclick="ordenar('lastSubmission')">ÚLT. ACTIVIDAD ↕</th>
+                    <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE ↕</th>
+                    <th>WHATSAPP</th>
+                    <th>PROVINCIA</th>
+                    <th>CIUDAD</th>
+                    <th style="text-align: center;" onclick="ordenar('usos_count')">CANT. USOS ↕</th> <!-- Columna agregada -->
+                    <th>ACCIONES</th>
+                </tr>
+            </thead>
+            <tbody id="lista-leads"></tbody>
+        </table>
+    </div>
+
+    <script type="module">
+        // ✅ PASO 1: Importación corregida — se agrega deleteDoc
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js    ";
+        import { getFirestore, collection, query, where, getDocs, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js    ";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+            authDomain: "habitatcar-pro.firebaseapp.com",
+            projectId: "habitatcar-pro",
+            storageBucket: "habitatcar-pro.firebasestorage.app",
+            messagingSenderId: "311691258694",
+            appId: "1:311691258694:web:17a09051dcea7707af9347"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        let todosLosLeads = [];
+        let todasLasProvincias = [];
+        let todasLasLocalidades = [];
+        let ordenActual = { campo: 'fechaRegistro', asc: false };
+
+        async function cargarProvincias() {
+            try {
+                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre    ");
+                const data = await res.json();
+                const combo = document.getElementById('filtro-provincia');
+                combo.innerHTML = '<option value="">PROVINCIA</option>';
+
+                todasLasProvincias = data.provincias.map(p => p.nombre.toLowerCase());
+                todasLasProvincias.sort((a,b) => a.localeCompare(b));
+
+                todasLasProvincias.forEach(nombreProv => {
+                    let opt = document.createElement('option');
+                    opt.value = nombreProv;
+                    opt.textContent = pascalCase(nombreProv);
+                    combo.appendChild(opt);
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        function pascalCase(str) {
+            return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+        }
+
+        window.cargarLocalidades = async (provNombreNormalized) => {
+            const comboLoc = document.getElementById('filtro-localidad');
+            comboLoc.innerHTML = '<option value="">LOCALIDAD</option>';
+
+            if(!provNombreNormalized || !todasLasProvincias.includes(provNombreNormalized)) {
+                 todasLasLocalidades = [];
+                 filtrarLeads();
+                 return;
+            }
+
+            try {
+                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=    ${encodeURIComponent(provNombreNormalized.toLowerCase())}&max=1000&campos=nombre  `);
+                const data = await res.json();
+                todasLasLocalidades = data.municipios.map(m => m.nombre.toLowerCase());
+                todasLasLocalidades.sort((a,b) => a.localeCompare(b));
+
+                todasLasLocalidades.forEach(nombreLoc => {
+                    let opt = document.createElement('option');
+                    opt.value = nombreLoc;
+                    opt.textContent = pascalCase(nombreLoc);
+                    comboLoc.appendChild(opt);
+                });
+            } catch (e) { console.error(e); }
+        }
+        cargarProvincias();
+
+        const q = query(collection(db, "leads"), where("convertidoVIP", "!=", true));
+        getDocs(q).then((snap) => {
+            snap.forEach(docSnap => {
+                const data = docSnap.data();
+                const id = docSnap.id;
+
+                const usosGlobales = typeof data.usos_count === 'number' ? data.usos_count : 0;
+                const usosTotales = usosGlobales;
+
+                let detalleComerciosHtml = "<div class='detalle-comercios'>";
+                Object.keys(data).forEach(key => {
+                    if (data[key] && typeof data[key] === 'object' && data[key].usos !== undefined) {
+                        detalleComerciosHtml += `<span class="tag-comercio">${key}: <b>${data[key].usos}</b></span>`;
+                    }
+                });
+                detalleComerciosHtml += "</div>";
+                if (detalleComerciosHtml === "<div class='detalle-comercios'></div>") {
+                    detalleComerciosHtml = "-";
+                }
+
+                todosLosLeads.push({
+                    id: id,
+                    ...data,
+                    provincia_normalized: (data.provincia || '').toLowerCase(),
+                    localidad_normalized: (data.localidad || '').toLowerCase(),
+                    usos_count: usosTotales,
+                    detalle_comercios_html: detalleComerciosHtml
+                });
+            });
+            aplicarOrdenYRender();
+        }).catch(e => console.error("Error al leer Leads:", e));
+
+
+        function aplicarOrdenYRender() {
+            const { campo, asc } = ordenActual;
+            todosLosLeads.sort((a, b) => {
+                let valA = a[campo] ?? '';
+                let valB = b[campo] ?? '';
+                if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
+                return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+            });
+            filtrarLeads();
+        }
+
+        window.ordenar = (campo) => {
+            ordenActual.asc = (ordenActual.campo === campo) ? !ordenActual.asc : true;
+            ordenActual.campo = campo;
+            aplicarOrdenYRender();
+        };
+
+        window.filtrarLeads = () => {
+            const busq = document.getElementById('buscador').value.toLowerCase();
+            const prov = document.getElementById('filtro-provincia').value;
+            const loc = document.getElementById('filtro-localidad').value;
+
+            const filtrados = todosLosLeads.filter(l => {
+                const nombreComp = `${l.apellido || ''} ${l.nombres || ''}`.toLowerCase();
+                const matchBusq = nombreComp.includes(busq) || (l.whatsapp && l.whatsapp.includes(busq));
+                const matchProv = prov === "" || l.provincia_normalized === prov;
+                const matchLoc = loc === "" || l.localidad_normalized === loc;
+                return matchBusq && matchProv && matchLoc;
+            });
+
+            document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l => l.provincia_normalized === prov).length : 0;
+            document.getElementById('count-loc').innerText = loc ? todosLosLeads.filter(l => l.localidad_normalized === loc).length : 0;
+
+            renderizar(filtrados);
+        };
+
+        function renderizar(datos) {
+            const lista = document.getElementById('lista-leads');
+            lista.innerHTML = "";
+            document.getElementById('contador-total').innerText = datos.length;
+
+            datos.forEach(l => {
+                const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
+                const lastSub = (l.lastSubmission || l.fechaRegistro) ? new Date(l.lastSubmission || l.fechaRegistro).toLocaleString() : '---';
+                const suspendido = l.estado === 'suspendido';
+                const nombreFull = `${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}`;
+                
+                lista.innerHTML += `
+                    <tr style="${suspendido ? 'opacity: 0.5; background: rgba(220,53,69,0.05)' : ''}">
+                        <td style="color: #8892b0;">${fechaReg}</td>
+                        <td style="color: var(--oro); font-size: 0.9em;">${lastSub}</td>
+                        <td><b>${nombreFull}</b></td>
+                        <td>${l.whatsapp || '---'}</td>
+                        <td style="color: #8892b0">${pascalCase(l.provincia || '---')}</td>
+                        <td style="color: #8892b0">${pascalCase(l.localidad || '---')}</td>
+                        <td class="col-usos">${l.usos_count || 0}</td>
+                        <td>${l.detalle_comercios_html}</td>
+                        <td style="white-space: nowrap;">
+                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${nombreFull}')">💎 VIP</button>
+                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${nombreFull}')">🔄 RESTABLECER</button>
+                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${nombreFull}')">${suspendido ? '✅ ACTIVAR' : '🚫 SUSPENDER'}</button>
+                            <!-- ✅ Ícono de basura actualizado -->
+                            <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        window.restablecerCupones = async (id, apellido, nombres) => {
+            const pass = prompt("Clave ADMIN:");
+            if (pass !== "admin1234") return alert("Clave Incorrecta");
+
+            try {
+                const leadRef = doc(db, "leads", id);
+
+                const docSnap = await getDoc(leadRef);
+                if (!docSnap.exists()) {
+                    throw new Error("DOCUMENTO_NO_EXISTE");
+                }
+
+                const userData = docSnap.data();
+                const updateObj = { usos_count: 0, lastSubmission: Date.now() };
+
+                Object.keys(userData).forEach(key => {
+                    if (userData[key] && typeof userData[key] === 'object' && typeof userData[key].usos === 'number') {
+                        updateObj[`${key}.usos`] = 0;
+                        if (userData[key].ultimo_codigo !== undefined) updateObj[`${key}.ultimo_codigo`] = null;
+                        if (userData[key].ultima_fecha !== undefined) updateObj[`${key}.ultima_fecha`] = null;
+                    }
+                    if (typeof userData[key] === 'number' && key !== 'usos_count' && key !== 'whatsapp') {
+                        updateObj[key] = 0;
+                    }
+                });
+
+                await updateDoc(leadRef, updateObj);
+                await registrarActividad(id, `${apellido}, ${nombres}`, "RESTABLECER CUPONES LEAD");
+                alert("Cupones de " + apellido + " restablecidos por completo.");
+            } catch(e) {
+                if (e.message === "DOCUMENTO_NO_EXISTE") {
+                    alert("Error: El documento del Lead no existe.");
+                } else {
+                    console.error("Error al restablecer:", e);
+                    alert("Error técnico al restablecer.");
+                }
+            }
+        };
+
+        async function registrarActividad(usuarioId, nombre, accion) {
+            try {
+                await addDoc(collection(db, "logs_actividad"), {
+                    usuarioId: usuarioId,
+                    nombre: nombre,
+                    tipo: "LEAD",
+                    accion: accion,
+                    timestamp: Date.now(),
+                    fecha: new Date().toLocaleString()
+                });
+            } catch (e) { console.error("Error log:", e); }
+        }
+
+        window.hacerVIP = async (id, nombre) => {
+            if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
+                document.getElementById('nombre-socio').innerText = nombre;
+                document.getElementById('modal-bienvenida').style.display = 'flex';
+            }
+        };
+
+        window.toggleEstado = async (id, estadoActual, nombre) => {
+            const nuevo = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
+            if(confirm(`¿${nuevo === 'suspendido' ? 'Suspender' : 'Activar'} a ${nombre}?`)) {
+                await updateDoc(doc(db, "leads", id), { estado: nuevo });
+            }
+        };
+
+        // ✅ PASO 2: Función borrarLead reemplazada
+        window.borrarLead = async (id) => {
+            if (confirm("¿Eliminar este lead de forma permanente?")) {
+                try {
+                    // Borra de Firebase
+                    await deleteDoc(doc(db, "leads", id));
+                    
+                    // Borra de la lista local para que desaparezca de la pantalla al instante
+                    todosLosLeads = todosLosLeads.filter(l => l.id !== id);
+                    
+                    // Refresca la tabla
+                    filtrarLeads();
+                    
+                    alert("Lead eliminado correctamente.");
+                } catch (e) {
+                    console.error("Error al eliminar:", e);
+                    alert("No se pudo eliminar el lead.");
+                }
+            }
+        };
+
+        window.validarYRestablecerMasivo = async (tipo) => {
+            if (!tipo) return;
+            const pass = prompt("Clave ADMIN:");
+            if (pass !== "admin1234") return alert("Clave Incorrecta");
+
+            let filtrados = [];
+            if (tipo === "pais") filtrados = todosLosLeads;
+            else if (tipo === "provincia") filtrados = todosLosLeads.filter(l => l.provincia_normalized === document.getElementById('filtro-provincia').value);
+            else if (tipo === "localidad") filtrados = todosLosLeads.filter(l => l.localidad_normalized === document.getElementById('filtro-localidad').value);
+
+            if(confirm(`¿Restablecer cupones de ${filtrados.length} usuarios?`)) {
+                const batch = writeBatch(db);
+                const ahora = Date.now();
+                filtrados.forEach(l => {
+                    const leadRef = doc(db, "leads", l.id);
+                    batch.update(leadRef, { usos_count: 0, lastSubmission: ahora });
+
+                    Object.keys(l).forEach(key => {
+                        if (l[key] && typeof l[key] === 'object' && typeof l[key].usos === 'number') {
+                            batch.update(leadRef, {[`${key}.usos`]: 0});
+                            if (l[key].ultimo_codigo !== undefined) batch.update(leadRef, {[`${key}.ultimo_codigo`]: null});
+                            if (l[key].ultima_fecha !== undefined) batch.update(leadRef, {[`${key}.ultima_fecha`]: null});
+                        }
+                        if (typeof l[key] === 'number' && key !== 'usos_count' && key !== 'whatsapp') {
+                            batch.update(leadRef, {[key]: 0});
+                        }
+                    });
+                });
+                await batch.commit();
+                alert("Restablecimiento masivo completado.");
+                location.reload();
+            }
+        };
+    </script>
+</body>
+</html>
