@@ -367,6 +367,7 @@
         window.onpopstate = function () { history.go(1); };
         localStorage.setItem('habitat_auth', 'true');
 
+        // ✅ PASO A: Importación corregida — se agrega 'increment'
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js  ";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  ";
 
@@ -381,32 +382,71 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- CAPTURA DE DATOS ---
-        const leadId = localStorage.getItem('leadId_habitat') || localStorage.getItem('leadId_v16') || localStorage.getItem('leadId');
-        
-        // Redirigir si no hay ID (Evita que la pantalla quede en blanco)
-        if (!leadId) {
-            window.location.replace("usuarios_registro_lead.html");
-        }
+        // --- CAPTURA DE DATOS PROTEGIDA ---
+        const leadId = 
+            localStorage.getItem('leadId_habitat') ||
+            localStorage.getItem('leadId_v16') ||
+            localStorage.getItem('leadId') ||
+            "invitado_" + Date.now(); 
+        const leadNombre = localStorage.getItem('leadNombre') || "Usuario";
+        const leadApellido = localStorage.getItem('leadApellido') || "Leads";
+        // ------------------------------------
 
-        // --- 1. ESCUCHADOR DE RESTABLECIMIENTO (ADMIN) ---
-        // Este bloque limpia el celular si el admin borra los datos en Firebase
-        onSnapshot(doc(db, "leads", leadId), (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                if (!data.canjes_por_comercio || Object.keys(data.canjes_por_comercio).length === 0) {
-                    Object.keys(localStorage).forEach(key => {
-                        if (key.startsWith('uso_lead_')) localStorage.removeItem(key);
-                    });
-                    localStorage.setItem('usados_v16_ok', JSON.stringify([]));
-                    // No hacemos reload aquí para no entrar en bucle, el onSnapshot de comercios actualizará la vista
+        let deferredPrompt;
+        const btnInstalar = document.getElementById('btn-instalar-pwa');
+        const yaInstalado = localStorage.getItem('habitat_pwa_instalada');
+
+        window.addEventListener('beforeinstallprompt', (e) => {
+            if (yaInstalado) return;
+            e.preventDefault();
+            deferredPrompt = e;
+            btnInstalar.style.display = 'block';
+        });
+
+        btnInstalar.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                if (outcome === 'accepted') {
+                    btnInstalar.style.display = 'none';
+                    localStorage.setItem('habitat_pwa_instalada', 'true');
                 }
+                deferredPrompt = null;
             }
         });
 
-        // --- 2. CARGA DE CUPONES EN TIEMPO REAL ---
-        const getUsosLocales = (comercioId) => parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
+        let scanner = null;
+        let idEnProceso = "";
+        let tokenEsperado = "";
+        
         const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
+        const getUsadosLocal = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
+
+        const getUsosLocales = (comercioId) => {
+            return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
+        };
+
+        // ✅ PASO 2: Escuchador de restablecimiento desde Admin
+        // --- FUNCIÓN PARA DETECTAR RESTABLECIMIENTO DESDE ADMIN ---
+        onSnapshot(doc(db, "leads", leadId), (docSnap) => {
+            if (docSnap.exists()) {
+                const data = docSnap.data();
+                // Si no existen canjes en la nube (porque el admin los borró)
+                if (!data.canjes_por_comercio || Object.keys(data.canjes_por_comercio).length === 0) {
+                    
+                    // 1. Limpiamos los registros de uso individual del localStorage
+                    Object.keys(localStorage).forEach(key => {
+                        if (key.startsWith('uso_lead_') || key.startsWith('uso_vip_')) {
+                            localStorage.removeItem(key);
+                        }
+                    });
+
+                    // 2. Limpiamos la lista general de usados
+                    localStorage.setItem('usados_v16_ok', JSON.stringify([]));
+                }
+            }
+        });
+        // -------------------------------------------------------
 
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-cupones');
@@ -421,6 +461,7 @@
 
                 const nUso = getUsosLocales(id);
                 const esUsado = nUso > 0;
+
                 const nombre = c.nombre || "Local";
                 const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
                 
@@ -439,17 +480,37 @@
 
                 if (mostrarReloj && diasRestantes < 0) return;
 
+                let htmlLogo = "";
+                if (c.logoUrl && c.logoUrl.trim() !== "") {
+                    htmlLogo = `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>`;
+                }
+
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
-                const logoHtml = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : "";
+                const token = c.tokenQR || "";
+                const ig = c.instagram ? (c.instagram.includes('http') ? c.instagram : `https://instagram.com/${c.instagram.replace('@','')}`) : "";
+                const web = c.sitioWeb ? (c.sitioWeb.includes('http') ? c.sitioWeb : `https://${c.sitioWeb}`) : "";
+                const tieneRedes = (ig !== "" || web !== "");
                 
+                let infoVencimiento = "";
+                if (!mostrarReloj) {
+                    infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)`;
+                } else if (diasRestantes <= 3) {
+                    infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>`;
+                } else {
+                    infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
+                }
+
                 html += `
                     <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
-                        ${logoHtml}
+                        ${htmlLogo}
                         <div class="nombre-c">${nombre}</div>
                         <div class="beneficio-c">${beneficio}</div>
-                        <span class="info-txt">⏳ ${mostrarReloj ? 'Vence en: '+diasRestantes+' días' : 'Un solo uso'}</span>
+                        <span class="info-txt">${infoVencimiento}</span>
+                        ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
                         <div class="btn-stack">
-                            <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${c.tokenQR || ''}')">Validar Cupón con QR</button>
+                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}')">Conozca el comercio</button>` : ""}
+                            <button class="btn-act btn-llegar" onclick="window.open('https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(c.direccion || nombre)}')">Cómo llegar</button>
+                            <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
                             <button class="btn-act btn-usar ${esUsado ? 'usado' : ''}" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">
                                 Usar el Beneficio <span class="contador-nube">${nUso}</span>
                             </button>
@@ -457,11 +518,29 @@
                     </div>`;
             });
 
-            if (huboCambioInicio) localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
+            if (huboCambioInicio) {
+                localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
+            }
             contenedor.innerHTML = html;
         });
 
-        // --- FUNCIONES GLOBALES (ASIGNADAS A WINDOW) ---
+        const syncUsados = async () => {
+            try {
+                const lSnap = await getDoc(doc(db, "leads", leadId));
+                if (lSnap.exists()) {
+                    const deFirebase = lSnap.data().cupones_usados || [];
+                    const locales = getUsadosLocal();
+                    const combinados = [...new Set([...locales, ...deFirebase])];
+                    localStorage.setItem('usados_v16_ok', JSON.stringify(combinados));
+                }
+            } catch(e) {}
+        };
+        syncUsados();
+
+        window.cerrarValidado = () => { document.getElementById('overlay-validado').style.display = 'none'; };
+        window.cerrarErrorQR = () => { document.getElementById('overlay-error-qr').style.display = 'none'; };
+        window.cerrarAtencion = () => { document.getElementById('overlay-atencion').style.display = 'none'; };
+
         window.confirmarAtencion = (id, nom) => {
             document.getElementById('overlay-atencion').style.display = 'flex';
             document.getElementById('btn-confirmar-final').onclick = () => {
@@ -470,54 +549,149 @@
             };
         };
 
-        window.abrirQR = (id, token) => {
-            document.getElementById('modal-qr').style.display = 'flex';
-            const scanner = new Html5Qrcode("reader");
-            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
-                if (text.trim() === token.trim()) {
-                    scanner.stop();
-                    document.getElementById('modal-qr').style.display = 'none';
-                    document.getElementById('overlay-validado').style.display = 'flex';
-                    document.getElementById(`btn-usar-${id}`).classList.add('activo');
-                } else {
-                    scanner.stop();
-                    document.getElementById('modal-qr').style.display = 'none';
-                    document.getElementById('overlay-error-qr').style.display = 'flex';
-                }
-            });
+        window.abrirPopup = (nom, ig, web) => {
+            document.getElementById('pop-nombre').innerText = nom;
+            document.getElementById('lnk-ig').href = ig || "#";
+            document.getElementById('lnk-ig').style.display = ig ? 'block' : 'none';
+            document.getElementById('lnk-web').href = web || "#";
+            document.getElementById('lnk-web').style.display = web ? 'block' : 'none';
+            document.getElementById('popup-redes').style.display = 'flex';
         };
-
-        window.finalizar = async (id, nom) => {
-            const ahora = new Date();
-            const idManual = "HAB-" + Math.floor(1000 + Math.random() * 9000);
-            
-            // Actualizar en Firebase
-            const idComercioLimpio = nom.replace(/\s+/g, '_');
-            await updateDoc(doc(db, "leads", leadId), {
-                [`canjes_por_comercio.${idComercioLimpio}`]: {
-                    comercio: nom,
-                    codigo: idManual,
-                    fecha: ahora.toLocaleDateString(),
-                    cantidad_usos: increment(1)
+        window.cerrarPopup = () => document.getElementById('popup-redes').style.display = 'none';
+        
+        window.abrirQR = (id, token) => {
+            idEnProceso = id; tokenEsperado = token;
+            document.getElementById('modal-qr').style.display = 'flex';
+            scanner = new Html5Qrcode("reader");
+            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+                if (text.trim() === tokenEsperado.trim()) {
+                    cerrarScanner();
+                    document.getElementById('overlay-validado').style.display = 'flex';
+                    const btn = document.getElementById(`btn-usar-${idEnProceso}`);
+                    if(btn) { btn.classList.add('activo'); btn.innerText = "USAR BENEFICIO"; }
+                } else { 
+                    cerrarScanner();
+                    document.getElementById('overlay-error-qr').style.display = 'flex'; 
                 }
-            });
-
-            // Guardar localmente
-            const nuevosUsos = getUsosLocales(id) + 1;
-            localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
-
-            // Mostrar pantalla éxito
-            document.getElementById('exito-comercio').innerText = nom;
-            document.getElementById('exito-id-texto').innerText = idManual;
-            JsBarcode("#barcode", idManual);
-            document.getElementById('pantalla-exito').style.display = 'flex';
-            
-            setTimeout(() => { location.reload(); }, 30000);
+            }).catch(e => console.error(e));
         };
         
-        window.cerrarAtencion = () => document.getElementById('overlay-atencion').style.display = 'none';
-        window.cerrarValidado = () => document.getElementById('overlay-validado').style.display = 'none';
-        window.cerrarScanner = () => document.getElementById('modal-qr').style.display = 'none';
+        window.cerrarScanner = () => {
+            document.getElementById('modal-qr').style.display = 'none';
+            if(scanner) { scanner.stop().then(() => scanner.clear()).catch(err => console.log(err)); }
+        };
+
+        window.copiarID = () => {
+            const idTexto = document.getElementById('exito-id-texto').innerText;
+            navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
+        };
+
+        // ✅ PASO B: Función finalizar corregida — usa canjes_por_comercio y increment
+        window.finalizar = async (id, nom) => {
+            try {
+                if (!leadId || leadId.startsWith('invitado_')) {
+                    alert("Error: No se detectó una sesión válida. Por favor, regístrese nuevamente.");
+                    window.location.replace("usuarios_registro_lead.html");
+                    return;
+                }
+
+                const ahora = new Date();
+                const fechaLegible = ahora.toLocaleDateString();
+                const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const timestamp = ahora.getTime();
+
+                const refComercio = doc(db, "comercios", id);
+                const snapCom = await getDoc(refComercio);
+                const totalActual = (snapCom.data().totalUsos || 0) + 1;
+                const idManual = "HAB-" + String(totalActual).padStart(4, '0');
+
+                await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
+
+                try {
+                    await addDoc(collection(db, "logs_actividad"), {
+                        timestamp: timestamp,
+                        tipo: "canje",
+                        accion: "CANJE LEADS",
+                        nombreComercio: nom,
+                        usuarioId: leadId,
+                        idValidacion: idManual
+                    });
+                } catch(eLog) { console.error("Error Log:", eLog); }
+
+                // 🔁 NUEVA ESTRUCTURA UNIFICADA
+                const idComercioLimpio = nom.replace(/\s+/g, '_');
+                const horaL = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+
+                await updateDoc(doc(db, "leads", leadId), {
+                    [`canjes_por_comercio.${idComercioLimpio}`]: {
+                        comercio: nom,
+                        codigo: idManual,
+                        fecha: fechaLegible,
+                        hora: horaL,
+                        cantidad_usos: increment(1)
+                    },
+                    usos_count: increment(1),
+                    cupones_detallados: arrayUnion({
+                        comercio: nom,
+                        fecha: fechaLegible,
+                        hora: horaLegible,
+                        codigo: idManual,
+                        timestamp: timestamp
+                    }),
+                    lastSubmission: timestamp
+                });
+
+                const nuevosUsos = getUsosLocales(id) + 1;
+                localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
+
+                const btnUsar = document.getElementById(`btn-usar-${id}`);
+                if (btnUsar) {
+                    const contadorSpan = btnUsar.querySelector('.contador-nube');
+                    if (contadorSpan) {
+                        contadorSpan.textContent = nuevosUsos;
+                    }
+                    btnUsar.classList.add('usado');
+                    btnUsar.classList.remove('activo');
+                    btnUsar.innerText = "USADO";
+                }
+
+                document.getElementById('exito-comercio').innerText = nom;
+                document.getElementById('exito-id-texto').innerText = idManual;
+                JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
+                document.getElementById('pantalla-exito').style.display = 'flex';
+                
+                let s = 30;
+                const t = setInterval(() => {
+                    s--; 
+                    document.getElementById('countdown').innerText = s;
+                    if(s <= 0) { 
+                        clearInterval(t); 
+                        const usadosLocales = getUsadosLocal();
+                        usadosLocales.push(id);
+                        localStorage.setItem('usados_v16_ok', JSON.stringify(usadosLocales));
+                        location.reload(); 
+                    }
+                }, 1000);
+
+            } catch(e) { 
+                console.error("Error de Validación:", e);
+                alert("Error crítico: " + e.message); 
+            }
+        };
+
+        window.filtrar = () => {
+            const texto = document.getElementById('filtroNombre').value.toLowerCase();
+            const vencimiento = document.getElementById('filtroVence').value;
+            document.querySelectorAll('.card').forEach(c => {
+                const nombreMatch = c.dataset.nombre.includes(texto);
+                const dias = parseInt(c.dataset.vence);
+                let venceMatch = true;
+                if (vencimiento !== "todos") {
+                    venceMatch = (dias >= 0 && dias <= parseInt(vencimiento));
+                }
+                c.style.display = (nombreMatch && venceMatch) ? 'block' : 'none';
+            });
+        };
     </script>
 </body>
 </html>
