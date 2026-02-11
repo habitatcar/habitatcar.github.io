@@ -367,7 +367,7 @@
         window.onpopstate = function () { history.go(1); };
         localStorage.setItem('habitat_auth', 'true');
 
-        // ✅ PASO A: Importación corregida — se agrega 'increment'
+        // ✅ PASO 1: Importación verificada
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js  ";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  ";
 
@@ -391,6 +391,27 @@
         const leadNombre = localStorage.getItem('leadNombre') || "Usuario";
         const leadApellido = localStorage.getItem('leadApellido') || "Leads";
         // ------------------------------------
+
+        // ✅ PASO 2: Escuchador de restablecimiento
+        // --- NUEVO: ESCUCHAR RESTABLECIMIENTO DESDE ADMIN ---
+        if (leadId && !leadId.startsWith('invitado_')) {
+            onSnapshot(doc(db, "leads", leadId), (docSnap) => {
+                if (docSnap.exists()) {
+                    const data = docSnap.data();
+                    // Si el admin borró el campo de canjes o está vacío
+                    if (!data.canjes_por_comercio || Object.keys(data.canjes_por_comercio).length === 0) {
+                        // Borramos los bloqueos locales
+                        Object.keys(localStorage).forEach(key => {
+                            if (key.startsWith('uso_lead_')) {
+                                localStorage.removeItem(key);
+                            }
+                        });
+                        localStorage.setItem('usados_v16_ok', JSON.stringify([]));
+                        // Nota: No hace falta recargar, el siguiente paso actualizará la vista solo
+                    }
+                }
+            });
+        }
 
         let deferredPrompt;
         const btnInstalar = document.getElementById('btn-instalar-pwa');
@@ -426,28 +447,7 @@
             return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
         };
 
-        // ✅ PASO 2: Escuchador de restablecimiento desde Admin
-        // --- FUNCIÓN PARA DETECTAR RESTABLECIMIENTO DESDE ADMIN ---
-        onSnapshot(doc(db, "leads", leadId), (docSnap) => {
-            if (docSnap.exists()) {
-                const data = docSnap.data();
-                // Si no existen canjes en la nube (porque el admin los borró)
-                if (!data.canjes_por_comercio || Object.keys(data.canjes_por_comercio).length === 0) {
-                    
-                    // 1. Limpiamos los registros de uso individual del localStorage
-                    Object.keys(localStorage).forEach(key => {
-                        if (key.startsWith('uso_lead_') || key.startsWith('uso_vip_')) {
-                            localStorage.removeItem(key);
-                        }
-                    });
-
-                    // 2. Limpiamos la lista general de usados
-                    localStorage.setItem('usados_v16_ok', JSON.stringify([]));
-                }
-            }
-        });
-        // -------------------------------------------------------
-
+        // ✅ PASO 3: Lógica de carga de cupones (ya estaba correcta, se mantiene)
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-cupones');
             const inicios = getInicios();
@@ -459,7 +459,8 @@
                 const id = docSnap.id;
                 if (c.estado === "inactivo") return;
 
-                const nUso = getUsosLocales(id);
+                // ✅ Dentro del snap.forEach de comercios...
+                const nUso = getUsosLocales(id); // Esta función ya la tienes definida arriba
                 const esUsado = nUso > 0;
 
                 const nombre = c.nombre || "Local";
@@ -500,6 +501,7 @@
                     infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
                 }
 
+                // ✅ Asegúrate de que los botones usen 'esUsado' para ponerse grises o no
                 html += `
                     <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
                         ${htmlLogo}
@@ -586,7 +588,6 @@
             navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
         };
 
-        // ✅ PASO B: Función finalizar corregida — usa canjes_por_comercio y increment
         window.finalizar = async (id, nom) => {
             try {
                 if (!leadId || leadId.startsWith('invitado_')) {
@@ -618,7 +619,6 @@
                     });
                 } catch(eLog) { console.error("Error Log:", eLog); }
 
-                // 🔁 NUEVA ESTRUCTURA UNIFICADA
                 const idComercioLimpio = nom.replace(/\s+/g, '_');
                 const horaL = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
