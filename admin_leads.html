@@ -104,8 +104,9 @@
         td { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
         tr:hover { background: rgba(255,255,255,0.03); }
 
+        /* ✅ AJUSTE: Botones con altura fija e igual */
         .btn-action {
-            padding: 10px 14px;
+            padding: 8px 10px; /* Simétrico */
             border-radius: 6px;
             border: none;
             cursor: pointer;
@@ -117,17 +118,59 @@
             font-size: 10px;
             display: inline-flex;
             align-items: center;
+            justify-content: center;
             gap: 4px;
+            min-height: 36px;
+            height: 36px;
+            box-sizing: border-box;
         }
         .btn-vip { background: var(--oro); color: black; }
         .btn-reset { background: #0056b3; }
         .btn-suspend { background: var(--naranja); }
-        .btn-del { background: var(--rojo); }
-        
+        .btn-del { 
+            background: var(--rojo); 
+        }
+        .btn-del span {
+            font-size: 16px;
+        }
+
+        /* ✅ ÚLTIMO AJUSTE VISUAL: Agrandar todos los íconos al mismo tamaño */
+        .btn-action span {
+            font-size: 16px !important;
+        }
+
+        /* ✅ AJUSTE: Centrado preciso de "ACCIONES" y botones */
+        .acciones-bloque,
+        .acciones-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .checkbox-multi {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--oro);
+        }
+
+        .col-acciones {
+            /* Eliminado padding-right y text-align */
+            /* El centrado lo maneja el contenedor flex */
+        }
+
+        .col-checkbox {
+            width: 32px;
+            padding-left: 8px;
+            text-align: center;
+        }
+
         .col-usos {
-            color: var(--rojo); /* Color para destacar la columna de usos */
+            color: var(--rojo);
             font-weight: bold;
-            font-size: 16px; /* Tamaño ligeramente mayor */
+            font-size: 16px;
             text-align: center;
         }
 
@@ -155,7 +198,7 @@
 
     <div id="modal-bienvenida">
         <div class="cartel">
-            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true          " style="width: 140px;">
+            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true                " style="width: 140px;">
             <h2 style="color: var(--celeste-habitat)">¡Socio 💎 VIP Activado!</h2>
             <p>El usuario ha sido movido a la sección VIP</p>
             <span id="nombre-socio" style="font-size: 1.8em; font-weight: bold; color: var(--rojo); display: block; margin: 15px 0;">---</span>
@@ -164,7 +207,7 @@
     </div>
 
     <header class="header">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true          " class="logo">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true                " class="logo">
         <nav class="nav-menu">
             <a href="admin_comercios.html" class="nav-link">Comercios</a>
             <a href="admin_leads.html" class="nav-link active">Leads</a>
@@ -217,7 +260,10 @@
                     <th>PROVINCIA</th>
                     <th>CIUDAD</th>
                     <th style="text-align: center;" onclick="ordenar('usos_count')">CANT. USOS ↕</th>
-                    <th>ACCIONES</th>
+                    <th class="col-acciones">
+                        <div class="acciones-header">ACCIONES</div>
+                    </th>
+                    <th class="col-checkbox"><input type="checkbox" id="select-all" onclick="seleccionarTodos(this.checked)"></th>
                 </tr>
             </thead>
             <tbody id="lista-leads"></tbody>
@@ -226,8 +272,8 @@
 
     <script type="module">
         // ✅ PASO 1: Importación con deleteField (ya estaba presente)
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js          ";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js          ";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js                ";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js                ";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -248,7 +294,7 @@
 
         async function cargarProvincias() {
             try {
-                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre          ");
+                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre                ");
                 const data = await res.json();
                 const combo = document.getElementById('filtro-provincia');
                 combo.innerHTML = '<option value="">PROVINCIA</option>';
@@ -280,7 +326,7 @@
             }
 
             try {
-                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=          ${encodeURIComponent(provNombreNormalized.toLowerCase())}&max=1000&campos=nombre  `);
+                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=                ${encodeURIComponent(provNombreNormalized.toLowerCase())}&max=1000&campos=nombre  `);
                 const data = await res.json();
                 todasLasLocalidades = data.municipios.map(m => m.nombre.toLowerCase());
                 todasLasLocalidades.sort((a,b) => a.localeCompare(b));
@@ -360,6 +406,7 @@
             renderizar(filtrados);
         };
 
+        // ✅ PASO 2: Función renderizar ACTUALIZADA (solo esta parte cambia)
         function renderizar(datos) {
             const lista = document.getElementById('lista-leads');
             lista.innerHTML = "";
@@ -380,26 +427,31 @@
                         <td style="color: #8892b0">${pascalCase(l.provincia || '')}</td>
                         <td style="color: #8892b0">${pascalCase(l.localidad || '')}</td>
                         <td class="col-usos">${l.usos_count || 0}</td>
-                        <td>${l.detalle_comercios_html}</td>
-                        <td style="white-space: nowrap;">
-                            <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${nombreFull}')">💎 VIP</button>
-                            <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}')">🔄 RESTABLECER</button>
-                            <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${nombreFull}')">${suspendido ? '✅ ACTIVAR' : '🚫 SUSPENDER'}</button>
-                            <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑</button>
+                        <td class="col-acciones">
+                            <div class="acciones-bloque">
+                                <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${nombreFull}')"><span>💎</span> VIP</button>
+                                <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}')"><span>🔄</span> RESTABLECER</button>
+                                <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${nombreFull}')"><span>${suspendido ? '✅' : '🚫'}</span> ${suspendido ? 'ACTIVAR' : 'SUSPENDER'}</button>
+                                <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">
+                                    <span>🗑️</span> ELIMINAR LEAD
+                                </button>
+                            </div>
+                        </td>
+                        <td class="col-checkbox">
+                            <input type="checkbox" class="checkbox-multi lead-checkbox" value="${l.id}">
                         </td>
                     </tr>
                 `;
             });
         }
 
-        // ✅ PASO 2: Función restablecerCupones actualizada
+        // ✅ PASO 3: Función restablecerCupones (sin cambios, ya estaba bien)
         window.restablecerCupones = async (id) => {
             if(confirm("¿Estás seguro de restablecer TODOS los beneficios para este usuario?")) {
                 try {
                     const leadRef = doc(db, "leads", id);
                     await updateDoc(leadRef, { 
                         usos_count: 0,
-                        // ESTA ES LA LÍNEA CLAVE: Borra el objeto de canjes en la nube
                         canjes_por_comercio: deleteField() 
                     });
                     alert("Beneficios restablecidos con éxito.");
@@ -462,13 +514,18 @@
                     batch.update(leadRef, { 
                         usos_count: 0, 
                         lastSubmission: ahora,
-                        canjes_por_comercio: deleteField() // ✅ PASO 3: Añadido aquí
+                        canjes_por_comercio: deleteField() 
                     });
                 });
                 await batch.commit();
                 alert("Restablecimiento masivo completado.");
                 location.reload();
             }
+        };
+
+        // ✅ PASO 4: Lógica de selección múltiple (mínima y limpia)
+        window.seleccionarTodos = (checked) => {
+            document.querySelectorAll('.lead-checkbox').forEach(cb => cb.checked = checked);
         };
     </script>
 </body>
