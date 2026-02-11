@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="Hábitat-Car">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
-    <link rel="manifest" href="application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIExlYWRzIiwKICAic2hvcnRfbmFtZSI6ICJIYeWiaXRhdC1DYXIiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyLmdpdGh1Yi5pby9ibG9iL21haW4vbG9nby5wbmc/cmF3PXRydWUiLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNKYWJsZSIKICAgIH0KICBdLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAwNDU5MCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDQ1OTAiCn0=">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIExlYWRzIiwKICAic2hvcnRfbmFtZSI6ICJIYeWiaXRhdC1DYXIiLAogICJpY29ucyI6IFsKICAgIHsKICAgICAgInNyYyI6ICJodHRwczovL2dpdGh1Yi5jb20vaGFiaXRhdGNhci9oYWJpdGF0Y2FyLmdpdGh1Yi5pby9ibG9iL21haW4vbG9nby5wbmc/cmF3PXRydWUiLAogICAgICAic2l6ZXMiOiAiNTEyeDUxMiIsCiAgICAgICJ0eXBlIjogImltYWdlL3BuZyIsCiAgICAgICJwdXJwb3NlIjogImFueSBtYXNKYWJsZSIKICAgIH0KICBdLAogICJzdGFydF91cmwiOiAiLiIsCiAgImRpc3BsYXkiOiAic3RhbmRhbG9uZSIsCiAgImJhY2tncm91bmRfY29sb3IiOiAiIzAwNDU5MCIsCiAgInRoZW1lX2NvbG9yIjogIiMwMDQ1OTAiCn0=">
 
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -367,6 +367,7 @@
         window.onpopstate = function () { history.go(1); };
         localStorage.setItem('habitat_auth', 'true');
 
+        // ✅ PASO A: Importación corregida — se agrega 'increment'
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -382,7 +383,6 @@
         const db = getFirestore(app);
 
         // --- CAPTURA DE DATOS PROTEGIDA ---
-        // ✅ CORRECCIÓN APLICADA AQUÍ: busca en múltiples claves posibles
         const leadId = 
             localStorage.getItem('leadId_habitat') ||
             localStorage.getItem('leadId_v16') ||
@@ -422,12 +422,10 @@
         const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
         const getUsadosLocal = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
 
-        // Función para obtener el número de usos locales de un comercio específico
         const getUsosLocales = (comercioId) => {
             return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
         };
 
-        // ESCUCHA DE COMERCIOS (SIN LEER EL LEAD AQUÍ)
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-cupones');
             const inicios = getInicios();
@@ -439,9 +437,8 @@
                 const id = docSnap.id;
                 if (c.estado === "inactivo") return;
 
-                // Lógica LOCAL: Se usa el conteo local para mostrar estado/bloqueo
                 const nUso = getUsosLocales(id);
-                const esUsado = nUso > 0; // Se bloquea si ya se usó localmente (hasta que se recargue y sync con nube)
+                const esUsado = nUso > 0;
 
                 const nombre = c.nombre || "Local";
                 const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
@@ -505,7 +502,6 @@
             contenedor.innerHTML = html;
         });
 
-        // Sync con Firebase para cupones usados si el lead existe
         const syncUsados = async () => {
             try {
                 const lSnap = await getDoc(doc(db, "leads", leadId));
@@ -524,8 +520,7 @@
         window.cerrarAtencion = () => { document.getElementById('overlay-atencion').style.display = 'none'; };
 
         window.confirmarAtencion = (id, nom) => {
-            document.getElementById('overlay-atencion').style.display = 'flex'; // Muestra el overlay original
-            // Configura el botón "SÍ" para llamar a finalizar
+            document.getElementById('overlay-atencion').style.display = 'flex';
             document.getElementById('btn-confirmar-final').onclick = () => {
                 document.getElementById('overlay-atencion').style.display = 'none';
                 finalizar(id, nom);
@@ -569,10 +564,9 @@
             navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
         };
 
-        // --- FUNCIÓN MODIFICADA: window.finalizar (Paso 1: Solo actualiza Firebase) ---
+        // ✅ PASO B: Función finalizar corregida — usa canjes_por_comercio y increment
         window.finalizar = async (id, nom) => {
             try {
-                // VALIDACIÓN CRÍTICA: Si no hay un ID real, no dejamos avanzar
                 if (!leadId || leadId.startsWith('invitado_')) {
                     alert("Error: No se detectó una sesión válida. Por favor, regístrese nuevamente.");
                     window.location.replace("usuarios_registro_lead.html");
@@ -584,36 +578,37 @@
                 const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                 const timestamp = ahora.getTime();
 
-                // 1. OBTENEMOS ID DE VALIDACIÓN DEL COMERCIO
                 const refComercio = doc(db, "comercios", id);
                 const snapCom = await getDoc(refComercio);
                 const totalActual = (snapCom.data().totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
-                // 2. ACTUALIZACIÓN COMERCIO (Estadísticas)
                 await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
 
-                // 3. LOG DE ACTIVIDAD
                 try {
                     await addDoc(collection(db, "logs_actividad"), {
                         timestamp: timestamp,
                         tipo: "canje",
                         accion: "CANJE LEADS",
                         nombreComercio: nom,
-                        usuarioId: leadId, // <-- Usamos el leadId obtenido al inicio
+                        usuarioId: leadId,
                         idValidacion: idManual
                     });
                 } catch(eLog) { console.error("Error Log:", eLog); }
 
-                // 4. ACTUALIZACIÓN EN TU DOCUMENTO DE LEAD (USANDO TUS CAMPOS)
-                const leadRef = doc(db, "leads", leadId); // <-- Usamos el leadId (WhatsApp) como ID del documento
-                const campoUsos = `${nom}.usos`; // <-- Ruta: NombreDelComercio.usos
+                // 🔁 NUEVA ESTRUCTURA UNIFICADA
+                const idComercioLimpio = nom.replace(/\s+/g, '_');
+                const horaL = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
 
-                await updateDoc(leadRef, { 
-                    [campoUsos]: increment(1), // Incrementa el contador específico del comercio
-                    usos_count: increment(1),   // Incrementa el contador total (PASO 1: ESTE ES EL CAMBIO CLAVE)
-                    [`${nom}.ultimo_codigo`]: idManual,
-                    [`${nom}.ultima_fecha`]: fechaLegible,
+                await updateDoc(doc(db, "leads", leadId), {
+                    [`canjes_por_comercio.${idComercioLimpio}`]: {
+                        comercio: nom,
+                        codigo: idManual,
+                        fecha: fechaLegible,
+                        hora: horaL,
+                        cantidad_usos: increment(1)
+                    },
+                    usos_count: increment(1),
                     cupones_detallados: arrayUnion({
                         comercio: nom,
                         fecha: fechaLegible,
@@ -624,25 +619,20 @@
                     lastSubmission: timestamp
                 });
 
-                // 5. ACTUALIZAR CONTADOR LOCAL
                 const nuevosUsos = getUsosLocales(id) + 1;
                 localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
 
-                // 6. ACTUALIZAR VISUALMENTE EL BOTÓN (OPCIONAL, PERO MEJORA LA UX)
                 const btnUsar = document.getElementById(`btn-usar-${id}`);
                 if (btnUsar) {
-                    // Buscar el span del contador dentro del botón y actualizarlo
                     const contadorSpan = btnUsar.querySelector('.contador-nube');
                     if (contadorSpan) {
                         contadorSpan.textContent = nuevosUsos;
                     }
-                    // Marcar como usado visualmente
                     btnUsar.classList.add('usado');
                     btnUsar.classList.remove('activo');
                     btnUsar.innerText = "USADO";
                 }
 
-                // 7. ÉXITO VISUAL
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-id-texto').innerText = idManual;
                 JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
@@ -654,7 +644,6 @@
                     document.getElementById('countdown').innerText = s;
                     if(s <= 0) { 
                         clearInterval(t); 
-                        // Actualizar local storage y recargar para sincronizar con la nube
                         const usadosLocales = getUsadosLocal();
                         usadosLocales.push(id);
                         localStorage.setItem('usados_v16_ok', JSON.stringify(usadosLocales));
@@ -667,7 +656,6 @@
                 alert("Error crítico: " + e.message); 
             }
         };
-        // --- FIN FUNCIÓN MODIFICADA ---
 
         window.filtrar = () => {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
