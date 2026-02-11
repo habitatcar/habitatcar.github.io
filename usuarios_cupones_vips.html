@@ -183,11 +183,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        const socioId = 
-            localStorage.getItem('leadId_v16') ||
-            localStorage.getItem('leadId_habitat') ||
-            localStorage.getItem('leadId');
-
+        const socioId = localStorage.getItem('leadId_v16');
         if (!socioId) {
             window.location.replace("usuarios_registro_lead.html");
         }
@@ -259,18 +255,27 @@
             document.getElementById('modal-uso').style.display = 'flex';
 
             try {
-                const ahora = Date.now();
+                const nUso = new Date().toLocaleDateString();
 
-                // --- ACTUALIZAR EL CONTADOR GLOBAL DE USOS DEL USUARIO ---
-                const userRef = doc(db, "leads", socioId);
-                await updateDoc(userRef, {
-                    usos_count: increment(1), // <-- ESTA ES LA LÍNEA CLAVE
-                    lastSubmission: ahora
+                // --- INICIO REEMPLAZO LOGICA INTERNA ---
+                // Sincronización con admin_vips.html (campo usos_count)
+                const docRef = doc(db, "leads", socioId);
+                const docSnap = await getDoc(docRef);
+                const userData = docSnap.data() || {};
+
+                const totalActual = userData.usos_count || 0;
+                const nuevoTotal = totalActual + 1;
+
+                // >>>>> ÚNICO CAMBIO: Aseguramos que usos_count se actualice <<<<<
+                await updateDoc(docRef, {
+                    usos_count: nuevoTotal,
+                    [nom]: (userData[nom] || 0) + 1,
+                    lastSubmission: Date.now()
                 });
+                // >>>>> FIN DEL CAMBIO <<<<<
 
-                // --- REGISTRAR EN LOGS ---
                 await addDoc(collection(db, "logs_actividad"), {
-                    timestamp: ahora,
+                    timestamp: Date.now(),
                     tipo: "canje",
                     accion: "CANJE VIP",
                     nombre: `${codigoIdentidad} canjeó ${ben} en ${nom}`,
@@ -282,13 +287,13 @@
                     comercio: nom, 
                     comercioId: id,
                     fecha: serverTimestamp(), 
-                    uso_nro: new Date().toLocaleDateString(),
+                    uso_nro: nUso,
                     tipo: "VIP",
                     beneficio: ben,
                     codigoGenerado: codigoIdentidad
                 });
 
-                localStorage.setItem('uso_vip_' + id, new Date().toLocaleDateString());
+                localStorage.setItem('uso_vip_' + id, nUso);
 
                 let s = 30;
                 const t = setInterval(() => {
