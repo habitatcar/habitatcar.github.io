@@ -155,7 +155,7 @@
 
     <div id="modal-bienvenida">
         <div class="cartel">
-            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true      " style="width: 140px;">
+            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true        " style="width: 140px;">
             <h2 style="color: var(--celeste-habitat)">¡Socio 💎 VIP Activado!</h2>
             <p>El usuario ha sido movido a la sección VIP</p>
             <span id="nombre-socio" style="font-size: 1.8em; font-weight: bold; color: var(--rojo); display: block; margin: 15px 0;">---</span>
@@ -164,7 +164,7 @@
     </div>
 
     <header class="header">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true      " class="logo">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true        " class="logo">
         <nav class="nav-menu">
             <a href="admin_comercios.html" class="nav-link">Comercios</a>
             <a href="admin_leads.html" class="nav-link active">Leads</a>
@@ -225,9 +225,9 @@
     </div>
 
     <script type="module">
-        // ✅ PASO 1: Importación corregida — se agrega deleteDoc y onSnapshot
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js      ";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js      ";
+        // ✅ PASO 1: Importación corregida — se agrega deleteDoc, onSnapshot y deleteField (ya estaba)
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js        ";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js        ";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -248,7 +248,7 @@
 
         async function cargarProvincias() {
             try {
-                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre      ");
+                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre        ");
                 const data = await res.json();
                 const combo = document.getElementById('filtro-provincia');
                 combo.innerHTML = '<option value="">PROVINCIA</option>';
@@ -280,7 +280,7 @@
             }
 
             try {
-                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=      ${encodeURIComponent(provNombreNormalized.toLowerCase())}&max=1000&campos=nombre  `);
+                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=        ${encodeURIComponent(provNombreNormalized.toLowerCase())}&max=1000&campos=nombre  `);
                 const data = await res.json();
                 todasLasLocalidades = data.municipios.map(m => m.nombre.toLowerCase());
                 todasLasLocalidades.sort((a,b) => a.localeCompare(b));
@@ -295,18 +295,15 @@
         }
         cargarProvincias();
 
-        // ✅ CORRECCIÓN 1: Reemplazo por onSnapshot
         const q = query(collection(db, "leads"), where("convertidoVIP", "!=", true));
 
         onSnapshot(q, (snapshot) => {
-            todosLosLeads = []; // Limpiar lista para refrescar
+            todosLosLeads = [];
             snapshot.forEach(docSnap => {
                 const data = docSnap.data();
                 
-                // Procesar detalle de comercios para la columna de tags
                 let detalleHtml = "<div class='detalle-comercios'>";
                 Object.keys(data).forEach(key => {
-                    // Verificamos que sea un objeto de comercio con campo 'usos'
                     if (data[key] && typeof data[key] === 'object' && data[key].usos !== undefined) {
                         detalleHtml += `<span class="tag-comercio">${key}: <b>${data[key].usos}</b></span>`;
                     }
@@ -318,12 +315,10 @@
                     ...data,
                     provincia_normalized: (data.provincia || '').toLowerCase(),
                     localidad_normalized: (data.localidad || '').toLowerCase(),
-                    // Guardamos el HTML procesado para usarlo en el render
                     detalle_comercios_html: detalleHtml === "<div class='detalle-comercios'></div>" ? "-" : detalleHtml
                 });
             });
             
-            // IMPORTANTE: Esto dibuja la tabla apenas llegan los datos
             aplicarOrdenYRender(); 
         }, (error) => {
             console.error("Error en tiempo real:", error);
@@ -365,7 +360,6 @@
             renderizar(filtrados);
         };
 
-        // ✅ CORRECCIÓN 2: Función renderizar ajustada
         function renderizar(datos) {
             const lista = document.getElementById('lista-leads');
             lista.innerHTML = "";
@@ -398,6 +392,7 @@
             });
         }
 
+        // ✅ APLICACIÓN DE LOS CAMBIOS SOLICITADOS
         window.restablecerCupones = async (id, apellido, nombres) => {
             const pass = prompt("Clave ADMIN:");
             if (pass !== "admin1234") return alert("Clave Incorrecta");
@@ -411,16 +406,18 @@
                 }
 
                 const userData = docSnap.data();
-                const updateObj = { usos_count: 0, lastSubmission: Date.now() };
 
+                // ✅ Paso 2: Campos de sincronización
+                const updateObj = { 
+                    usos_count: 0, 
+                    lastSubmission: Date.now(),
+                    solicitud_reset: Date.now()   // Fuerza refresco en el cliente
+                };
+
+                // ✅ Paso 1: Borrar objetos de comercios con deleteField()
                 Object.keys(userData).forEach(key => {
-                    if (userData[key] && typeof userData[key] === 'object' && typeof userData[key].usos === 'number') {
-                        updateObj[`${key}.usos`] = 0;
-                        if (userData[key].ultimo_codigo !== undefined) updateObj[`${key}.ultimo_codigo`] = null;
-                        if (userData[key].ultima_fecha !== undefined) updateObj[`${key}.ultima_fecha`] = null;
-                    }
-                    if (typeof userData[key] === 'number' && key !== 'usos_count' && key !== 'whatsapp') {
-                        updateObj[key] = 0;
+                    if (userData[key] && typeof userData[key] === 'object' && userData[key].usos !== undefined) {
+                        updateObj[key] = deleteField(); 
                     }
                 });
 
@@ -458,7 +455,6 @@
             }
         };
 
-        // ✅ CORRECCIÓN 3: toggleEstado simplificada
         window.toggleEstado = async (id, estadoActual, nombre) => {
             const nuevo = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
             if(confirm(`¿${nuevo === 'suspendido' ? 'Suspender' : 'Activar'} a ${nombre}?`)) {
@@ -466,7 +462,6 @@
             }
         };
 
-        // ✅ CORRECCIÓN 3: borrarLead simplificada
         window.borrarLead = async (id) => {
             if (confirm("¿Eliminar este lead?")) {
                 await deleteDoc(doc(db, "leads", id));
@@ -488,16 +483,16 @@
                 const ahora = Date.now();
                 filtrados.forEach(l => {
                     const leadRef = doc(db, "leads", l.id);
-                    batch.update(leadRef, { usos_count: 0, lastSubmission: ahora });
+                    batch.update(leadRef, { 
+                        usos_count: 0, 
+                        lastSubmission: ahora,
+                        solicitud_reset: ahora
+                    });
 
+                    // También borramos los campos de comercios en el batch
                     Object.keys(l).forEach(key => {
-                        if (l[key] && typeof l[key] === 'object' && typeof l[key].usos === 'number') {
-                            batch.update(leadRef, {[`${key}.usos`]: 0});
-                            if (l[key].ultimo_codigo !== undefined) batch.update(leadRef, {[`${key}.ultimo_codigo`]: null});
-                            if (l[key].ultima_fecha !== undefined) batch.update(leadRef, {[`${key}.ultima_fecha`]: null});
-                        }
-                        if (typeof l[key] === 'number' && key !== 'usos_count' && key !== 'whatsapp') {
-                            batch.update(leadRef, {[key]: 0});
+                        if (l[key] && typeof l[key] === 'object' && l[key].usos !== undefined) {
+                            batch.update(leadRef, {[key]: deleteField()});
                         }
                     });
                 });
