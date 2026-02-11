@@ -155,7 +155,7 @@
 
     <div id="modal-bienvenida">
         <div class="cartel">
-            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true  " style="width: 140px;">
+            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true    " style="width: 140px;">
             <h2 style="color: var(--celeste-habitat)">¡Socio 💎 VIP Activado!</h2>
             <p>El usuario ha sido movido a la sección VIP</p>
             <span id="nombre-socio" style="font-size: 1.8em; font-weight: bold; color: var(--rojo); display: block; margin: 15px 0;">---</span>
@@ -164,7 +164,7 @@
     </div>
 
     <header class="header">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true  " class="logo">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true    " class="logo">
         <nav class="nav-menu">
             <a href="admin_comercios.html" class="nav-link">Comercios</a>
             <a href="admin_leads.html" class="nav-link active">Leads</a>
@@ -225,8 +225,9 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js  ";
-        import { getFirestore, collection, query, where, getDocs, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField, writeBatch } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  "; // Agregamos writeBatch
+        // ✅ PASO 1: Importación corregida — se agrega deleteDoc
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js    ";
+        import { getFirestore, collection, query, where, getDocs, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js    ";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -241,116 +242,88 @@
         const db = getFirestore(app);
 
         let todosLosLeads = [];
-        let todasLasProvincias = []; // Almacenará las provincias normalizadas
-        let todasLasLocalidades = []; // Almacenará las localidades de la provincia seleccionada, normalizadas
+        let todasLasProvincias = [];
+        let todasLasLocalidades = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        // Carga las provincias desde la API y las almacena en minúsculas
         async function cargarProvincias() {
             try {
-                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre  ");
+                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre    ");
                 const data = await res.json();
                 const combo = document.getElementById('filtro-provincia');
-                combo.innerHTML = '<option value="">PROVINCIA</option>'; // Limpia opciones anteriores
+                combo.innerHTML = '<option value="">PROVINCIA</option>';
 
-                todasLasProvincias = data.provincias.map(p => p.nombre.toLowerCase()); // Normalizamos a minúsculas
+                todasLasProvincias = data.provincias.map(p => p.nombre.toLowerCase());
                 todasLasProvincias.sort((a,b) => a.localeCompare(b));
 
                 todasLasProvincias.forEach(nombreProv => {
                     let opt = document.createElement('option');
-                    opt.value = nombreProv; // Guardamos el valor normalizado
-                    opt.textContent = pascalCase(nombreProv); // Mostrar con primera letra mayúscula
+                    opt.value = nombreProv;
+                    opt.textContent = pascalCase(nombreProv);
                     combo.appendChild(opt);
                 });
             } catch (e) { console.error(e); }
         }
 
-        // Convierte una cadena a formato "Pascal Case" (primera letra de cada palabra en mayúscula)
         function pascalCase(str) {
             return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
         }
 
-        // Carga las localidades basadas en la provincia seleccionada, normalizando
         window.cargarLocalidades = async (provNombreNormalized) => {
             const comboLoc = document.getElementById('filtro-localidad');
             comboLoc.innerHTML = '<option value="">LOCALIDAD</option>';
 
-            // Limpiamos localidades si no hay provincia seleccionada o si la provincia no coincide con la lista normalizada
             if(!provNombreNormalized || !todasLasProvincias.includes(provNombreNormalized)) {
                  todasLasLocalidades = [];
-                 filtrarLeads(); // Refiltrar sin localidad
+                 filtrarLeads();
                  return;
             }
 
             try {
-                // Usamos la provincia seleccionada tal cual está en el combo (ya normalizada al guardarla)
-                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=  ${encodeURIComponent(provNombreNormalized.toLowerCase())}&max=1000&campos=nombre  `);
+                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=    ${encodeURIComponent(provNombreNormalized.toLowerCase())}&max=1000&campos=nombre  `);
                 const data = await res.json();
-                // Normalizamos los nombres de las localidades a minúsculas
                 todasLasLocalidades = data.municipios.map(m => m.nombre.toLowerCase());
                 todasLasLocalidades.sort((a,b) => a.localeCompare(b));
 
                 todasLasLocalidades.forEach(nombreLoc => {
                     let opt = document.createElement('option');
-                    opt.value = nombreLoc; // Guardamos el valor normalizado
-                    opt.textContent = pascalCase(nombreLoc); // Mostrar con primera letra mayúscula
+                    opt.value = nombreLoc;
+                    opt.textContent = pascalCase(nombreLoc);
                     comboLoc.appendChild(opt);
                 });
             } catch (e) { console.error(e); }
         }
-        cargarProvincias(); // Cargamos al inicio
+        cargarProvincias();
 
-
-        // --- Lectura ONCE de la colección 'leads' (Leads activos) ---
-        // Esta consulta trae todos los leads NO VIPs (convertidoVIP !== true o no existe)
-        const q = query(collection(db, "leads"), where("convertidoVIP", "!=", true)); // Filtramos por no VIPs
+        const q = query(collection(db, "leads"), where("convertidoVIP", "!=", true));
         getDocs(q).then((snap) => {
             snap.forEach(docSnap => {
                 const data = docSnap.data();
                 const id = docSnap.id;
 
-                // --- CÁLCULO DEL TOTAL DE USOS ---
-                // Sumamos el campo 'usos_count' global si existe
                 const usosGlobales = typeof data.usos_count === 'number' ? data.usos_count : 0;
+                const usosTotales = usosGlobales;
 
-                // Opcional: Sumamos también los usos individuales por comercio si existen como objetos
-                // y tienen una propiedad 'usos'. Esto es redundante si usos_count se actualiza correctamente.
-                // let usosDetallados = 0;
-                // Object.keys(data).forEach(key => {
-                //     if (data[key] && typeof data[key] === 'object' && typeof data[key].usos === 'number') {
-                //         usosDetallados += data[key].usos;
-                //     }
-                // });
-                // const usosTotales = usosGlobales + usosDetallados;
-                const usosTotales = usosGlobales; // <-- Tomamos solo el campo global 'usos_count'
-                // --- FIN CÁLCULO ---
-
-                // --- CÁLCULO DEL DETALLE POR COMERCIO (opcional para info extra en la fila) ---
-                let detalleComerciosHtml = "<div class='detalle-comercios'>"; // Contenedor para las etiquetas de comercios
-                // Iteramos sobre todas las claves del objeto del usuario
+                let detalleComerciosHtml = "<div class='detalle-comercios'>";
                 Object.keys(data).forEach(key => {
-                    // Verificamos si la clave es un objeto y tiene una propiedad 'usos'
                     if (data[key] && typeof data[key] === 'object' && data[key].usos !== undefined) {
-                        // Creamos una "etiqueta" con el nombre del comercio y el número de usos
                         detalleComerciosHtml += `<span class="tag-comercio">${key}: <b>${data[key].usos}</b></span>`;
                     }
                 });
-                detalleComerciosHtml += "</div>"; // Cerramos el contenedor
+                detalleComerciosHtml += "</div>";
                 if (detalleComerciosHtml === "<div class='detalle-comercios'></div>") {
-                    detalleComerciosHtml = "-"; // Si no hay detalles, mostramos un guion
+                    detalleComerciosHtml = "-";
                 }
-                // --- FIN CÁLCULO DEL DESGLOSE ---
 
                 todosLosLeads.push({
                     id: id,
                     ...data,
-                    provincia_normalized: (data.provincia || '').toLowerCase(), // Versión normalizada para filtrar
-                    localidad_normalized: (data.localidad || '').toLowerCase(), // Versión normalizada para filtrar
-                    usos_count: usosTotales, // <-- Agregamos el campo de conteo total calculado
-                    detalle_comercios_html: detalleComerciosHtml // <-- Agregamos el HTML del detalle
+                    provincia_normalized: (data.provincia || '').toLowerCase(),
+                    localidad_normalized: (data.localidad || '').toLowerCase(),
+                    usos_count: usosTotales,
+                    detalle_comercios_html: detalleComerciosHtml
                 });
             });
-            // Aplicamos filtros JS (buscador, provincia, localidad), ordenación y renderizamos
             aplicarOrdenYRender();
         }).catch(e => console.error("Error al leer Leads:", e));
 
@@ -363,7 +336,7 @@
                 if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
                 return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
             });
-            filtrarLeads(); // Aplicamos filtros después de ordenar
+            filtrarLeads();
         }
 
         window.ordenar = (campo) => {
@@ -372,22 +345,19 @@
             aplicarOrdenYRender();
         };
 
-        // Función de filtrado en JS que maneja búsqueda y selección de combos
         window.filtrarLeads = () => {
             const busq = document.getElementById('buscador').value.toLowerCase();
-            const prov = document.getElementById('filtro-provincia').value; // Valor normalizado del combo
-            const loc = document.getElementById('filtro-localidad').value; // Valor normalizado del combo
+            const prov = document.getElementById('filtro-provincia').value;
+            const loc = document.getElementById('filtro-localidad').value;
 
             const filtrados = todosLosLeads.filter(l => {
                 const nombreComp = `${l.apellido || ''} ${l.nombres || ''}`.toLowerCase();
                 const matchBusq = nombreComp.includes(busq) || (l.whatsapp && l.whatsapp.includes(busq));
-                // Comparamos con los valores normalizados del lead
                 const matchProv = prov === "" || l.provincia_normalized === prov;
                 const matchLoc = loc === "" || l.localidad_normalized === loc;
                 return matchBusq && matchProv && matchLoc;
             });
 
-            // Actualizamos contadores de los combos
             document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l => l.provincia_normalized === prov).length : 0;
             document.getElementById('count-loc').innerText = loc ? todosLosLeads.filter(l => l.localidad_normalized === loc).length : 0;
 
@@ -413,22 +383,20 @@
                         <td>${l.whatsapp || '---'}</td>
                         <td style="color: #8892b0">${pascalCase(l.provincia || '---')}</td>
                         <td style="color: #8892b0">${pascalCase(l.localidad || '---')}</td>
-                        <!-- Columna de Cant. Usos -->
-                        <td class="col-usos">${l.usos_count || 0}</td> <!-- Mostramos el campo de conteo total calculado -->
-                        <!-- Opcional: Columna de Detalle por Comercio -->
+                        <td class="col-usos">${l.usos_count || 0}</td>
                         <td>${l.detalle_comercios_html}</td>
                         <td style="white-space: nowrap;">
                             <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${nombreFull}')">💎 VIP</button>
                             <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${nombreFull}')">🔄 RESTABLECER</button>
                             <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${nombreFull}')">${suspendido ? '✅ ACTIVAR' : '🚫 SUSPENDER'}</button>
-                            <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑️</button>
+                            <!-- ✅ Ícono de basura actualizado -->
+                            <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">🗑</button>
                         </td>
                     </tr>
                 `;
             });
         }
 
-        // --- FUNCIÓN MODIFICADA: window.restablecerCupones ---
         window.restablecerCupones = async (id, apellido, nombres) => {
             const pass = prompt("Clave ADMIN:");
             if (pass !== "admin1234") return alert("Clave Incorrecta");
@@ -436,31 +404,26 @@
             try {
                 const leadRef = doc(db, "leads", id);
 
-                // Obtenemos los datos actuales del Lead para saber qué campos borrar
                 const docSnap = await getDoc(leadRef);
                 if (!docSnap.exists()) {
                     throw new Error("DOCUMENTO_NO_EXISTE");
                 }
 
                 const userData = docSnap.data();
-                const updateObj = { usos_count: 0, lastSubmission: Date.now() }; // Reiniciamos el contador global
+                const updateObj = { usos_count: 0, lastSubmission: Date.now() };
 
-                // REGLA DE ORO: Recorremos todos los campos del documento del Lead
                 Object.keys(userData).forEach(key => {
-                    // Si el campo es un objeto y tiene una propiedad 'usos', lo reiniciamos a 0
                     if (userData[key] && typeof userData[key] === 'object' && typeof userData[key].usos === 'number') {
                         updateObj[`${key}.usos`] = 0;
-                        // Opcional: Reiniciar otros campos dentro del objeto del comercio
                         if (userData[key].ultimo_codigo !== undefined) updateObj[`${key}.ultimo_codigo`] = null;
                         if (userData[key].ultima_fecha !== undefined) updateObj[`${key}.ultima_fecha`] = null;
                     }
-                    // Opcional: Si el campo es un número simple (viejo estilo), también lo reiniciamos
-                    if (typeof userData[key] === 'number' && key !== 'usos_count' && key !== 'whatsapp') { // Protegemos campos específicos
+                    if (typeof userData[key] === 'number' && key !== 'usos_count' && key !== 'whatsapp') {
                         updateObj[key] = 0;
                     }
                 });
 
-                await updateDoc(leadRef, updateObj); // Aplicamos todas las actualizaciones de una sola vez
+                await updateDoc(leadRef, updateObj);
                 await registrarActividad(id, `${apellido}, ${nombres}`, "RESTABLECER CUPONES LEAD");
                 alert("Cupones de " + apellido + " restablecidos por completo.");
             } catch(e) {
@@ -472,8 +435,6 @@
                 }
             }
         };
-        // --- FIN FUNCIÓN MODIFICADA ---
-
 
         async function registrarActividad(usuarioId, nombre, accion) {
             try {
@@ -503,8 +464,25 @@
             }
         };
 
+        // ✅ PASO 2: Función borrarLead reemplazada
         window.borrarLead = async (id) => {
-            if(confirm("¿Eliminar este lead de forma permanente?")) await deleteDoc(doc(db, "leads", id));
+            if (confirm("¿Eliminar este lead de forma permanente?")) {
+                try {
+                    // Borra de Firebase
+                    await deleteDoc(doc(db, "leads", id));
+                    
+                    // Borra de la lista local para que desaparezca de la pantalla al instante
+                    todosLosLeads = todosLosLeads.filter(l => l.id !== id);
+                    
+                    // Refresca la tabla
+                    filtrarLeads();
+                    
+                    alert("Lead eliminado correctamente.");
+                } catch (e) {
+                    console.error("Error al eliminar:", e);
+                    alert("No se pudo eliminar el lead.");
+                }
+            }
         };
 
         window.validarYRestablecerMasivo = async (tipo) => {
@@ -518,11 +496,10 @@
             else if (tipo === "localidad") filtrados = todosLosLeads.filter(l => l.localidad_normalized === document.getElementById('filtro-localidad').value);
 
             if(confirm(`¿Restablecer cupones de ${filtrados.length} usuarios?`)) {
-                const batch = writeBatch(db); // Usamos batch para operaciones masivas
+                const batch = writeBatch(db);
                 const ahora = Date.now();
                 filtrados.forEach(l => {
                     const leadRef = doc(db, "leads", l.id);
-                    // Igual que en la función individual, pero en batch
                     batch.update(leadRef, { usos_count: 0, lastSubmission: ahora });
 
                     Object.keys(l).forEach(key => {
@@ -538,7 +515,7 @@
                 });
                 await batch.commit();
                 alert("Restablecimiento masivo completado.");
-                location.reload(); // Recargamos para reflejar los cambios
+                location.reload();
             }
         };
     </script>
