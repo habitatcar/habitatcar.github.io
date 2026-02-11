@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel VIPs | Hábitat-Car</title>
+    <!-- Librerías para generación de PDF y gráficos -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <style>
         :root {
             --azul-oscuro: #0a192f;
@@ -200,9 +205,11 @@
                 <option value="pais">A TODO EL PAÍS</option>
             </select>
 
-            <!-- ✅ NUEVO CAMPO AGREGADO AQUÍ -->
+            <!-- ✅ NUEVO SELECTOR DE REPORTE PDF -->
             <select onchange="generarReportePDF(this.value); this.value='';" style="border-color: var(--celeste-habitat); font-weight: bold;">
                 <option value="">REPORTE PDF</option>
+                <option value="localidad">POR LOCALIDAD</option>
+                <option value="provincia">POR PROVINCIA</option>
                 <option value="pais">PAÍS (REPORTE GENERAL)</option>
             </select>
 
@@ -472,13 +479,198 @@
             }
         };
 
-        // ✅ FUNCIÓN PARA GENERAR REPORTE (a implementar)
-        window.generarReportePDF = (tipo) => {
-            if (tipo === 'pais') {
-                alert("🖨️ Generando reporte PDF general del país...\n(La funcionalidad completa se implementará próximamente.)");
-                // Aquí irá la lógica para generar el PDF con jsPDF, Chart.js, etc.
+        // ✅ FUNCIÓN COMPLETA DE GENERACIÓN DE REPORTE PDF
+        window.generarReportePDF = async (tipo) => {
+            const provSeleccionada = document.getElementById('filtro-provincia').value;
+            const locSeleccionada = document.getElementById('filtro-localidad').value;
+
+            let titulo = "";
+            let datosFiltrados = [];
+
+            if (tipo === 'localidad') {
+                if (!locSeleccionada) {
+                    alert("⚠️ Primero seleccione una LOCALIDAD.");
+                    return;
+                }
+                titulo = `REPORTE: ${pascalCase(locSeleccionada)}`;
+                datosFiltrados = todosLosVips.filter(v => v.localidad_normalized === locSeleccionada);
+            } else if (tipo === 'provincia') {
+                if (!provSeleccionada) {
+                    alert("⚠️ Primero seleccione una PROVINCIA.");
+                    return;
+                }
+                titulo = `REPORTE: ${pascalCase(provSeleccionada)}`;
+                datosFiltrados = todosLosVips.filter(v => v.provincia_normalized === provSeleccionada);
+            } else if (tipo === 'pais') {
+                titulo = "REPORTE GENERAL - PAÍS";
+                datosFiltrados = [...todosLosVips];
+            } else {
+                return;
+            }
+
+            if (datosFiltrados.length === 0) {
+                alert("ℹ️ No hay datos para generar el reporte.");
+                return;
+            }
+
+            // Mostrar mensaje de carga
+            const originalBtnText = event.target.innerHTML;
+            event.target.innerHTML = "🖨️ Generando...";
+            event.target.disabled = true;
+
+            try {
+                await crearPDFReporte(titulo, datosFiltrados, tipo, provSeleccionada, locSeleccionada);
+            } catch (error) {
+                console.error("Error al generar PDF:", error);
+                alert("❌ Error al generar el reporte.");
+            } finally {
+                event.target.innerHTML = originalBtnText;
+                event.target.disabled = false;
             }
         };
+
+        async function crearPDFReporte(titulo, datos, nivel, provSel, locSel) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+
+            // -- LOGO --
+            const logoUrl = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
+            const imgProps = doc.getImageProperties(logoUrl);
+            const logoWidth = 40;
+            const logoHeight = (imgProps.height * logoWidth) / imgProps.width;
+            doc.addImage(logoUrl, 'PNG', 15, 10, logoWidth, logoHeight);
+
+            // -- TÍTULO --
+            doc.setFontSize(18);
+            doc.setTextColor(0, 74, 153); // celeste-habitat
+            doc.text("HÁBITAT-CAR", 105, 20, null, null, "center");
+            doc.setFontSize(14);
+            doc.setTextColor(0, 0, 0);
+            doc.text(titulo, 105, 30, null, null, "center");
+
+            // -- RESUMEN --
+            const total = datos.length;
+            const usosTotales = datos.reduce((sum, v) => sum + (v.usos_count || 0), 0);
+            const activos = datos.filter(v => v.estado !== 'suspendido').length;
+            const suspendidos = total - activos;
+
+            doc.setFontSize(11);
+            doc.text(`Total VIPs: ${total}`, 15, 45);
+            doc.text(`Usos totales: ${usosTotales}`, 70, 45);
+            doc.text(`Activos: ${activos}`, 130, 45);
+            doc.text(`Suspendidos: ${suspendidos}`, 160, 45);
+
+            // -- GRÁFICO --
+            let canvas;
+            if (nivel === 'pais') {
+                // Agrupar por provincia
+                const provStats = {};
+                datos.forEach(v => {
+                    const p = v.provincia || 'Sin provincia';
+                    provStats[p] = (provStats[p] || 0) + 1;
+                });
+                const labels = Object.keys(provStats).slice(0, 10);
+                const values = Object.values(provStats).slice(0, 10);
+                canvas = await renderBarChart("VIPs por Provincia", labels, values);
+            } else if (nivel === 'provincia' && !locSel) {
+                // Agrupar por localidad dentro de la provincia
+                const locStats = {};
+                datos.forEach(v => {
+                    const l = v.localidad || 'Sin localidad';
+                    locStats[l] = (locStats[l] || 0) + 1;
+                });
+                const labels = Object.keys(locStats).slice(0, 10);
+                const values = Object.values(locStats).slice(0, 10);
+                canvas = await renderBarChart("VIPs por Localidad", labels, values);
+            }
+
+            if (canvas) {
+                const chartImg = await html2canvas(canvas).then(c => c.toDataURL('image/png'));
+                const chartWidth = 180;
+                const chartHeight = 60;
+                doc.addImage(chartImg, 'PNG', 15, 55, chartWidth, chartHeight);
+                var yOffset = 120;
+            } else {
+                var yOffset = 50;
+            }
+
+            // -- TABLA --
+            const tablaData = datos.map(v => [
+                `${(v.apellido || '').toUpperCase()}, ${(v.nombres || '').toUpperCase()}`,
+                v.whatsapp || '---',
+                pascalCase(v.provincia || '---'),
+                pascalCase(v.localidad || '---'),
+                v.usos_count || 0,
+                v.estado === 'suspendido' ? 'SUSPENDIDO' : 'ACTIVO',
+                v.fechaRegistro ? new Date(v.fechaRegistro).toLocaleDateString() : '---'
+            ]);
+
+            doc.autoTable({
+                startY: yOffset,
+                head: [['Nombre', 'WhatsApp', 'Provincia', 'Localidad', 'Usos', 'Estado', 'Registro']],
+                body: tablaData,
+                theme: 'grid',
+                styles: { fontSize: 9, cellPadding: 3 },
+                headStyles: { fillColor: [0, 74, 153], textColor: [255, 255, 255] },
+                columnStyles: {
+                    0: { cellWidth: 40 },
+                    1: { cellWidth: 25 },
+                    2: { cellWidth: 25 },
+                    3: { cellWidth: 25 },
+                    4: { cellWidth: 15, halign: 'center' },
+                    5: { cellWidth: 20 },
+                    6: { cellWidth: 20 }
+                }
+            });
+
+            // -- PIE DE PÁGINA --
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(9);
+                doc.setTextColor(100);
+                doc.text(`Generado el ${new Date().toLocaleString()} | Página ${i} de ${pageCount}`, 105, 290, null, null, "center");
+            }
+
+            // Guardar PDF
+            doc.save(`Reporte_HabitatCar_${titulo.replace(/\s+/g, '_')}.pdf`);
+        }
+
+        async function renderBarChart(titulo, labels, data) {
+            const canvas = document.createElement('canvas');
+            canvas.width = 800;
+            canvas.height = 300;
+            document.body.appendChild(canvas);
+
+            const ctx = canvas.getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Cantidad de VIPs',
+                        data: data,
+                        backgroundColor: 'rgba(0, 74, 153, 0.7)',
+                        borderColor: 'rgba(0, 74, 153, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: false,
+                    plugins: {
+                        title: { display: true, text: titulo, font: { size: 16 } },
+                        legend: { display: false }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { precision: 0 } }
+                    }
+                }
+            });
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+            document.body.removeChild(canvas);
+            return canvas;
+        }
     </script>
 </body>
 </html>
