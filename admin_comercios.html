@@ -220,33 +220,6 @@
 
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 5000; justify-content: center; align-items: center; }
         #modal-img { max-width: 90%; max-height: 90%; border-radius: 10px; }
-
-        /* 👇 Nuevos estilos para los recuadros de Usos y Vigencia en la ficha */
-        .data-box.usos-lead {
-            grid-column: span 2;
-            background: rgba(0, 74, 153, 0.15);
-            border-left: 4px solid var(--celeste-habitat);
-            padding: 10px;
-            border-radius: 8px;
-        }
-        .data-box.usos-vip {
-            grid-column: span 2;
-            background: rgba(255, 193, 7, 0.15);
-            border-left: 4px solid var(--oro);
-            padding: 10px;
-            border-radius: 8px;
-        }
-        .data-box.usos-lead b, .data-box.usos-vip b {
-            display: block;
-            font-size: 0.9em;
-            color: var(--oro);
-            margin-bottom: 4px;
-        }
-        .data-box.usos-lead span, .data-box.usos-vip span {
-            font-size: 1em;
-            color: white;
-            font-weight: 600;
-        }
     </style>
 </head>
 <body>
@@ -295,41 +268,38 @@
                     <input type="text" id="token-input" class="read-only" placeholder="TOKEN QR (AUTO)" readonly>
                     <input type="file" id="logo-file" accept="image/*" class="full" style="background: var(--azul-oscuro); color: white; padding: 12px; border: 1px solid var(--azul-claro); box-sizing: border-box; font-size: 0.95em;">
                     <input type="hidden" id="logo-url-actual">
-
-                    <!-- Bloque Lead (azul) -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                        <div>
-                            <input type="number" id="val-lead" placeholder="%" style="width:100%; padding:10px; text-align:center;">
-                            <div style="font-size:0.75em; color:#cbd5e0; text-align:center; margin-top:4px;">Descuento %</div>
-                        </div>
-                        <div>
-                            <input type="number" id="usos-lead" value="1" placeholder="1" style="width:100%; padding:10px; text-align:center;">
-                            <div style="font-size:0.75em; color:#cbd5e0; text-align:center; margin-top:4px;">Usos</div>
-                        </div>
-                        <div>
-                            <input type="number" id="vig-lead" placeholder="días" style="width:100%; padding:10px; text-align:center;">
-                            <div style="font-size:0.75em; color:#cbd5e0; text-align:center; margin-top:4px;">Vigencia</div>
-                        </div>
-                    </div>
+                    <input type="number" id="val-lead" placeholder="Desc. Lead %">
+                    <input type="number" id="vig-lead" placeholder="Vigencia Lead (Días)">
                     <input type="text" id="txt-lead" class="full" placeholder="Detalle Lead (Ej: En servicios)">
-
-                    <!-- Bloque VIP (dorado) -->
-                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;">
-                        <div>
-                            <input type="number" id="val-vip" placeholder="%" style="width:100%; padding:10px; text-align:center;">
-                            <div style="font-size:0.75em; color:#cbd5e0; text-align:center; margin-top:4px;">Descuento %</div>
+                    
+                    <!-- 👇 Paso 1: Campos Usos y Vigencia para LEAD -->
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <div style="flex: 1;">
+                            <label>Usos:</label>
+                            <input type="number" id="usos-lead" value="1" style="border: 1px solid var(--celeste-habitat);">
                         </div>
-                        <div>
-                            <input type="number" id="usos-vip" value="0" placeholder="0" style="width:100%; padding:10px; text-align:center;">
-                            <div style="font-size:0.75em; color:#cbd5e0; text-align:center; margin-top:4px;">Usos</div>
-                        </div>
-                        <div>
-                            <input type="number" id="vig-vip" placeholder="días" style="width:100%; padding:10px; text-align:center;">
-                            <div style="font-size:0.75em; color:#cbd5e0; text-align:center; margin-top:4px;">Vigencia</div>
+                        <div style="flex: 1;">
+                            <label>Vigencia (días):</label>
+                            <input type="number" id="vigencia-lead" placeholder="Ej: 30" style="border: 1px solid var(--celeste-habitat);">
                         </div>
                     </div>
+                    
+                    <input type="number" id="val-vip" placeholder="Desc. VIP %">
+                    <input type="number" id="vig-vip" placeholder="Vigencia VIP (Días)">
                     <input type="text" id="txt-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
-
+                    
+                    <!-- 👇 Paso 1: Campos Usos y Vigencia para VIP -->
+                    <div style="display: flex; gap: 10px; margin-top: 10px;">
+                        <div style="flex: 1;">
+                            <label>Usos:</label>
+                            <input type="number" id="usos-vip" value="0" style="border: 1px solid var(--oro);">
+                        </div>
+                        <div style="flex: 1;">
+                            <label>Vigencia (días):</label>
+                            <input type="number" id="vigencia-vip" placeholder="Ej: 365" style="border: 1px solid var(--oro);">
+                        </div>
+                    </div>
+                    
                     <input type="text" id="direccion-input" class="full" placeholder="Dirección">
                     <select id="provincia-input" onchange="window.actualizarLocalidades()">
                         <option value="">Seleccionar Prov.</option>
@@ -517,12 +487,6 @@
                 const displayID = c.idComercio || c.id || "SIN-ID";
                 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=      ${c.tokenQR || displayID}`;
                 
-                // Valores por defecto si no existen
-                const usosLead = c.usosLead !== undefined ? c.usosLead : 1;
-                const usosVip = c.usosVip !== undefined ? c.usosVip : 0;
-                const vigLead = c.vigenciaLead || '---';
-                const vigVip = c.vigenciaVip || '---';
-
                 box.innerHTML += `
                 <div class="comercio-card ${estaActivo ? '' : 'inactive'}">
                     <div class="visual-side">
@@ -534,7 +498,7 @@
                             <button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayID}')">
                                 <i class="fas fa-link"></i> COPIAR LINK
                             </button>
-                        `: ''}
+                        ` : ''}
                     </div>
                     <div class="info-side">
                         <h2 class="comercio-title">${c.nombre || 'Sin Nombre'}</h2>
@@ -545,27 +509,27 @@
                             <div class="data-box"><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Último Envío</b><span style="color:var(--oro)">${formatearFecha(c.lastSubmission)}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Ubicación</b><span>${c.ciudad || '-'} (${c.provincia || '-'})</span></div>
-                            <div class="data-box benefit-box"><b>Lead</b><span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span></div>
-                            <div class="data-box benefit-box"><b>VIP</b><span class="highlight-ben" style="color:var(--oro)!important">${c.valVip || 0}% ${c.txtVip || ''}</span></div>
                             
-                            <!-- Usos y Vigencia Lead -->
-                            <div class="data-box usos-lead">
-                                <b>USOS ASIGNADOS</b><br>
-                                <span>${usosLead === 0 ? 'ILIMITADO' : usosLead}</span>
-                            </div>
-                            <div class="data-box usos-lead">
-                                <b>VIGENCIA</b><br>
-                                <span>${vigLead} días</span>
+                            <!-- Celda LEAD -->
+                            <div class="data-box benefit-box">
+                                <b>Lead</b>
+                                <span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span>
+                                <!-- 👇 Paso 2: Mostrar usos y vigencia en LEAD -->
+                                <div style="font-size: 0.8em; margin-top: 5px; opacity: 0.8;">
+                                    <b>Usos asignados:</b> ${c.usosLead == 0 ? 'Ilimitado' : c.usosLead} <br>
+                                    <b>Vigencia:</b> ${c.vigenciaLead || 0} días
+                                </div>
                             </div>
                             
-                            <!-- Usos y Vigencia VIP -->
-                            <div class="data-box usos-vip">
-                                <b>USOS ASIGNADOS</b><br>
-                                <span>${usosVip === 0 ? 'ILIMITADO' : usosVip}</span>
-                            </div>
-                            <div class="data-box usos-vip">
-                                <b>VIGENCIA</b><br>
-                                <span>${vigVip} días</span>
+                            <!-- Celda VIP -->
+                            <div class="data-box benefit-box">
+                                <b>VIP</b>
+                                <span class="highlight-ben" style="color:var(--oro)!important">${c.valVip || 0}% ${c.txtVip || ''}</span>
+                                <!-- 👇 Paso 2: Mostrar usos y vigencia en VIP -->
+                                <div style="font-size: 0.8em; margin-top: 5px; opacity: 0.8;">
+                                    <b>Usos asignados:</b> ${c.usosVip == 0 ? 'Ilimitado' : c.usosVip} <br>
+                                    <b>Vigencia:</b> ${c.vigenciaVip || 0} días
+                                </div>
                             </div>
                         </div>
                         <div class="btn-group">
@@ -609,19 +573,19 @@
             document.getElementById('token-input').value = c.tokenQR || "";
             document.getElementById('logo-url-actual').value = c.logoUrl || "";
             document.getElementById('logo-file').value = "";
-
-            // Lead
             document.getElementById('val-lead').value = c.valLead || "";
-            document.getElementById('usos-lead').value = c.usosLead !== undefined ? c.usosLead : 1;
-            document.getElementById('vig-lead').value = c.vigenciaLead || "";
             document.getElementById('txt-lead').value = c.txtLead || "";
-
-            // VIP
+            document.getElementById('vig-lead').value = c.vigenciaLead || "";
             document.getElementById('val-vip').value = c.valVip || "";
-            document.getElementById('usos-vip').value = c.usosVip !== undefined ? c.usosVip : 0;
-            document.getElementById('vig-vip').value = c.vigenciaVip || "";
             document.getElementById('txt-vip').value = c.txtVip || "";
-
+            document.getElementById('vig-vip').value = c.vigenciaVip || "";
+            
+            // 👇 Paso 4: Cargar los nuevos campos
+            document.getElementById('usos-lead').value = c.usosLead || 1;
+            document.getElementById('vigencia-lead').value = c.vigenciaLead || "";
+            document.getElementById('usos-vip').value = c.usosVip || 0;
+            document.getElementById('vigencia-vip').value = c.vigenciaVip || "";
+            
             document.getElementById('direccion-input').value = c.direccion || "";
             document.getElementById('provincia-input').value = c.provincia || "";
             window.actualizarLocalidades(c.ciudad);
@@ -654,18 +618,20 @@
 
             const eid = document.getElementById('edit-id').value;
 
+            // 👇 Paso 3: Agregar los 4 nuevos campos
             const datosBasicos = {
                 nombre,
                 idComercio: document.getElementById('id-input').value,
                 tokenQR: document.getElementById('token-input').value,
                 valLead: document.getElementById('val-lead').value,
-                usosLead: parseInt(document.getElementById('usos-lead').value) || 0,
-                vigenciaLead: parseInt(document.getElementById('vig-lead').value) || "",
                 txtLead: document.getElementById('txt-lead').value,
+                vigenciaLead: document.getElementById('vig-lead').value || "",
+                usosLead: document.getElementById('usos-lead').value,
+                vigenciaVip: document.getElementById('vig-vip').value || "",
                 valVip: document.getElementById('val-vip').value,
-                usosVip: parseInt(document.getElementById('usos-vip').value) || 0,
-                vigenciaVip: parseInt(document.getElementById('vig-vip').value) || "",
                 txtVip: document.getElementById('txt-vip').value,
+                usosVip: document.getElementById('usos-vip').value,
+                vigenciaVip: document.getElementById('vigencia-vip').value,
                 direccion: document.getElementById('direccion-input').value,
                 provincia: document.getElementById('provincia-input').value,
                 ciudad: document.getElementById('ciudad-input').value,
@@ -718,8 +684,13 @@
                 if (i.type !== 'file') i.value = "";
             });
             document.getElementById('logo-file').value = "";
+            
+            // 👇 Paso 5: Resetear valores por defecto
             document.getElementById('usos-lead').value = "1";
+            document.getElementById('vigencia-lead').value = "";
             document.getElementById('usos-vip').value = "0";
+            document.getElementById('vigencia-vip').value = "";
+            
             document.getElementById('provincia-input').value = "";
             document.getElementById('ciudad-input').innerHTML = '<option value="">Ciudad / Localidad</option>';
             document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
