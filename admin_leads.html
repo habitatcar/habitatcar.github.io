@@ -543,18 +543,18 @@
             document.querySelectorAll('.lead-checkbox').forEach(cb => cb.checked = checked);
         };
 
-        // --- LÓGICA DE REPORTE PDF (copiada de admin_vips.html y adaptada a leads) ---
+        // --- LÓGICA DE REPORTE PDF (FORMATO IDÉNTICO AL PDF DE VIP) ---
         window.generarReportePDF = async (nivel) => {
             if (!nivel) return;
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
-            
+
             let filtrados = [];
             let tituloFiltro = "";
 
             if (nivel === "pais") {
                 filtrados = todosLosLeads;
-                tituloFiltro = "REPORTE GENERAL - TODO EL PAÍS";
+                tituloFiltro = "REPORTE GENERAL - PAÍS";
             } else if (nivel === "provincia") {
                 const prov = document.getElementById('filtro-provincia').value;
                 if (!prov) return alert("Selecciona una provincia");
@@ -569,82 +569,113 @@
 
             if (filtrados.length === 0) return alert("No hay datos para el reporte");
 
-            // Encabezado Estilo Hábitat-Car
+            // Calcular estadísticas
+            const totalLeads = filtrados.length;
+            const usosTotales = filtrados.reduce((sum, l) => sum + (l.usos_count || 0), 0);
+            const activos = filtrados.filter(l => l.estado !== 'suspendido').length;
+            const suspendidos = totalLeads - activos;
+            const promedioUsos = totalLeads > 0 ? (usosTotales / totalLeads).toFixed(1) : 0;
+
+            // Agregar logo
+            const logoUrl = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
+            let logoImg = null;
+            try {
+                const response = await fetch(logoUrl);
+                const blob = await response.blob();
+                logoImg = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) {
+                console.warn("No se pudo cargar el logo:", e);
+            }
+
+            // Encabezado
             doc.setFillColor(10, 25, 47);
-            doc.rect(0, 0, 210, 40, 'F');
+            doc.rect(0, 0, 210, 50, 'F');
             doc.setTextColor(255, 255, 255);
-            doc.setFontSize(22);
-            doc.text("HÁBITAT-CAR: PANEL LEADS", 15, 25);
-            doc.setFontSize(10);
-            doc.text(`GENERADO: ${new Date().toLocaleString()}`, 15, 33);
+            doc.setFontSize(24);
+            doc.setFont("helvetica", "bold");
+            if (logoImg) {
+                doc.addImage(logoImg, 'PNG', 15, 8, 30, 30);
+                doc.text("HÁBITAT-CAR", 50, 28);
+            } else {
+                doc.text("HÁBITAT-CAR", 15, 28);
+            }
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            doc.text("SISTEMA DE GESTIÓN LEADS - REPORTE OFICIAL", logoImg ? 50 : 15, 36);
+            doc.text(`Fecha: ${new Date().toLocaleString()}`, logoImg ? 50 : 15, 42);
 
+            // Título del filtro
             doc.setTextColor(0, 74, 153);
-            doc.setFontSize(14);
-            doc.text(tituloFiltro, 15, 50);
-            doc.text(`TOTAL DE LEADS: ${filtrados.length}`, 15, 57);
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text(tituloFiltro, 15, 65);
 
-            const filas = filtrados.map(l => [
-                l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---',
+            // Resumen estadístico
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text("TOTAL", 15, 75);
+            doc.text("LEADS", 45, 75);
+            doc.text("USOS TOTALES", 80, 75);
+            doc.text("ACTIVOS / SUSP.", 130, 75);
+            doc.text("PROMEDIO USOS", 175, 75);
+
+            doc.setFont("helvetica", "normal");
+            doc.text(totalLeads.toString(), 15, 82);
+            doc.text(totalLeads.toString(), 45, 82);
+            doc.text(usosTotales.toString(), 80, 82);
+            doc.text(`${activos} / ${suspendidos}`, 130, 82);
+            doc.text(promedioUsos.toString(), 175, 82);
+
+            // Subtítulo listado
+            doc.setFont("helvetica", "bold");
+            doc.text("Distribución y Rendimiento", 15, 95);
+            doc.text("Listado Detallado de Beneficiarios", 15, 102);
+
+            // Tabla detallada
+            const filas = filtrados.map((l, idx) => [
+                (idx + 1).toString(),
                 `${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}`,
                 l.whatsapp || '---',
-                pascalCase(l.provincia || '---'),
                 pascalCase(l.localidad || '---'),
-                l.usos_count || 0
+                (l.usos_count || 0).toString(),
+                l.estado === 'suspendido' ? "SUSP." : "ACT.",
+                l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---'
             ]);
 
             doc.autoTable({
-                startY: 65,
-                head: [['REGISTRO', 'APELLIDO Y NOMBRE', 'WHATSAPP', 'PROVINCIA', 'LOCALIDAD', 'USOS']],
+                startY: 108,
+                head: [['#', 'Socio Lead', 'WhatsApp', 'Localidad', 'Usos', 'Estado', 'Alta']],
                 body: filas,
-                headStyles: { fillColor: [0, 74, 153], textColor: 255 },
-                alternateRowStyles: { fillColor: [240, 240, 240] },
-                styles: { fontSize: 9 }
+                headStyles: { fillColor: [0, 74, 153], textColor: 255, fontSize: 10, fontStyle: 'bold' },
+                bodyStyles: { fontSize: 9 },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+                columnStyles: {
+                    0: { cellWidth: 10, halign: 'center' },
+                    1: { cellWidth: 50 },
+                    2: { cellWidth: 30 },
+                    3: { cellWidth: 40 },
+                    4: { cellWidth: 15, halign: 'center' },
+                    5: { cellWidth: 20, halign: 'center' },
+                    6: { cellWidth: 25, halign: 'center' }
+                },
+                theme: 'grid'
             });
 
-            // Gráfico de Barras al final
-            const stats = {};
-            filtrados.forEach(l => {
-                const loc = l.localidad || "Otros";
-                stats[loc] = (stats[loc] || 0) + 1;
-            });
-
-            const labels = Object.keys(stats).slice(0, 10);
-            const data = labels.map(l => stats[l]);
-
-            const canvas = await renderBarChart("Top Localidades", labels, data);
-            const imgData = canvas.toDataURL('image/png');
-            doc.addPage();
-            doc.text("ESTADÍSTICAS DE DISTRIBUCIÓN", 15, 20);
-            doc.addImage(imgData, 'PNG', 15, 30, 180, 80);
+            // Pie de página
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(100);
+                doc.text(`Hábitat-Car - Reporte Confidencial - Página ${i}`, 15, 285);
+            }
 
             doc.save(`Reporte_Leads_${nivel}_${new Date().getTime()}.pdf`);
         };
-
-        async function renderBarChart(titulo, labels, data) {
-            const canvas = document.createElement('canvas');
-            canvas.width = 800; canvas.height = 300;
-            const ctx = canvas.getContext('2d');
-            new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'Cantidad de Leads',
-                        data: data,
-                        backgroundColor: 'rgba(0, 74, 153, 0.7)',
-                        borderColor: 'rgba(0, 74, 153, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    responsive: false,
-                    plugins: { title: { display: true, text: titulo } },
-                    scales: { y: { beginAtZero: true, ticks: { precision: 0 } } }
-                }
-            });
-            await new Promise(r => setTimeout(r, 200));
-            return canvas;
-        }
     </script>
 </body>
 </html>
