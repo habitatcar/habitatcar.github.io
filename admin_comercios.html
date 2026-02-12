@@ -266,7 +266,6 @@
                     <input type="text" id="nombre-input" class="full" placeholder="Nombre Fantasía" oninput="genID()">
                     <input type="text" id="id-input" class="read-only" placeholder="ID SISTEMA (AUTO)" readonly>
                     <input type="text" id="token-input" class="read-only" placeholder="TOKEN QR (AUTO)" readonly>
-                    <!-- INPUT DE LOGO SIN ETIQUETA -->
                     <input type="file" id="logo-file" accept="image/*" class="full" style="background: var(--azul-oscuro); color: white; padding: 12px; border: 1px solid var(--azul-claro); box-sizing: border-box; font-size: 0.95em;">
                     <input type="hidden" id="logo-url-actual">
                     <input type="number" id="val-lead" placeholder="Desc. Lead %">
@@ -549,7 +548,7 @@
             document.getElementById('btn-cancel-edit').style.display = 'block';
         };
 
-        // ✅ FUNCIÓN CORREGIDA: no se bloquea si falla la imagen
+        // ✅ FUNCIÓN CORREGIDA: GUARDA SIEMPRE, ACTUALIZA LOGO DESPUÉS
         window.guardar = async () => {
             const passValue = document.getElementById('password-input').value.trim();
             if (!passValue) {
@@ -557,25 +556,21 @@
                 return;
             }
 
-            let logoUrl = document.getElementById('logo-url-actual').value || "";
-            const fileInput = document.getElementById('logo-file');
-            const file = fileInput.files[0];
+            const nombre = document.getElementById('nombre-input').value.trim();
+            const telefono = document.getElementById('telefono-input').value.trim();
 
-            if (file) {
-                try {
-                    const nuevaUrl = await subirLogoAFirebase(file);
-                    if (nuevaUrl) logoUrl = nuevaUrl;
-                } catch (err) {
-                    console.warn("No se pudo subir el logo:", err);
-                    alert("⚠️ No se pudo guardar la imagen. El comercio se registrará sin logo.");
-                }
+            if (!nombre || !telefono) {
+                alert("⚠️ Completa Nombre y WhatsApp.");
+                return;
             }
 
-            const d = { 
-                nombre: document.getElementById('nombre-input').value.trim(),
+            const eid = document.getElementById('edit-id').value;
+
+            // Datos básicos sin logo
+            const datosBasicos = {
+                nombre,
                 idComercio: document.getElementById('id-input').value,
                 tokenQR: document.getElementById('token-input').value,
-                logoUrl: logoUrl,
                 valLead: document.getElementById('val-lead').value,
                 txtLead: document.getElementById('txt-lead').value,
                 vigenciaLead: document.getElementById('vig-lead').value || "",
@@ -585,7 +580,7 @@
                 direccion: document.getElementById('direccion-input').value,
                 provincia: document.getElementById('provincia-input').value,
                 ciudad: document.getElementById('ciudad-input').value,
-                telefono: document.getElementById('telefono-input').value,
+                telefono,
                 facebook: document.getElementById('facebook-input').value,
                 instagram: document.getElementById('instagram-input').value,
                 web: document.getElementById('web-input').value,
@@ -595,25 +590,38 @@
                 frecuenciaReporte: document.getElementById('reporte-input').value
             };
 
-            if (!d.nombre || !d.telefono) {
-                alert("⚠️ Completa al menos Nombre y WhatsApp.");
-                return;
-            }
-
             try {
-                const eid = document.getElementById('edit-id').value;
+                let docRef;
                 if (eid) {
-                    await updateDoc(doc(db, "comercios", eid), d);
+                    await updateDoc(doc(db, "comercios", eid), datosBasicos);
+                    docRef = doc(db, "comercios", eid);
                     alert("✅ ¡Ficha actualizada!");
-                    if (idForzado) window.location.reload(); 
                 } else {
-                    d.estado = "activo";
-                    d.fechaCarga = Date.now();
-                    d.lastSubmission = null;
-                    await addDoc(collection(db, "comercios"), d);
+                    datosBasicos.estado = "activo";
+                    datosBasicos.fechaCarga = Date.now();
+                    datosBasicos.lastSubmission = null;
+                    docRef = await addDoc(collection(db, "comercios"), datosBasicos);
                     alert("✅ Comercio creado con éxito");
                 }
+
+                // Ahora intentar subir el logo (opcional)
+                const fileInput = document.getElementById('logo-file');
+                const file = fileInput.files[0];
+                if (file) {
+                    try {
+                        const logoUrl = await subirLogoAFirebase(file);
+                        if (logoUrl) {
+                            await updateDoc(docRef, { logoUrl });
+                            console.log("Logo actualizado:", logoUrl);
+                        }
+                    } catch (err) {
+                        console.warn("No se pudo subir el logo:", err);
+                        alert("⚠️ No se pudo guardar la imagen. El comercio se registró sin logo.");
+                    }
+                }
+
                 window.clear();
+
             } catch(e) {
                 console.error("Error al guardar comercio:", e);
                 alert("❌ Error: " + (e.message || "Verifica tu conexión"));
