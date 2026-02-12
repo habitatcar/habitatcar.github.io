@@ -114,8 +114,8 @@
         .card-form::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); border-radius: 10px; }
         .card-form::-webkit-scrollbar-thumb { background: var(--azul-claro); border-radius: 10px; }
 
-        .form-grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
-        .full { grid-column: span 1; }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .full { grid-column: span 2; }
         
         input, select { 
             width: 100%; padding: 12px; border-radius: 8px; border: 1px solid var(--azul-claro); 
@@ -221,28 +221,11 @@
         #modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 5000; justify-content: center; align-items: center; }
         #modal-img { max-width: 90%; max-height: 90%; border-radius: 10px; }
 
-        /* Nuevos estilos para bloques de beneficios */
-        .benefit-section {
-            background: rgba(0,74,153,0.2);
-            padding: 14px;
-            border-radius: 10px;
-            border-left: 4px solid var(--celeste-habitat);
-        }
-        .benefit-section.vip {
-            background: rgba(255,193,7,0.15);
-            border-left-color: var(--oro);
-        }
-        .benefit-section h4 {
-            margin: 0 0 12px 0;
-            color: var(--oro);
-            font-size: 1.1em;
-            text-align: center;
-        }
-        .benefit-row {
+        /* 👇 Solo esto nuevo: para alinear los 3 campos */
+        .form-row {
             display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            margin-bottom: 10px;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 8px;
         }
     </style>
 </head>
@@ -293,31 +276,21 @@
                     <input type="file" id="logo-file" accept="image/*" class="full" style="background: var(--azul-oscuro); color: white; padding: 12px; border: 1px solid var(--azul-claro); box-sizing: border-box; font-size: 0.95em;">
                     <input type="hidden" id="logo-url-actual">
 
-                    <!-- BLOQUE LEAD -->
-                    <div class="benefit-section">
-                        <h4>🔹 BENEFICIO PARA LEADS</h4>
-                        <div class="benefit-row">
-                            <input type="number" id="val-lead" placeholder="Descuento %">
-                            <input type="number" id="usos-lead" value="1" placeholder="Usos (0 = ilimitado)">
-                        </div>
-                        <div class="benefit-row">
-                            <input type="number" id="vig-lead" placeholder="Vigencia (días)">
-                            <input type="text" id="txt-lead" placeholder="Detalle (Ej: En servicios)">
-                        </div>
+                    <!-- Lead: Desc % | Usos | Vigencia -->
+                    <div class="form-row">
+                        <input type="number" id="val-lead" placeholder="Desc. %">
+                        <input type="number" id="usos-lead" value="1" placeholder="Usos">
+                        <input type="number" id="vig-lead" placeholder="Vigencia (días)">
                     </div>
+                    <input type="text" id="txt-lead" class="full" placeholder="Detalle Lead (Ej: En servicios)">
 
-                    <!-- BLOQUE VIP -->
-                    <div class="benefit-section vip">
-                        <h4>💎 BENEFICIO PARA VIP</h4>
-                        <div class="benefit-row">
-                            <input type="number" id="val-vip" placeholder="Descuento %">
-                            <input type="number" id="usos-vip" value="0" placeholder="Usos (0 = ilimitado)">
-                        </div>
-                        <div class="benefit-row">
-                            <input type="number" id="vig-vip" placeholder="Vigencia (días)">
-                            <input type="text" id="txt-vip" placeholder="Detalle (Ej: En toda la compra)">
-                        </div>
+                    <!-- VIP: Desc % | Usos | Vigencia -->
+                    <div class="form-row">
+                        <input type="number" id="val-vip" placeholder="Desc. %">
+                        <input type="number" id="usos-vip" value="0" placeholder="Usos">
+                        <input type="number" id="vig-vip" placeholder="Vigencia (días)">
                     </div>
+                    <input type="text" id="txt-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
 
                     <input type="text" id="direccion-input" class="full" placeholder="Dirección">
                     <select id="provincia-input" onchange="window.actualizarLocalidades()">
@@ -506,7 +479,7 @@
                 const displayID = c.idComercio || c.id || "SIN-ID";
                 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=      ${c.tokenQR || displayID}`;
                 
-                // Formatear usos y vigencia para mostrar
+                // Valores por defecto si no existen
                 const usosLead = c.usosLead !== undefined ? c.usosLead : 1;
                 const usosVip = c.usosVip !== undefined ? c.usosVip : 0;
                 const vigLead = c.vigenciaLead || '---';
@@ -534,23 +507,15 @@
                             <div class="data-box"><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Último Envío</b><span style="color:var(--oro)">${formatearFecha(c.lastSubmission)}</span></div>
                             <div class="data-box" style="grid-column: span 2"><b>Ubicación</b><span>${c.ciudad || '-'} (${c.provincia || '-'})</span></div>
+                            <div class="data-box benefit-box"><b>Lead</b><span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span></div>
+                            <div class="data-box benefit-box"><b>VIP</b><span class="highlight-ben" style="color:var(--oro)!important">${c.valVip || 0}% ${c.txtVip || ''}</span></div>
                             
-                            <!-- Lead con usos y vigencia -->
-                            <div class="data-box benefit-box">
-                                <b>Lead</b>
-                                <span class="highlight-ben">${c.valLead || 0}% ${c.txtLead || ''}</span>
-                                <div style="font-size:0.9em; margin-top:4px; color:#aaa;">
-                                    Usos: ${usosLead === 0 ? 'Ilimitado' : usosLead} • Vigencia: ${vigLead} días
-                                </div>
+                            <!-- Nuevos campos: Usos y Vigencia -->
+                            <div class="data-box" style="grid-column: span 2; font-size:0.9em; color:#aaa;">
+                                <b>Lead</b>: Usos asignados: ${usosLead === 0 ? 'ILIMITADO' : usosLead} • Vigencia: ${vigLead} días
                             </div>
-                            
-                            <!-- VIP con usos y vigencia -->
-                            <div class="data-box benefit-box">
-                                <b>VIP</b>
-                                <span class="highlight-ben" style="color:var(--oro)!important">${c.valVip || 0}% ${c.txtVip || ''}</span>
-                                <div style="font-size:0.9em; margin-top:4px; color:#aaa;">
-                                    Usos: ${usosVip === 0 ? 'Ilimitado' : usosVip} • Vigencia: ${vigVip} días
-                                </div>
+                            <div class="data-box" style="grid-column: span 2; font-size:0.9em; color:#aaa;">
+                                <b>VIP</b>: Usos asignados: ${usosVip === 0 ? 'ILIMITADO' : usosVip} • Vigencia: ${vigVip} días
                             </div>
                         </div>
                         <div class="btn-group">
@@ -594,19 +559,19 @@
             document.getElementById('token-input').value = c.tokenQR || "";
             document.getElementById('logo-url-actual').value = c.logoUrl || "";
             document.getElementById('logo-file').value = "";
-            
-            // Beneficios Lead
+
+            // Lead
             document.getElementById('val-lead').value = c.valLead || "";
             document.getElementById('usos-lead').value = c.usosLead !== undefined ? c.usosLead : 1;
             document.getElementById('vig-lead').value = c.vigenciaLead || "";
             document.getElementById('txt-lead').value = c.txtLead || "";
-            
-            // Beneficios VIP
+
+            // VIP
             document.getElementById('val-vip').value = c.valVip || "";
             document.getElementById('usos-vip').value = c.usosVip !== undefined ? c.usosVip : 0;
             document.getElementById('vig-vip').value = c.vigenciaVip || "";
             document.getElementById('txt-vip').value = c.txtVip || "";
-            
+
             document.getElementById('direccion-input').value = c.direccion || "";
             document.getElementById('provincia-input').value = c.provincia || "";
             window.actualizarLocalidades(c.ciudad);
@@ -639,7 +604,6 @@
 
             const eid = document.getElementById('edit-id').value;
 
-            // Datos básicos
             const datosBasicos = {
                 nombre,
                 idComercio: document.getElementById('id-input').value,
@@ -679,14 +643,11 @@
                     alert("✅ Comercio creado con éxito");
                 }
 
-                // Subir logo si hay
                 const file = document.getElementById('logo-file').files[0];
                 if (file) {
                     try {
                         const logoUrl = await subirLogoAFirebase(file);
-                        if (logoUrl) {
-                            await updateDoc(docRef, { logoUrl });
-                        }
+                        if (logoUrl) await updateDoc(docRef, { logoUrl });
                     } catch (err) {
                         console.warn("No se pudo subir el logo:", err);
                         alert("⚠️ No se pudo guardar la imagen. El comercio se registró sin logo.");
@@ -706,10 +667,9 @@
             document.querySelectorAll('.sidebar input').forEach(i => {
                 if (i.type !== 'file') i.value = "";
             });
-            // Restaurar valores por defecto
+            document.getElementById('logo-file').value = "";
             document.getElementById('usos-lead').value = "1";
             document.getElementById('usos-vip').value = "0";
-            document.getElementById('logo-file').value = "";
             document.getElementById('provincia-input').value = "";
             document.getElementById('ciudad-input').innerHTML = '<option value="">Ciudad / Localidad</option>';
             document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
