@@ -266,9 +266,11 @@
                     <input type="text" id="nombre-input" class="full" placeholder="Nombre Fantasía" oninput="genID()">
                     <input type="text" id="id-input" class="read-only" placeholder="ID SISTEMA (AUTO)" readonly>
                     <input type="text" id="token-input" class="read-only" placeholder="TOKEN QR (AUTO)" readonly>
-                    <!-- Reemplazo del input de logo por selector de archivos -->
-                    <input type="file" id="logo-file" accept="image/*" class="full" style="background: var(--azul-oscuro); color: white; padding: 12px; border: 1px solid var(--azul-claro); box-sizing: border-box; font-size: 0.95em;">
-                    <input type="hidden" id="comercio-logo">
+                    <!-- INPUT DE ARCHIVO PARA LOGO -->
+                    <label style="color: white; font-size: 0.9em; margin-bottom: 5px;">Logo del Comercio (Subir archivo):</label>
+                    <input type="file" id="logo-file" accept="image/*" class="full" style="background: var(--azul-oscuro); color: white; padding: 10px; border: 1px solid var(--azul-claro); box-sizing: border-box; font-size: 0.95em;">
+                    <!-- Campo oculto para mantener URL actual durante edición -->
+                    <input type="hidden" id="logo-url-actual">
                     <input type="number" id="val-lead" placeholder="Desc. Lead %">
                     <input type="number" id="vig-lead" placeholder="Vigencia Lead (Días)">
                     <input type="text" id="txt-lead" class="full" placeholder="Detalle Lead (Ej: En servicios)">
@@ -334,7 +336,6 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js  ";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  ";
-        // --- NUEVA IMPORTACIÓN PARA STORAGE ---
         import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js  ";
 
         const firebaseConfig = {
@@ -348,9 +349,8 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        const storage = getStorage(app); // --- INICIALIZACIÓN DE STORAGE ---
+        const storage = getStorage(app);
 
-        // --- FUNCIÓN PARA SUBIR LOGO A FIREBASE STORAGE ---
         async function subirLogoAFirebase(archivo) {
             if (!archivo) return null;
             try {
@@ -534,10 +534,8 @@
             document.getElementById('nombre-input').value = c.nombre || "";
             document.getElementById('id-input').value = c.idComercio || "";
             document.getElementById('token-input').value = c.tokenQR || "";
-            // --- Cargar la URL actual del logo en el campo oculto ---
-            document.getElementById('comercio-logo').value = c.logoUrl || "";
-            // --- El input de archivo queda vacío (solo para nueva subida) ---
-            document.getElementById('logo-file').value = "";
+            document.getElementById('logo-url-actual').value = c.logoUrl || ""; // ← Guardar URL actual
+            document.getElementById('logo-file').value = ""; // ← Limpiar selector
             document.getElementById('val-lead').value = c.valLead || "";
             document.getElementById('txt-lead').value = c.txtLead || "";
             document.getElementById('vig-lead').value = c.vigenciaLead || "";
@@ -559,27 +557,28 @@
             document.getElementById('btn-cancel-edit').style.display = 'block';
         };
 
-        // --- FUNCIÓN GUARDAR MODIFICADA ---
         window.guardar = async () => {
             const eid = document.getElementById('edit-id').value;
             const passValue = document.getElementById('password-input').value;
             if(!passValue) return alert("Debes asignar una contraseña.");
 
-            // --- Manejo de la imagen ---
+            // --- Obtener logo ---
+            let logoUrl = document.getElementById('logo-url-actual').value || ""; // valor previo
             const fileInput = document.getElementById('logo-file');
             const file = fileInput.files[0];
-            let logoUrl = document.getElementById('comercio-logo').value; // URL actual en edición
 
             if (file) {
                 const nuevaUrl = await subirLogoAFirebase(file);
-                if (nuevaUrl) logoUrl = nuevaUrl;
+                if (nuevaUrl) {
+                    logoUrl = nuevaUrl;
+                }
             }
 
             const d = { 
                 nombre: document.getElementById('nombre-input').value, 
                 idComercio: document.getElementById('id-input').value, 
                 tokenQR: document.getElementById('token-input').value, 
-                logoUrl: logoUrl, // --- AHORA VIENE DE FIREBASE STORAGE ---
+                logoUrl: logoUrl, // ← ahora sí se guarda
                 valLead: document.getElementById('val-lead').value, 
                 txtLead: document.getElementById('txt-lead').value, 
                 vigenciaLead: document.getElementById('vig-lead').value || "", 
@@ -605,17 +604,24 @@
                     alert("¡Ficha actualizada!");
                     if(idForzado) window.location.reload(); 
                 } else {
-                    d.estado = "activo"; d.fechaCarga = Date.now(); d.lastSubmission = null;
+                    d.estado = "activo";
+                    d.fechaCarga = Date.now();
+                    d.lastSubmission = null;
                     await addDoc(collection(db, "comercios"), d);
                     alert("Comercio creado");
                 }
                 window.clear();
-            } catch(e) { console.error(e); alert("Error: " + e.message); }
+            } catch(e) {
+                console.error("Error al guardar:", e);
+                alert("Error al guardar: " + (e.message || "Desconocido"));
+            }
         };
 
         window.clear = () => {
             document.getElementById('edit-id').value = "";
-            document.querySelectorAll('.sidebar input').forEach(i => i.value = "");
+            document.querySelectorAll('.sidebar input').forEach(i => {
+                if (i.type !== 'file') i.value = "";
+            });
             document.getElementById('provincia-input').value = "";
             document.getElementById('ciudad-input').innerHTML = '<option value="">Ciudad / Localidad</option>';
             document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
