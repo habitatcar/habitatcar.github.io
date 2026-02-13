@@ -235,8 +235,8 @@
         const urlParams = new URLSearchParams(window.location.search);
         const tokenInterno = urlParams.get('t');
         let idDocumentoToken = "";
+        let idDelComercioResponsable = ""; // Nueva variable para capturar el comercio
 
-        // Si ya es VIP, saltar registro
         if (localStorage.getItem('habitat_vip_auth') === 'true') {
             window.location.replace("usuarios_cupones_vips.html");
         }
@@ -284,6 +284,8 @@
                     msg.className = "valido";
                     btn.disabled = false;
                     idDocumentoToken = snap.docs[0].id;
+                    // GUARDAMOS EL ID DEL COMERCIO QUE VIENE EN EL TOKEN
+                    idDelComercioResponsable = snap.docs[0].data().comercioId;
                 } else {
                     msg.innerText = "❌ Enlace usado o inválido.";
                     msg.className = "invalido";
@@ -344,10 +346,20 @@
                     estado: "usado", whatsapp: fields.tel, fechaUso: ahora
                 });
 
-                // --- CLAVE DEL ÉXITO: SINCRONIZACIÓN DE LOCALSTORAGE ---
+                // --- NUEVO LOG PARA LA AUDITORÍA DEL DUEÑO ---
+                await addDoc(collection(db, "logs_vip"), {
+                    comercioId: idDelComercioResponsable, // Se vincula con el dueño
+                    nombre: `${fields.nom} ${fields.ape}`,
+                    whatsapp: fields.tel,
+                    tipo: "VIP",
+                    beneficio: "Registro Invitación VIP",
+                    nroCupon: tokenInterno, // Usamos el token como identificador
+                    timestamp: ahora
+                });
+
                 localStorage.setItem('habitat_vip_auth', 'true');
-                localStorage.setItem('leadId_v16', finalLeadId); // Para cupones VIP
-                localStorage.setItem('leadId_habitat', finalLeadId); // Respaldo para cupones Lead
+                localStorage.setItem('leadId_v16', finalLeadId);
+                localStorage.setItem('leadId_habitat', finalLeadId);
                 
                 document.getElementById('notificacion').style.display = 'block';
                 
