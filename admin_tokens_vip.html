@@ -261,16 +261,28 @@
                 const idDoc = d.id;
                 const fullLink = `https://habitatcar.github.io/usuarios_registro_vip.html?t=${t.token}`;
                 
+                // Lógica de distinción
+                const esDeComercio = t.creadoPor === 'comercio';
+                const dueñoLabel = esDeComercio ? `<br><small style="color:#ffc107;">PROPIEDAD DE: ${t.comercioId.toUpperCase()}</small>` : '';
+                
+                // Estilo del botón según propiedad
+                const botonCopiar = esDeComercio 
+                    ? `<button class="btn-copy" style="background:#444; cursor:not-allowed;" disabled title="Reservado para el comercio">RESERVADO</button>`
+                    : `<button class="btn-copy" onclick="copyLink('${fullLink}')">COPIAR LINK</button>`;
+
                 lista.innerHTML += `
-                    <tr>
-                        <td style="font-weight:bold;">${t.token}</td>
+                    <tr style="${esDeComercio ? 'background: rgba(255,193,7,0.05);' : ''}">
+                        <td style="font-weight:bold;">
+                            ${t.token}
+                            ${dueñoLabel}
+                        </td>
                         <td><span class="status-${t.estado}">${t.estado.toUpperCase()}</span></td>
                         <td>${t.whatsapp || '-'}</td>
                         <td>${t.nombreVip || '-'}</td>
                         <td>${t.fechaUso ? new Date(t.fechaUso).toLocaleDateString() : '-'}</td>
-                        <td><span class="link-text">${fullLink}</span></td>
+                        <td><span class="link-text" style="${esDeComercio ? 'opacity:0.5;' : ''}">${fullLink}</span></td>
                         <td>
-                            <button class="btn-copy" onclick="copyLink('${fullLink}')">COPIAR LINK</button>
+                            ${botonCopiar}
                             <button class="btn-delete" onclick="eliminarUno('${idDoc}')">ELIMINAR</button>
                         </td>
                     </tr>
@@ -285,6 +297,7 @@
                 await addDoc(collection(db, "tokens_vip"), {
                     token: nuevoToken,
                     estado: 'disponible',
+                    creadoPor: 'admin', // <--- MARCA DE TU PROPIEDAD
                     whatsapp: '',
                     nombreVip: '',
                     fechaUso: null,
