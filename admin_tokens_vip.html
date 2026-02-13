@@ -83,6 +83,43 @@
             flex-shrink: 0;
         }
 
+        /* ESTILOS NUEVOS PARA EL GENERADOR GRUPAL */
+        .group-generator {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .input-cantidad {
+            width: 80px;
+            padding: 12px;
+            border-radius: 8px;
+            border: none;
+            background: var(--azul-oscuro);
+            color: white;
+            text-align: center;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+
+        .input-link-generado {
+            flex-grow: 1;
+            max-width: 500px;
+            padding: 12px;
+            border-radius: 8px;
+            border: 1px dashed var(--oro);
+            background: rgba(0,0,0,0.4);
+            color: var(--oro);
+            font-family: monospace;
+            font-size: 0.9em;
+            outline: none;
+        }
+
         .btn-main {
             background: var(--oro);
             color: black;
@@ -94,6 +131,12 @@
             cursor: pointer;
             transition: 0.3s;
         }
+        .btn-main:hover { opacity: 0.9; transform: scale(1.02); }
+
+        .btn-grupal {
+            background: var(--celeste-habitat);
+            color: white;
+        }
 
         .btn-delete-all {
             background: var(--borravino);
@@ -103,8 +146,9 @@
             border-radius: 8px;
             font-weight: bold;
             cursor: pointer;
-            margin-top: 10px;
-            font-size: 0.9em;
+            margin-top: 15px;
+            font-size: 0.8em;
+            opacity: 0.7;
         }
 
         .table-container {
@@ -142,7 +186,6 @@
             cursor: pointer;
             font-size: 0.9em;
             margin-bottom: 5px;
-            position: relative;
         }
 
         .btn-delete {
@@ -165,7 +208,6 @@
             word-break: break-all;
         }
 
-        /* NOTIFICACIÓN FLOTANTE TEMPORAL */
         #toast-copy {
             display: none;
             position: fixed;
@@ -178,14 +220,6 @@
             font-weight: bold;
             z-index: 2000;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            animation: fadeInOut 1s ease-in-out forwards;
-        }
-
-        @keyframes fadeInOut {
-            0% { opacity: 0; transform: translateY(-10px); }
-            20% { opacity: 1; transform: translateY(0); }
-            80% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-10px); }
         }
     </style>
 </head>
@@ -211,9 +245,20 @@
 
     <div class="container">
         <div class="card-top">
-            <h2 style="margin:0 0 10px 0;">Generador de Invitaciones VIP</h2>
-            <button class="btn-main" onclick="generarToken()">✨ GENERAR NUEVO TOKEN VIP</button>
-            <br>
+            <h2 style="margin:0 0 15px 0;">Panel de Control VIP</h2>
+            
+            <button class="btn-main" onclick="generarToken()">✨ GENERAR UN SOLO TOKEN VIP</button>
+
+            <div class="group-generator">
+                <input type="number" id="cantGrupal" value="10" min="1" class="input-cantidad" title="Cantidad de invitaciones">
+                
+                <button class="btn-main btn-grupal" onclick="generarLoteGrupal()">📦 INVITACIONES GRUPALES</button>
+                
+                <input type="text" id="resLinkGrupal" readonly placeholder="El link especial aparecerá aquí..." class="input-link-generado">
+                
+                <button class="btn-copy" id="btnCopiarG" onclick="copyLink(document.getElementById('resLinkGrupal').value)" style="display:none; height:45px; margin:0;">COPIAR LINK ESPECIAL</button>
+            </div>
+
             <button class="btn-delete-all" onclick="eliminarTodos()">ELIMINAR TODOS LOS TOKENS</button>
         </div>
 
@@ -221,12 +266,12 @@
             <table>
                 <thead>
                     <tr>
-                        <th>TOKEN</th>
+                        <th>TOKEN / ORIGEN</th>
                         <th>ESTADO</th>
                         <th>WHATSAPP</th>
                         <th>SOCIO</th>
                         <th>USO</th>
-                        <th>LINK DE INVITACIÓN</th>
+                        <th>LINK INDIVIDUAL</th>
                         <th>ACCIÓN</th>
                     </tr>
                 </thead>
@@ -259,30 +304,35 @@
             snap.forEach(d => {
                 const t = d.data();
                 const idDoc = d.id;
-                const fullLink = `https://habitatcar.github.io/usuarios_registro_vip.html?t=${t.token}`;
+                const fullLinkIndividual = `https://habitatcar.github.io/usuarios_registro_vip.html?t=${t.token}`;
                 
-                // Lógica de distinción
-                const esDeComercio = t.creadoPor === 'comercio';
-                const dueñoLabel = esDeComercio ? `<br><small style="color:#ffc107;">PROPIEDAD DE: ${t.comercioId.toUpperCase()}</small>` : '';
+                // Distinguir origen
+                const esComercio = t.creadoPor === 'comercio';
+                const esLote = t.creadoPor === 'lote';
                 
-                // Estilo del botón según propiedad
-                const botonCopiar = esDeComercio 
-                    ? `<button class="btn-copy" style="background:#444; cursor:not-allowed;" disabled title="Reservado para el comercio">RESERVADO</button>`
-                    : `<button class="btn-copy" onclick="copyLink('${fullLink}')">COPIAR LINK</button>`;
+                let tagOrigen = "";
+                if(esComercio) tagOrigen = `<br><small style="color:var(--oro);">🏢 COMERCIO: ${t.comercioId}</small>`;
+                if(esLote) tagOrigen = `<br><small style="color:#00e5ff;">📦 LOTE: ${t.loteId.substring(0,10)}...</small>`;
+
+                // Los links de comercios o lotes grupales no se copian desde aquí para evitar errores
+                const bloqueo = (esComercio || esLote);
 
                 lista.innerHTML += `
-                    <tr style="${esDeComercio ? 'background: rgba(255,193,7,0.05);' : ''}">
+                    <tr style="${bloqueo ? 'background: rgba(255,255,255,0.03);' : ''}">
                         <td style="font-weight:bold;">
                             ${t.token}
-                            ${dueñoLabel}
+                            ${tagOrigen}
                         </td>
                         <td><span class="status-${t.estado}">${t.estado.toUpperCase()}</span></td>
                         <td>${t.whatsapp || '-'}</td>
                         <td>${t.nombreVip || '-'}</td>
                         <td>${t.fechaUso ? new Date(t.fechaUso).toLocaleDateString() : '-'}</td>
-                        <td><span class="link-text" style="${esDeComercio ? 'opacity:0.5;' : ''}">${fullLink}</span></td>
+                        <td><span class="link-text" style="${bloqueo ? 'opacity:0.3;' : ''}">${fullLinkIndividual}</span></td>
                         <td>
-                            ${botonCopiar}
+                            ${bloqueo 
+                                ? `<button class="btn-copy" style="background:#444;cursor:not-allowed;" disabled>RESERVADO</button>` 
+                                : `<button class="btn-copy" onclick="copyLink('${fullLinkIndividual}')">COPIAR LINK</button>`
+                            }
                             <button class="btn-delete" onclick="eliminarUno('${idDoc}')">ELIMINAR</button>
                         </td>
                     </tr>
@@ -290,6 +340,7 @@
             });
         });
 
+        // GENERADOR INDIVIDUAL
         window.generarToken = async () => {
             const randomStr = Math.random().toString(36).substring(2, 8) + Math.floor(1000 + Math.random() * 9000);
             const nuevoToken = `vip_${randomStr}`;
@@ -297,12 +348,44 @@
                 await addDoc(collection(db, "tokens_vip"), {
                     token: nuevoToken,
                     estado: 'disponible',
-                    creadoPor: 'admin', // <--- MARCA DE TU PROPIEDAD
+                    creadoPor: 'admin',
                     whatsapp: '',
                     nombreVip: '',
                     fechaUso: null,
                     fechaCreacion: Date.now()
                 });
+            } catch (e) { console.error(e); }
+        };
+
+        // GENERADOR POR LOTE (GRUPAL)
+        window.generarLoteGrupal = async () => {
+            const cantidad = parseInt(document.getElementById('cantGrupal').value);
+            if(!cantidad || cantidad < 1) return alert("Ingresa una cantidad válida.");
+
+            // ID único para el lote (el que irá en el email)
+            const loteId = "lote_" + Math.random().toString(36).substring(2, 12);
+            const linkEmail = `https://habitatcar.github.io/invitaciones_grupales.html?lote=${loteId}`;
+
+            try {
+                for(let i=0; i < cantidad; i++) {
+                    const rnd = Math.random().toString(36).substring(2, 6);
+                    const tkn = `vip_group_${rnd}_${loteId.substring(5,8)}`;
+                    
+                    await addDoc(collection(db, "tokens_vip"), {
+                        token: tkn,
+                        estado: 'disponible',
+                        creadoPor: 'lote',
+                        loteId: loteId, // Vínculo al lote
+                        fechaCreacion: Date.now()
+                    });
+                }
+                
+                // Mostrar resultado
+                const inputLink = document.getElementById('resLinkGrupal');
+                inputLink.value = linkEmail;
+                document.getElementById('btnCopiarG').style.display = 'inline-block';
+                
+                alert(`✅ Se generaron ${cantidad} tokens exitosamente.`);
             } catch (e) { console.error(e); }
         };
 
@@ -329,9 +412,7 @@
             navigator.clipboard.writeText(link).then(() => {
                 const toast = document.getElementById('toast-copy');
                 toast.style.display = 'block';
-                setTimeout(() => {
-                    toast.style.display = 'none';
-                }, 1000);
+                setTimeout(() => { toast.style.display = 'none'; }, 1500);
             });
         };
     </script>
