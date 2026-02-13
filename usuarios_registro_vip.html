@@ -235,7 +235,7 @@
         const urlParams = new URLSearchParams(window.location.search);
         const tokenInterno = urlParams.get('t');
         let idDocumentoToken = "";
-        let idDelComercioResponsable = ""; // Nueva variable para capturar el comercio
+        let idDelComercioResponsable = "";
 
         if (localStorage.getItem('habitat_vip_auth') === 'true') {
             window.location.replace("usuarios_cupones_vips.html");
@@ -310,21 +310,34 @@
             }
 
             btn.disabled = true;
-            btn.innerText = "Procesando...";
+            btn.innerText = "Verificando...";
 
             try {
+                // 1. RECUPERAR FUNCIONALIDAD: Verificar si el WhatsApp ya es VIP
                 const qCheck = query(collection(db, "leads"), where("whatsapp", "==", fields.tel));
                 const snapCheck = await getDocs(qCheck);
                 
+                if (!snapCheck.empty) {
+                    const datosExistentes = snapCheck.docs[0].data();
+                    if (datosExistentes.tipo === "VIP" || datosExistentes.convertidoVIP === true) {
+                        mostrarError("NÚMERO YA REGISTRADO", "Este número de WhatsApp ya cuenta con una membresía VIP activa.", true);
+                        btn.disabled = false;
+                        btn.innerText = "Activar Membresía VIP";
+                        return; // Bloquea el registro duplicado
+                    }
+                }
+
                 const ahora = Date.now();
                 let finalLeadId = "";
 
+                // 2. Si el número existe como Lead normal, lo subimos a VIP. Si no existe, lo creamos.
                 if (!snapCheck.empty) {
                     finalLeadId = snapCheck.docs[0].id;
                     await updateDoc(doc(db, "leads", finalLeadId), {
                         convertidoVIP: true,
                         estado: "activo",
                         fechaVIP: ahora,
+                        tipo: "VIP", // Aseguramos el cambio de tipo
                         email: fields.mail,
                         provincia: fields.prov,
                         localidad: fields.loc
@@ -341,22 +354,24 @@
                     finalLeadId = docRef.id;
                 }
 
-                // Quemar token
+                // 3. Quemar token usado
                 await updateDoc(doc(db, "tokens_vip", idDocumentoToken), {
                     estado: "usado", whatsapp: fields.tel, fechaUso: ahora
                 });
 
-                // --- NUEVO LOG PARA LA AUDITORÍA DEL DUEÑO ---
+                // 4. REGISTRO DE LOG (Corregido para que lo detecte el Dashboard)
+                // Se registra tanto para el dueño (si existe idDelComercioResponsable) como para el sistema global
                 await addDoc(collection(db, "logs_vip"), {
-                    comercioId: idDelComercioResponsable, // Se vincula con el dueño
+                    comercioId: idDelComercioResponsable || "ADMIN", // Si no hay comercio, es del admin
                     nombre: `${fields.nom} ${fields.ape}`,
                     whatsapp: fields.tel,
                     tipo: "VIP",
-                    beneficio: "Registro Invitación VIP",
-                    nroCupon: tokenInterno, // Usamos el token como identificador
-                    timestamp: ahora
+                    beneficio: "Pase de Cortesía VIP",
+                    fecha: ahora, // Campo para la tabla
+                    timestamp: ahora // Campo para el orden dinámico
                 });
 
+                // Sincronización de acceso
                 localStorage.setItem('habitat_vip_auth', 'true');
                 localStorage.setItem('leadId_v16', finalLeadId);
                 localStorage.setItem('leadId_habitat', finalLeadId);
@@ -369,7 +384,7 @@
 
             } catch (e) { 
                 console.error(e);
-                mostrarError("ERROR", "No se pudo activar la membresía.");
+                mostrarError("ERROR", "Ocurrió un error al procesar el registro.");
                 btn.disabled = false;
                 btn.innerText = "Activar Membresía VIP";
             }
