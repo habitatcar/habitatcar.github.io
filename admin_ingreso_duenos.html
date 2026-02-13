@@ -180,10 +180,10 @@
         .hidden { display: none; }
         .items-center { align-items: center; }
         .justify-center { justify-content: center; }
-        .z-\[100\] { z-index: 100; }
+        .z-\[200\] { z-index: 200; }
         .p-4 { padding: 1rem; }
         .bg-black { background-color: black; }
-        .bg-opacity-90 { background-color: rgba(0, 0, 0, 0.9); }
+        .bg-opacity-95 { background-color: rgba(0, 0, 0, 0.95); }
         .max-w-md { max-width: 28rem; }
         .w-full { width: 100%; }
         .p-6 { padding: 1.5rem; }
@@ -213,6 +213,11 @@
         .py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
         .rounded-xl { border-radius: 0.75rem; }
         .border-gray-600 { border-color: #4b5563; }
+        .animate-pulse { animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .5; }
+        }
     </style>
 </head>
 <body>
@@ -227,8 +232,11 @@
     <div class="form-id">
         <input type="text" id="id-comercio" class="input-id" placeholder="Ingresa tu ID de Comercio" autocomplete="off">
         <button class="btn-ingresar" onclick="ingresar()">Ingresar al Sistema</button>
-        
-        <!-- ✅ BOTÓN DE INVITACIONES AGREGADO AQUÍ -->
+    </div>
+
+    <!-- Panel que se muestra SOLO tras ingresar -->
+    <div id="panel-auditoria" class="hidden">
+
         <div class="flex flex-wrap gap-4 justify-center my-6">
             <a id="link-modificar" href="#" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-all shadow-lg font-bold">
                 ⚙️ MODIFICAR LOS DATOS DE MI FICHA COMERCIAL
@@ -238,70 +246,64 @@
                 ✨ Invitaciones VIP de cortesía
             </button>
         </div>
-    </div>
 
-    <div class="stats-container">
-        <div class="stat-box">
-            <div class="stat-value" id="total-usuarios">0</div>
-            <div class="stat-label">Total Usuarios</div>
+        <div class="stats-container">
+            <div class="stat-box">
+                <div class="stat-value" id="total-usuarios">0</div>
+                <div class="stat-label">Total Usuarios</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="canjes-vip">0</div>
+                <div class="stat-label">Canjes VIP</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="canjes-lead">0</div>
+                <div class="stat-label">Canjes Lead</div>
+            </div>
+            <div class="stat-box">
+                <div class="stat-value" id="ultimo-acceso">--:--</div>
+                <div class="stat-label">Último Acceso</div>
+            </div>
         </div>
-        <div class="stat-box">
-            <div class="stat-value" id="canjes-vip">0</div>
-            <div class="stat-label">Canjes VIP</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-value" id="canjes-lead">0</div>
-            <div class="stat-label">Canjes Lead</div>
-        </div>
-        <div class="stat-box">
-            <div class="stat-value" id="ultimo-acceso">--:--</div>
-            <div class="stat-label">Último Acceso</div>
-        </div>
-    </div>
 
-    <div class="tabla-cupones">
-        <table>
-            <thead>
-                <tr>
-                    <th>Fecha/Hora</th>
-                    <th>Categoría</th>
-                    <th>Nro Cupón</th>
-                    <th>Detalle</th>
-                </tr>
-            </thead>
-            <tbody id="registros-cupones">
-                <!-- Los registros se cargarán aquí dinámicamente -->
-            </tbody>
-        </table>
-    </div>
+        <div class="tabla-cupones">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Fecha/Hora</th>
+                        <th>Categoría</th>
+                        <th>Nro Cupón</th>
+                        <th>Detalle</th>
+                    </tr>
+                </thead>
+                <tbody id="registros-cupones">
+                    <!-- Los registros se cargarán aquí dinámicamente -->
+                </tbody>
+            </table>
+        </div>
 
-    <div class="acciones-finales">
-        <button class="btn-accion btn-imprimir" onclick="imprimirReporte()">
-            🖨️ IMPRIMIR REPORTE
-        </button>
-        <button class="btn-accion btn-compartir" onclick="compartirEnlace()">
-            🔗 Compartir
-        </button>
+        <div class="acciones-finales">
+            <button class="btn-accion btn-imprimir" onclick="imprimirReporte()">
+                🖨️ IMPRIMIR REPORTE
+            </button>
+            <button class="btn-accion btn-compartir" onclick="compartirEnlace()">
+                🔗 Compartir
+            </button>
+        </div>
+
     </div>
 
     <!-- ✅ MODAL DE INVITACIONES AGREGADO AQUÍ -->
-    <div id="modal-invitaciones" class="fixed inset-0 bg-black bg-opacity-90 hidden items-center justify-center z-[100] p-4 backdrop-blur-sm">
+    <div id="modal-invitaciones" class="fixed inset-0 bg-black bg-opacity-95 hidden items-center justify-center z-[200] p-4 backdrop-blur-md">
         <div class="bg-gray-900 border-2 border-yellow-500 rounded-2xl max-w-md w-full p-6 relative shadow-2xl">
             <button onclick="cerrarInvitaciones()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
-            
             <div class="text-center mb-6">
                 <h2 class="text-2xl font-bold text-yellow-500">¡Felicidades! ✨</h2>
-                <p class="text-sm text-gray-300 mt-2">
-                    Como beneficio exclusivo de <b>Habitat-Car</b>, tienes 10 pases VIP de cortesía para regalar.
-                </p>
+                <p class="text-sm text-gray-300 mt-2">Tienes 10 pases VIP de cortesía para regalar como agradecimiento de <b>Habitat-Car</b>.</p>
             </div>
-
             <div id="lista-invitaciones" class="space-y-2 overflow-y-auto max-h-[50vh] pr-2">
             </div>
-
-            <button onclick="cerrarInvitaciones()" class="w-full mt-6 bg-gray-800 text-white py-3 rounded-xl font-bold border border-gray-600">
-                Volver al Panel
-            </button>
+            <button onclick="cerrarInvitaciones()" class="w-full mt-6 bg-gray-800 text-white py-3 rounded-xl font-bold border border-gray-600">Volver al Panel</button>
         </div>
     </div>
 
@@ -355,6 +357,9 @@
                 const docSnap = querySnapshot.docs[0];
                 const data = docSnap.data();
                 comercioIdGlobal = docSnap.id;
+
+                // Mostrar panel de auditoría
+                document.getElementById('panel-auditoria').classList.remove('hidden');
 
                 // Actualizar el enlace de modificación
                 document.getElementById('link-modificar').href = 
@@ -415,22 +420,23 @@
 
         // ✅ LÓGICA DE INVITACIONES VIP AGREGADA AQUÍ
         window.abrirInvitacionesVIP = async () => {
-            // Obtenemos el ID que el dueño ya validó en el login
+            // Tomamos el ID que el comerciante ya tiene escrito en el input del login
             const idComercio = document.getElementById('id-comercio').value.trim();
             if(!idComercio) return; 
 
-            // Mostramos el modal
-            document.getElementById('modal-invitaciones').classList.replace('hidden', 'flex');
+            // Activamos el modal
+            const modal = document.getElementById('modal-invitaciones');
+            modal.classList.remove('hidden');
+            modal.classList.add('flex');
+            
             const lista = document.getElementById('lista-invitaciones');
-            lista.innerHTML = '<p class="text-center text-yellow-500">Cargando tus beneficios...</p>';
+            lista.innerHTML = '<p class="text-center text-yellow-500 animate-pulse">Cargando tus pases...</p>';
 
             try {
-                // Consultamos solo los tokens de ESTE comercio
                 const q = query(collection(db, "tokens_vip"), where("comercioId", "==", idComercio), where("tipo", "==", "cortesia_dueno"));
                 const snap = await getDocs(q);
                 let tokens = snap.docs.map(doc => ({id: doc.id, ...doc.data()}));
 
-                // Si es la primera vez, generamos los 10 automáticamente
                 if (tokens.length === 0) {
                     for (let i = 1; i <= 10; i++) {
                         const nToken = "VIP-" + Math.random().toString(36).substr(2, 5).toUpperCase() + "-" + idComercio.substring(0,3).toUpperCase();
@@ -445,24 +451,18 @@
                     return abrirInvitacionesVIP(); 
                 }
 
-                // Renderizamos la lista
                 lista.innerHTML = '';
                 tokens.forEach((t, i) => {
                     const link = `https://habitatcar.github.io/registro.html?token=${t.token}`;
                     const usado = t.estado !== 'disponible';
-                    
                     lista.innerHTML += `
                         <div class="flex items-center justify-between bg-black bg-opacity-40 p-3 rounded-lg border border-gray-700 mb-2">
                             <div class="flex flex-col text-left">
-                                <span class="text-[9px] text-gray-500 font-bold tracking-tighter uppercase">PASE ${i+1}</span>
-                                <span class="text-[11px] ${usado ? 'text-red-500' : 'text-green-400'} font-bold">
-                                    ${usado ? '🔴 YA USADO' : '🟢 DISPONIBLE'}
-                                </span>
+                                <span class="text-[10px] text-gray-500 font-bold uppercase">PASE ${i+1}</span>
+                                <span class="text-[11px] ${usado ? 'text-red-500' : 'text-green-400'} font-bold">${usado ? '🔴 YA USADO' : '🟢 DISPONIBLE'}</span>
                             </div>
-                            <button onclick="copiarLinkPase('${link}')" 
-                                    ${usado ? 'disabled' : ''}
-                                    class="${usado ? 'bg-gray-800 text-gray-600' : 'bg-yellow-600 text-white'} px-3 py-2 rounded text-[10px] font-bold">
-                                ${usado ? 'CANJEADO' : 'COPIAR PARA INVITAR'}
+                            <button onclick="copiarPaseLink('${link}')" ${usado ? 'disabled' : ''} class="${usado ? 'bg-gray-800 text-gray-600' : 'bg-yellow-600 text-white'} px-3 py-2 rounded text-[10px] font-bold">
+                                ${usado ? 'CANJEADO' : 'COPIAR LINK'}
                             </button>
                         </div>`;
                 });
@@ -470,13 +470,12 @@
         };
 
         window.cerrarInvitaciones = () => {
-            document.getElementById('modal-invitaciones').classList.replace('flex', 'hidden');
+            document.getElementById('modal-invitaciones').classList.add('hidden');
+            document.getElementById('modal-invitaciones').classList.remove('flex');
         };
 
-        window.copiarLinkPase = (link) => {
-            navigator.clipboard.writeText(link).then(() => {
-                alert("¡Copiado! Ya puedes enviarlo.");
-            });
+        window.copiarPaseLink = (link) => {
+            navigator.clipboard.writeText(link).then(() => { alert("¡Enlace copiado!"); });
         };
     </script>
 </body>
