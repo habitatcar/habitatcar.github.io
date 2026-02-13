@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Invitaciones Grupales | HÁBITAT-CAR</title>
+    <style>
+        :root {
+            --azul-oscuro: #0a192f;
+            --azul-medio: #112240;
+            --celeste-habitat: #004a99;
+            --oro: #ffc107;
+            --blanco: #e6f1ff;
+            --verde: #28a745;
+            --rojo: #dc3545;
+        }
+
+        body {
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--azul-oscuro);
+            color: var(--blanco);
+            margin: 0;
+            padding: 15px;
+            display: flex;
+            justify-content: center;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 500px;
+            width: 100%;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        /* LOGO AUMENTADO EN UN 50% (De 80px a 120px) */
+        .logo {
+            height: 120px; 
+            width: auto;
+            margin-bottom: 20px;
+            filter: drop-shadow(0 0 15px rgba(0,74,153,0.4));
+        }
+
+        .card-welcome {
+            background: var(--azul-medio);
+            padding: 20px;
+            border-radius: 20px;
+            border: 1px solid rgba(255,193,7,0.3);
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+        }
+
+        h1 { color: var(--oro); margin: 0 0 8px 0; font-size: 1.4rem; text-transform: uppercase; }
+        p { opacity: 0.8; line-height: 1.4; font-size: 0.9rem; margin: 0; }
+
+        .lista-tokens {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .token-item {
+            background: rgba(255,255,255,0.03);
+            border-radius: 15px;
+            padding: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            border: 1px solid rgba(255,255,255,0.05);
+            transition: 0.3s;
+        }
+
+        .token-info {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .t-code {
+            font-family: 'Courier New', Courier, monospace;
+            font-weight: bold;
+            color: var(--oro);
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+        }
+
+        .t-status {
+            font-size: 0.7rem;
+            font-weight: bold;
+            margin-top: 4px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            width: fit-content;
+        }
+
+        .status-disponible { background: rgba(40, 167, 69, 0.2); color: #2ecc71; }
+        .status-usado { background: rgba(220, 53, 69, 0.2); color: #e74c3c; }
+
+        .btn-action {
+            padding: 10px 16px;
+            border-radius: 10px;
+            border: none;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 0.85rem;
+            transition: 0.2s;
+            background: var(--celeste-habitat);
+            color: white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+        }
+
+        .btn-action:active { transform: scale(0.95); }
+        .btn-action:disabled { background: #333; color: #777; cursor: not-allowed; box-shadow: none; }
+
+        #toast {
+            display: none;
+            position: fixed;
+            bottom: 30px;
+            background: var(--verde);
+            color: white;
+            padding: 12px 25px;
+            border-radius: 50px;
+            font-weight: bold;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.4);
+            animation: slideUp 0.3s ease-out;
+            z-index: 9999;
+        }
+
+        @keyframes slideUp { from { transform: translateY(100px); } to { transform: translateY(0); } }
+
+        .spinner {
+            border: 4px solid rgba(255, 255, 255, 0.1);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border-left-color: var(--oro);
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+
+    <div id="toast">✅ Link copiado</div>
+
+    <div class="container">
+        <header class="header">
+            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
+            <div class="card-welcome">
+                <h1>Mis Invitaciones</h1>
+                <p>Copia y envía los links disponibles a tus invitados para que se registren como miembros VIP.</p>
+            </div>
+        </header>
+
+        <div id="loader" class="spinner"></div>
+        <div id="lista-tokens" class="lista-tokens"></div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, where, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+            authDomain: "habitatcar-pro.firebaseapp.com",
+            projectId: "habitatcar-pro",
+            storageBucket: "habitatcar-pro.firebasestorage.app",
+            messagingSenderId: "311691258694",
+            appId: "1:311691258694:web:17a09051dcea7707af9347"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const params = new URLSearchParams(window.location.search);
+        const loteId = params.get('lote');
+
+        if (!loteId) {
+            document.getElementById('lista-tokens').innerHTML = "<p style='text-align:center; color:var(--rojo)'>Acceso denegado: No se especificó un ID de lote válido.</p>";
+            document.getElementById('loader').style.display = 'none';
+        } else {
+            const q = query(collection(db, "tokens_vip"), where("loteId", "==", loteId));
+
+            onSnapshot(q, (snap) => {
+                document.getElementById('loader').style.display = 'none';
+                const contenedor = document.getElementById('lista-tokens');
+                contenedor.innerHTML = "";
+
+                if(snap.empty) {
+                    contenedor.innerHTML = "<p style='text-align:center'>No se encontraron invitaciones para este grupo.</p>";
+                    return;
+                }
+
+                snap.forEach(doc => {
+                    const data = doc.data();
+                    const esUsado = data.estado === 'usado';
+                    const linkFinal = `https://habitatcar.github.io/usuarios_registro_vip.html?t=${data.token}`;
+                    
+                    const item = document.createElement('div');
+                    item.className = 'token-item';
+                    item.innerHTML = `
+                        <div class="token-info">
+                            <span class="t-code">${data.token}</span>
+                            <span class="t-status ${esUsado ? 'status-usado' : 'status-disponible'}">
+                                ${esUsado ? 'UTILIZADO' : 'DISPONIBLE'}
+                            </span>
+                        </div>
+                        <button class="btn-action" 
+                                ${esUsado ? 'disabled' : ''} 
+                                onclick="copiarLink('${linkFinal}')">
+                            ${esUsado ? 'CANJEADO' : 'COPIAR'}
+                        </button>
+                    `;
+                    contenedor.appendChild(item);
+                });
+            });
+        }
+
+        window.copiarLink = (url) => {
+            navigator.clipboard.writeText(url).then(() => {
+                const t = document.getElementById('toast');
+                t.style.display = 'block';
+                setTimeout(() => t.style.display = 'none', 2000);
+            });
+        };
+    </script>
+</body>
+</html>
