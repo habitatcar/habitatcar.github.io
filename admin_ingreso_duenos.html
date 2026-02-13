@@ -218,6 +218,11 @@
             0%, 100% { opacity: 1; }
             50% { opacity: .5; }
         }
+        .text-\[9px\] { font-size: 9px; }
+        .text-\[11px\] { font-size: 11px; }
+        .text-\[10px\] { font-size: 10px; }
+        .tracking-tighter { letter-spacing: -0.05em; }
+        .uppercase { text-transform: uppercase; }
     </style>
 </head>
 <body>
@@ -241,7 +246,6 @@
             <a id="link-modificar" href="#" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm transition-all shadow-lg font-bold">
                 ⚙️ MODIFICAR LOS DATOS DE MI FICHA COMERCIAL
             </a>
-            
             <button onclick="abrirInvitacionesVIP()" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg text-sm transition-all shadow-lg font-bold border border-yellow-400">
                 ✨ Invitaciones VIP de cortesía
             </button>
@@ -299,10 +303,9 @@
             <button onclick="cerrarInvitaciones()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-2xl">&times;</button>
             <div class="text-center mb-6">
                 <h2 class="text-2xl font-bold text-yellow-500">¡Felicidades! ✨</h2>
-                <p class="text-sm text-gray-300 mt-2">Tienes 10 pases VIP de cortesía para regalar como agradecimiento de <b>Habitat-Car</b>.</p>
+                <p class="text-sm text-gray-300 mt-2">Tienes 10 pases VIP de cortesía para regalar.</p>
             </div>
-            <div id="lista-invitaciones" class="space-y-2 overflow-y-auto max-h-[50vh] pr-2">
-            </div>
+            <div id="lista-invitaciones" class="space-y-2 overflow-y-auto max-h-[50vh] pr-2"></div>
             <button onclick="cerrarInvitaciones()" class="w-full mt-6 bg-gray-800 text-white py-3 rounded-xl font-bold border border-gray-600">Volver al Panel</button>
         </div>
     </div>
@@ -420,17 +423,13 @@
 
         // ✅ LÓGICA DE INVITACIONES VIP AGREGADA AQUÍ
         window.abrirInvitacionesVIP = async () => {
-            // Tomamos el ID que el comerciante ya tiene escrito en el input del login
+            // Usamos el ID que el dueño ya escribió para entrar
             const idComercio = document.getElementById('id-comercio').value.trim();
             if(!idComercio) return; 
 
-            // Activamos el modal
-            const modal = document.getElementById('modal-invitaciones');
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            
+            document.getElementById('modal-invitaciones').style.display = 'flex';
             const lista = document.getElementById('lista-invitaciones');
-            lista.innerHTML = '<p class="text-center text-yellow-500 animate-pulse">Cargando tus pases...</p>';
+            lista.innerHTML = '<p class="text-center text-yellow-500 animate-pulse">Cargando...</p>';
 
             try {
                 const q = query(collection(db, "tokens_vip"), where("comercioId", "==", idComercio), where("tipo", "==", "cortesia_dueno"));
@@ -441,42 +440,33 @@
                     for (let i = 1; i <= 10; i++) {
                         const nToken = "VIP-" + Math.random().toString(36).substr(2, 5).toUpperCase() + "-" + idComercio.substring(0,3).toUpperCase();
                         await addDoc(collection(db, "tokens_vip"), {
-                            token: nToken,
-                            comercioId: idComercio,
-                            estado: 'disponible',
-                            tipo: 'cortesia_dueno',
-                            fechaCreacion: Date.now()
+                            token: nToken, comercioId: idComercio, estado: 'disponible', tipo: 'cortesia_dueno', fechaCreacion: Date.now()
                         });
                     }
-                    return abrirInvitacionesVIP(); 
+                    return abrirInvitacionesVIP();
                 }
 
                 lista.innerHTML = '';
                 tokens.forEach((t, i) => {
                     const link = `https://habitatcar.github.io/registro.html?token=${t.token}`;
-                    const usado = t.estado !== 'disponible';
+                    const u = t.estado !== 'disponible';
                     lista.innerHTML += `
                         <div class="flex items-center justify-between bg-black bg-opacity-40 p-3 rounded-lg border border-gray-700 mb-2">
                             <div class="flex flex-col text-left">
-                                <span class="text-[10px] text-gray-500 font-bold uppercase">PASE ${i+1}</span>
-                                <span class="text-[11px] ${usado ? 'text-red-500' : 'text-green-400'} font-bold">${usado ? '🔴 YA USADO' : '🟢 DISPONIBLE'}</span>
+                                <span class="text-[9px] text-gray-500 font-bold tracking-tighter uppercase font-bold">PASE ${i+1}</span>
+                                <span class="text-[11px] ${u ? 'text-red-500' : 'text-green-400'} font-bold">${u ? '🔴 YA USADO' : '🟢 DISPONIBLE'}</span>
                             </div>
-                            <button onclick="copiarPaseLink('${link}')" ${usado ? 'disabled' : ''} class="${usado ? 'bg-gray-800 text-gray-600' : 'bg-yellow-600 text-white'} px-3 py-2 rounded text-[10px] font-bold">
-                                ${usado ? 'CANJEADO' : 'COPIAR LINK'}
+                            <button onclick="copiarLink('${link}')" ${u ? 'disabled' : ''} class="${u ? 'bg-gray-800 text-gray-600' : 'bg-yellow-600 text-white'} px-3 py-2 rounded text-[10px] font-bold">
+                                ${u ? 'CANJEADO' : 'COPIAR'}
                             </button>
                         </div>`;
                 });
             } catch (e) { console.error(e); }
         };
 
-        window.cerrarInvitaciones = () => {
-            document.getElementById('modal-invitaciones').classList.add('hidden');
-            document.getElementById('modal-invitaciones').classList.remove('flex');
-        };
+        window.cerrarInvitaciones = () => { document.getElementById('modal-invitaciones').style.display = 'none'; };
+        window.copiarLink = (l) => { navigator.clipboard.writeText(l).then(() => alert("¡Link copiado!")); };
 
-        window.copiarPaseLink = (link) => {
-            navigator.clipboard.writeText(link).then(() => { alert("¡Enlace copiado!"); });
-        };
     </script>
 </body>
 </html>
