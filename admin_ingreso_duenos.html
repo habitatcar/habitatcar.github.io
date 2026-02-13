@@ -103,274 +103,279 @@
                 </div>
             </div>
         </div>
-    </div>
 
-    <div id="modalInvitaciones" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[100] p-4 backdrop-blur-md">
-        <div class="bg-gray-900 border-2 border-dorado rounded-3xl max-w-md w-full p-8 relative shadow-2xl">
-            <button onclick="cerrarInvitaciones()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl">&times;</button>
-            <div class="text-center mb-6">
-                <h2 class="text-2xl font-black text-dorado uppercase italic">¡Felicidades!</h2>
-                <p class="text-xs text-gray-400 mt-2 font-bold uppercase tracking-widest leading-relaxed">
-                    Habitat-Car te otorga 10 pases VIP de cortesía para tus clientes especiales.
-                </p>
-            </div>
-            <div id="contenedor-tokens" class="space-y-3 overflow-y-auto max-h-[45vh] pr-2">
+        <div id="modalInvitaciones" class="fixed inset-0 bg-black/95 hidden items-center justify-center z-[100] p-4 backdrop-blur-md">
+            <div class="bg-gray-900 border-2 border-dorado rounded-3xl max-w-md w-full p-8 relative shadow-2xl">
+                <button onclick="cerrarInvitaciones()" class="absolute top-4 right-4 text-gray-400 hover:text-white text-3xl">&times;</button>
+                <div class="text-center mb-6">
+                    <h2 class="text-2xl font-black text-dorado uppercase italic">¡Felicidades!</h2>
+                    <p class="text-xs text-gray-400 mt-2 font-bold uppercase tracking-widest leading-relaxed">
+                        Habitat-Car te otorga 10 pases VIP de cortesía para tus clientes especiales.
+                    </p>
                 </div>
-            <button onclick="cerrarInvitaciones()" class="w-full mt-8 bg-gray-800 text-white font-bold py-4 rounded-2xl hover:bg-gray-700 transition-all border border-gray-700 uppercase text-xs tracking-widest">
-                Volver al Panel
-            </button>
+                <div id="contenedor-tokens" class="space-y-3 overflow-y-auto max-h-[45vh] pr-2">
+                    </div>
+                <button onclick="cerrarInvitaciones()" class="w-full mt-8 bg-gray-800 text-white font-bold py-4 rounded-2xl hover:bg-gray-700 transition-all border border-gray-700 uppercase text-xs tracking-widest">
+                    Volver al Panel
+                </button>
+            </div>
         </div>
-    </div>
 
-    <footer id="footerNav" class="fixed bottom-0 left-0 w-full bg-black/90 backdrop-blur-md p-4 border-t border-dorado flex gap-4 justify-center z-50">
-        <button onclick="generarPDF()" class="bg-white text-black px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 uppercase text-sm">
-            🖨️ IMPRIMIR REPORTE
-        </button>
-        <button onclick="compartirApp()" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-500 uppercase text-sm">
-            🔗 Compartir
-        </button>
-    </footer>
+        <footer id="footerNav" class="fixed bottom-0 left-0 w-full bg-black/90 backdrop-blur-md p-4 border-t border-dorado flex gap-4 justify-center z-50">
+            <button onclick="generarPDF()" class="bg-white text-black px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-gray-200 uppercase text-sm">
+                🖨️ IMPRIMIR REPORTE
+            </button>
+            <button onclick="compartirApp()" class="bg-blue-600 text-white px-6 py-3 rounded-xl font-bold flex items-center gap-2 hover:bg-blue-500 uppercase text-sm">
+                🔗 Compartir
+            </button>
+        </footer>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, limit, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        <script type="module">
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+            import { getFirestore, collection, query, where, orderBy, onSnapshot, getDocs, limit, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        const firebaseConfig = {
-            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
-            authDomain: "habitatcar-pro.firebaseapp.com",
-            projectId: "habitatcar-pro",
-            storageBucket: "habitatcar-pro.firebasestorage.app",
-            messagingSenderId: "311691258694",
-            appId: "1:311691258694:web:17a09051dcea7707af9347"
-        };
-
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        let unsubVip = null, unsubLead = null;
-        let miGrafico = null;
-        const registroUsuarios = {}; 
-
-        // LÓGICA DE VALIDACIÓN (INTACTA)
-        window.validarYConsultar = async () => {
-            const cid = document.getElementById('comercioId').value.trim();
-            const pass = document.getElementById('comercioPass').value.trim();
-            if(!cid || !pass) return alert("Complete los datos de acceso");
-
-            try {
-                const q = query(collection(db, "comercios"), where("idComercio", "==", cid));
-                const querySnapshot = await getDocs(q);
-                if (querySnapshot.empty) return alert("El ID de comercio no existe.");
-
-                const docSnap = querySnapshot.docs[0];
-                const docData = docSnap.data();
-                const uidFirebase = docSnap.id; 
-
-                if (docData.password === pass) {
-                    document.getElementById('nombreComercioDinamico').innerText = docData.nombre || "";
-                    sessionStorage.setItem('token_habitat_' + cid, 'autorizado_' + Date.now());
-                    document.getElementById('loginBox').classList.add('hidden');
-                    document.getElementById('dashboard').classList.remove('hidden');
-                    inicializarGrafico();
-                    iniciarSuscripciones(uidFirebase);
-                } else { alert("Contraseña incorrecta"); }
-            } catch (error) { console.error(error); alert("Error de conexión."); }
-        };
-
-        // LÓGICA PARA INVITACIONES (BASADA EN ADMIN_TOKENS_VIP.HTML)
-        window.abrirInvitacionesVIP = async () => {
-            const cid = document.getElementById('comercioId').value.trim();
-            const modal = document.getElementById('modalInvitaciones');
-            const cont = document.getElementById('contenedor-tokens');
-            
-            modal.classList.remove('hidden');
-            modal.classList.add('flex');
-            cont.innerHTML = '<p class="text-center text-dorado py-10 uppercase font-black text-xs animate-pulse">Consultando Invitaciones...</p>';
-
-            try {
-                // Filtramos por comercioId para que el dueño solo vea los suyos
-                const qTokens = query(collection(db, "tokens_vip"), where("comercioId", "==", cid));
-                const snap = await getDocs(qTokens);
-                let tokens = snap.docs.map(d => d.data());
-
-                // Si no tiene tokens, generamos los 10 de cortesía
-                if (tokens.length === 0) {
-                    for (let i = 0; i < 10; i++) {
-                        const randomStr = Math.random().toString(36).substring(2, 8);
-                        const tkn = `vip_${randomStr}_${cid.substring(0,3)}`;
-                        await addDoc(collection(db, "tokens_vip"), {
-                            token: tkn,
-                            comercioId: cid,
-                            estado: 'disponible',
-                            fechaCreacion: Date.now()
-                        });
-                    }
-                    return abrirInvitacionesVIP(); // Re-llamada para mostrar los nuevos
-                }
-
-                cont.innerHTML = "";
-                tokens.forEach((t, i) => {
-                    const link = `https://habitatcar.github.io/usuarios_registro_vip.html?t=${t.token}`;
-                    const esUsado = t.estado !== 'disponible';
-                    cont.innerHTML += `
-                        <div class="bg-black/50 border border-gray-800 p-4 rounded-2xl flex items-center justify-between gap-2">
-                            <div class="text-left">
-                                <span class="block text-[8px] text-gray-500 font-black uppercase">PASE ${i+1}</span>
-                                <span class="block text-[10px] font-bold ${esUsado ? 'text-red-500' : 'text-green-500'}">
-                                    ${esUsado ? '🔴 YA USADO' : '🟢 DISPONIBLE'}
-                                </span>
-                            </div>
-                            <button onclick="copiarLinkPase('${link}')" ${esUsado ? 'disabled' : ''} 
-                                class="${esUsado ? 'bg-gray-800 text-gray-600' : 'bg-dorado text-black'} px-3 py-2 rounded-xl text-[9px] font-black uppercase">
-                                ${esUsado ? 'CANJEADO' : 'COPIAR LINK'}
-                            </button>
-                        </div>`;
-                });
-            } catch (e) { console.error(e); }
-        };
-
-        window.cerrarInvitaciones = () => {
-            const modal = document.getElementById('modalInvitaciones');
-            modal.classList.add('hidden');
-            modal.classList.remove('flex');
-        };
-
-        window.copiarLinkPase = (l) => {
-            navigator.clipboard.writeText(l).then(() => alert("✅ ¡Link de invitación copiado!"));
-        };
-
-        // ... RESTO DE FUNCIONES DE AUDITORÍA (MANTENER IGUAL) ...
-        function iniciarSuscripciones(uid) {
-            const qVip = query(collection(db, "logs_vip"), where("comercioId", "==", uid));
-            unsubVip = onSnapshot(qVip, (snap) => procesarSnapshot(snap, "VIP"));
-            const qLead = query(collection(db, "logs_actividad"), where("comercioId", "==", uid), where("tipo", "==", "canje"));
-            unsubLead = onSnapshot(qLead, (snap) => procesarSnapshot(snap, "LEAD"));
-        }
-
-        function procesarSnapshot(snap, tipo) {
-            const tabla = document.getElementById('tablaMaestra');
-            snap.docChanges().forEach((change) => {
-                if (change.type === "added") {
-                    const d = change.doc.data();
-                    const docId = change.doc.id;
-                    if (document.getElementById(docId)) return;
-
-                    let fecha = d.fecha?.toDate ? d.fecha.toDate() : (d.timestamp ? new Date(d.timestamp) : new Date());
-                    const timestamp = fecha.getTime();
-                    const esVip = (tipo === "VIP");
-                    
-                    const userId = d.usuarioId || d.userId || d.nombre || "anonimo";
-                    registroUsuarios[userId] = (registroUsuarios[userId] || 0) + 1;
-                    const usos = registroUsuarios[userId];
-
-                    if (miGrafico) {
-                        let diaIndex = fecha.getDay(); 
-                        let diaAjustado = diaIndex === 0 ? 6 : diaIndex - 1; 
-                        miGrafico.data.datasets[esVip ? 0 : 1].data[diaAjustado]++;
-                        miGrafico.update();
-                    }
-
-                    const filaHTML = `
-                        <tr id="${docId}" data-time="${timestamp}" class="hover:bg-black border-b border-gray-800">
-                            <td class="p-5 font-bold">${fecha.toLocaleDateString()}<br><span class="text-gray-500 font-normal">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}hs</span></td>
-                            <td class="p-5"><span class="px-2 py-1 rounded text-[10px] font-black ${esVip ? 'bg-yellow-900/40 text-dorado' : 'bg-blue-900/40 text-blue-400'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
-                            <td class="p-5 font-mono">${d.idValidacion || d.codigoGenerado || d.idCupon || d.nroCupon || 'LEAD'}</td>
-                            <td class="p-5 text-gray-400 text-xs">
-                                <div>${d.beneficio || d.detalle || d.nombre || 'Sin detalle'}</div>
-                                <div class="text-dorado font-bold mt-1 uppercase text-[9px]">Usos registrados: ${usos}</div>
-                            </td>
-                        </tr>`;
-
-                    const filas = Array.from(tabla.querySelectorAll('tr'));
-                    const posicion = filas.findIndex(f => parseInt(f.getAttribute('data-time')) < timestamp);
-                    if (posicion === -1) tabla.insertAdjacentHTML('beforeend', filaHTML);
-                    else filas[posicion].insertAdjacentHTML('beforebegin', filaHTML);
-
-                    const elStat = document.getElementById(esVip ? 'statVip' : 'statLead');
-                    elStat.innerText = parseInt(elStat.innerText) + 1;
-                    document.getElementById('statTotal').innerText = parseInt(document.getElementById('statVip').innerText) + parseInt(document.getElementById('statLead').innerText);
-                    document.getElementById('statUltima').innerText = fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                }
-            });
-        }
-
-        window.irAFicha = () => {
-            const cid = document.getElementById('comercioId').value;
-            window.location.href = `admin_comercios.html?id=${cid}`;
-        };
-
-        window.generarPDF = async (soloBlob = false) => {
-            const element = document.getElementById('pdf-content');
-            const nav = document.getElementById('footerNav');
-            const btnFicha = document.getElementById('btnFichaArea');
-            const tablaCont = document.querySelector('.contenedor-tabla');
-
-            nav.style.display = 'none';
-            btnFicha.style.display = 'none';
-
-            const oldMaxH = tablaCont.style.maxHeight;
-            const oldOverflow = tablaCont.style.overflowY;
-            
-            tablaCont.style.maxHeight = 'none';
-            tablaCont.style.overflowY = 'visible';
-
-            const opt = { 
-                margin: 0.2, 
-                filename: 'Reporte_Auditoria_HabitatCar.pdf', 
-                image: { type: 'jpeg', quality: 0.98 }, 
-                html2canvas: { 
-                    scale: 2, 
-                    backgroundColor: '#0a0a0a', 
-                    useCORS: true, 
-                    scrollY: 0, 
-                    windowWidth: document.documentElement.offsetWidth 
-                }, 
-                jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } 
+            const firebaseConfig = {
+                apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+                authDomain: "habitatcar-pro.firebaseapp.com",
+                projectId: "habitatcar-pro",
+                storageBucket: "habitatcar-pro.firebasestorage.app",
+                messagingSenderId: "311691258694",
+                appId: "1:311691258694:web:17a09051dcea7707af9347"
             };
 
-            try {
-                const worker = html2pdf().set(opt).from(element);
-                if (soloBlob) {
-                    const blob = await worker.output('blob');
-                    restaurarUI();
-                    return blob;
+            const app = initializeApp(firebaseConfig);
+            const db = getFirestore(app);
+            let unsubVip = null, unsubLead = null;
+            let miGrafico = null;
+            const registroUsuarios = {}; 
+
+            // LÓGICA DE VALIDACIÓN (INTACTA)
+            window.validarYConsultar = async () => {
+                const cid = document.getElementById('comercioId').value.trim();
+                const pass = document.getElementById('comercioPass').value.trim();
+                if(!cid || !pass) return alert("Complete los datos de acceso");
+
+                try {
+                    const q = query(collection(db, "comercios"), where("idComercio", "==", cid));
+                    const querySnapshot = await getDocs(q);
+                    if (querySnapshot.empty) return alert("El ID de comercio no existe.");
+
+                    const docSnap = querySnapshot.docs[0];
+                    const docData = docSnap.data();
+                    const uidFirebase = docSnap.id; 
+
+                    if (docData.password === pass) {
+                        document.getElementById('nombreComercioDinamico').innerText = docData.nombre || "";
+                        sessionStorage.setItem('token_habitat_' + cid, 'autorizado_' + Date.now());
+                        document.getElementById('loginBox').classList.add('hidden');
+                        document.getElementById('dashboard').classList.remove('hidden');
+                        inicializarGrafico();
+                        iniciarSuscripciones(uidFirebase);
+                    } else { alert("Contraseña incorrecta"); }
+                } catch (error) { console.error(error); alert("Error de conexión."); }
+            };
+
+            // --- FUNCIÓN CORREGIDA ---
+            window.abrirInvitacionesVIP = async () => {
+                const cid = document.getElementById('comercioId').value.trim();
+                const modal = document.getElementById('modalInvitaciones');
+                const cont = document.getElementById('contenedor-tokens');
+                
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+                cont.innerHTML = '<p class="text-center text-dorado py-10 uppercase font-black text-xs animate-pulse">Consultando Invitaciones...</p>';
+
+                try {
+                    // Consultamos tokens que pertenecen a este comercio
+                    const qTokens = query(collection(db, "tokens_vip"), where("comercioId", "==", cid));
+                    const snap = await getDocs(qTokens);
+                    let docs = snap.docs.map(d => ({id: d.id, ...d.data()}));
+
+                    // Si no tiene tokens, generamos los 10 de cortesía MARCÁNDOLOS como "comercio"
+                    if (docs.length === 0) {
+                        for (let i = 0; i < 10; i++) {
+                            const randomStr = Math.random().toString(36).substring(2, 8);
+                            const tkn = `vip_${randomStr}_${cid.substring(0,3)}`;
+                            await addDoc(collection(db, "tokens_vip"), {
+                                token: tkn,
+                                comercioId: cid,
+                                estado: 'disponible',
+                                creadoPor: 'comercio', // <--- MARCA DE SEGURIDAD
+                                fechaCreacion: Date.now()
+                            });
+                        }
+                        return abrirInvitacionesVIP(); 
+                    }
+
+                    cont.innerHTML = "";
+                    docs.forEach((t, i) => {
+                        const link = `https://habitatcar.github.io/usuarios_registro_vip.html?t=${t.token}`;
+                        const esUsado = t.estado !== 'disponible';
+                        
+                        cont.innerHTML += `
+                            <div class="bg-black/50 border ${esUsado ? 'border-red-900/30' : 'border-gray-800'} p-4 rounded-2xl flex items-center justify-between gap-2">
+                                <div class="text-left">
+                                    <span class="block text-[8px] text-gray-500 font-black uppercase">INVITACIÓN COMERCIAL ${i+1}</span>
+                                    <span class="block text-[10px] font-bold ${esUsado ? 'text-red-500' : 'text-green-500'}">
+                                        ${esUsado ? '🔴 YA UTILIZADO' : '🟢 DISPONIBLE'}
+                                    </span>
+                                    ${esUsado ? `<span class="block text-[8px] text-gray-400 italic">ID: ${t.token}</span>` : ''}
+                                </div>
+                                <button onclick="copiarLinkPase('${link}')" ${esUsado ? 'disabled' : ''} 
+                                    class="${esUsado ? 'bg-gray-800 text-gray-600' : 'bg-dorado text-black shadow-[0_0_10px_rgba(212,175,55,0.3)]'} px-4 py-2 rounded-xl text-[9px] font-black uppercase transition-all active:scale-95">
+                                    ${esUsado ? 'CANJEADO' : 'COPIAR LINK'}
+                                </button>
+                            </div>`;
+                    });
+                } catch (e) { 
+                    console.error(e); 
+                    cont.innerHTML = '<p class="text-red-500 text-center text-xs p-4">Error al cargar invitaciones</p>';
                 }
-                await worker.save();
-                restaurarUI();
-            } catch (e) { console.error(e); restaurarUI(); }
+            };
 
-            function restaurarUI() {
-                nav.style.display = 'flex';
-                btnFicha.style.display = 'flex';
-                tablaCont.style.maxHeight = oldMaxH;
-                tablaCont.style.overflowY = oldOverflow;
-                window.scrollTo(0,0);
+            window.cerrarInvitaciones = () => {
+                const modal = document.getElementById('modalInvitaciones');
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            };
+
+            window.copiarLinkPase = (l) => {
+                navigator.clipboard.writeText(l).then(() => alert("✅ ¡Link de invitación copiado!"));
+            };
+
+            // ... RESTO DE FUNCIONES DE AUDITORÍA (MANTENIDAS IGUAL) ...
+            function iniciarSuscripciones(uid) {
+                const qVip = query(collection(db, "logs_vip"), where("comercioId", "==", uid));
+                unsubVip = onSnapshot(qVip, (snap) => procesarSnapshot(snap, "VIP"));
+                const qLead = query(collection(db, "logs_actividad"), where("comercioId", "==", uid), where("tipo", "==", "canje"));
+                unsubLead = onSnapshot(qLead, (snap) => procesarSnapshot(snap, "LEAD"));
             }
-        };
 
-        window.compartirApp = async () => {
-            try {
-                const pdfBlob = await generarPDF(true);
-                const file = new File([pdfBlob], "Reporte_HabitatCar.pdf", { type: "application/pdf" });
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({ files: [file], title: 'Auditoría HABITAT-CAR' });
-                } else { window.generarPDF(); }
-            } catch (e) { console.error(e); alert("Error al compartir."); }
-        };
+            function procesarSnapshot(snap, tipo) {
+                const tabla = document.getElementById('tablaMaestra');
+                snap.docChanges().forEach((change) => {
+                    if (change.type === "added") {
+                        const d = change.doc.data();
+                        const docId = change.doc.id;
+                        if (document.getElementById(docId)) return;
 
-        function inicializarGrafico() {
-            const ctx = document.getElementById('graficoSemanal').getContext('2d');
-            miGrafico = new Chart(ctx, {
-                type: 'line',
-                data: {
-                    labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
-                    datasets: [
-                        { label: 'VIP', data: [0,0,0,0,0,0,0], borderColor: '#d4af37', tension: 0.4 },
-                        { label: 'LEAD', data: [0,0,0,0,0,0,0], borderColor: '#3b82f6', tension: 0.4 }
-                    ]
-                },
-                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#aaa' } } } }
-            });
-        }
-    </script>
+                        let fecha = d.fecha?.toDate ? d.fecha.toDate() : (d.timestamp ? new Date(d.timestamp) : new Date());
+                        const timestamp = fecha.getTime();
+                        const esVip = (tipo === "VIP");
+                        
+                        const userId = d.usuarioId || d.userId || d.nombre || "anonimo";
+                        registroUsuarios[userId] = (registroUsuarios[userId] || 0) + 1;
+                        const usos = registroUsuarios[userId];
+
+                        if (miGrafico) {
+                            let diaIndex = fecha.getDay(); 
+                            let diaAjustado = diaIndex === 0 ? 6 : diaIndex - 1; 
+                            miGrafico.data.datasets[esVip ? 0 : 1].data[diaAjustado]++;
+                            miGrafico.update();
+                        }
+
+                        const filaHTML = `
+                            <tr id="${docId}" data-time="${timestamp}" class="hover:bg-black border-b border-gray-800">
+                                <td class="p-5 font-bold">${fecha.toLocaleDateString()}<br><span class="text-gray-500 font-normal">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}hs</span></td>
+                                <td class="p-5"><span class="px-2 py-1 rounded text-[10px] font-black ${esVip ? 'bg-yellow-900/40 text-dorado' : 'bg-blue-900/40 text-blue-400'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
+                                <td class="p-5 font-mono">${d.idValidacion || d.codigoGenerado || d.idCupon || d.nroCupon || 'LEAD'}</td>
+                                <td class="p-5 text-gray-400 text-xs">
+                                    <div>${d.beneficio || d.detalle || d.nombre || 'Sin detalle'}</div>
+                                    <div class="text-dorado font-bold mt-1 uppercase text-[9px]">Usos registrados: ${usos}</div>
+                                </td>
+                            </tr>`;
+
+                        const filas = Array.from(tabla.querySelectorAll('tr'));
+                        const posicion = filas.findIndex(f => parseInt(f.getAttribute('data-time')) < timestamp);
+                        if (posicion === -1) tabla.insertAdjacentHTML('beforeend', filaHTML);
+                        else filas[posicion].insertAdjacentHTML('beforebegin', filaHTML);
+
+                        const elStat = document.getElementById(esVip ? 'statVip' : 'statLead');
+                        elStat.innerText = parseInt(elStat.innerText) + 1;
+                        document.getElementById('statTotal').innerText = parseInt(document.getElementById('statVip').innerText) + parseInt(document.getElementById('statLead').innerText);
+                        document.getElementById('statUltima').innerText = fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+                    }
+                });
+            }
+
+            window.irAFicha = () => {
+                const cid = document.getElementById('comercioId').value;
+                window.location.href = `admin_comercios.html?id=${cid}`;
+            };
+
+            window.generarPDF = async (soloBlob = false) => {
+                const element = document.getElementById('pdf-content');
+                const nav = document.getElementById('footerNav');
+                const btnFicha = document.getElementById('btnFichaArea');
+                const tablaCont = document.querySelector('.contenedor-tabla');
+
+                nav.style.display = 'none';
+                btnFicha.style.display = 'none';
+
+                const oldMaxH = tablaCont.style.maxHeight;
+                const oldOverflow = tablaCont.style.overflowY;
+                
+                tablaCont.style.maxHeight = 'none';
+                tablaCont.style.overflowY = 'visible';
+
+                const opt = { 
+                    margin: 0.2, 
+                    filename: 'Reporte_Auditoria_HabitatCar.pdf', 
+                    image: { type: 'jpeg', quality: 0.98 }, 
+                    html2canvas: { 
+                        scale: 2, 
+                        backgroundColor: '#0a0a0a', 
+                        useCORS: true, 
+                        scrollY: 0, 
+                        windowWidth: document.documentElement.offsetWidth 
+                    }, 
+                    jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } 
+                };
+
+                try {
+                    const worker = html2pdf().set(opt).from(element);
+                    if (soloBlob) {
+                        const blob = await worker.output('blob');
+                        restaurarUI();
+                        return blob;
+                    }
+                    await worker.save();
+                    restaurarUI();
+                } catch (e) { console.error(e); restaurarUI(); }
+
+                function restaurarUI() {
+                    nav.style.display = 'flex';
+                    btnFicha.style.display = 'flex';
+                    tablaCont.style.maxHeight = oldMaxH;
+                    tablaCont.style.overflowY = oldOverflow;
+                    window.scrollTo(0,0);
+                }
+            };
+
+            window.compartirApp = async () => {
+                try {
+                    const pdfBlob = await generarPDF(true);
+                    const file = new File([pdfBlob], "Reporte_HabitatCar.pdf", { type: "application/pdf" });
+                    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file], title: 'Auditoría HABITAT-CAR' });
+                    } else { window.generarPDF(); }
+                } catch (e) { console.error(e); alert("Error al compartir."); }
+            };
+
+            function inicializarGrafico() {
+                const ctx = document.getElementById('graficoSemanal').getContext('2d');
+                miGrafico = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'],
+                        datasets: [
+                            { label: 'VIP', data: [0,0,0,0,0,0,0], borderColor: '#d4af37', tension: 0.4 },
+                            { label: 'LEAD', data: [0,0,0,0,0,0,0], borderColor: '#3b82f6', tension: 0.4 }
+                        ]
+                    },
+                    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#aaa' } } } }
+                });
+            }
+        </script>
 </body>
 </html>
