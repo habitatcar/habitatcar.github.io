@@ -178,7 +178,7 @@
             let miGrafico = null;
             const registroUsuarios = {}; 
 
-            // === FUNCIÓN ACTUALIZADA CON MENSAJES AUDITORÍA ===
+            // === FUNCIÓN DE NOTIFICACIÓN AUDITADA ===
             const mostrarErrorAuditor = (mensaje) => {
                 const box = document.getElementById('customAlert');
                 box.innerText = mensaje;
@@ -224,7 +224,6 @@
                 }
             };
 
-            // --- FUNCIÓN CORREGIDA ---
             window.abrirInvitacionesVIP = async () => {
                 const cid = document.getElementById('comercioId').value.trim();
                 const modal = document.getElementById('modalInvitaciones');
@@ -235,12 +234,10 @@
                 cont.innerHTML = '<p class="text-center text-dorado py-10 uppercase font-black text-xs animate-pulse">Consultando Invitaciones...</p>';
 
                 try {
-                    // Consultamos tokens que pertenecen a este comercio
                     const qTokens = query(collection(db, "tokens_vip"), where("comercioId", "==", cid));
                     const snap = await getDocs(qTokens);
                     let docs = snap.docs.map(d => ({id: d.id, ...d.data()}));
 
-                    // Si no tiene tokens, generamos los 10 de cortesía MARCÁNDOLOS como "comercio"
                     if (docs.length === 0) {
                         for (let i = 0; i < 10; i++) {
                             const randomStr = Math.random().toString(36).substring(2, 8);
@@ -249,7 +246,7 @@
                                 token: tkn,
                                 comercioId: cid,
                                 estado: 'disponible',
-                                creadoPor: 'comercio', // <--- MARCA DE SEGURIDAD
+                                creadoPor: 'comercio',
                                 fechaCreacion: Date.now()
                             });
                         }
@@ -278,7 +275,7 @@
                     });
                 } catch (e) { 
                     console.error(e); 
-                    cont.innerHTML = '<p class="text-red-500 text-center text-xs p-4">Error al cargar invitaciones</p>';
+                    mostrarErrorAuditor("❌ ERROR AL CARGAR LAS INVITACIONES");
                 }
             };
 
@@ -289,10 +286,11 @@
             };
 
             window.copiarLinkPase = (l) => {
-                navigator.clipboard.writeText(l).then(() => alert("✅ ¡Link de invitación copiado!"));
+                navigator.clipboard.writeText(l).then(() => {
+                    mostrarErrorAuditor("✅ ENLACE VIP COPIADO CON ÉXITO");
+                });
             };
 
-            // ... RESTO DE FUNCIONES DE AUDITORÍA (MANTENIDAS IGUAL) ...
             function iniciarSuscripciones(uid) {
                 const qVip = query(collection(db, "logs_vip"), where("comercioId", "==", uid));
                 unsubVip = onSnapshot(qVip, (snap) => procesarSnapshot(snap, "VIP"));
@@ -390,7 +388,11 @@
                     }
                     await worker.save();
                     restaurarUI();
-                } catch (e) { console.error(e); restaurarUI(); }
+                } catch (e) { 
+                    console.error(e); 
+                    restaurarUI(); 
+                    mostrarErrorAuditor("❌ ERROR CRÍTICO AL GENERAR REPORTE");
+                }
 
                 function restaurarUI() {
                     nav.style.display = 'flex';
@@ -407,8 +409,15 @@
                     const file = new File([pdfBlob], "Reporte_HabitatCar.pdf", { type: "application/pdf" });
                     if (navigator.canShare && navigator.canShare({ files: [file] })) {
                         await navigator.share({ files: [file], title: 'Auditoría HABITAT-CAR' });
-                    } else { window.generarPDF(); }
-                } catch (e) { console.error(e); alert("Error al compartir."); }
+                    } else { 
+                        // Si el navegador no permite compartir archivos directamente, intentamos descargar
+                        window.generarPDF(); 
+                        mostrarErrorAuditor("⚠️ FUNCIÓN DE COMPARTIR NO SOPORTADA: SE INICIÓ DESCARGA");
+                    }
+                } catch (e) { 
+                    console.error(e); 
+                    mostrarErrorAuditor("🚫 SEGURIDAD: ERROR AL PROCESAR EL ARCHIVO COMPARTIDO");
+                }
             };
 
             function inicializarGrafico() {
