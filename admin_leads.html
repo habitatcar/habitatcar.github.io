@@ -205,7 +205,7 @@
 
     <div id="modal-bienvenida">
         <div class="cartel">
-            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true                  " style="width: 140px;">
+            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="width: 140px;">
             <h2 style="color: var(--celeste-habitat)">¡Socio 💎 VIP Activado!</h2>
             <p>El usuario ha sido movido a la sección VIP</p>
             <span id="nombre-socio" style="font-size: 1.8em; font-weight: bold; color: var(--rojo); display: block; margin: 15px 0;">---</span>
@@ -214,7 +214,7 @@
     </div>
 
     <header class="header">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true                  " class="logo">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
         <nav class="nav-menu">
             <a href="admin_comercios.html" class="nav-link">Comercios</a>
             <a href="admin_leads.html" class="nav-link active">Leads</a>
@@ -287,8 +287,8 @@
 
     <script type="module">
         // ✅ PASO 1: Importación con deleteField (ya estaba presente)
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js                  ";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js                  ";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc, deleteField, writeBatch, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -309,7 +309,7 @@
 
         async function cargarProvincias() {
             try {
-                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre                  ");
+                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
                 const data = await res.json();
                 const combo = document.getElementById('filtro-provincia');
                 combo.innerHTML = '<option value="">PROVINCIA</option>';
@@ -341,7 +341,7 @@
             }
 
             try {
-                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=                  ${encodeURIComponent(provNombreNormalized.toLowerCase())}&max=1000&campos=nombre  `);
+                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provNombreNormalized.toLowerCase())}&max=1000&campos=nombre`);
                 const data = await res.json();
                 todasLasLocalidades = data.municipios.map(m => m.nombre.toLowerCase());
                 todasLasLocalidades.sort((a,b) => a.localeCompare(b));
@@ -446,7 +446,7 @@
                             <div class="acciones-bloque">
                                 <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${nombreFull}')"><span>💎</span> VIP</button>
                                 <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}')"><span>🔄</span> RESTABLECER</button>
-                                <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado}', '${nombreFull}')"><span>${suspendido ? '✅' : '🚫'}</span> ${suspendido ? 'ACTIVAR' : 'SUSPENDER'}</button>
+                                <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado || 'activo'}', '${nombreFull}')"><span>${suspendido ? '✅' : '🚫'}</span> ${suspendido ? 'ACTIVAR' : 'SUSPENDER'}</button>
                                 <button class="btn-action btn-del" onclick="borrarLead('${l.id}')">
                                     <span>🗑️</span> ELIMINAR LEAD
                                 </button>
@@ -498,10 +498,28 @@
             }
         };
 
+        // ✅ ✅ ✅ FUNCIÓN ACTUALIZADA SEGÚN TU SOLICITUD ✅ ✅ ✅
         window.toggleEstado = async (id, estadoActual, nombre) => {
-            const nuevo = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
-            if(confirm(`¿${nuevo === 'suspendido' ? 'Suspender' : 'Activar'} a ${nombre}?`)) {
-                await updateDoc(doc(db, "leads", id), { estado: nuevo });
+            const nuevoEstado = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
+            const accionTexto = nuevoEstado === 'suspendido' ? 'SUSPENDER' : 'ACTIVAR';
+
+            if(confirm(`¿Estás seguro de ${accionTexto} a ${nombre}?\n\nNota: Si lo suspendes, no podrá visualizar ni usar sus cupones.`)) {
+                try {
+                    const leadRef = doc(db, "leads", id);
+                    
+                    // Si suspendemos, también podemos resetear o marcar una bandera de bloqueo
+                    await updateDoc(leadRef, { 
+                        estado: nuevoEstado,
+                        // Opcional: puedes agregar una marca de tiempo de la suspensión
+                        fechaModificacionEstado: Date.now() 
+                    });
+
+                    await registrarActividad(id, nombre, `${accionTexto} usuario`);
+                    alert(`Usuario ${nombre} ha sido ${nuevoEstado === 'suspendido' ? 'suspendido' : 'reactivado'}.`);
+                } catch (e) {
+                    console.error("Error al cambiar estado:", e);
+                    alert("Error al procesar la solicitud.");
+                }
             }
         };
 
