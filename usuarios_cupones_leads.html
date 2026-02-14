@@ -364,7 +364,6 @@
 
     <script type="module">
         // --- ESCUDO DE SEGURIDAD VIP ---
-        // Si el usuario ya es VIP, no puede estar en esta página de cupones Lead.
         if (localStorage.getItem('habitat_vip_auth') === 'true') {
             window.location.replace("usuarios_cupones_vips.html");
         }
@@ -396,24 +395,33 @@
             "invitado_" + Date.now(); 
         const leadNombre = localStorage.getItem('leadNombre') || "Usuario";
         const leadApellido = localStorage.getItem('leadApellido') || "Leads";
-        // ------------------------------------
 
-        // ✅ PASO 2: Escuchador de restablecimiento
+        // ✅ ✅ ✅ VALIDACIÓN DE SUSPENSIÓN AL CARGAR LA PÁGINA ✅ ✅ ✅
+        if (!leadId.startsWith('invitado_')) {
+            const leadRef = doc(db, "leads", leadId);
+            const leadSnap = await getDoc(leadRef);
+            if (leadSnap.exists()) {
+                const datosLead = leadSnap.data();
+                if (datosLead.estado === 'suspendido') {
+                    alert("Tu cuenta se encuentra temporalmente suspendida. Contacta a soporte.");
+                    window.location.href = "error_suspension.html"; // O cualquier página de aviso
+                    return;
+                }
+            }
+        }
+
         // --- NUEVO: ESCUCHAR RESTABLECIMIENTO DESDE ADMIN ---
         if (leadId && !leadId.startsWith('invitado_')) {
             onSnapshot(doc(db, "leads", leadId), (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    // Si el admin borró el campo de canjes o está vacío
                     if (!data.canjes_por_comercio || Object.keys(data.canjes_por_comercio).length === 0) {
-                        // Borramos los bloqueos locales
                         Object.keys(localStorage).forEach(key => {
                             if (key.startsWith('uso_lead_')) {
                                 localStorage.removeItem(key);
                             }
                         });
                         localStorage.setItem('usados_v16_ok', JSON.stringify([]));
-                        // Nota: No hace falta recargar, el siguiente paso actualizará la vista solo
                     }
                 }
             });
@@ -453,7 +461,6 @@
             return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
         };
 
-        // ✅ PASO 3: Lógica de carga de cupones (ya estaba correcta, se mantiene)
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-cupones');
             const inicios = getInicios();
@@ -465,8 +472,7 @@
                 const id = docSnap.id;
                 if (c.estado === "inactivo") return;
 
-                // ✅ Dentro del snap.forEach de comercios...
-                const nUso = getUsosLocales(id); // Esta función ya la tienes definida arriba
+                const nUso = getUsosLocales(id);
                 const esUsado = nUso > 0;
 
                 const nombre = c.nombre || "Local";
@@ -507,7 +513,6 @@
                     infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
                 }
 
-                // ✅ Asegúrate de que los botones usen 'esUsado' para ponerse grises o no
                 html += `
                     <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
                         ${htmlLogo}
