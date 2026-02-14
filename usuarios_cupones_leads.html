@@ -372,7 +372,6 @@
         window.onpopstate = function () { history.go(1); };
         localStorage.setItem('habitat_auth', 'true');
 
-        // ✅ PASO 1: Importación verificada
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -387,7 +386,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // --- CAPTURA DE DATOS PROTEGIDA ---
         const leadId = 
             localStorage.getItem('leadId_habitat') ||
             localStorage.getItem('leadId_v16') ||
@@ -396,25 +394,27 @@
         const leadNombre = localStorage.getItem('leadNombre') || "Usuario";
         const leadApellido = localStorage.getItem('leadApellido') || "Leads";
 
-        // ✅ ✅ ✅ VALIDACIÓN DE SUSPENSIÓN AL CARGAR LA PÁGINA ✅ ✅ ✅
-        if (!leadId.startsWith('invitado_')) {
-            const leadRef = doc(db, "leads", leadId);
-            const leadSnap = await getDoc(leadRef);
-            if (leadSnap.exists()) {
-                const datosLead = leadSnap.data();
-                if (datosLead.estado === 'suspendido') {
-                    alert("Tu cuenta se encuentra temporalmente suspendida. Contacta a soporte.");
-                    window.location.href = "error_suspension.html"; // Página de aviso
-                    return;
-                }
-            }
-        }
-
-        // --- NUEVO: ESCUCHAR RESTABLECIMIENTO DESDE ADMIN ---
+        // ✅ ✅ ✅ VALIDACIÓN EN ON_SNAPSHOT DEL LEAD ✅ ✅ ✅
         if (leadId && !leadId.startsWith('invitado_')) {
             onSnapshot(doc(db, "leads", leadId), (docSnap) => {
                 if (docSnap.exists()) {
                     const data = docSnap.data();
+
+                    // --- BLOQUE DE SEGURIDAD AGREGADO ---
+                    if (data.estado === 'suspendido') {
+                        document.body.innerHTML = `
+                            <div style="height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; background: #0a192f; color: white; text-align: center; padding: 20px; font-family: sans-serif;">
+                                <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="width: 120px; margin-bottom: 20px;">
+                                <h1 style="color: #ff9800;">ACCESO RESTRINGIDO</h1>
+                                <p style="font-size: 1.2em;">Tu acceso a los beneficios ha sido suspendido temporalmente.</p>
+                                <p style="color: #8892b0;">Por favor, contacta con la administración para más información.</p>
+                                <button onclick="location.reload()" style="margin-top: 20px; padding: 10px 20px; background: #004a99; color: white; border: none; border-radius: 5px; cursor: pointer;">REINTENTAR</button>
+                            </div>
+                        `;
+                        return;
+                    }
+                    // --- FIN DEL BLOQUE DE SEGURIDAD ---
+
                     if (!data.canjes_por_comercio || Object.keys(data.canjes_por_comercio).length === 0) {
                         Object.keys(localStorage).forEach(key => {
                             if (key.startsWith('uso_lead_')) {
