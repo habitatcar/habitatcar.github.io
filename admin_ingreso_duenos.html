@@ -30,9 +30,38 @@
             background-color: #1f2937;
             z-index: 10;
         }
+
+        /* Notificación Personalizada */
+        #customAlert {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #000;
+            border: 2px solid var(--dorado);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 12px;
+            z-index: 10000;
+            box-shadow: 0 0 20px rgba(212, 175, 55, 0.4);
+            font-weight: bold;
+            text-transform: uppercase;
+            font-size: 0.8rem;
+            letter-spacing: 1px;
+            text-align: center;
+            animation: fadeInDown 0.4s ease-out;
+        }
+
+        @keyframes fadeInDown {
+            from { opacity: 0; transform: translate(-50%, -20px); }
+            to { opacity: 1; transform: translate(-50%, 0); }
+        }
     </style>
 </head>
 <body class="p-4 pb-32">
+
+<div id="customAlert"></div>
 
     <div id="pdf-content" class="max-w-5xl mx-auto">
         <header class="text-center mb-8">
@@ -149,16 +178,31 @@
             let miGrafico = null;
             const registroUsuarios = {}; 
 
-            // LÓGICA DE VALIDACIÓN (INTACTA)
+            // === FUNCIÓN ACTUALIZADA CON MENSAJES AUDITORÍA ===
+            const mostrarErrorAuditor = (mensaje) => {
+                const box = document.getElementById('customAlert');
+                box.innerText = mensaje;
+                box.style.display = 'block';
+                setTimeout(() => { box.style.display = 'none'; }, 3000);
+            };
+
             window.validarYConsultar = async () => {
                 const cid = document.getElementById('comercioId').value.trim();
                 const pass = document.getElementById('comercioPass').value.trim();
-                if(!cid || !pass) return alert("Complete los datos de acceso");
+                
+                if(!cid || !pass) {
+                    mostrarErrorAuditor("⚠️ ACCESO DENEGADO: COMPLETE LAS CREDENCIALES");
+                    return;
+                }
 
                 try {
                     const q = query(collection(db, "comercios"), where("idComercio", "==", cid));
                     const querySnapshot = await getDocs(q);
-                    if (querySnapshot.empty) return alert("El ID de comercio no existe.");
+                    
+                    if (querySnapshot.empty) {
+                        mostrarErrorAuditor("❌ ERROR: IDENTIFICACIÓN DE COMERCIO NO ENCONTRADA");
+                        return;
+                    }
 
                     const docSnap = querySnapshot.docs[0];
                     const docData = docSnap.data();
@@ -171,8 +215,13 @@
                         document.getElementById('dashboard').classList.remove('hidden');
                         inicializarGrafico();
                         iniciarSuscripciones(uidFirebase);
-                    } else { alert("Contraseña incorrecta"); }
-                } catch (error) { console.error(error); alert("Error de conexión."); }
+                    } else { 
+                        mostrarErrorAuditor("🚫 SEGURIDAD HABITAT-CAR: CREDENCIALES NO VÁLIDAS"); 
+                    }
+                } catch (error) { 
+                    console.error(error); 
+                    mostrarErrorAuditor("⚠️ ERROR DE RED: NO SE PUDO VALIDAR EL ACCESO"); 
+                }
             };
 
             // --- FUNCIÓN CORREGIDA ---
