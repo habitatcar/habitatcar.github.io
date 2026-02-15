@@ -509,12 +509,18 @@
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
                 const token = c.tokenQR || "";
                 
-                // Capturar todas las redes sociales
-                const ig = c.instagram || "";
-                const fb = c.facebook || "";
-                const tk = c.tiktok || "";
-                const web = c.sitioWeb || "";
-                
+                // Capturar y formatear todas las redes sociales correctamente
+                const igRaw = c.instagram || "";
+                const fbRaw = c.facebook || "";
+                const tkRaw = c.tiktok || "";
+                const webRaw = c.sitioWeb || "";
+
+                // Formatear URLs correctamente
+                const ig = igRaw ? (igRaw.includes('http') ? igRaw : `https://instagram.com/${igRaw.replace('@','')}`) : "";
+                const fb = fbRaw ? (fbRaw.includes('http') ? fbRaw : `https://facebook.com/${fbRaw}`) : "";
+                const tk = tkRaw ? (tkRaw.includes('http') ? tkRaw : `https://tiktok.com/@${tkRaw.replace('@','')}`) : "";
+                const web = webRaw ? (webRaw.includes('http') ? webRaw : `https://${webRaw}`) : "";
+
                 const tieneRedes = (ig !== "" || fb !== "" || tk !== "" || web !== "");
                 
                 let infoVencimiento = "";
@@ -526,6 +532,9 @@
                     infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
                 }
 
+                // Función para escapar strings en atributos HTML
+                const escapeAttr = (str) => str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
+
                 html += `
                     <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
                         ${htmlLogo}
@@ -534,10 +543,10 @@
                         <span class="info-txt">${infoVencimiento}</span>
                         ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
                         <div class="btn-stack">
-                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${nombre}', '${ig}', '${web}', '${fb}', '${tk}')">Conozca el comercio</button>` : ""}
-                            <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=  ${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
+                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${escapeAttr(nombre)}', '${escapeAttr(ig)}', '${escapeAttr(web)}', '${escapeAttr(fb)}', '${escapeAttr(tk)}')">Conozca el comercio</button>` : ""}
+                            <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
-                            <button class="btn-act btn-usar ${esUsado ? 'usado' : ''}" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre}')">
+                            <button class="btn-act btn-usar ${esUsado ? 'usado' : ''}" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${escapeAttr(nombre)}')">
                                 Usar el Beneficio <span class="contador-nube">${nUso}</span>
                             </button>
                         </div>
@@ -579,25 +588,25 @@
         window.abrirPopup = (nom, ig, web, fb, tk) => {
             document.getElementById('pop-nombre').innerText = nom;
             
-            // Configuración Instagram
+            // Configuración Instagram - solo muestra si hay URL válida
             const btnIg = document.getElementById('lnk-ig');
             btnIg.href = ig || "#";
-            btnIg.style.display = (ig && ig !== "#") ? 'block' : 'none';
+            btnIg.style.display = (ig && ig !== "#" && ig.trim() !== "") ? 'block' : 'none';
             
-            // Configuración Facebook
+            // Configuración Facebook - solo muestra si hay URL válida
             const btnFb = document.getElementById('lnk-fb');
             btnFb.href = fb || "#";
-            btnFb.style.display = (fb && fb !== "#") ? 'block' : 'none';
+            btnFb.style.display = (fb && fb !== "#" && fb.trim() !== "") ? 'block' : 'none';
             
-            // Configuración TikTok
+            // Configuración TikTok - solo muestra si hay URL válida
             const btnTk = document.getElementById('lnk-tk');
             btnTk.href = tk || "#";
-            btnTk.style.display = (tk && tk !== "#") ? 'block' : 'none';
+            btnTk.style.display = (tk && tk !== "#" && tk.trim() !== "") ? 'block' : 'none';
             
-            // Configuración Web
+            // Configuración Web - solo muestra si hay URL válida
             const btnWeb = document.getElementById('lnk-web');
             btnWeb.href = web || "#";
-            btnWeb.style.display = (web && web !== "#") ? 'block' : 'none';
+            btnWeb.style.display = (web && web !== "#" && web.trim() !== "") ? 'block' : 'none';
             
             document.getElementById('popup-redes').style.display = 'flex';
         };
