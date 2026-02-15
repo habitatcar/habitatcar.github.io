@@ -206,14 +206,14 @@
             flex-direction: column;
             width: 85%;
             max-width: 320px;
-            max-height: 80vh; /* Para que no se salga de la pantalla */
-            overflow-y: auto; /* Scroll si hay muchos botones */
+            max-height: 80vh;
+            overflow-y: auto;
         }
         .btn-red {
             display: block;
             width: 100%;
             padding: 12px;
-            margin-bottom: 8px; /* Espacio real entre botones */
+            margin-bottom: 8px;
             text-align: center;
             color: white;
             text-decoration: none;
@@ -341,10 +341,15 @@
         </div>
     </div>
 
+    <!-- ✅ POPUP DE REDES SOCIALES ACTUALIZADO -->
     <div id="popup-redes" class="popup-redes">
-        <h3 id="pop-nombre" style="margin:0 0 10px 0; color:var(--negro); text-align:center;"></h3>
+        <h3 id="pop-nombre" style="margin:0 0 15px 0; color:var(--negro); text-align:center;"></h3>
         
-        <a id="lnk-sorteos" class="btn-red" style="background:#ff8c00; margin-top:10px;" href="admin_comercios.html">SORTEOS Y PROMOS</a>
+        <div id="contenedor-botones-redes" style="display:flex; flex-direction:column; gap:10px; width:100%;"></div>
+        
+        <hr id="separador-sorteos" style="width:100%; border:0; border-top:1px solid #eee; margin:10px 0; display:none;">
+        
+        <a id="lnk-sorteos" class="btn-red" style="background:#ff8c00; display: block;" href="admin_comercios.html">SORTEOS Y PROMOS</a>
 
         <button onclick="cerrarPopup()" style="border:none; background:#eee; color:#333; padding:10px; border-radius:8px; cursor:pointer; margin-top:10px; width:100%; font-weight:bold;">CERRAR</button>
     </div>
@@ -529,6 +534,7 @@
                 const token = c.tokenQR || "";
                 
                 // Capturar y formatear todas las redes sociales correctamente
+                // ✅ ORDEN CORREGIDO: Nombre, Instagram, Sitio Web, Facebook, TikTok
                 const igRaw = c.instagram || "";
                 const fbRaw = c.facebook || "";
                 const tkRaw = c.tiktok || "";
@@ -603,40 +609,44 @@
             };
         };
 
-        // Función actualizada con lógica de oro para manejar todas las redes sociales
+        // ✅ FUNCIÓN abrirPopup ACTUALIZADA CON LÓGICA DE LIMPIEZA TOTAL
         window.abrirPopup = (nom, ig, web, fb, tk) => {
             document.getElementById('pop-nombre').innerText = nom;
-            const contenedor = document.getElementById('popup-redes');
+            const contenedor = document.getElementById('contenedor-botones-redes');
             
-            // 1. Limpiamos todos los botones de redes anteriores para que no queden huecos
-            // Pero mantenemos el título, el botón de sorteos y el de cerrar
-            const botonesExistentes = contenedor.querySelectorAll('.btn-red-dinamico');
-            botonesExistentes.forEach(b => b.remove());
+            // Limpiamos botones anteriores
+            contenedor.innerHTML = "";
 
-            const redSocial = (id, texto, link, color) => {
-                if (link && link !== "#" && link.trim() !== "") {
+            const crearBoton = (texto, link, color) => {
+                // Validación estricta: No nulo, no vacío, no solo un '#'
+                if (link && link.trim() !== "" && link !== "#") {
                     const a = document.createElement('a');
-                    a.id = id;
-                    a.className = 'btn-red btn-red-dinamico';
+                    a.className = 'btn-red';
                     a.style.background = color;
                     a.target = "_blank";
-                    a.href = link;
+                    a.href = link.startsWith('http') ? link : `https://${link}`;
                     a.innerText = texto;
-                    // Lo insertamos antes del botón de Sorteos
-                    contenedor.insertBefore(a, document.getElementById('lnk-sorteos'));
+                    contenedor.appendChild(a);
+                    return true;
                 }
+                return false;
             };
 
-            // 2. Solo se crearán si tienen contenido
-            redSocial('lnk-ig', 'INSTAGRAM', ig, '#e1306c');
-            redSocial('lnk-fb', 'FACEBOOK', fb, '#3b5998');
-            redSocial('lnk-tk', 'TIKTOK', tk, '#000000');
-            redSocial('lnk-web', 'SITIO WEB', web, '#004a99');
+            // Creamos los botones solo si tienen contenido
+            const tieneIg = crearBoton('INSTAGRAM', ig, '#e1306c');
+            const tieneFb = crearBoton('FACEBOOK', fb, '#3b5998');
+            const tieneTk = crearBoton('TIKTOK', tk, '#000000'); // TikTok corregido
+            const tieneWeb = crearBoton('SITIO WEB', web, '#004a99');
 
-            contenedor.style.display = 'flex';
+            // Mostrar separador solo si hay redes
+            document.getElementById('separador-sorteos').style.display = (tieneIg || tieneFb || tieneTk || tieneWeb) ? 'block' : 'none';
+            
+            document.getElementById('popup-redes').style.display = 'flex';
         };
         
-        window.cerrarPopup = () => document.getElementById('popup-redes').style.display = 'none';
+        window.cerrarPopup = () => {
+            document.getElementById('popup-redes').style.display = 'none';
+        };
         
         window.abrirQR = (id, token) => {
             idEnProceso = id; tokenEsperado = token;
