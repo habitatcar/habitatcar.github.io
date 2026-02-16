@@ -53,7 +53,7 @@
             margin-bottom: 25px;
             border-left: 5px solid var(--oro);
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            display: none; /* Se muestra solo si hay datos */
+            display: none; /* Se activa por JS */
         }
 
         .card h2 { 
@@ -67,7 +67,7 @@
         }
         
         .card h3 { color: white; margin: 10px 0; font-size: 1.4em; }
-        .card p { line-height: 1.6; font-size: 1.1em; color: #ccc; margin: 10px 0; }
+        .card p { line-height: 1.6; font-size: 1.1em; color: #ccc; }
 
         .btn-participar {
             background: linear-gradient(45deg, var(--naranja), #ff4500);
@@ -109,10 +109,11 @@
 
     <div class="header">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" alt="Hábitat-Car">
-        <h1 id="nombre-comercio" style="font-size: 1.5em; margin: 0; color: var(--oro);">Cargando...</h1>
+        <h1 id="nombre-comercio" style="font-size: 1.5em; margin: 0; color: var(--oro);">Buscando...</h1>
     </div>
 
-    <div class="container">
+    <div class="container" id="contenido-dinamico">
+        
         <div class="card" id="card-sorteo">
             <h2><i class="fas fa-trophy"></i> SORTEO ACTIVO</h2>
             <h3 id="tit-sorteo"></h3>
@@ -145,7 +146,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -159,49 +160,62 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // Obtenemos el nombre enviado por URL
         const params = new URLSearchParams(window.location.search);
-        const idComercio = params.get('id'); // Ahora recibimos el ID (nombre exacto)
+        const nombreBusqueda = params.get('id'); 
 
         let fechaSorteoGlobal = "";
 
         async function cargarDatos() {
-            if (!idComercio) return;
+            if (!nombreBusqueda) {
+                document.getElementById('nombre-comercio').innerText = "No se especificó comercio";
+                return;
+            }
 
             try {
-                // Buscamos por el nombre exacto que viene del botón
-                const q = query(collection(db, "comercios"), where("nombre", "==", idComercio));
+                // Buscamos en la colección "comercios" donde el campo "nombre" coincida
+                const q = query(collection(db, "comercios"), where("nombre", "==", nombreBusqueda));
                 const querySnapshot = await getDocs(q);
 
                 if (!querySnapshot.empty) {
-                    const c = querySnapshot.docs[0].data();
+                    const docSnap = querySnapshot.docs[0];
+                    const c = docSnap.data();
+
                     document.getElementById('nombre-comercio').innerText = c.nombre;
 
-                    // Mapeo exacto de campos según admin_comercios.html
+                    // Mapeo según admin_comercios.html: sorteoTit, sorteoDesc, sorteoFecha
                     if (c.sorteoTit && c.sorteoTit.trim() !== "") {
                         document.getElementById('card-sorteo').style.display = 'block';
                         document.getElementById('tit-sorteo').innerText = c.sorteoTit;
-                        document.getElementById('desc-sorteo').innerText = c.sorteoDesc || "";
+                        document.getElementById('desc-sorteo').innerText = c.sorteoDesc || "Sin descripción";
                         document.getElementById('fecha-sorteo').innerText = c.sorteoFecha || "A confirmar";
                         fechaSorteoGlobal = c.sorteoFecha || "próximamente";
                     }
 
+                    // Mapeo según admin_comercios.html: promoTit, promoDesc
                     if (c.promoTit && c.promoTit.trim() !== "") {
                         document.getElementById('card-promo').style.display = 'block';
                         document.getElementById('tit-promo').innerText = c.promoTit;
-                        document.getElementById('desc-promo').innerText = c.promoDesc || "";
+                        document.getElementById('desc-promo').innerText = c.promoDesc || "Sin descripción";
                     }
+
+                    // Si no hay ninguno de los dos
+                    if (!c.sorteoTit && !c.promoTit) {
+                        document.getElementById('nombre-comercio').innerText = "Sin promos vigentes";
+                    }
+
                 } else {
-                    document.getElementById('nombre-comercio').innerText = "Sin promociones activas";
+                    document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
                 }
             } catch (error) {
-                console.error("Error:", error);
+                console.error("Error Firebase:", error);
                 document.getElementById('nombre-comercio').innerText = "Error de conexión";
             }
         }
 
         window.abrirPopupExito = () => {
             document.getElementById('txt-exito-dinamico').innerText = 
-                `Ya estás participando del sorteo a llevarse a cabo el día ${fechaSorteoGlobal}. ¡Mucha suerte!`;
+                `Ya estás participando del sorteo. Fecha: ${fechaSorteoGlobal}. ¡Mucha suerte!`;
             document.getElementById('overlay').style.display = 'flex';
         }
 
