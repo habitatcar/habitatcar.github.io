@@ -209,7 +209,7 @@
             max-width: 320px;
         }
         .btn-red {
-            display: block;
+            display: none; /* Por defecto ocultos */
             width: 100%;
             padding: 12px;
             margin-bottom: 8px;
@@ -342,13 +342,18 @@
 
     <!-- ✅ POPUP DE REDES SOCIALES ACTUALIZADO -->
     <div id="popup-redes" class="popup-redes">
-        <h3 id="pop-nombre" style="margin:0 0 10px 0; color:var(--negro); text-align:center;"></h3>
+        <h3 id="pop-nombre" style="margin:0 0 15px 0; color:var(--negro); text-align:center;"></h3>
         
-        <div id="redes-dinamicas"></div>
+        <a id="lnk-ig" class="btn-red" style="background:#e1306c" target="_blank">INSTAGRAM</a>
+        <a id="lnk-fb" class="btn-red" style="background:#3b5998" target="_blank">FACEBOOK</a>
+        <a id="lnk-tk" class="btn-red" style="background:#000000" target="_blank">TIKTOK</a>
+        <a id="lnk-web" class="btn-red" style="background:var(--azul-habitat)" target="_blank">SITIO WEB</a>
+        
+        <hr style="width:100%; border:0; border-top:1px solid #eee; margin:10px 0;">
+        
+        <a id="lnk-sorteos" class="btn-red" style="background:#ff8c00; font-weight:bold;" href="admin_comercios.html">SORTEOS Y PROMOS</a>
 
-        <a id="lnk-sorteos" class="btn-red" style="background:#ff8c00; margin-top:10px;" href="admin_comercios.html">SORTEOS Y PROMOS</a>
-
-        <button onclick="cerrarPopup()" style="border:none; background:#eee; color:#333; padding:10px; border-radius:8px; cursor:pointer; margin-top:10px; width:100%; font-weight:bold;">CERRAR</button>
+        <button onclick="cerrarPopup()" style="border:none; background:#eee; color:#333; padding:10px; border-radius:8px; cursor:pointer; margin-top:10px">CERRAR</button>
     </div>
 
     <div id="modal-qr" class="modal">
@@ -530,19 +535,14 @@
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
                 const token = c.tokenQR || "";
                 
-                // ✅ CORREGIDO: Bloque de redes sociales actualizado
-                const igRaw = c.instagram || "";
-                const fbRaw = c.facebook || "";
-                const tkRaw = c.tiktok || ""; // <-- Cambiamos c.web por c.tiktok
-                const webRaw = c.sitioWeb || "";
+                // ✅ ACTUALIZADO: Capturar redes sociales con el truco de TikTok
+                const ig = c.instagram || "";
+                const fb = c.facebook || "";
+                // TRUCO: Tu TikTok en admin_comercios se guarda en el campo 'web'
+                const tk = c.web || ""; 
+                const sitioWeb = c.sitioWeb || "";
 
-                // Formatear URLs correctamente
-                const ig = igRaw ? (igRaw.includes('http') ? igRaw : `https://instagram.com/${igRaw.replace('@','')}`) : "";
-                const fb = fbRaw ? (fbRaw.includes('http') ? fbRaw : `https://facebook.com/${fbRaw}`) : "";
-                const tk = tkRaw ? (tkRaw.includes('http') ? tkRaw : `https://tiktok.com/@${tkRaw.replace('@','')}`) : "";
-                const web = webRaw ? (webRaw.includes('http') ? webRaw : `https://${webRaw}`) : "";
-
-                const tieneRedes = (ig !== "" || fb !== "" || tk !== "" || web !== "");
+                const tieneRedes = (ig !== "" || fb !== "" || tk !== "" || sitioWeb !== "");
                 
                 let infoVencimiento = "";
                 if (!mostrarReloj) {
@@ -556,8 +556,8 @@
                 // Función para escapar strings en atributos HTML
                 const escapeAttr = (str) => str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
-                // ACTUALIZADO: Botón "Conozca el comercio" con 5 parámetros
-                const btnConozca = tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${escapeAttr(nombre)}', '${escapeAttr(ig)}', '${escapeAttr(web)}', '${escapeAttr(fb)}', '${escapeAttr(tk)}')">Conozca el comercio</button>` : "";
+                // ✅ ACTUALIZADO: Botón "Conozca el comercio" con 5 parámetros
+                const btnConozca = tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${escapeAttr(nombre)}', '${escapeAttr(ig)}', '${escapeAttr(sitioWeb)}', '${escapeAttr(fb)}', '${escapeAttr(tk)}')">Conozca el comercio</button>` : "";
 
                 html += `
                     <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
@@ -608,30 +608,25 @@
             };
         };
 
-        // ✅ FUNCIÓN abrirPopup FINAL - Simplificada con HTML dinámico
+        // ✅ FUNCIÓN abrirPopup ACTUALIZADA - Lógica de ocultación estricta
         window.abrirPopup = (nom, ig, web, fb, tk) => {
             document.getElementById('pop-nombre').innerText = nom;
-            const contenedor = document.getElementById('redes-dinamicas');
-            contenedor.innerHTML = ""; // Limpieza total
-
-            const agregarBoton = (texto, link, color) => {
-                if (link && link !== "#" && link.trim() !== "") {
-                    const a = document.createElement('a');
-                    a.className = 'btn-red';
-                    a.style.background = color;
-                    a.target = "_blank";
-                    a.href = link;
-                    a.innerText = texto;
-                    contenedor.appendChild(a);
+            
+            const validarLink = (id, url) => {
+                const el = document.getElementById(id);
+                if (url && url.trim() !== "" && url !== "#") {
+                    el.href = url.startsWith('http') ? url : `https://${url}`;
+                    el.style.display = "block";
+                } else {
+                    el.style.display = "none";
                 }
             };
 
-            // Ejecutamos en orden
-            agregarBoton('INSTAGRAM', ig, '#e1306c');
-            agregarBoton('FACEBOOK', fb, '#3b5998');
-            agregarBoton('TIKTOK', tk, '#000000'); // El botón negro de TikTok
-            agregarBoton('SITIO WEB', web, '#004a99');
-
+            validarLink('lnk-ig', ig);
+            validarLink('lnk-fb', fb);
+            validarLink('lnk-tk', tk); // Ahora sí tomará el campo 'web' de la DB como TikTok
+            validarLink('lnk-web', web);
+            
             document.getElementById('popup-redes').style.display = 'flex';
         };
 
