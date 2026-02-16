@@ -192,7 +192,7 @@
         }
         #reader { width: 300px; background: white; border-radius: 10px; overflow: hidden; }
 
-        /* ✅ CSS CORREGIDO - Botones no ocupan espacio si están vacíos */
+        /* ✅ CSS PARA EL POPUP */
         .popup-redes {
             display: none;
             position: fixed;
@@ -209,7 +209,7 @@
             max-width: 320px;
         }
         .btn-red {
-            display: none; /* Por defecto ocultos */
+            display: block;
             width: 100%;
             padding: 12px;
             margin-bottom: 8px;
@@ -340,18 +340,15 @@
         </div>
     </div>
 
-    <!-- ✅ POPUP DE REDES SOCIALES CORREGIDO -->
+    <!-- ✅ POPUP DE REDES SOCIALES ACTUALIZADO -->
     <div id="popup-redes" class="popup-redes">
-        <h3 id="pop-nombre" style="margin:0 0 15px 0; color:var(--azul-oscuro); text-align:center;"></h3>
+        <h3 id="pop-nombre" style="margin:0 0 10px 0; color:var(--negro); text-align:center;"></h3>
         
-        <a id="lnk-ig" class="btn-red" style="background:#e1306c" target="_blank">INSTAGRAM</a>
-        <a id="lnk-fb" class="btn-red" style="background:#3b5998" target="_blank">FACEBOOK</a>
-        <a id="lnk-tk" class="btn-red" style="background:#000000" target="_blank">TIKTOK</a>
-        <a id="lnk-web" class="btn-red" style="background:#004a99" target="_blank">SITIO WEB</a>
-        
-        <a id="lnk-sorteos" class="btn-red" style="background:#ff8c00; display:block;" href="admin_comercios.html">SORTEOS Y PROMOS</a>
+        <div id="redes-dinamicas"></div>
 
-        <button onclick="cerrarPopup()" style="border:none; background:#eee; color:#333; padding:10px; border-radius:8px; cursor:pointer; margin-top:10px; font-weight:bold;">CERRAR</button>
+        <a id="lnk-sorteos" class="btn-red" style="background:#ff8c00; margin-top:10px;" href="admin_comercios.html">SORTEOS Y PROMOS</a>
+
+        <button onclick="cerrarPopup()" style="border:none; background:#eee; color:#333; padding:10px; border-radius:8px; cursor:pointer; margin-top:10px; width:100%; font-weight:bold;">CERRAR</button>
     </div>
 
     <div id="modal-qr" class="modal">
@@ -533,13 +530,19 @@
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
                 const token = c.tokenQR || "";
                 
-                // ✅ CORREGIDO: Capturar redes sociales con el orden correcto
-                const ig = c.instagram || "";
-                const fb = c.facebook || "";
-                const tk = c.tiktok || ""; // TikTok desde el campo 'tiktok'
-                const sitio = c.sitioWeb || "";
+                // ✅ CORREGIDO: Bloque de redes sociales actualizado
+                const igRaw = c.instagram || "";
+                const fbRaw = c.facebook || "";
+                const tkRaw = c.tiktok || ""; // <-- Cambiamos c.web por c.tiktok
+                const webRaw = c.sitioWeb || "";
 
-                const tieneRedes = (ig !== "" || fb !== "" || tk !== "" || sitio !== "");
+                // Formatear URLs correctamente
+                const ig = igRaw ? (igRaw.includes('http') ? igRaw : `https://instagram.com/${igRaw.replace('@','')}`) : "";
+                const fb = fbRaw ? (fbRaw.includes('http') ? fbRaw : `https://facebook.com/${fbRaw}`) : "";
+                const tk = tkRaw ? (tkRaw.includes('http') ? tkRaw : `https://tiktok.com/@${tkRaw.replace('@','')}`) : "";
+                const web = webRaw ? (webRaw.includes('http') ? webRaw : `https://${webRaw}`) : "";
+
+                const tieneRedes = (ig !== "" || fb !== "" || tk !== "" || web !== "");
                 
                 let infoVencimiento = "";
                 if (!mostrarReloj) {
@@ -553,6 +556,9 @@
                 // Función para escapar strings en atributos HTML
                 const escapeAttr = (str) => str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
 
+                // ACTUALIZADO: Botón "Conozca el comercio" con 5 parámetros
+                const btnConozca = tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${escapeAttr(nombre)}', '${escapeAttr(ig)}', '${escapeAttr(web)}', '${escapeAttr(fb)}', '${escapeAttr(tk)}')">Conozca el comercio</button>` : "";
+
                 html += `
                     <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
                         ${htmlLogo}
@@ -561,7 +567,7 @@
                         <span class="info-txt">${infoVencimiento}</span>
                         ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
                         <div class="btn-stack">
-                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${escapeAttr(nombre)}', '${escapeAttr(ig)}', '${escapeAttr(sitio)}', '${escapeAttr(fb)}', '${escapeAttr(tk)}')">Conozca el comercio</button>` : ""}
+                            ${btnConozca}
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
                             <button class="btn-act btn-usar ${esUsado ? 'usado' : ''}" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${escapeAttr(nombre)}')">
@@ -602,25 +608,30 @@
             };
         };
 
-        // ✅ FUNCIÓN abrirPopup CORREGIDA CON LÓGICA DE VALIDACIÓN
+        // ✅ FUNCIÓN abrirPopup FINAL - Simplificada con HTML dinámico
         window.abrirPopup = (nom, ig, web, fb, tk) => {
             document.getElementById('pop-nombre').innerText = nom;
-            
-            const validarLink = (id, url) => {
-                const el = document.getElementById(id);
-                if (url && url.trim() !== "" && url !== "#") {
-                    el.href = url.startsWith('http') ? url : `https://${url}`;
-                    el.style.display = "block"; // Solo se muestra si hay link real
-                } else {
-                    el.style.display = "none"; // Desaparece y no ocupa espacio
+            const contenedor = document.getElementById('redes-dinamicas');
+            contenedor.innerHTML = ""; // Limpieza total
+
+            const agregarBoton = (texto, link, color) => {
+                if (link && link !== "#" && link.trim() !== "") {
+                    const a = document.createElement('a');
+                    a.className = 'btn-red';
+                    a.style.background = color;
+                    a.target = "_blank";
+                    a.href = link;
+                    a.innerText = texto;
+                    contenedor.appendChild(a);
                 }
             };
 
-            validarLink('lnk-ig', ig);
-            validarLink('lnk-fb', fb);
-            validarLink('lnk-tk', tk); // Aquí entra el dato de TikTok
-            validarLink('lnk-web', web);
-            
+            // Ejecutamos en orden
+            agregarBoton('INSTAGRAM', ig, '#e1306c');
+            agregarBoton('FACEBOOK', fb, '#3b5998');
+            agregarBoton('TIKTOK', tk, '#000000'); // El botón negro de TikTok
+            agregarBoton('SITIO WEB', web, '#004a99');
+
             document.getElementById('popup-redes').style.display = 'flex';
         };
 
