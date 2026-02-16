@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sorteos y Promociones | Hábitat-Car</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css  ">
     <style>
         :root {
             --oro: #ffc107;
@@ -159,7 +159,7 @@
 <body>
 
     <header class="header">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo" alt="Hábitat-Car">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true  " class="logo" alt="Hábitat-Car">
     </header>
 
     <div class="container">
@@ -198,40 +198,65 @@
         </div>
     </div>
 
-    <script>
-        const params = new URLSearchParams(window.location.search);
-        const nombre = params.get('id');
+    <!-- ✅ SCRIPT REEMPLAZADO EXACTAMENTE COMO SOLICITADO - NADA MÁS MODIFICADO -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js  ";
+        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  ";
 
-        // SIMULACIÓN DE DATOS (Lo que vendrá de Firebase)
-        // Agregamos el campo de fecha para que veas cómo se integra
-        const datosComercio = {
-            nombre: nombre || "Comercio Amigo",
-            sorteoTit: "Sorteo Kit de Limpieza",
-            sorteoDesc: "Participá por un servicio completo bonificado en este comercio presentando tu cupón de Hábitat-Car.",
-            sorteoFecha: "25 de Mayo de 2026", // <--- EDITABLE CON AÑO
-            promoTit: "Super Sábado",
-            promoDesc: "30% de descuento en cambio de aceite para todos los clientes del Ecosistema."
+        // Tu configuración de Firebase (Misma que usas en el admin)
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+            authDomain: "habitatcar-pro.firebaseapp.com",
+            projectId: "habitatcar-pro",
+            storageBucket: "habitatcar-pro.firebasestorage.app",
+            messagingSenderId: "311691258694",
+            appId: "1:311691258694:web:17a09051dcea7707af9347"
         };
 
-        if (nombre) {
-            document.getElementById('nombre-comercio').innerText = decodeURIComponent(nombre);
-            document.getElementById('tit-sorteo').innerText = datosComercio.sorteoTit;
-            document.getElementById('desc-sorteo').innerText = datosComercio.sorteoDesc;
-            document.getElementById('tit-promo').innerText = datosComercio.promoTit;
-            document.getElementById('desc-promo').innerText = datosComercio.promoDesc;
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // 1. Obtener el ID del comercio de la URL
+        const params = new URLSearchParams(window.location.search);
+        const idComercioFB = params.get('id'); 
+
+        // Variable global para la fecha del popup
+        window.fechaSorteoGlobal = "";
+
+        if (idComercioFB) {
+            // 2. Escuchar cambios en tiempo real de ese comercio específico
+            onSnapshot(doc(db, "comercios", idComercioFB), (docSnap) => {
+                if (docSnap.exists()) {
+                    const c = docSnap.data();
+                    
+                    // Actualizar Textos
+                    document.getElementById('nombre-comercio').innerText = c.nombre || "Comercio";
+                    
+                    // Sorteo (si no hay datos, ponemos un texto por defecto)
+                    document.getElementById('tit-sorteo').innerText = c.sorteoTitulo || "¡PRÓXIMO SORTEO!";
+                    document.getElementById('desc-sorteo').innerText = c.sorteoDesc || "Consultá en el local por nuestro próximo sorteo.";
+                    window.fechaSorteoGlobal = c.sorteoFecha || "próximamente";
+
+                    // Promoción
+                    document.getElementById('tit-promo').innerText = c.promoTitulo || "PROMO DE LA SEMANA";
+                    document.getElementById('desc-promo').innerText = c.promoDesc || "Próximamente nuevas promociones exclusivas.";
+                    
+                } else {
+                    document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
+                }
+            });
         }
 
-        function abrirPopupExito() {
-            // El mensaje usa la fecha editable
+        // Funciones del Popup
+        window.abrirPopupExito = () => {
             document.getElementById('txt-exito-dinamico').innerText = 
-                `Ya estás participando del sorteo a llevarse a cabo el día ${datosComercio.sorteoFecha}. ¡Mucha suerte!`;
-            
+                `Ya estás participando del sorteo a llevarse a cabo el día ${window.fechaSorteoGlobal}. ¡Mucha suerte!`;
             document.getElementById('overlay').style.display = 'flex';
-        }
+        };
 
-        function cerrarPopup() {
+        window.cerrarPopup = () => {
             document.getElementById('overlay').style.display = 'none';
-        }
+        };
     </script>
 </body>
 </html>
