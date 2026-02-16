@@ -26,12 +26,18 @@
             min-height: 100vh;
         }
 
+        /* HEADER ORIGINAL CON LOGO */
         .header {
             width: 100%;
             padding: 20px 0;
             text-align: center;
             background: var(--azul-medio);
             border-bottom: 3px solid var(--oro);
+        }
+        .header img {
+            max-width: 180px;
+            height: auto;
+            margin-bottom: 10px;
         }
 
         .container {
@@ -45,13 +51,23 @@
             background: var(--azul-medio);
             border-radius: 15px;
             padding: 20px;
-            margin-bottom: 20px;
+            margin-bottom: 25px;
             border-left: 5px solid var(--oro);
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
         }
 
-        .card h2 { color: var(--oro); margin-top: 0; display: flex; align-items: center; gap: 10px; }
-        .card p { line-height: 1.5; font-size: 1.1em; }
+        .card h2 { 
+            color: var(--oro); 
+            margin-top: 0; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            text-transform: uppercase;
+            font-size: 1.2em;
+        }
+        
+        .card h3 { color: white; margin: 10px 0; font-size: 1.4em; }
+        .card p { line-height: 1.6; font-size: 1.1em; color: #ccc; }
 
         .btn-participar {
             background: linear-gradient(45deg, var(--naranja), #ff4500);
@@ -64,65 +80,75 @@
             font-size: 1.2em;
             cursor: pointer;
             text-transform: uppercase;
-            margin-top: 10px;
+            margin-top: 15px;
+            box-shadow: 0 4px 10px rgba(255, 140, 0, 0.3);
         }
 
+        /* POPUP EXITOSO */
         .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 1000;
+            background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 1000;
         }
         .popup {
             background: white; color: #333; padding: 30px; border-radius: 20px;
-            text-align: center; width: 80%; max-width: 350px;
+            text-align: center; width: 85%; max-width: 350px; border: 4px solid var(--oro);
         }
 
         .btn-volver {
-            margin-top: 20px;
-            background: #666;
+            margin-top: 10px;
+            background: rgba(255,255,255,0.1);
             color: white;
-            padding: 10px 20px;
-            border-radius: 5px;
+            padding: 12px 25px;
+            border-radius: 8px;
             text-decoration: none;
             display: inline-block;
+            border: 1px solid var(--oro);
+            font-weight: bold;
         }
     </style>
 </head>
 <body>
 
     <div class="header">
-        <h1 id="nombre-comercio">Cargando...</h1>
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" alt="Hábitat-Car">
+        <h1 id="nombre-comercio" style="font-size: 1.5em; margin: 0; color: var(--oro);">Cargando...</h1>
     </div>
 
-    <div class="container" id="contenido-dinamico" style="display:none;">
+    <div class="container" id="contenido-dinamico">
         
         <div class="card" id="card-sorteo" style="display:none;">
             <h2><i class="fas fa-trophy"></i> SORTEO ACTIVO</h2>
-            <h3 id="tit-sorteo" style="margin-bottom:5px;"></h3>
+            <h3 id="tit-sorteo"></h3>
             <p id="desc-sorteo"></p>
-            <p><strong>Fecha del sorteo:</strong> <span id="fecha-sorteo"></span></p>
+            <p style="color: var(--oro); font-weight: bold;">
+                <i class="far fa-calendar-alt"></i> Fecha: <span id="fecha-sorteo"></span>
+            </p>
             <button class="btn-participar" onclick="abrirPopupExito()">¡QUIERO PARTICIPAR!</button>
         </div>
 
         <div class="card" id="card-promo" style="display:none;">
             <h2><i class="fas fa-tag"></i> PROMOCIÓN ESPECIAL</h2>
-            <h3 id="tit-promo" style="margin-bottom:5px;"></h3>
+            <h3 id="tit-promo"></h3>
             <p id="desc-promo"></p>
         </div>
 
-        <a href="usuarios_cupones_vips.html" class="btn-volver">VOLVER A CUPONES</a>
+        <div style="text-align: center; margin-top: 20px;">
+            <a href="usuarios_cupones_vips.html" class="btn-volver">VOLVER A CUPONES</a>
+        </div>
     </div>
 
     <div id="overlay" class="overlay">
         <div class="popup">
-            <h2 style="color: var(--verde)">¡REGISTRO EXITOSO!</h2>
-            <p id="txt-exito-dinamico"></p>
-            <button onclick="cerrarPopup()" style="padding:10px 20px; background:var(--azul-oscuro); color:white; border:none; border-radius:5px;">ACEPTAR</button>
+            <i class="fas fa-check-circle" style="font-size: 50px; color: var(--verde); margin-bottom: 15px;"></i>
+            <h2 style="color: #000; margin: 0;">¡REGISTRO EXITOSO!</h2>
+            <p id="txt-exito-dinamico" style="color: #444; margin: 15px 0;"></p>
+            <button onclick="cerrarPopup()" style="padding:12px 30px; background:var(--azul-oscuro); color:white; border:none; border-radius:8px; font-weight:bold; width:100%;">ACEPTAR</button>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -136,42 +162,48 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Obtener el nombre del comercio de la URL
+        // Intentamos obtener por nombre (que es lo que manda el botón anterior)
         const params = new URLSearchParams(window.location.search);
-        const nombreBusqueda = params.get('id'); // Trae el nombre del comercio
+        const nombreBusqueda = params.get('id'); 
 
         let fechaSorteoGlobal = "";
 
         async function cargarDatos() {
-            if (!nombreBusqueda) return;
+            if (!nombreBusqueda) {
+                document.getElementById('nombre-comercio').innerText = "Comercio no especificado";
+                return;
+            }
 
-            const q = query(collection(db, "comercios"), where("nombre", "==", nombreBusqueda));
-            const querySnapshot = await getDocs(q);
+            try {
+                // Buscamos el comercio por el campo "nombre" exactamente como viene de la otra página
+                const q = query(collection(db, "comercios"), where("nombre", "==", nombreBusqueda));
+                const querySnapshot = await getDocs(q);
 
-            if (!querySnapshot.empty) {
-                const doc = querySnapshot.docs[0];
-                const c = doc.data();
+                if (!querySnapshot.empty) {
+                    const c = querySnapshot.docs[0].data();
 
-                document.getElementById('nombre-comercio').innerText = c.nombre;
-                document.getElementById('contenido-dinamico').style.display = 'block';
+                    document.getElementById('nombre-comercio').innerText = c.nombre;
 
-                // Cargar Sorteo
-                if (c.sorteoTitulo && c.sorteoTitulo.trim() !== "") {
-                    document.getElementById('card-sorteo').style.display = 'block';
-                    document.getElementById('tit-sorteo').innerText = c.sorteoTitulo;
-                    document.getElementById('desc-sorteo').innerText = c.sorteoDescripcion || "";
-                    document.getElementById('fecha-sorteo').innerText = c.sorteoFecha || "A confirmar";
-                    fechaSorteoGlobal = c.sorteoFecha || "próximamente";
+                    // CARGAR SORTEO
+                    if (c.sorteoTitulo && c.sorteoTitulo.trim() !== "") {
+                        document.getElementById('card-sorteo').style.display = 'block';
+                        document.getElementById('tit-sorteo').innerText = c.sorteoTitulo;
+                        document.getElementById('desc-sorteo').innerText = c.sorteoDescripcion || "";
+                        document.getElementById('fecha-sorteo').innerText = c.sorteoFecha || "A confirmar";
+                        fechaSorteoGlobal = c.sorteoFecha || "próximamente";
+                    }
+
+                    // CARGAR PROMO (Se corrigió la asignación de descripción)
+                    if (c.promoTitulo && c.promoTitulo.trim() !== "") {
+                        document.getElementById('card-promo').style.display = 'block';
+                        document.getElementById('tit-promo').innerText = c.promoTitulo;
+                        document.getElementById('desc-promo').innerText = c.promoDescripcion || "";
+                    }
+                } else {
+                    document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
                 }
-
-                // Cargar Promo
-                if (c.promoTitulo && c.promoTitulo.trim() !== "") {
-                    document.getElementById('card-promo').style.display = 'block';
-                    document.getElementById('tit-promo').innerText = c.promoTitulo;
-                    document.getElementById('desc-promo').innerText = c.promoDescripcion || "";
-                }
-            } else {
-                document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
+            } catch (error) {
+                console.error("Error cargando datos:", error);
             }
         }
 
