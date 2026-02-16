@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sorteos y Promociones | Hábitat-Car</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css  ">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css    ">
     <style>
         :root {
             --oro: #ffc107;
@@ -159,7 +159,7 @@
 <body>
 
     <header class="header">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true  " class="logo" alt="Hábitat-Car">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true    " class="logo" alt="Hábitat-Car">
     </header>
 
     <div class="container">
@@ -198,10 +198,10 @@
         </div>
     </div>
 
-    <!-- ✅ SCRIPT REEMPLAZADO EXACTAMENTE COMO SOLICITADO - NADA MÁS MODIFICADO -->
+    <!-- ✅ SCRIPT ACTUALIZADO EXACTAMENTE COMO SOLICITADO - NADA MÁS MODIFICADO -->
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js  ";
-        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js  ";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js    ";
+        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js    ";
 
         // Tu configuración de Firebase (Misma que usas en el admin)
         const firebaseConfig = {
@@ -216,38 +216,30 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // 1. Obtener el ID del comercio de la URL
+        // ✅ LÓGICA DE CARGA ACTUALIZADA - Usa fbId directamente del parámetro 'id'
         const params = new URLSearchParams(window.location.search);
         const idComercioFB = params.get('id'); 
 
-        // Variable global para la fecha del popup
-        window.fechaSorteoGlobal = "";
-
         if (idComercioFB) {
-            // 2. Escuchar cambios en tiempo real de ese comercio específico
+            // Usamos onSnapshot para que si cambias el sorteo en el admin, se vea aquí al instante
             onSnapshot(doc(db, "comercios", idComercioFB), (docSnap) => {
                 if (docSnap.exists()) {
                     const c = docSnap.data();
                     
-                    // Actualizar Textos
-                    document.getElementById('nombre-comercio').innerText = c.nombre || "Comercio";
+                    // Llenar los campos con la info de Firebase
+                    document.getElementById('nombre-comercio').innerText = c.nombre;
+                    document.getElementById('tit-sorteo').innerText = c.sorteoTitulo || "SORTEO MENSUAL";
+                    document.getElementById('desc-sorteo').innerText = c.sorteoDesc || "Sin sorteos activos por el momento.";
+                    document.getElementById('tit-promo').innerText = c.promoTitulo || "PROMO SEMANAL";
+                    document.getElementById('desc-promo').innerText = c.promoDesc || "Próximamente nuevas promociones.";
                     
-                    // Sorteo (si no hay datos, ponemos un texto por defecto)
-                    document.getElementById('tit-sorteo').innerText = c.sorteoTitulo || "¡PRÓXIMO SORTEO!";
-                    document.getElementById('desc-sorteo').innerText = c.sorteoDesc || "Consultá en el local por nuestro próximo sorteo.";
-                    window.fechaSorteoGlobal = c.sorteoFecha || "próximamente";
-
-                    // Promoción
-                    document.getElementById('tit-promo').innerText = c.promoTitulo || "PROMO DE LA SEMANA";
-                    document.getElementById('desc-promo').innerText = c.promoDesc || "Próximamente nuevas promociones exclusivas.";
-                    
-                } else {
-                    document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
+                    // Guardar fecha para el popup de "Quiero participar"
+                    window.fechaSorteoGlobal = c.sorteoFecha || "próxima fecha";
                 }
             });
         }
 
-        // Funciones del Popup
+        // Funciones del Popup (sin cambios)
         window.abrirPopupExito = () => {
             document.getElementById('txt-exito-dinamico').innerText = 
                 `Ya estás participando del sorteo a llevarse a cabo el día ${window.fechaSorteoGlobal}. ¡Mucha suerte!`;
