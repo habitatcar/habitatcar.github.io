@@ -136,6 +136,16 @@
             animation: pulseVIP 2s infinite;
         }
         .btn-activar:hover { background: linear-gradient(45deg, #1b5e20, #0d3d15); transform: scale(1.05); }
+        .btn-sorteos { 
+            background: linear-gradient(45deg, #ffc107, #ff9800); 
+            color: var(--azul-habitat);
+            font-weight: 900;
+        }
+        .btn-sorteos:hover { 
+            background: linear-gradient(45deg, #ff9800, #f57c00); 
+            transform: scale(1.03);
+            box-shadow: 0 0 15px rgba(255,193,7,0.7);
+        }
 
         @keyframes pulseVIP {
             0% { box-shadow: 0 0 0 0 rgba(46, 125, 50, 0.7); }
@@ -150,7 +160,7 @@
         }
         #reader { width: 300px; background: white; border-radius: 15px; overflow: hidden; padding: 15px; }
 
-        /* MODAL DE REDES SOCIALES (ESTRUCTURA REQUERIDA POR abrirRedes) */
+        /* MODAL DE REDES SOCIALES (SOLO REDES, SIN SORTEOS) */
         #modal-redes {
             display: none;
             position: fixed;
@@ -340,7 +350,7 @@
         </div>
     </div>
 
-    <!-- ✅ MODAL DE REDES SOCIALES (ESTRUCTURA REQUERIDA POR abrirRedes) -->
+    <!-- ✅ MODAL DE REDES SOCIALES (SOLO REDES, SIN SORTEOS) -->
     <div id="modal-redes">
         <div id="redes-content"></div>
         <button onclick="document.getElementById('modal-redes').style.display='none'" 
@@ -410,7 +420,7 @@
         const db = getFirestore(app);
 
         const vipId = localStorage.getItem('vipId') || "invitado_vip_" + Date.now();
-        let COMERCIOS = []; // ✅ ARRAY GLOBAL REQUERIDO POR abrirRedes
+        let COMERCIOS = [];
 
         let scanner = null;
         let idEnProceso = "";
@@ -423,19 +433,18 @@
             return parseInt(localStorage.getItem(`uso_vip_${comercioId}`) || "0");
         };
 
-        // ✅ POBLAR ARRAY GLOBAL COMERCIOS PARA USO EN abrirRedes
         onSnapshot(collection(db, "comercios"), (snap) => {
-            COMERCIOS = []; // Reiniciar array
+            COMERCIOS = [];
             const contenedor = document.getElementById('contenedor-cupones');
             const inicios = getInicios();
             let html = "";
             let huboCambioInicio = false;
 
             snap.forEach(docSnap => {
-                const c = { ...docSnap.data(), fbId: docSnap.id }; // ✅ INCLUIR fbId
+                const c = { ...docSnap.data(), fbId: docSnap.id };
                 if (c.estado !== "activo" || !c.usosVip || c.usosVip <= 0) return;
                 
-                COMERCIOS.push(c); // ✅ AGREGAR AL ARRAY GLOBAL
+                COMERCIOS.push(c);
 
                 const nUso = getUsosLocales(c.fbId);
                 const esUsado = nUso > 0;
@@ -466,12 +475,21 @@
                 const beneficio = c.descVip ? `${c.descVip} ${c.detalleVip || ''}` : "Beneficio VIP Exclusivo";
                 const token = c.tokenQR || "";
                 
-                // Verificamos si tiene al menos UNA red social
+                // ✅ BOTÓN "CONOZCA EL COMERCIO" (condicional por redes sociales)
                 const tieneRedes = (c.instagram || c.facebook || c.web || c.sitioWeb);
                 let btnConozcaHTML = "";
                 if (tieneRedes) {
                     btnConozcaHTML = `<button class="btn-act btn-conozca" onclick="abrirRedes('${c.fbId}')">
                         <i class="fas fa-info-circle"></i> CONOZCA EL COMERCIO
+                    </button>`;
+                }
+
+                // ✅ BOTÓN "SORTEOS Y PROMOS" (condicional por datos en Firebase) - ¡AHORA EN LA TARJETA!
+                const tieneSorteoOPromo = (c.sorteoTitulo && c.sorteoTitulo.trim() !== "") || (c.promoTitulo && c.promoTitulo.trim() !== "");
+                let btnSorteosHTML = "";
+                if (tieneSorteoOPromo) {
+                    btnSorteosHTML = `<button class="btn-act btn-sorteos" onclick="window.open('usuarios_sorteos_promos.html?id=${c.fbId}')">
+                        <i class="fas fa-gift"></i> SORTEOS Y PROMOS
                     </button>`;
                 }
 
@@ -494,6 +512,7 @@
                         ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
                         <div class="btn-stack">
                             ${btnConozcaHTML}
+                            ${btnSorteosHTML} <!-- ✅ BOTÓN SORTEOS Y PROMOS ABAJO DE CONOZCA EL COMERCIO -->
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">
                                 <i class="fas fa-map-marker-alt"></i> CÓMO LLEGAR
                             </button>
@@ -558,11 +577,9 @@
                     lastSubmissionVip: Date.now()
                 });
 
-                // Actualizar contador local
                 const nuevosUsos = getUsosLocales(id) + 1;
                 localStorage.setItem(`uso_vip_${id}`, nuevosUsos);
 
-                // Mostrar pantalla de éxito
                 document.getElementById('exito-id-texto').innerText = idManual;
                 JsBarcode("#barcode", idManual, { 
                     format: "CODE128", 
@@ -575,7 +592,6 @@
                 });
                 document.getElementById('pantalla-exito').style.display = 'flex';
                 
-                // Temporizador de 30 segundos
                 let s = 30;
                 const t = setInterval(() => {
                     s--; 
@@ -592,33 +608,21 @@
             }
         };
 
-        // ✅ FUNCIÓN CORREGIDA EXACTAMENTE COMO SOLICITADO
+        // ✅ FUNCIÓN abrirRedes ACTUALIZADA: SOLO MUESTRA REDES SOCIALES (SIN BOTÓN DE SORTEOS)
         window.abrirRedes = (id) => {
             const c = COMERCIOS.find(x => x.fbId === id);
             if (!c) return;
 
-            // Validación: Solo mostrar el botón si hay título de sorteo O de promoción
-            const tieneSorteo = c.sorteoTitulo && c.sorteoTitulo.trim() !== "";
-            const tienePromo = c.promoTitulo && c.promoTitulo.trim() !== "";
-            
-            const botonSorteo = (tieneSorteo || tienePromo) 
-                ? `<a href="usuarios_sorteos_promos.html?id=${id}" 
-                       style="width: 100%; background: #ff8c00; color: white; padding: 15px; border-radius: 10px; text-decoration: none; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: none; font-family: sans-serif;">
-                       <i class="fas fa-gift"></i> SORTEOS Y PROMOCIONES
-                   </a>` 
-                : "";
-
+            // ✅ HTML SIN BOTÓN DE SORTEOS - SOLO REDES SOCIALES
             const htmlRedes = `
                 <div style="text-align: center; padding: 10px; font-family: sans-serif;">
                     <h2 style="color: #ffc107; margin-bottom: 20px; text-transform: uppercase; font-weight: 900;">${c.nombre}</h2>
                     
-                    ${botonSorteo}
-
-                    <p style="color: #ccc; font-size: 0.9em; margin-bottom: 15px;">Redes Sociales y Contacto:</p>
-                    <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                    <p style="color: #ccc; font-size: 0.9em; margin-bottom: 15px; font-weight: bold;">Redes Sociales y Contacto:</p>
+                    <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap; margin-top: 10px;">
                         ${c.facebook ? `<a href="${c.facebook}" target="_blank" style="color: #1877F2; font-size: 2.5em;"><i class="fab fa-facebook"></i></a>` : ''}
                         ${c.instagram ? `<a href="${c.instagram}" target="_blank" style="color: #E1306C; font-size: 2.5em;"><i class="fab fa-instagram"></i></a>` : ''}
-                        ${c.web ? `<a href="${c.web}" target="_blank" style="color: #fff; font-size: 2.5em;"><i class="fab fa-tiktok"></i></a>` : ''}
+                        ${c.web ? `<a href="${c.web}" target="_blank" style="color: #000; background: #fff; border-radius: 50%; width: 45px; height: 45px; display: flex; align-items: center; justify-content: center; font-size: 1.8em;"><i class="fab fa-tiktok"></i></a>` : ''}
                         ${c.sitioWeb ? `<a href="${c.sitioWeb}" target="_blank" style="color: #00d2ff; font-size: 2.5em;"><i class="fas fa-globe"></i></a>` : ''}
                         <a href="https://wa.me/${c.telefono}" target="_blank" style="color: #25D366; font-size: 2.5em;"><i class="fab fa-whatsapp"></i></a>
                     </div>
