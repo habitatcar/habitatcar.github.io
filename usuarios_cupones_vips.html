@@ -150,39 +150,23 @@
         }
         #reader { width: 300px; background: white; border-radius: 15px; overflow: hidden; padding: 15px; }
 
-        /* POPUP DE REDES SOCIALES */
-        .popup-redes {
+        /* MODAL DE REDES SOCIALES (ESTRUCTURA REQUERIDA POR abrirRedes) */
+        #modal-redes {
             display: none;
             position: fixed;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
-            padding: 25px;
             border-radius: 20px;
-            box-shadow: 0 0 35px rgba(0,0,0,0.8);
-            z-index: 10000;
-            flex-direction: column;
+            padding: 25px;
             width: 90%;
-            max-width: 350px;
-            border: 3px solid var(--oro);
+            max-width: 400px;
+            box-shadow: 0 10px 50px rgba(0,0,0,0.5);
+            z-index: 10001;
+            font-family: 'Segoe UI', sans-serif;
         }
-        .btn-red {
-            display: none;
-            width: 100%;
-            padding: 14px;
-            margin-bottom: 10px;
-            text-align: center;
-            color: white;
-            text-decoration: none;
-            border-radius: 10px;
-            font-weight: bold;
-            font-size: 15px;
-            box-sizing: border-box;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.2);
-            transition: 0.2s;
-        }
-        .btn-red:hover { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.3); }
+        #redes-content { width: 100%; text-align: center; }
 
         .success-page {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -356,19 +340,13 @@
         </div>
     </div>
 
-    <!-- POPUP DE REDES SOCIALES CON VALIDACIÓN DE SORTEOS/PROMOS -->
-    <div id="popup-redes" class="popup-redes">
-        <h3 id="pop-nombre" style="margin:0 0 20px 0; color:var(--negro); text-align:center; font-size:24px; font-weight:900;"></h3>
-        
-        <a id="lnk-sorteos" class="btn-red" style="background:#ff8c00; display:none;" href="#">SORTEOS Y PROMOCIONES</a>
-        <hr id="separador-sorteos" style="width:100%; border:0; border-top:1px solid #eee; margin:15px 0; display:none;">
-        
-        <a id="lnk-ig" class="btn-red" style="background:#e1306c; display:none;" target="_blank">INSTAGRAM</a>
-        <a id="lnk-fb" class="btn-red" style="background:#3b5998; display:none;" target="_blank">FACEBOOK</a>
-        <a id="lnk-tk" class="btn-red" style="background:#000000; display:none;" target="_blank">TIKTOK</a>
-        <a id="lnk-web" class="btn-red" style="background:var(--azul-habitat); display:none;" target="_blank">SITIO WEB</a>
-        
-        <button onclick="cerrarPopup()" style="border:none; background:#f8f9fa; color:#333; padding:14px; border-radius:10px; cursor:pointer; margin-top:15px; font-weight:bold; width:100%; font-size:16px; box-shadow: 0 4px 10px rgba(0,0,0,0.1);">CERRAR</button>
+    <!-- ✅ MODAL DE REDES SOCIALES (ESTRUCTURA REQUERIDA POR abrirRedes) -->
+    <div id="modal-redes">
+        <div id="redes-content"></div>
+        <button onclick="document.getElementById('modal-redes').style.display='none'" 
+                style="margin-top:20px; padding:12px 25px; background:#e0e0e0; border:none; border-radius:8px; font-weight:bold; cursor:pointer; width:100%;">
+            CERRAR
+        </button>
     </div>
 
     <div id="modal-qr" class="modal">
@@ -432,6 +410,7 @@
         const db = getFirestore(app);
 
         const vipId = localStorage.getItem('vipId') || "invitado_vip_" + Date.now();
+        let COMERCIOS = []; // ✅ ARRAY GLOBAL REQUERIDO POR abrirRedes
 
         let scanner = null;
         let idEnProceso = "";
@@ -444,18 +423,21 @@
             return parseInt(localStorage.getItem(`uso_vip_${comercioId}`) || "0");
         };
 
+        // ✅ POBLAR ARRAY GLOBAL COMERCIOS PARA USO EN abrirRedes
         onSnapshot(collection(db, "comercios"), (snap) => {
+            COMERCIOS = []; // Reiniciar array
             const contenedor = document.getElementById('contenedor-cupones');
             const inicios = getInicios();
             let html = "";
             let huboCambioInicio = false;
 
             snap.forEach(docSnap => {
-                const c = docSnap.data();
-                const id = docSnap.id;
+                const c = { ...docSnap.data(), fbId: docSnap.id }; // ✅ INCLUIR fbId
                 if (c.estado !== "activo" || !c.usosVip || c.usosVip <= 0) return;
+                
+                COMERCIOS.push(c); // ✅ AGREGAR AL ARRAY GLOBAL
 
-                const nUso = getUsosLocales(id);
+                const nUso = getUsosLocales(c.fbId);
                 const esUsado = nUso > 0;
 
                 const nombre = c.nombre || "Comercio VIP";
@@ -465,11 +447,11 @@
                 let mostrarReloj = vigenciaTotal > 0;
 
                 if (mostrarReloj) {
-                    if (!inicios[id]) {
-                        inicios[id] = Date.now();
+                    if (!inicios[c.fbId]) {
+                        inicios[c.fbId] = Date.now();
                         huboCambioInicio = true;
                     }
-                    const transcurrido = Date.now() - inicios[id];
+                    const transcurrido = Date.now() - inicios[c.fbId];
                     const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
                     diasRestantes = vigenciaTotal - diasPasados;
                 }
@@ -484,20 +466,11 @@
                 const beneficio = c.descVip ? `${c.descVip} ${c.detalleVip || ''}` : "Beneficio VIP Exclusivo";
                 const token = c.tokenQR || "";
                 
-                // Capturar redes sociales
-                const ig = c.instagram || "";
-                const fb = c.facebook || "";
-                const tk = c.web || ""; // TikTok guardado en 'web'
-                const sitioWeb = c.sitioWeb || "";
-
                 // Verificamos si tiene al menos UNA red social
-                const tieneRedes = (ig !== "" || fb !== "" || tk !== "" || sitioWeb !== "");
-
-                // Solo creamos el HTML del botón si tiene redes
+                const tieneRedes = (c.instagram || c.facebook || c.web || c.sitioWeb);
                 let btnConozcaHTML = "";
                 if (tieneRedes) {
-                    const escapeAttr = (str) => str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                    btnConozcaHTML = `<button class="btn-act btn-conozca" onclick="abrirPopup('${escapeAttr(nombre)}', '${escapeAttr(ig)}', '${escapeAttr(sitioWeb)}', '${escapeAttr(fb)}', '${escapeAttr(tk)}', '${id}', '${escapeAttr(c.sorteoTitulo || '')}', '${escapeAttr(c.promoTitulo || '')}')">
+                    btnConozcaHTML = `<button class="btn-act btn-conozca" onclick="abrirRedes('${c.fbId}')">
                         <i class="fas fa-info-circle"></i> CONOZCA EL COMERCIO
                     </button>`;
                 }
@@ -524,10 +497,10 @@
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">
                                 <i class="fas fa-map-marker-alt"></i> CÓMO LLEGAR
                             </button>
-                            <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">
+                            <button class="btn-act btn-validar" onclick="abrirQR('${c.fbId}', '${token}')">
                                 <i class="fas fa-qrcode"></i> ESCANEAR QR
                             </button>
-                            <button class="btn-act btn-activar" id="btn-activar-${id}" onclick="activarBeneficio('${id}', '${nombre.replace(/'/g, "\\'")}')">
+                            <button class="btn-act btn-activar" id="btn-activar-${c.fbId}" onclick="activarBeneficio('${c.fbId}', '${nombre.replace(/'/g, "\\'")}')">
                                 <i class="fas fa-crown"></i> ACTIVAR BENEFICIO VIP
                             </button>
                         </div>
@@ -619,40 +592,41 @@
             }
         };
 
-        // ✅ FUNCIÓN CORREGIDA: abrirPopup con validación de sorteos/promos
-        window.abrirPopup = (nom, ig, web, fb, tk, idComercio, sorteoTitulo, promoTitulo) => {
-            document.getElementById('pop-nombre').innerText = nom;
-            document.getElementById('lnk-sorteos').href = `usuarios_sorteos_promos.html?id=${idComercio}`;
+        // ✅ FUNCIÓN CORREGIDA EXACTAMENTE COMO SOLICITADO
+        window.abrirRedes = (id) => {
+            const c = COMERCIOS.find(x => x.fbId === id);
+            if (!c) return;
+
+            // Validación: Solo mostrar el botón si hay título de sorteo O de promoción
+            const tieneSorteo = c.sorteoTitulo && c.sorteoTitulo.trim() !== "";
+            const tienePromo = c.promoTitulo && c.promoTitulo.trim() !== "";
             
-            const configurarBoton = (id, link) => {
-                const el = document.getElementById(id);
-                if (link && link.trim() !== "" && link !== "#") {
-                    el.href = link.startsWith('http') ? link : `https://${link}`;
-                    el.style.display = "block";
-                    return true;
-                } else {
-                    el.style.display = "none";
-                    return false;
-                }
-            };
+            const botonSorteo = (tieneSorteo || tienePromo) 
+                ? `<a href="usuarios_sorteos_promos.html?id=${id}" 
+                       style="width: 100%; background: #ff8c00; color: white; padding: 15px; border-radius: 10px; text-decoration: none; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); border: none; font-family: sans-serif;">
+                       <i class="fas fa-gift"></i> SORTEOS Y PROMOCIONES
+                   </a>` 
+                : "";
 
-            const h1 = configurarBoton('lnk-ig', ig);
-            const h2 = configurarBoton('lnk-fb', fb);
-            const h3 = configurarBoton('lnk-tk', tk);
-            const h4 = configurarBoton('lnk-web', web);
+            const htmlRedes = `
+                <div style="text-align: center; padding: 10px; font-family: sans-serif;">
+                    <h2 style="color: #ffc107; margin-bottom: 20px; text-transform: uppercase; font-weight: 900;">${c.nombre}</h2>
+                    
+                    ${botonSorteo}
 
-            // ✅ SOLO MOSTRAR BOTÓN DE SORTEOS SI HAY DATOS EN FIREBASE
-            const tieneSorteoOPromo = (sorteoTitulo && sorteoTitulo.trim() !== "") || (promoTitulo && promoTitulo.trim() !== "");
-            document.getElementById('lnk-sorteos').style.display = tieneSorteoOPromo ? "block" : "none";
-            document.getElementById('separador-sorteos').style.display = tieneSorteoOPromo ? "block" : "none";
+                    <p style="color: #ccc; font-size: 0.9em; margin-bottom: 15px;">Redes Sociales y Contacto:</p>
+                    <div style="display: flex; gap: 20px; justify-content: center; flex-wrap: wrap;">
+                        ${c.facebook ? `<a href="${c.facebook}" target="_blank" style="color: #1877F2; font-size: 2.5em;"><i class="fab fa-facebook"></i></a>` : ''}
+                        ${c.instagram ? `<a href="${c.instagram}" target="_blank" style="color: #E1306C; font-size: 2.5em;"><i class="fab fa-instagram"></i></a>` : ''}
+                        ${c.web ? `<a href="${c.web}" target="_blank" style="color: #fff; font-size: 2.5em;"><i class="fab fa-tiktok"></i></a>` : ''}
+                        ${c.sitioWeb ? `<a href="${c.sitioWeb}" target="_blank" style="color: #00d2ff; font-size: 2.5em;"><i class="fas fa-globe"></i></a>` : ''}
+                        <a href="https://wa.me/${c.telefono}" target="_blank" style="color: #25D366; font-size: 2.5em;"><i class="fab fa-whatsapp"></i></a>
+                    </div>
+                </div>
+            `;
 
-            document.getElementById('popup-redes').style.display = 'flex';
-        };
-
-        window.cerrarPopup = () => {
-            document.getElementById('popup-redes').style.display = 'none';
-            document.getElementById('lnk-sorteos').style.display = "none";
-            document.getElementById('separador-sorteos').style.display = "none";
+            document.getElementById('redes-content').innerHTML = htmlRedes;
+            document.getElementById('modal-redes').style.display = 'flex';
         };
 
         window.filtrar = () => {
