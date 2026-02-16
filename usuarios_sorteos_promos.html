@@ -26,7 +26,6 @@
             min-height: 100vh;
         }
 
-        /* HEADER ORIGINAL CON LOGO */
         .header {
             width: 100%;
             padding: 20px 0;
@@ -81,10 +80,8 @@
             cursor: pointer;
             text-transform: uppercase;
             margin-top: 15px;
-            box-shadow: 0 4px 10px rgba(255, 140, 0, 0.3);
         }
 
-        /* POPUP EXITOSO */
         .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 1000;
@@ -148,7 +145,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -162,48 +159,40 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Intentamos obtener por nombre (que es lo que manda el botón anterior)
         const params = new URLSearchParams(window.location.search);
         const nombreBusqueda = params.get('id'); 
 
         let fechaSorteoGlobal = "";
 
         async function cargarDatos() {
-            if (!nombreBusqueda) {
-                document.getElementById('nombre-comercio').innerText = "Comercio no especificado";
-                return;
-            }
+            if (!nombreBusqueda) return;
 
             try {
-                // Buscamos el comercio por el campo "nombre" exactamente como viene de la otra página
                 const q = query(collection(db, "comercios"), where("nombre", "==", nombreBusqueda));
                 const querySnapshot = await getDocs(q);
 
                 if (!querySnapshot.empty) {
                     const c = querySnapshot.docs[0].data();
-
                     document.getElementById('nombre-comercio').innerText = c.nombre;
 
-                    // CARGAR SORTEO
-                    if (c.sorteoTitulo && c.sorteoTitulo.trim() !== "") {
+                    // CARGAR SORTEO (Usando nombres exactos de admin_comercios.html)
+                    if (c.sorteoTit && c.sorteoTit.trim() !== "") {
                         document.getElementById('card-sorteo').style.display = 'block';
-                        document.getElementById('tit-sorteo').innerText = c.sorteoTitulo;
-                        document.getElementById('desc-sorteo').innerText = c.sorteoDescripcion || "";
+                        document.getElementById('tit-sorteo').innerText = c.sorteoTit;
+                        document.getElementById('desc-sorteo').innerText = c.sorteoDesc || "";
                         document.getElementById('fecha-sorteo').innerText = c.sorteoFecha || "A confirmar";
                         fechaSorteoGlobal = c.sorteoFecha || "próximamente";
                     }
 
-                    // CARGAR PROMO (Se corrigió la asignación de descripción)
-                    if (c.promoTitulo && c.promoTitulo.trim() !== "") {
+                    // CARGAR PROMO (Usando nombres exactos de admin_comercios.html)
+                    if (c.promoTit && c.promoTit.trim() !== "") {
                         document.getElementById('card-promo').style.display = 'block';
-                        document.getElementById('tit-promo').innerText = c.promoTitulo;
-                        document.getElementById('desc-promo').innerText = c.promoDescripcion || "";
+                        document.getElementById('tit-promo').innerText = c.promoTit;
+                        document.getElementById('desc-promo').innerText = c.promoDesc || "";
                     }
-                } else {
-                    document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
                 }
             } catch (error) {
-                console.error("Error cargando datos:", error);
+                console.error("Error cargando sorteos:", error);
             }
         }
 
