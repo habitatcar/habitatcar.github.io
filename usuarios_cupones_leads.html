@@ -192,6 +192,7 @@
         }
         #reader { width: 300px; background: white; border-radius: 10px; overflow: hidden; }
 
+        /* ✅ CSS CORREGIDO - Botones no ocupan espacio si están vacíos */
         .popup-redes {
             display: none;
             position: fixed;
@@ -201,16 +202,14 @@
             background: white;
             padding: 20px;
             border-radius: 15px;
-            box-shadow: 0 0 25px rgba(0,0,0,0.6);
+            box-shadow: 0 0 25px rgba(0,0,0,0.7);
             z-index: 10000;
             flex-direction: column;
             width: 85%;
             max-width: 320px;
-            max-height: 80vh;
-            overflow-y: auto;
         }
         .btn-red {
-            display: block;
+            display: none; /* Por defecto ocultos */
             width: 100%;
             padding: 12px;
             margin-bottom: 8px;
@@ -341,17 +340,18 @@
         </div>
     </div>
 
-    <!-- ✅ POPUP DE REDES SOCIALES ACTUALIZADO -->
+    <!-- ✅ POPUP DE REDES SOCIALES CORREGIDO -->
     <div id="popup-redes" class="popup-redes">
-        <h3 id="pop-nombre" style="margin:0 0 15px 0; color:var(--negro); text-align:center;"></h3>
+        <h3 id="pop-nombre" style="margin:0 0 15px 0; color:var(--azul-oscuro); text-align:center;"></h3>
         
-        <div id="contenedor-botones-redes" style="display:flex; flex-direction:column; gap:10px; width:100%;"></div>
+        <a id="lnk-ig" class="btn-red" style="background:#e1306c" target="_blank">INSTAGRAM</a>
+        <a id="lnk-fb" class="btn-red" style="background:#3b5998" target="_blank">FACEBOOK</a>
+        <a id="lnk-tk" class="btn-red" style="background:#000000" target="_blank">TIKTOK</a>
+        <a id="lnk-web" class="btn-red" style="background:#004a99" target="_blank">SITIO WEB</a>
         
-        <hr id="separador-sorteos" style="width:100%; border:0; border-top:1px solid #eee; margin:10px 0; display:none;">
-        
-        <a id="lnk-sorteos" class="btn-red" style="background:#ff8c00; display: block;" href="admin_comercios.html">SORTEOS Y PROMOS</a>
+        <a id="lnk-sorteos" class="btn-red" style="background:#ff8c00; display:block;" href="admin_comercios.html">SORTEOS Y PROMOS</a>
 
-        <button onclick="cerrarPopup()" style="border:none; background:#eee; color:#333; padding:10px; border-radius:8px; cursor:pointer; margin-top:10px; width:100%; font-weight:bold;">CERRAR</button>
+        <button onclick="cerrarPopup()" style="border:none; background:#eee; color:#333; padding:10px; border-radius:8px; cursor:pointer; margin-top:10px; font-weight:bold;">CERRAR</button>
     </div>
 
     <div id="modal-qr" class="modal">
@@ -533,20 +533,13 @@
                 const beneficio = c.valLead ? `${c.valLead}% ${c.txtLead || ''}` : "Consultar";
                 const token = c.tokenQR || "";
                 
-                // Capturar y formatear todas las redes sociales correctamente
-                // ✅ ORDEN CORREGIDO: Nombre, Instagram, Sitio Web, Facebook, TikTok
-                const igRaw = c.instagram || "";
-                const fbRaw = c.facebook || "";
-                const tkRaw = c.tiktok || "";
-                const webRaw = c.sitioWeb || "";
+                // ✅ CORREGIDO: Capturar redes sociales con el orden correcto
+                const ig = c.instagram || "";
+                const fb = c.facebook || "";
+                const tk = c.tiktok || ""; // TikTok desde el campo 'tiktok'
+                const sitio = c.sitioWeb || "";
 
-                // Formatear URLs correctamente
-                const ig = igRaw ? (igRaw.includes('http') ? igRaw : `https://instagram.com/${igRaw.replace('@','')}`) : "";
-                const fb = fbRaw ? (fbRaw.includes('http') ? fbRaw : `https://facebook.com/${fbRaw}`) : "";
-                const tk = tkRaw ? (tkRaw.includes('http') ? tkRaw : `https://tiktok.com/@${tkRaw.replace('@','')}`) : "";
-                const web = webRaw ? (webRaw.includes('http') ? webRaw : `https://${webRaw}`) : "";
-
-                const tieneRedes = (ig !== "" || fb !== "" || tk !== "" || web !== "");
+                const tieneRedes = (ig !== "" || fb !== "" || tk !== "" || sitio !== "");
                 
                 let infoVencimiento = "";
                 if (!mostrarReloj) {
@@ -568,7 +561,7 @@
                         <span class="info-txt">${infoVencimiento}</span>
                         ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
                         <div class="btn-stack">
-                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${escapeAttr(nombre)}', '${escapeAttr(ig)}', '${escapeAttr(web)}', '${escapeAttr(fb)}', '${escapeAttr(tk)}')">Conozca el comercio</button>` : ""}
+                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${escapeAttr(nombre)}', '${escapeAttr(ig)}', '${escapeAttr(sitio)}', '${escapeAttr(fb)}', '${escapeAttr(tk)}')">Conozca el comercio</button>` : ""}
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
                             <button class="btn-act btn-usar ${esUsado ? 'usado' : ''}" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${escapeAttr(nombre)}')">
@@ -609,41 +602,28 @@
             };
         };
 
-        // ✅ FUNCIÓN abrirPopup ACTUALIZADA CON LÓGICA DE LIMPIEZA TOTAL
+        // ✅ FUNCIÓN abrirPopup CORREGIDA CON LÓGICA DE VALIDACIÓN
         window.abrirPopup = (nom, ig, web, fb, tk) => {
             document.getElementById('pop-nombre').innerText = nom;
-            const contenedor = document.getElementById('contenedor-botones-redes');
             
-            // Limpiamos botones anteriores
-            contenedor.innerHTML = "";
-
-            const crearBoton = (texto, link, color) => {
-                // Validación estricta: No nulo, no vacío, no solo un '#'
-                if (link && link.trim() !== "" && link !== "#") {
-                    const a = document.createElement('a');
-                    a.className = 'btn-red';
-                    a.style.background = color;
-                    a.target = "_blank";
-                    a.href = link.startsWith('http') ? link : `https://${link}`;
-                    a.innerText = texto;
-                    contenedor.appendChild(a);
-                    return true;
+            const validarLink = (id, url) => {
+                const el = document.getElementById(id);
+                if (url && url.trim() !== "" && url !== "#") {
+                    el.href = url.startsWith('http') ? url : `https://${url}`;
+                    el.style.display = "block"; // Solo se muestra si hay link real
+                } else {
+                    el.style.display = "none"; // Desaparece y no ocupa espacio
                 }
-                return false;
             };
 
-            // Creamos los botones solo si tienen contenido
-            const tieneIg = crearBoton('INSTAGRAM', ig, '#e1306c');
-            const tieneFb = crearBoton('FACEBOOK', fb, '#3b5998');
-            const tieneTk = crearBoton('TIKTOK', tk, '#000000'); // TikTok corregido
-            const tieneWeb = crearBoton('SITIO WEB', web, '#004a99');
-
-            // Mostrar separador solo si hay redes
-            document.getElementById('separador-sorteos').style.display = (tieneIg || tieneFb || tieneTk || tieneWeb) ? 'block' : 'none';
+            validarLink('lnk-ig', ig);
+            validarLink('lnk-fb', fb);
+            validarLink('lnk-tk', tk); // Aquí entra el dato de TikTok
+            validarLink('lnk-web', web);
             
             document.getElementById('popup-redes').style.display = 'flex';
         };
-        
+
         window.cerrarPopup = () => {
             document.getElementById('popup-redes').style.display = 'none';
         };
