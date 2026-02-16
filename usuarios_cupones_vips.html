@@ -25,7 +25,7 @@
             --azul-lindo: #0056b3;
             --verde: #2e7d32;
             --rosa: #c2185b;
-            --naranja-sorteo: #f57c00; /* Color para el nuevo botón */
+            --naranja-sorteo: #f57c00; 
             --gris-volver: #757575;
             --facebook: #1877f2;
             --instagram: #e4405f;
@@ -307,6 +307,10 @@
                 
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0");
                 const tieneRedes = (c.facebook || c.instagram || c.web);
+
+                // CORRECCIÓN: Validar si existen sorteos o promos cargados para mostrar el botón
+                const tieneSorteoPromo = (c.sorteoTit && c.sorteoTit.trim() !== "") || (c.promoTit && c.promoTit.trim() !== "");
+
                 const htmlLogo = c.logoUrl 
                     ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` 
                     : '';
@@ -320,7 +324,7 @@
                         <div class="btn-stack">
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${id}')">Conozca el comercio</button>` : ''}
                             
-                            <button class="btn-act btn-sorteo" onclick="verSorteos('${id}')">SORTEOS y PROMOS</button>
+                            ${tieneSorteoPromo ? `<button class="btn-act btn-sorteo" onclick="verSorteos('${id}')">SORTEOS y PROMOS</button>` : ''}
                             
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
@@ -333,11 +337,11 @@
             contenedor.innerHTML = html;
         });
 
-        // CORRECCIÓN: Función para redirigir al archivo de sorteos local
+        // CORRECCIÓN: Función para ir específicamente a la página del comercio elegido
         window.verSorteos = (id) => {
             const c = listaComercios.find(x => x.id === id);
             if (c) {
-                // Redirige a usuarios_sorteos_promos.html pasando el nombre por URL
+                // Redirige pasando el nombre para que la otra página sepa qué mostrar
                 window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(c.nombre)}`;
             }
         };
