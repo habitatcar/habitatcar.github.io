@@ -26,17 +26,18 @@
             min-height: 100vh;
         }
 
+        /* DISEÑO ORIGINAL RESTAURADO */
         .header {
             width: 100%;
-            padding: 20px 0;
+            padding: 30px 0;
             text-align: center;
             background: var(--azul-medio);
             border-bottom: 3px solid var(--oro);
         }
         .header img {
-            max-width: 180px;
+            max-width: 220px;
             height: auto;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
         .container {
@@ -53,7 +54,7 @@
             margin-bottom: 25px;
             border-left: 5px solid var(--oro);
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            display: none; /* Se activa por JS */
+            display: none; /* Se muestra solo si tiene datos */
         }
 
         .card h2 { 
@@ -93,7 +94,7 @@
         }
 
         .btn-volver {
-            margin-top: 10px;
+            margin-top: 20px;
             background: rgba(255,255,255,0.1);
             color: white;
             padding: 12px 25px;
@@ -109,16 +110,15 @@
 
     <div class="header">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" alt="Hábitat-Car">
-        <h1 id="nombre-comercio" style="font-size: 1.5em; margin: 0; color: var(--oro);">Buscando...</h1>
+        <h1 id="nombre-comercio" style="font-size: 1.6em; margin: 0; color: var(--oro);">Cargando...</h1>
     </div>
 
-    <div class="container" id="contenido-dinamico">
-        
+    <div class="container">
         <div class="card" id="card-sorteo">
             <h2><i class="fas fa-trophy"></i> SORTEO ACTIVO</h2>
             <h3 id="tit-sorteo"></h3>
             <p id="desc-sorteo"></p>
-            <p style="color: var(--oro); font-weight: bold;">
+            <p style="color: var(--oro); font-weight: bold; margin-top: 10px;">
                 <i class="far fa-calendar-alt"></i> Fecha: <span id="fecha-sorteo"></span>
             </p>
             <button class="btn-participar" onclick="abrirPopupExito()">¡QUIERO PARTICIPAR!</button>
@@ -130,7 +130,7 @@
             <p id="desc-promo"></p>
         </div>
 
-        <div style="text-align: center; margin-top: 20px;">
+        <div style="text-align: center;">
             <a href="usuarios_cupones_vips.html" class="btn-volver">VOLVER A CUPONES</a>
         </div>
     </div>
@@ -160,7 +160,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Obtenemos el nombre enviado por URL
         const params = new URLSearchParams(window.location.search);
         const nombreBusqueda = params.get('id'); 
 
@@ -168,54 +167,50 @@
 
         async function cargarDatos() {
             if (!nombreBusqueda) {
-                document.getElementById('nombre-comercio').innerText = "No se especificó comercio";
+                document.getElementById('nombre-comercio').innerText = "Comercio Amigo";
                 return;
             }
 
             try {
-                // Buscamos en la colección "comercios" donde el campo "nombre" coincida
+                // Buscamos el comercio por su nombre exacto
                 const q = query(collection(db, "comercios"), where("nombre", "==", nombreBusqueda));
                 const querySnapshot = await getDocs(q);
 
                 if (!querySnapshot.empty) {
-                    const docSnap = querySnapshot.docs[0];
-                    const c = docSnap.data();
-
+                    const c = querySnapshot.docs[0].data();
                     document.getElementById('nombre-comercio').innerText = c.nombre;
 
-                    // Mapeo según admin_comercios.html: sorteoTit, sorteoDesc, sorteoFecha
+                    // CARGAR SORTEO (Usando los campos de admin_comercios.html)
                     if (c.sorteoTit && c.sorteoTit.trim() !== "") {
                         document.getElementById('card-sorteo').style.display = 'block';
                         document.getElementById('tit-sorteo').innerText = c.sorteoTit;
-                        document.getElementById('desc-sorteo').innerText = c.sorteoDesc || "Sin descripción";
+                        document.getElementById('desc-sorteo').innerText = c.sorteoDesc || "";
                         document.getElementById('fecha-sorteo').innerText = c.sorteoFecha || "A confirmar";
                         fechaSorteoGlobal = c.sorteoFecha || "próximamente";
                     }
 
-                    // Mapeo según admin_comercios.html: promoTit, promoDesc
+                    // CARGAR PROMO (Usando los campos de admin_comercios.html)
                     if (c.promoTit && c.promoTit.trim() !== "") {
                         document.getElementById('card-promo').style.display = 'block';
                         document.getElementById('tit-promo').innerText = c.promoTit;
-                        document.getElementById('desc-promo').innerText = c.promoDesc || "Sin descripción";
+                        document.getElementById('desc-promo').innerText = c.promoDesc || "";
                     }
 
-                    // Si no hay ninguno de los dos
                     if (!c.sorteoTit && !c.promoTit) {
-                        document.getElementById('nombre-comercio').innerText = "Sin promos vigentes";
+                        document.getElementById('nombre-comercio').innerText = "Sin promociones activas";
                     }
 
                 } else {
                     document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
                 }
             } catch (error) {
-                console.error("Error Firebase:", error);
-                document.getElementById('nombre-comercio').innerText = "Error de conexión";
+                console.error("Error:", error);
             }
         }
 
         window.abrirPopupExito = () => {
             document.getElementById('txt-exito-dinamico').innerText = 
-                `Ya estás participando del sorteo. Fecha: ${fechaSorteoGlobal}. ¡Mucha suerte!`;
+                `Ya estás participando del sorteo a llevarse a cabo el día ${fechaSorteoGlobal}. ¡Mucha suerte!`;
             document.getElementById('overlay').style.display = 'flex';
         }
 
