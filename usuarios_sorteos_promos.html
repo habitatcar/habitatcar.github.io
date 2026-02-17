@@ -26,6 +26,7 @@
             min-height: 100vh;
         }
 
+        /* DISEÑO ORIGINAL */
         .header {
             width: 100%;
             padding: 30px 0;
@@ -84,7 +85,7 @@
         }
 
         .btn-volver {
-            margin-top: 10px;
+            margin-top: 20px;
             background: rgba(255,255,255,0.1);
             color: white;
             padding: 12px 25px;
@@ -108,7 +109,7 @@
             <h2><i class="fas fa-trophy"></i> SORTEO ACTIVO</h2>
             <h3 id="tit-sorteo"></h3>
             <p id="desc-sorteo"></p>
-            <p style="color: var(--oro); font-weight: bold;">
+            <p style="color: var(--oro); font-weight: bold; margin-top: 10px;">
                 <i class="far fa-calendar-alt"></i> Fecha: <span id="fecha-sorteo"></span>
             </p>
             <button class="btn-participar" onclick="abrirPopupExito()">¡QUIERO PARTICIPAR!</button>
@@ -120,7 +121,7 @@
             <p id="desc-promo"></p>
         </div>
 
-        <div style="text-align: center; margin-top: 20px;">
+        <div style="text-align: center;">
             <a href="usuarios_cupones_vips.html" class="btn-volver">VOLVER A CUPONES</a>
         </div>
     </div>
@@ -150,16 +151,20 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // Obtener ID del comercio de la URL
         const params = new URLSearchParams(window.location.search);
         const idComercio = params.get('id'); 
 
         let fechaSorteoGlobal = "";
 
         async function cargarDatos() {
-            if (!idComercio) return;
+            if (!idComercio) {
+                document.getElementById('nombre-comercio').innerText = "Comercio Amigo";
+                return;
+            }
 
             try {
-                // LÓGICA DE LEADS: Obtener el documento directamente por su ID
+                // Buscamos el documento directamente por ID (como en Leads)
                 const docRef = doc(db, "comercios", idComercio);
                 const docSnap = await getDoc(docRef);
 
@@ -167,7 +172,7 @@
                     const c = docSnap.data();
                     document.getElementById('nombre-comercio').innerText = c.nombre;
 
-                    // Carga de Sorteo con los nombres de admin_comercios.html
+                    // CARGAR SORTEO (Campos: sorteoTit, sorteoDesc, sorteoFecha)
                     if (c.sorteoTit && c.sorteoTit.trim() !== "") {
                         document.getElementById('card-sorteo').style.display = 'block';
                         document.getElementById('tit-sorteo').innerText = c.sorteoTit;
@@ -176,22 +181,22 @@
                         fechaSorteoGlobal = c.sorteoFecha || "próximamente";
                     }
 
-                    // Carga de Promo con los nombres de admin_comercios.html
+                    // CARGAR PROMO (Campos: promoTit, promoDesc)
                     if (c.promoTit && c.promoTit.trim() !== "") {
                         document.getElementById('card-promo').style.display = 'block';
                         document.getElementById('tit-promo').innerText = c.promoTit;
                         document.getElementById('desc-promo').innerText = c.promoDesc || "";
                     }
-                    
-                    if(!c.sorteoTit && !c.promoTit) {
+
+                    if (!c.sorteoTit && !c.promoTit) {
                         document.getElementById('nombre-comercio').innerText = "Sin promociones activas";
                     }
                 } else {
                     document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
                 }
             } catch (error) {
-                console.error("Error:", error);
-                document.getElementById('nombre-comercio').innerText = "Error de carga";
+                console.error("Error cargando datos:", error);
+                document.getElementById('nombre-comercio').innerText = "Error de conexión";
             }
         }
 
