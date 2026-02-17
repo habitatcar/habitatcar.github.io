@@ -232,13 +232,14 @@
         /* ✅ CONTADOR DE TRANSPARENCIA */
         #contador-transparencia {
             display: none;
-            color: var(--oro);
-            margin: 15px 0;
-            font-size: 0.95em;
-            background: rgba(0,0,0,0.3);
+            background: rgba(255,193,7,0.1);
+            border: 1px solid var(--oro);
             padding: 12px 20px;
             border-radius: 12px;
-            border: 1px solid var(--naranja);
+            margin: 15px 0;
+            text-align: center;
+            font-size: 0.95em;
+            color: var(--blanco);
             animation: pulse 2s infinite;
         }
         #contador-transparencia i {
@@ -288,7 +289,7 @@
         </div>
 
         <!-- ✅ CONTADOR DE TRANSPARENCIA EN TIEMPO REAL -->
-        <div id="contador-transparencia">
+        <div id="contador-transparencia" style="display:none;">
             <i class="fas fa-users"></i> <span id="texto-contador">Cargando participantes...</span>
         </div>
 
@@ -362,7 +363,7 @@
             
             <!-- ✅ BOTÓN GOOGLE CALENDAR PARA NOTIFICARME -->
             <button onclick="notificarGoogleCalendar()" class="btn-calendar">
-                <i class="fab fa-google"></i> AGENDAR Y NOTIFICARME (30 min antes)
+                <i class="fab fa-google"></i> AGENDAR Y NOTIFICARME (Google)
             </button>
             
             <button class="btn-participar" style="margin-top: 15px; background: var(--verde);" onclick="cerrarPopup()">EXCELENTE</button>
@@ -371,7 +372,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, where, onSnapshot, getDoc, doc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, query, where, onSnapshot, getDoc, doc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -385,9 +386,10 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // ✅ Obtener nombre del comercio de la URL de forma segura
         const params = new URLSearchParams(window.location.search);
-        const idComercio = params.get('id');
-        let datosComercioGlobal = {};
+        const nombreComercio = decodeURIComponent(params.get('id') || "");
+        let datosComercioGlobal = null;
         let fechaSorteoData = "";
 
         // ✅ FUNCIÓN PARA FORMATEAR FECHA ISO A FORMATO ARGENTINO
@@ -409,7 +411,7 @@
         // ✅ VERIFICAR SI YA PARTICIPÓ
         async function verificarParticipacion() {
             const leadId = localStorage.getItem('leadId_v16') || 'anonimo';
-            const participacionKey = `participo_sorteo_${idComercio}_${leadId}`;
+            const participacionKey = `participo_sorteo_${nombreComercio}_${leadId}`;
             
             const yaParticipoLocal = localStorage.getItem(participacionKey);
             if (yaParticipoLocal === 'true') {
@@ -420,7 +422,7 @@
             try {
                 const q = query(
                     collection(db, "admin_participantes_sorteos"),
-                    where("comercioId", "==", idComercio),
+                    where("comercio", "==", nombreComercio),
                     where("usuarioId", "==", leadId)
                 );
                 const snap = await getDocs(q);
@@ -429,7 +431,7 @@
                     return true;
                 }
             } catch (e) {
-                console.log("Verificando participación:", e.message);
+                console.log("⚠️ Verificando participación:", e.message);
             }
             return false;
         }
@@ -442,93 +444,73 @@
             if (info) info.classList.add('visible');
         }
 
-        // ✅ FUNCIÓN PARTICIPAR - REGISTRO INTELIGENTE
+        // ✅ BOTÓN PARTICIPAR - ENVÍO A admin_participantes_sorteos
         window.abrirPopupExito = async () => {
             const leadId = localStorage.getItem('leadId_v16');
-            if (!leadId) {
-                alert("Error: No se detectó tu ID de usuario. Por favor, reingresa desde la app.");
+            if (!leadId || !datosComercioGlobal) {
+                alert("Espera a que carguen los datos o reingresá a la App.");
                 return;
             }
 
             try {
-                // Buscamos los datos del usuario para autocompletar
-                const userSnap = await getDoc(doc(db, "leads", leadId));
-                let userData = { nombre: "Participante", celular: "", vip: "no" };
-                
-                if (userSnap.exists()) {
-                    userData = userSnap.data();
-                }
+                const userRef = doc(db, "leads", leadId);
+                const userSnap = await getDoc(userRef);
+                const u = userSnap.exists() ? userSnap.data() : {};
 
-                // Guardamos la participación en admin_participantes_sorteos
                 await addDoc(collection(db, "admin_participantes_sorteos"), {
                     usuarioId: leadId,
-                    nombre: userData.nombre || "Sin Nombre",
-                    celular: userData.celular || "Sin Celular",
-                    tipo: userData.vip === "si" ? "VIP" : "LEAD",
-                    comercio: idComercio,
-                    comercioId: datosComercioGlobal.id || idComercio,
-                    premio: datosComercioGlobal.titulo_sorteo,
+                    nombre: u.nombre || "Usuario Anónimo",
+                    celular: u.celular || "Sin WhatsApp",
+                    tipo: u.vip === "si" ? "VIP" : "LEAD",
+                    comercio: nombreComercio,
+                    comercioId: datosComercioGlobal.id,
+                    premio: datosComercioGlobal.titulo_sorteo || "Sorteo General",
                     fecha_sorteo: fechaSorteoData,
                     timestamp: serverTimestamp()
                 });
 
                 // Guardar en localStorage como respaldo
-                const participacionKey = `participo_sorteo_${idComercio}_${leadId}`;
+                const participacionKey = `participo_sorteo_${nombreComercio}_${leadId}`;
                 localStorage.setItem(participacionKey, 'true');
 
-                // Mostrar popup de éxito con nombre personalizado
                 document.getElementById('txt-exito-dinamico').innerText = 
-                    `¡Listo ${userData.nombre}! Ya estás participando del sorteo.`;
+                    `¡Excelente ${u.nombre || ''}! Ya estás participando. No olvides agendarlo en tu calendario.`;
                 document.getElementById('overlay').style.display = 'flex';
-
-                // Ocultar botón y mostrar cartel verde
                 mostrarSoloCartelVerde();
 
-                // Log de actividad
-                await addDoc(collection(db, "logs_actividad"), {
-                    timestamp: Date.now(),
-                    tipo: "participacion",
-                    accion: "PARTICIPACIÓN SORTEO",
-                    nombre: `${userData.nombre} (${userData.tipo}) participó en sorteo de ${idComercio}`,
-                    comercioId: idComercio,
-                    modulo: "SORTEOS"
-                });
-
             } catch (e) {
-                console.error("Error al registrar participación:", e);
-                alert("⚠️ Error de conexión. Tu participación podría no haberse registrado. Inténtalo nuevamente.");
+                console.error("❌ Error al registrar participación:", e);
+                alert("Error al registrar participación. Reintente.");
             }
         };
 
-        // ✅ FUNCIÓN GOOGLE CALENDAR - NOTIFICARME
+        // ✅ NOTIFICARME (GOOGLE CALENDAR)
         window.notificarGoogleCalendar = () => {
-            const fechaISO = datosComercioGlobal.fecha_sorteo;
-            if (!fechaISO) {
-                alert("⚠️ No hay fecha definida para este sorteo.");
+            if (!datosComercioGlobal || !datosComercioGlobal.fecha_sorteo) {
+                alert("No hay una fecha definida para este sorteo.");
                 return;
             }
 
             try {
                 // Parsear fecha ISO (YYYY-MM-DDTHH:mm)
-                const [fechaParte, horaParte] = fechaISO.split('T');
+                const [fechaParte, horaParte] = datosComercioGlobal.fecha_sorteo.split('T');
                 const [anio, mes, dia] = fechaParte.split('-');
                 const [hora, minutos] = horaParte ? horaParte.split(':') : ['19', '00'];
                 
                 // Formato Google Calendar: YYYYMMDDTHHMMSSZ
                 const fechaInicio = `${anio}${mes}${dia}T${hora}${minutos}00Z`;
-                // Evento de 30 minutos antes del sorteo
                 const fechaRecordatorio = `${anio}${mes}${dia}T${String(parseInt(hora)-1).padStart(2,'0')}${minutos}00Z`;
                 
-                const titulo = encodeURIComponent(`🎁 SORTEO: ${datosComercioGlobal.titulo_sorteo} - ${idComercio}`);
-                const detalles = encodeURIComponent(`No te pierdas el sorteo de Hábitat-Car en ${idComercio}.\n\n🏆 Premio: ${datosComercioGlobal.titulo_sorteo}\n📍 Comercio: ${idComercio}\n\n¡Mucha suerte! 🍀`);
-                const ubicacion = encodeURIComponent(idComercio);
+                const titulo = encodeURIComponent(`🎁 SORTEO: ${datosComercioGlobal.titulo_sorteo} - ${nombreComercio}`);
+                const detalles = encodeURIComponent(`No te pierdas el sorteo de Hábitat-Car en ${nombreComercio}.\n\n🏆 Premio: ${datosComercioGlobal.titulo_sorteo}\n📍 Comercio: ${nombreComercio}\n\n¡Mucha suerte! 🍀`);
+                const ubicacion = encodeURIComponent(nombreComercio);
                 
                 const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${titulo}&dates=${fechaRecordatorio}/${fechaInicio}&details=${detalles}&location=${ubicacion}&sf=true&output=xml`;
                 
                 window.open(url, '_blank');
             } catch (e) {
-                console.error("Error al generar evento de calendario:", e);
-                alert("⚠️ No se pudo generar el evento. Intenta manualmente.");
+                console.error("Error al generar evento:", e);
+                alert("⚠️ No se pudo generar el evento.");
             }
         };
 
@@ -536,97 +518,95 @@
             document.getElementById('overlay').style.display = 'none';
         };
 
-        // ✅ CARGAR DATOS DEL COMERCIO + CONTADOR EN TIEMPO REAL
-        async function cargarDatos() {
-            if (!idComercio) {
-                document.getElementById('nombre-comercio').innerText = "ERROR: No se especificó comercio";
-                return;
-            }
+        // ✅ CARGA DE DATOS DEL COMERCIO - VERSIÓN CORREGIDA Y DINÁMICA
+        if (nombreComercio) {
+            document.getElementById('nombre-comercio').innerText = "Cargando...";
 
-            try {
-                // 1. Cargar datos del comercio
-                const qComercio = query(collection(db, "comercios"), where("idComercio", "==", idComercio));
-                const snapComercio = await getDocs(qComercio);
-
-                if (snapComercio.empty) {
-                    document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
-                    return;
-                }
-
-                const docCom = snapComercio.docs[0];
-                const data = docCom.data();
-                datosComercioGlobal = { id: docCom.id, ...data };
-
-                document.getElementById("nombre-comercio").innerText = data.nombre || idComercio;
-
-                // CARGA DE SORTEO
-                if (data.titulo_sorteo && data.titulo_sorteo.trim() !== "") {
-                    document.getElementById("card-sorteo").style.display = 'flex';
-                    document.getElementById("tit-sorteo").innerText = data.titulo_sorteo;
-                    document.getElementById("desc-sorteo").innerText = data.descripcion_sorteo || "Sin información de sorteo.";
+            // 1. CARGA DE DATOS DEL SORTEO (CON ERROR CATCH PARA EVITAR EL BLOQUEO)
+            const qComercio = query(collection(db, "comercios"), where("nombre", "==", nombreComercio), limit(1));
+            
+            onSnapshot(qComercio, (snap) => {
+                if (!snap.empty) {
+                    const docSnap = snap.docs[0];
+                    datosComercioGlobal = { id: docSnap.id, ...docSnap.data() };
                     
-                    if (data.fecha_sorteo) {
-                        const fechaFormateada = formatearFechaHoraArgentina(data.fecha_sorteo);
+                    console.log("✅ Datos del comercio cargados:", datosComercioGlobal);
+                    
+                    // Actualizar interfaz
+                    document.getElementById('nombre-comercio').innerText = datosComercioGlobal.nombre || nombreComercio;
+                    document.getElementById('tit-sorteo').innerText = datosComercioGlobal.titulo_sorteo || "Sorteo Próximamente";
+                    document.getElementById('desc-sorteo').innerText = datosComercioGlobal.descripcion_sorteo || "Seguinos para enterarte de los premios.";
+                    
+                    // ✅ FORMATEAR FECHA Y HORA DEL SORTEO
+                    if (datosComercioGlobal.fecha_sorteo) {
+                        const fechaFormateada = formatearFechaHoraArgentina(datosComercioGlobal.fecha_sorteo);
                         if (fechaFormateada) {
                             document.getElementById("fecha-sorteo").innerText = fechaFormateada.fecha;
                             document.getElementById("hora-sorteo").innerText = fechaFormateada.hora;
                             document.getElementById("fecha-sorteo-container").style.display = 'flex';
                             fechaSorteoData = `${fechaFormateada.fecha} ${fechaFormateada.hora}`;
                         } else {
-                            fechaSorteoData = data.fecha_sorteo;
+                            fechaSorteoData = datosComercioGlobal.fecha_sorteo;
                         }
                     }
-                }
-
-                // CARGA DE PROMO
-                if (data.titulo_promo && data.titulo_promo.trim() !== "") {
-                    document.getElementById("card-promo").style.display = 'flex';
-                    document.getElementById("tit-promo").innerText = data.titulo_promo;
-                    document.getElementById("desc-promo").innerText = data.descripcion_promo || "Sin información de promoción.";
                     
-                    if (data.promo_vence && data.promo_vence.trim() !== "") {
-                        const fechaFormateada = formatearFechaHoraArgentina(data.promo_vence);
-                        if (fechaFormateada) {
-                            document.getElementById("vence-fecha").innerText = fechaFormateada.fecha;
-                            document.getElementById("vence-hora").innerText = fechaFormateada.hora;
-                            document.getElementById("vence-promo-container").style.display = 'flex';
+                    // Promociones
+                    if (datosComercioGlobal.titulo_promo && datosComercioGlobal.titulo_promo.trim() !== "") {
+                        document.getElementById("card-promo").style.display = 'flex';
+                        document.getElementById("tit-promo").innerText = datosComercioGlobal.titulo_promo;
+                        document.getElementById("desc-promo").innerText = datosComercioGlobal.descripcion_promo || "Sin información de promoción.";
+                        
+                        if (datosComercioGlobal.promo_vence && datosComercioGlobal.promo_vence.trim() !== "") {
+                            const fechaFormateada = formatearFechaHoraArgentina(datosComercioGlobal.promo_vence);
+                            if (fechaFormateada) {
+                                document.getElementById("vence-fecha").innerText = fechaFormateada.fecha;
+                                document.getElementById("vence-hora").innerText = fechaFormateada.hora;
+                                document.getElementById("vence-promo-container").style.display = 'flex';
+                            }
                         }
                     }
-                }
-
-                // 2. CONTADOR DE TRANSPARENCIA EN TIEMPO REAL
-                const qParticipantes = query(
-                    collection(db, "admin_participantes_sorteos"), 
-                    where("comercioId", "==", idComercio)
-                );
-                
-                onSnapshot(qParticipantes, (snap) => {
-                    const total = snap.size;
-                    const container = document.getElementById('contador-transparencia');
-                    const texto = document.getElementById('texto-contador');
                     
-                    if (container && texto) {
-                        texto.innerHTML = `Ya hay <b style="color:var(--verde); font-size:1.1em;">${total}</b> ${total === 1 ? 'persona' : 'personas'} participando 🎉`;
-                        container.style.display = 'block';
+                    // Mostrar card de sorteo si hay título
+                    if (datosComercioGlobal.titulo_sorteo && datosComercioGlobal.titulo_sorteo.trim() !== "") {
+                        document.getElementById("card-sorteo").style.display = 'flex';
                     }
-                });
+                    
+                } else {
+                    console.error("⚠️ No se encontró el comercio en la DB con nombre:", nombreComercio);
+                    document.getElementById('nombre-comercio').innerText = "❌ Comercio no encontrado";
+                    document.getElementById('nombre-comercio').style.color = "var(--rojo)";
+                }
+            }, (error) => {
+                console.error("❌ Error de conexión Firebase:", error);
+                document.getElementById('nombre-comercio').innerText = "⚠️ Error de conexión";
+                document.getElementById('nombre-comercio').style.color = "var(--rojo)";
+            });
 
-                // 3. Verificar participación del usuario actual
-                await verificarParticipacion();
-
-            } catch (err) {
-                console.error("❌ Error cargando comercio:", err);
-                document.getElementById('nombre-comercio').innerText = "Error de conexión";
-            }
+            // 2. CONTADOR DE TRANSPARENCIA EN TIEMPO REAL
+            const qPart = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nombreComercio));
+            onSnapshot(qPart, (snap) => {
+                const total = snap.size;
+                const container = document.getElementById('contador-transparencia');
+                const texto = document.getElementById('texto-contador');
+                if (container && texto) {
+                    container.style.display = 'block';
+                    texto.innerHTML = `Ya hay <b style="color:var(--verde); font-size:1.1em;">${total}</b> ${total === 1 ? 'persona' : 'personas'} participando 🎉`;
+                }
+            }, (error) => {
+                console.warn("⚠️ No se pudo cargar el contador:", error.message);
+            });
+            
+            // 3. Verificar participación del usuario actual
+            verificarParticipacion();
+        } else {
+            document.getElementById('nombre-comercio').innerText = "⚠️ Comercio no especificado";
+            document.getElementById('nombre-comercio').style.color = "var(--rojo)";
         }
 
         // Hacer funciones accesibles globalmente
         window.abrirPopupExito = abrirPopupExito;
         window.notificarGoogleCalendar = notificarGoogleCalendar;
         window.cerrarPopup = cerrarPopup;
-
-        // Ejecutar al cargar
-        cargarDatos();
     </script>
 </body>
 </html>
