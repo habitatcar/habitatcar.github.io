@@ -13,6 +13,7 @@
             --blanco: #e6f1ff;
             --naranja: #ff8c00;
             --verde: #28a745;
+            --gris: #6c757d;
         }
 
         body {
@@ -107,6 +108,16 @@
             cursor: pointer;
             width: 100%;
             margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+
+        /* ✅ NUEVO ESTADO: BOTÓN DESACTIVADO (YA PARTICIPÓ) */
+        .btn-participar.ya-participo {
+            background: var(--gris);
+            color: #aaa;
+            cursor: not-allowed;
+            pointer-events: none;
+            border: 2px solid #555;
         }
 
         .btn-especificaciones {
@@ -152,6 +163,23 @@
             font-weight: bold;
             border: 1px solid rgba(255,255,255,0.2);
         }
+
+        .participacion-info {
+            background: rgba(40, 167, 69, 0.2);
+            border: 2px solid var(--verde);
+            padding: 15px;
+            border-radius: 15px;
+            margin-top: 20px;
+            display: none;
+        }
+        .participacion-info.visible {
+            display: block;
+            animation: fadeIn 0.5s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
     </style>
 </head>
 <body>
@@ -172,7 +200,17 @@
             <h2 id="tit-sorteo" class="promo-titulo"></h2>
             <p id="desc-sorteo" class="promo-detalle"></p>
             <p id="fecha-sorteo-texto" style="color: var(--oro); font-weight: bold; margin-bottom: 15px;"></p>
-            <button class="btn-participar" onclick="abrirPopupExito()">QUIERO PARTICIPAR</button>
+            
+            <!-- ✅ BOTÓN CON ESTADO DINÁMICO -->
+            <button class="btn-participar" id="btn-participar" onclick="registrarParticipacion()">QUIERO PARTICIPAR</button>
+            
+            <!-- ✅ MENSAJE DE YA PARTICIPÓ -->
+            <div class="participacion-info" id="participacionInfo">
+                <i class="fas fa-check-circle" style="color: var(--verde); font-size: 2em; margin-bottom: 10px;"></i>
+                <p style="color: var(--verde); font-weight: bold; margin: 0;">✅ YA ESTÁS PARTICIPANDO</p>
+                <p style="font-size: 0.9em; color: #aaa; margin: 5px 0 0 0;">Te notificaremos si resultas ganador</p>
+            </div>
+            
             <button class="btn-especificaciones" onclick="alert('Bases: 1. Ser miembro activo. 2. Presentar cupón.')">Bases del Sorteo</button>
         </div>
 
@@ -197,99 +235,187 @@
         </div>
     </div>
 
-    <!-- ✅ SCRIPT ACTUALIZADO CON BÚSQUEDA POR idComercio -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs, doc, getDoc, addDoc, serverTimestamp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
-        // 🔥 TU MISMA CONFIG (la copié del admin)
         const firebaseConfig = {
-          apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
-          authDomain: "habitatcar-pro.firebaseapp.com",
-          projectId: "habitatcar-pro",
-          storageBucket: "habitatcar-pro.firebasestorage.app",
-          messagingSenderId: "311691258694",
-          appId: "1:311691258694:web:17a09051dcea7707af9347"
+            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+            authDomain: "habitatcar-pro.firebaseapp.com",
+            projectId: "habitatcar-pro",
+            storageBucket: "habitatcar-pro.firebasestorage.app",
+            messagingSenderId: "311691258694",
+            appId: "1:311691258694:web:17a09051dcea7707af9347"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // 📌 agarramos el id del comercio desde la URL
         const params = new URLSearchParams(window.location.search);
-        const idComercio = params.get("id");
+        const idComercio = params.get('id');
+        let fechaSorteoData = "";
+        let idComercioActual = "";
 
-        async function cargarDatos() {
-          try {
-            if (!idComercio) {
-              console.warn("❌ No vino id de comercio");
-              document.getElementById('nombre-comercio').innerText = "ERROR: No se especificó comercio";
-              return;
+        // ✅ VERIFICAR SI YA PARTICIPÓ AL CARGAR LA PÁGINA
+        async function verificarParticipacion() {
+            const leadId = localStorage.getItem('leadId_v16') || 'anonimo';
+            const participacionKey = `participo_sorteo_${idComercio}_${leadId}`;
+            
+            // Check localStorage primero (más rápido)
+            const yaParticipoLocal = localStorage.getItem(participacionKey);
+            if (yaParticipoLocal === 'true') {
+                desactivarBotonParticipar();
+                return true;
             }
 
-            // 🔍 buscamos el comercio por idComercio
-            const q = query(
-              collection(db, "comercios"),
-              where("idComercio", "==", idComercio)
-            );
-
-            const snap = await getDocs(q);
-
-            if (snap.empty) {
-              console.warn("❌ Comercio no encontrado");
-              document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
-              return;
-            }
-
-            const data = snap.docs[0].data();
-
-            // ✅ cargar datos reales
-            document.getElementById("nombre-comercio").innerText = data.nombre || "Comercio";
-
-            // CARGA DE SORTEO (con nombres de campo corregidos)
-            if (data.titulo_sorteo && data.titulo_sorteo.trim() !== "") {
-                document.getElementById("card-sorteo").style.display = 'flex';
-                document.getElementById("tit-sorteo").innerText = data.titulo_sorteo;
-                document.getElementById("desc-sorteo").innerText = data.descripcion_sorteo || "Sin información de sorteo.";
-                document.getElementById("fecha-sorteo-texto").innerText = "📅 Fecha: " + (data.fecha_sorteo || "A confirmar");
-                window._fechaSorteo = data.fecha_sorteo || "próximamente";
-            }
-
-            // CARGA DE PROMO (con nombres de campo corregidos)
-            if (data.titulo_promo && data.titulo_promo.trim() !== "") {
-                document.getElementById("card-promo").style.display = 'flex';
-                document.getElementById("tit-promo").innerText = data.titulo_promo;
-                document.getElementById("desc-promo").innerText = data.descripcion_promo || "Sin información de promoción.";
-                
-                // Mostrar vigencia si existe
-                if (data.promo_vence && data.promo_vence.trim() !== "") {
-                    const v = document.getElementById("vence-promo");
-                    v.innerText = "⏰ Promo válida hasta: " + data.promo_vence;
-                    v.style.display = 'block';
+            // Check Firebase (más preciso)
+            try {
+                const q = query(
+                    collection(db, "participaciones_sorteos"),
+                    where("idComercio", "==", idComercio),
+                    where("leadId", "==", leadId)
+                );
+                const snap = await getDocs(q);
+                if (!snap.empty) {
+                    desactivarBotonParticipar();
+                    return true;
                 }
+            } catch (e) {
+                console.log("Verificando participación:", e.message);
             }
 
-          } catch (err) {
-            console.error("❌ Error cargando comercio:", err);
-            document.getElementById('nombre-comercio').innerText = "Error de conexión";
-          }
+            return false;
         }
 
-        // 🚀 ejecutar al cargar
+        // ✅ DESACTIVAR BOTÓN Y MOSTRAR MENSAJE
+        function desactivarBotonParticipar() {
+            const btn = document.getElementById('btn-participar');
+            const info = document.getElementById('participacionInfo');
+            
+            if (btn) {
+                btn.innerText = "PARTICIPANDO";
+                btn.classList.add('ya-participo');
+                btn.disabled = true;
+            }
+            
+            if (info) {
+                info.classList.add('visible');
+            }
+        }
+
+        // ✅ REGISTRAR PARTICIPACIÓN
+        window.registrarParticipacion = async () => {
+            const btn = document.getElementById('btn-participar');
+            const leadId = localStorage.getItem('leadId_v16') || 'anonimo';
+            const fechaParticipacion = new Date().toLocaleString('es-AR');
+
+            try {
+                // Guardar en Firebase
+                await addDoc(collection(db, "participaciones_sorteos"), {
+                    idComercio: idComercio,
+                    nombreComercio: document.getElementById('nombre-comercio').innerText,
+                    leadId: leadId,
+                    fechaParticipacion: fechaParticipacion,
+                    fechaSorteo: fechaSorteoData,
+                    timestamp: serverTimestamp(),
+                    estado: 'pendiente'
+                });
+
+                // Guardar en localStorage como respaldo
+                const participacionKey = `participo_sorteo_${idComercio}_${leadId}`;
+                localStorage.setItem(participacionKey, 'true');
+                localStorage.setItem(`fecha_participo_${idComercio}_${leadId}`, fechaParticipacion);
+
+                // Mostrar popup de éxito
+                document.getElementById('txt-exito-dinamico').innerText = 
+                    `¡Tu participación para el día ${fechaSorteoData || 'programado'} fue registrada exitosamente!`;
+                document.getElementById('overlay').style.display = 'flex';
+
+                // Desactivar botón
+                desactivarBotonParticipar();
+
+                // Log de actividad
+                await addDoc(collection(db, "logs_actividad"), {
+                    timestamp: Date.now(),
+                    tipo: "participacion",
+                    accion: "PARTICIPACIÓN SORTEO",
+                    nombre: `Lead ${leadId} participó en sorteo de ${idComercio}`,
+                    comercioId: idComercio,
+                    modulo: "SORTEOS"
+                });
+
+            } catch (e) {
+                console.error("Error al registrar participación:", e);
+                alert("⚠️ Error de conexión. Tu participación podría no haberse registrado. Inténtalo nuevamente.");
+            }
+        };
+
+        window.cerrarPopup = () => {
+            document.getElementById('overlay').style.display = 'none';
+        };
+
+        // ✅ CARGAR DATOS DEL COMERCIO
+        async function cargarDatos() {
+            if (!idComercio) {
+                document.getElementById('nombre-comercio').innerText = "ERROR: No se especificó comercio";
+                return;
+            }
+
+            try {
+                const q = query(
+                    collection(db, "comercios"),
+                    where("idComercio", "==", idComercio)
+                );
+
+                const snap = await getDocs(q);
+
+                if (snap.empty) {
+                    document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
+                    return;
+                }
+
+                const data = snap.docs[0].data();
+                idComercioActual = data.idComercio || idComercio;
+
+                document.getElementById("nombre-comercio").innerText = data.nombre || "Comercio";
+
+                // CARGA DE SORTEO
+                if (data.titulo_sorteo && data.titulo_sorteo.trim() !== "") {
+                    document.getElementById("card-sorteo").style.display = 'flex';
+                    document.getElementById("tit-sorteo").innerText = data.titulo_sorteo;
+                    document.getElementById("desc-sorteo").innerText = data.descripcion_sorteo || "Sin información de sorteo.";
+                    document.getElementById("fecha-sorteo-texto").innerText = "📅 Fecha: " + (data.fecha_sorteo || "A confirmar");
+                    fechaSorteoData = data.fecha_sorteo || "próximamente";
+                }
+
+                // CARGA DE PROMO
+                if (data.titulo_promo && data.titulo_promo.trim() !== "") {
+                    document.getElementById("card-promo").style.display = 'flex';
+                    document.getElementById("tit-promo").innerText = data.titulo_promo;
+                    document.getElementById("desc-promo").innerText = data.descripcion_promo || "Sin información de promoción.";
+                    
+                    if (data.promo_vence && data.promo_vence.trim() !== "") {
+                        const v = document.getElementById("vence-promo");
+                        v.innerText = "⏰ Promo válida hasta: " + data.promo_vence;
+                        v.style.display = 'block';
+                    }
+                }
+
+                // ✅ VERIFICAR PARTICIPACIÓN DESPUÉS DE CARGAR DATOS
+                await verificarParticipacion();
+
+            } catch (err) {
+                console.error("❌ Error cargando comercio:", err);
+                document.getElementById('nombre-comercio').innerText = "Error de conexión";
+            }
+        }
+
+        // Hacer funciones accesibles globalmente
+        window.registrarParticipacion = registrarParticipacion;
+        window.cerrarPopup = cerrarPopup;
+
+        // Ejecutar al cargar
         cargarDatos();
-
-        // ================= POPUP =================
-
-        window.abrirPopupExito = function () {
-          document.getElementById("txt-exito-dinamico").innerText =
-            `Ya estás participando del sorteo a llevarse a cabo el día ${window._fechaSorteo || "próximamente"}. ¡Mucha suerte!`;
-
-          document.getElementById("overlay").style.display = "flex";
-        };
-
-        window.cerrarPopup = function () {
-          document.getElementById("overlay").style.display = "none";
-        };
     </script>
 </body>
 </html>
