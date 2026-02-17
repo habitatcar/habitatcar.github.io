@@ -215,7 +215,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -230,84 +230,47 @@
         const db = getFirestore(app);
 
         const params = new URLSearchParams(window.location.search);
-        // ✅ CORRECCIÓN: Buscar tanto 'id' como 'comercioId'
         const idComercio = params.get('id') || params.get('comercioId');
         let fechaSorteoParaPopup = "";
 
+        // ✅ FUNCIÓN SIMPLIFICADA SEGÚN PEDIDO
         async function cargarDatosReales() {
-            // ✅ CORRECCIÓN: Validar que exista el ID
-            if (!idComercio) {
-                mostrarError("No se especificó ningún comercio. Por favor vuelve a intentar desde la página de beneficios.");
-                return;
-            }
+            if (!idComercio) return;
 
             try {
-                // ✅ CORRECCIÓN PRINCIPAL: Buscar por campo 'idComercio', no por ID de documento
-                const q = query(collection(db, "comercios"), where("idComercio", "==", idComercio));
-                const querySnapshot = await getDocs(q);
+                const docSnap = await getDoc(doc(db, "comercios", idComercio));
+                if (docSnap.exists()) {
+                    const c = docSnap.data();
+                    
+                    // 1. Nombre del Comercio
+                    document.getElementById('nombre-comercio').innerText = c.nombre || "Comercio";
 
-                if (querySnapshot.empty) {
-                    // Si no encuentra por idComercio, intentar por ID de documento como fallback
-                    const docSnap = await getDoc(doc(db, "comercios", idComercio));
-                    if (docSnap.exists()) {
-                        procesarDatos(docSnap.data());
-                    } else {
-                        mostrarError("No se encontró el comercio especificado.");
+                    // 2. Sorteo (Busca: titulo_sorteo)
+                    if (c.titulo_sorteo && c.titulo_sorteo.trim() !== "") {
+                        document.getElementById('card-sorteo').style.display = 'flex';
+                        document.getElementById('tit-sorteo').innerText = c.titulo_sorteo;
+                        document.getElementById('desc-sorteo').innerText = c.descripcion_sorteo || "";
+                        document.getElementById('fecha-sorteo-texto').innerText = "Fecha: " + (c.fecha_sorteo || "A confirmar");
+                        fechaSorteoParaPopup = c.fecha_sorteo || "la fecha programada";
                     }
-                    return;
+
+                    // 3. Promoción (Busca: titulo_promo)
+                    if (c.titulo_promo && c.titulo_promo.trim() !== "") {
+                        document.getElementById('card-promo').style.display = 'flex';
+                        document.getElementById('tit-promo').innerText = c.titulo_promo;
+                        document.getElementById('desc-promo').innerText = c.descripcion_promo || "";
+                        
+                        // Mostrar vencimiento si existe
+                        if (c.promo_vence) {
+                            const v = document.getElementById('vence-promo');
+                            v.innerText = "Promo válida hasta: " + c.promo_vence;
+                            v.style.display = 'block';
+                        }
+                    }
                 }
-
-                // ✅ Obtener el primer documento encontrado
-                const docSnap = querySnapshot.docs[0];
-                procesarDatos(docSnap.data());
-
-            } catch (e) {
-                console.error("Error al cargar datos:", e);
-                mostrarError("Error de conexión. Verifica tu internet e intenta nuevamente.");
+            } catch (e) { 
+                console.error("Error cargando:", e); 
             }
-        }
-
-        function procesarDatos(c) {
-            document.getElementById('nombre-comercio').innerText = c.nombre || "Comercio";
-
-            let haySorteo = false;
-            let hayPromo = false;
-
-            // ✅ EMPAREJAR SORTEO (con validación de string vacío)
-            if (c.titulo_sorteo && c.titulo_sorteo.trim() !== "") {
-                document.getElementById('card-sorteo').style.display = 'flex';
-                document.getElementById('tit-sorteo').innerText = c.titulo_sorteo;
-                document.getElementById('desc-sorteo').innerText = c.descripcion_sorteo || "";
-                document.getElementById('fecha-sorteo-texto').innerText = "📅 Fecha: " + (c.fecha_sorteo || "A confirmar");
-                fechaSorteoParaPopup = c.fecha_sorteo || "la fecha programada";
-                haySorteo = true;
-            }
-
-            // ✅ EMPAREJAR PROMO (con validación de string vacío)
-            if (c.titulo_promo && c.titulo_promo.trim() !== "") {
-                document.getElementById('card-promo').style.display = 'flex';
-                document.getElementById('tit-promo').innerText = c.titulo_promo;
-                document.getElementById('desc-promo').innerText = c.descripcion_promo || "";
-                
-                // ✅ EMPAREJAR VIGENCIA
-                if (c.promo_vence && c.promo_vence.trim() !== "") {
-                    const v = document.getElementById('vence-promo');
-                    v.innerText = "⏰ Promo válida hasta: " + c.promo_vence;
-                    v.style.display = 'block';
-                }
-                hayPromo = true;
-            }
-
-            // ✅ Si no hay ni sorteo ni promo, mostrar mensaje
-            if (!haySorteo && !hayPromo) {
-                mostrarError("Este comercio no tiene sorteos o promociones activas en este momento.");
-            }
-        }
-
-        function mostrarError(mensaje) {
-            document.getElementById('error-mensaje').innerText = mensaje;
-            document.getElementById('error-box').style.display = 'block';
-            document.getElementById('nombre-comercio').innerText = "ERROR";
         }
 
         window.abrirPopupExito = () => {
