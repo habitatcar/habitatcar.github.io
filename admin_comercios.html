@@ -112,6 +112,16 @@ color: #ffffff;
 box-sizing: border-box;
 font-size: 0.95em;
 }
+/* ✅ ESTILO PARA INPUTS DE FECHA/HORA */
+input[type="datetime-local"] {
+    cursor: pointer;
+    background: var(--azul-oscuro);
+    color: #ffffff;
+}
+input[type="datetime-local"]::-webkit-calendar-picker-indicator {
+    filter: invert(1) brightness(0.8);
+    cursor: pointer;
+}
 .read-only {
 background: #000 !important;
 color: var(--oro) !important;
@@ -365,7 +375,7 @@ details[open] summary::after {
 </div>
 <input type="text" id="detalle-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
 
-<!-- ✅ BLOQUE: SORTEOS Y PROMOCIONES -->
+<!-- ✅ BLOQUE: SORTEOS Y PROMOCIONES CON SELECTORES DE FECHA/HORA -->
 <details style="background: rgba(255,140,0,0.1); border: 1px solid var(--naranja); border-radius: 10px; margin-top: 15px; overflow: hidden;">
     <summary style="padding: 12px; cursor: pointer; font-weight: bold; color: var(--naranja); display: flex; justify-content: space-between; align-items: center; list-style: none;">
         <span>🎁 SORTEOS Y PROMOCIONES</span>
@@ -382,8 +392,8 @@ details[open] summary::after {
             <textarea id="descripcion_sorteo" rows="2" placeholder="Detalles del sorteo..."></textarea>
         </div>
         <div class="form-group">
-            <label><i class="fas fa-calendar-alt"></i> Fecha del Sorteo</label>
-            <input type="text" id="fecha_sorteo" placeholder="Ej: 25 de Mayo">
+            <label><i class="fas fa-calendar-alt"></i> Fecha y Hora del Sorteo</label>
+            <input type="datetime-local" id="fecha_sorteo" min="">
         </div>
 
         <div class="form-group" style="margin-top:20px; border-top:1px solid #444; padding-top:10px">
@@ -396,7 +406,7 @@ details[open] summary::after {
         </div>
         <div class="form-group">
             <label><i class="fas fa-calendar-check"></i> Promo válida hasta:</label>
-            <input type="text" id="promo_vence" placeholder="Ej: 30 de Junio">
+            <input type="datetime-local" id="promo_vence" min="">
         </div>
     </div>
 </details>
@@ -482,6 +492,16 @@ const urlParams = new URLSearchParams(window.location.search);
 const idForzado = urlParams.get('id');
 let COMERCIOS = [];
 let FILTRO_ESTADO = 'todos';
+
+// ✅ FUNCIÓN PARA ESTABLECER FECHA MÍNIMA EN SELECTORES
+function configurarFechaMinima() {
+    const ahora = new Date();
+    ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+    const minISO = ahora.toISOString().slice(0, 16);
+    document.getElementById('fecha_sorteo').min = minISO;
+    document.getElementById('promo_vence').min = minISO;
+}
+
 window.actualizarLocalidades = async (seleccionada = "") => {
 const prov = document.getElementById('provincia-input').value;
 const ciudadSelect = document.getElementById('ciudad-input');
@@ -532,6 +552,8 @@ if(faja) faja.style.display = 'none';
 }
 const capa = document.getElementById('capa-seguridad');
 if(capa) capa.style.display = 'none';
+// ✅ Configurar fecha mínima al cargar
+configurarFechaMinima();
 });
 const formatearFecha = (ts) => {
 if (!ts) return "Sin envíos";
@@ -695,10 +717,17 @@ document.getElementById('usos-vip').value = c.usosVip || 0;
 document.getElementById('vigencia-vip').value = c.vigenciaVip || "";
 document.getElementById('titulo_sorteo').value = c.titulo_sorteo || "";
 document.getElementById('descripcion_sorteo').value = c.descripcion_sorteo || "";
-document.getElementById('fecha_sorteo').value = c.fecha_sorteo || "";
+// ✅ Cargar fecha_sorteo en formato datetime-local si existe
+if (c.fecha_sorteo) {
+    // Si ya está en formato ISO, usarlo directamente
+    document.getElementById('fecha_sorteo').value = c.fecha_sorteo;
+}
 document.getElementById('titulo_promo').value = c.titulo_promo || "";
 document.getElementById('descripcion_promo').value = c.descripcion_promo || "";
-document.getElementById('promo_vence').value = c.promo_vence || "";
+// ✅ Cargar promo_vence en formato datetime-local si existe
+if (c.promo_vence) {
+    document.getElementById('promo_vence').value = c.promo_vence;
+}
 document.getElementById('direccion-input').value = c.direccion || "";
 document.getElementById('provincia-input').value = c.provincia || "";
 window.actualizarLocalidades(c.ciudad);
@@ -748,10 +777,11 @@ window.guardar = async () => {
         
         titulo_sorteo: document.getElementById('titulo_sorteo').value.trim(),
         descripcion_sorteo: document.getElementById('descripcion_sorteo').value.trim(),
-        fecha_sorteo: document.getElementById('fecha_sorteo').value.trim(),
+        // ✅ Fechas en formato ISO (YYYY-MM-DDTHH:mm) para compatibilidad
+        fecha_sorteo: document.getElementById('fecha_sorteo').value,
         titulo_promo: document.getElementById('titulo_promo').value.trim(),
         descripcion_promo: document.getElementById('descripcion_promo').value.trim(),
-        promo_vence: document.getElementById('promo_vence').value.trim(),
+        promo_vence: document.getElementById('promo_vence').value,
 
         direccion: document.getElementById('direccion-input').value,
         provincia: document.getElementById('provincia-input').value,
@@ -821,10 +851,13 @@ document.getElementById('fecha_sorteo').value = "";
 document.getElementById('titulo_promo').value = "";
 document.getElementById('descripcion_promo').value = "";
 document.getElementById('promo_vence').value = "";
+document.getElementById('direccion-input').value = "";
 document.getElementById('maps-url').value = "";
 document.getElementById('rubro-input').value = "";
 document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
 document.getElementById('btn-cancel-edit').style.display = 'none';
+// ✅ Reconfigurar fecha mínima al limpiar
+configurarFechaMinima();
 };
 window.genID = () => {
 if(document.getElementById('edit-id').value) return;
