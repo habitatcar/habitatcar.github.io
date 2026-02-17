@@ -229,92 +229,111 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Intentamos obtener el ID de varias formas para asegurar
+        // ✅ Obtener ID de la URL (acepta ambos parámetros)
         const params = new URLSearchParams(window.location.search);
         const idComercio = params.get('id') || params.get('comercioId');
         
         let fechaSorteoParaPopup = "la fecha programada";
 
-        // ✅ FUNCIÓN MEJORADA CON Doble Búsqueda (Query + Fallback)
+        // ✅ FUNCIÓN DE CARGA CORREGIDA
         async function cargarDatosReales() {
             if (!idComercio) {
-                console.error("No se encontró el ID del comercio en la URL");
+                console.error("❌ No se encontró el ID del comercio en la URL");
                 mostrarError("No se especificó ningún comercio. Por favor vuelve a intentar desde la página de beneficios.");
                 return;
             }
 
+            console.log("🔍 Buscando comercio con ID:", idComercio);
+
             try {
-                // ✅ INTENTO 1: Buscar por campo 'idComercio' (MÉTODO CORRECTO)
+                // ✅ INTENTO 1: Buscar por campo 'idComercio' (MÉTODO PRINCIPAL)
                 const q = query(collection(db, "comercios"), where("idComercio", "==", idComercio));
                 const querySnapshot = await getDocs(q);
 
                 if (!querySnapshot.empty) {
-                    // Encontrado por campo idComercio
+                    console.log("✅ Encontrado por campo idComercio");
                     const docSnap = querySnapshot.docs[0];
                     procesarDatos(docSnap.data());
                     return;
                 }
 
                 // ✅ INTENTO 2: Fallback - Buscar por ID de documento Firebase
-                console.log("No encontrado por idComercio, intentando por ID de documento...");
+                console.log("⚠️ No encontrado por idComercio, intentando por ID de documento...");
                 const docRef = doc(db, "comercios", idComercio);
                 const docSnap = await getDoc(docRef);
 
                 if (docSnap.exists()) {
+                    console.log("✅ Encontrado por ID de documento Firebase");
                     procesarDatos(docSnap.data());
                 } else {
-                    console.error("El comercio no existe en la base de datos");
+                    console.error("❌ El comercio no existe en la base de datos");
                     mostrarError("No se encontró el comercio especificado.");
                 }
 
             } catch (e) { 
-                console.error("Error en Firebase:", e);
+                console.error("❌ Error en Firebase:", e);
                 mostrarError("Error de conexión. Verifica tu internet e intenta nuevamente.");
             }
         }
 
+        // ✅ FUNCIÓN DE PROCESAMIENTO DE DATOS
         function procesarDatos(c) {
+            console.log("📦 Datos recibidos:", c);
+            
             document.getElementById('nombre-comercio').innerText = c.nombre || "Comercio";
 
             let hayDatos = false;
 
-            // SORTEO
+            // 🎁 SORTEO - Verifica los campos exactos de admin_comercios.html
             if (c.titulo_sorteo && c.titulo_sorteo.trim() !== "") {
+                console.log("✅ Hay sorteo:", c.titulo_sorteo);
                 document.getElementById('card-sorteo').style.display = 'flex';
                 document.getElementById('tit-sorteo').innerText = c.titulo_sorteo;
                 document.getElementById('desc-sorteo').innerText = c.descripcion_sorteo || "";
-                document.getElementById('fecha-sorteo-texto').innerText = "Fecha: " + (c.fecha_sorteo || "A confirmar");
+                document.getElementById('fecha-sorteo-texto').innerText = "📅 Fecha: " + (c.fecha_sorteo || "A confirmar");
                 fechaSorteoParaPopup = c.fecha_sorteo || "la fecha programada";
                 hayDatos = true;
+            } else {
+                console.log("⚠️ No hay título de sorteo");
             }
 
-            // PROMO
+            // 🏷️ PROMO - Verifica los campos exactos de admin_comercios.html
             if (c.titulo_promo && c.titulo_promo.trim() !== "") {
+                console.log("✅ Hay promo:", c.titulo_promo);
                 document.getElementById('card-promo').style.display = 'flex';
                 document.getElementById('tit-promo').innerText = c.titulo_promo;
                 document.getElementById('desc-promo').innerText = c.descripcion_promo || "";
                 
                 if (c.promo_vence && c.promo_vence.trim() !== "") {
+                    console.log("✅ Hay vencimiento:", c.promo_vence);
                     const v = document.getElementById('vence-promo');
-                    v.innerText = "Promo válida hasta: " + c.promo_vence;
+                    v.innerText = "⏰ Promo válida hasta: " + c.promo_vence;
                     v.style.display = 'block';
+                } else {
+                    console.log("⚠️ No hay vencimiento de promo");
                 }
                 hayDatos = true;
+            } else {
+                console.log("⚠️ No hay título de promo");
             }
 
             // Si no hay ni sorteo ni promo
             if (!hayDatos) {
+                console.log("⚠️ No hay datos de sorteo ni promo");
                 mostrarError("Este comercio no tiene sorteos o promociones activas en este momento.");
+            } else {
+                console.log("✅ Datos cargados exitosamente");
             }
         }
 
+        // ✅ FUNCIÓN DE ERROR
         function mostrarError(mensaje) {
             document.getElementById('error-mensaje').innerText = mensaje;
             document.getElementById('error-box').style.display = 'block';
             document.getElementById('nombre-comercio').innerText = "ERROR";
         }
 
-        // Definirlas como window para que el HTML las vea
+        // ✅ FUNCIONES GLOBALES PARA EL HTML
         window.abrirPopupExito = function() {
             document.getElementById('txt-exito-dinamico').innerText = 
                 `Ya estás participando del sorteo a llevarse a cabo el día ${fechaSorteoParaPopup}. ¡Mucha suerte!`;
@@ -325,7 +344,8 @@
             document.getElementById('overlay').style.display = 'none';
         }
 
-        // Ejecutar la carga
+        // ✅ INICIAR CARGA
+        console.log("🚀 Iniciando carga de datos...");
         cargarDatosReales();
     </script>
 </body>
