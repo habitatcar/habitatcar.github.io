@@ -336,7 +336,7 @@ details[open] summary::after {
 </div>
 <input type="text" id="detalle-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
 
-<!-- ✅ NUEVO BLOQUE: SORTEOS Y PROMOCIONES (ACTUALIZADO) -->
+<!-- ✅ BLOQUE: SORTEOS Y PROMOCIONES -->
 <details style="background: rgba(255,140,0,0.1); border: 1px solid var(--naranja); border-radius: 10px; margin-top: 15px; overflow: hidden;">
     <summary style="padding: 12px; cursor: pointer; font-weight: bold; color: var(--naranja); display: flex; justify-content: space-between; align-items: center; list-style: none;">
         <span>🎁 SORTEOS Y PROMOCIONES</span>
@@ -538,7 +538,6 @@ filtrados.forEach(c => {
 const estaActivo = c.estado === 'activo';
 const displayID = c.idComercio || c.id || "SIN-ID";
 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
-// Forzar visualización del %
 const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
 const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
 box.innerHTML += `
@@ -562,23 +561,19 @@ ${!idForzado ? `
 <div class="data-box"><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
 <div class="data-box" style="grid-column: span 2"><b>Último Envío</b><span style="color:var(--oro)">${formatearFecha(c.lastSubmission)}</span></div>
 <div class="data-box" style="grid-column: span 2"><b>Ubicación</b><span>${c.ciudad || '-'} (${c.provincia || '-'})</span></div>
-<!-- 👇 BLOQUE LEAD: descripción LIMPIA -->
 <div class="data-box benefit-box" style="grid-column: span 2;">
 <b>Lead</b>
 <span class="highlight-ben">${descLeadDisplay} ${c.detalleLead || ''}</span>
 </div>
-<!-- 👇 BLOQUE VIP: descripción LIMPIA -->
 <div class="data-box benefit-box" style="grid-column: span 2;">
 <b>VIP</b>
 <span class="highlight-ben" style="color:var(--oro)!important">${descVipDisplay} ${c.detalleVip || ''}</span>
 </div>
-<!-- 👇 DATOS TÉCNICOS LEAD (debajo del primero) -->
 <div style="grid-column: span 2; padding: 8px 12px; background: rgba(0,0,0,0.15); border-radius: 8px; margin-top: 4px; font-size: 0.85em; color: var(--blanco-suave); display: flex; align-items: center; gap: 10px;">
 <span><b style="color: #00d4ff;">USOS ASIGNADOS:</b> ${(c.usosLead == 0 || c.usosLead == null) ? 'ILIMITADO' : c.usosLead}</span>
 <span style="color: rgba(255,255,255,0.4);">|</span>
 <span><b style="color: #00d4ff;">VIGENCIA:</b> ${(c.vigenciaLead || 'ilimitada').toLowerCase()}</span>
 </div>
-<!-- 👇 DATOS TÉCNICOS VIP (debajo del segundo) -->
 <div style="grid-column: span 2; padding: 8px 12px; background: rgba(0,0,0,0.15); border-radius: 8px; margin-top: 4px; font-size: 0.85em; color: var(--blanco-suave); display: flex; align-items: center; gap: 10px;">
 <span><b style="color: var(--oro);">USOS ASIGNADOS:</b> ${(c.usosVip == 0 || c.usosVip == null) ? 'ILIMITADO' : c.usosVip}</span>
 <span style="color: rgba(255,255,255,0.4);">|</span>
@@ -632,7 +627,7 @@ document.getElementById('usos-lead').value = c.usosLead || 1;
 document.getElementById('vigencia-lead').value = c.vigenciaLead || "";
 document.getElementById('usos-vip').value = c.usosVip || 0;
 document.getElementById('vigencia-vip').value = c.vigenciaVip || "";
-// ✅ CARGA DE CAMPOS DE SORTEOS Y PROMOS (ACTUALIZADO)
+// ✅ CARGA DE CAMPOS DE SORTEOS Y PROMOCIONES
 document.getElementById('titulo_sorteo').value = c.titulo_sorteo || "";
 document.getElementById('descripcion_sorteo').value = c.descripcion_sorteo || "";
 document.getElementById('fecha_sorteo').value = c.fecha_sorteo || "";
@@ -654,78 +649,85 @@ document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal
 document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
 document.getElementById('btn-cancel-edit').style.display = 'block';
 };
+
+// ✅ FUNCIÓN GUARDAR CORREGIDA (FORMATO ACORDADO)
 window.guardar = async () => {
-const passValue = document.getElementById('password-input').value.trim();
-if (!passValue) {
-alert("⚠️ Debes ingresar una contraseña para el dueño.");
-return;
-}
-const nombre = document.getElementById('nombre-input').value.trim();
-const telefono = document.getElementById('telefono-input').value.trim();
-if (!nombre || !telefono) {
-alert("⚠️ Completa Nombre y WhatsApp.");
-return;
-}
-const eid = document.getElementById('edit-id').value;
-const data = {
-    // ... otros campos ...
-    titulo_sorteo: document.getElementById('sorteo-titulo').value.trim(),
-    descripcion_sorteo: document.getElementById('sorteo-desc').value.trim(),
-    fecha_sorteo: document.getElementById('sorteo-fecha').value.trim(),
-    titulo_promo: document.getElementById('promo-titulo').value.trim(),
-    descripcion_promo: document.getElementById('promo-desc').value.trim(),
-    promo_vence: document.getElementById('promo-vence') ? document.getElementById('promo-vence').value : "", 
-    // ... resto de campos ...
+    const passValue = document.getElementById('password-input').value.trim();
+    if (!passValue) {
+        alert("⚠️ Debes ingresar una contraseña para el dueño.");
+        return;
+    }
+    const nombre = document.getElementById('nombre-input').value.trim();
+    const telefono = document.getElementById('telefono-input').value.trim();
+    if (!nombre || !telefono) {
+        alert("⚠️ Completa Nombre y WhatsApp.");
+        return;
+    }
+
+    const eid = document.getElementById('edit-id').value;
+
+    // ESTE ES EL OBJETO CORREGIDO CON EL FORMATO ACORDADO
+    const data = {
+        nombre: nombre,
+        idComercio: document.getElementById('id-input').value,
+        tokenQR: document.getElementById('token-input').value,
+        descLead: document.getElementById('desc-lead').value,
+        detalleLead: document.getElementById('detalle-lead').value,
+        descVip: document.getElementById('desc-vip').value,
+        detalleVip: document.getElementById('detalle-vip').value,
+        usosLead: document.getElementById('usos-lead').value,
+        vigenciaLead: document.getElementById('vigencia-lead').value,
+        usosVip: document.getElementById('usos-vip').value,
+        vigenciaVip: document.getElementById('vigencia-vip').value,
+        
+        // FORMATO SOLICITADO
+        titulo_sorteo: document.getElementById('titulo_sorteo').value.trim(),
+        descripcion_sorteo: document.getElementById('descripcion_sorteo').value.trim(),
+        fecha_sorteo: document.getElementById('fecha_sorteo').value.trim(),
+        titulo_promo: document.getElementById('titulo_promo').value.trim(),
+        descripcion_promo: document.getElementById('descripcion_promo').value.trim(),
+        promo_vence: document.getElementById('promo_vence').value.trim(),
+
+        direccion: document.getElementById('direccion-input').value,
+        provincia: document.getElementById('provincia-input').value,
+        ciudad: document.getElementById('ciudad-input').value,
+        telefono: telefono,
+        facebook: document.getElementById('facebook-input').value,
+        instagram: document.getElementById('instagram-input').value,
+        web: document.getElementById('web-input').value,
+        sitioWeb: document.getElementById('sitio-web-input').value,
+        mapsUrl: document.getElementById('maps-url').value.trim(),
+        emailDueno: document.getElementById('email-input').value,
+        password: passValue,
+        frecuenciaReporte: document.getElementById('reporte-input').value
+    };
+
+    try {
+        let docRef;
+        if (eid) {
+            await updateDoc(doc(db, "comercios", eid), data);
+            docRef = doc(db, "comercios", eid);
+            alert("✅ ¡Ficha actualizada!");
+        } else {
+            data.estado = "activo";
+            data.fechaCarga = Date.now();
+            data.lastSubmission = null;
+            docRef = await addDoc(collection(db, "comercios"), data);
+            alert("✅ Comercio creado con éxito");
+        }
+
+        const file = document.getElementById('logo-file').files[0];
+        if (file) {
+            const logoUrl = await subirLogoAFirebase(file);
+            if (logoUrl) await updateDoc(docRef, { logoUrl });
+        }
+        window.clear();
+    } catch(e) {
+        console.error("Error al guardar:", e);
+        alert("❌ Error al guardar");
+    }
 };
-// ✅ INCLUSIÓN DE CAMPOS DE SORTEOS Y PROMOS (ACTUALIZADO)
-titulo_sorteo: document.getElementById('titulo_sorteo').value.trim(),
-descripcion_sorteo: document.getElementById('descripcion_sorteo').value.trim(),
-fecha_sorteo: document.getElementById('fecha_sorteo').value.trim(),
-titulo_promo: document.getElementById('titulo_promo').value.trim(),
-descripcion_promo: document.getElementById('descripcion_promo').value.trim(),
-promo_vence: document.getElementById('promo_vence').value.trim(),
-direccion: document.getElementById('direccion-input').value,
-provincia: document.getElementById('provincia-input').value,
-ciudad: document.getElementById('ciudad-input').value,
-telefono,
-facebook: document.getElementById('facebook-input').value,
-instagram: document.getElementById('instagram-input').value,
-web: document.getElementById('web-input').value,
-sitioWeb: document.getElementById('sitio-web-input').value,
-mapsUrl: document.getElementById('maps-url').value.trim(),
-emailDueno: document.getElementById('email-input').value,
-password: passValue,
-frecuenciaReporte: document.getElementById('reporte-input').value
-};
-try {
-let docRef;
-if (eid) {
-await updateDoc(doc(db, "comercios", eid), data);
-docRef = doc(db, "comercios", eid);
-alert("✅ ¡Ficha actualizada!");
-} else {
-data.estado = "activo";
-data.fechaCarga = Date.now();
-data.lastSubmission = null;
-docRef = await addDoc(collection(db, "comercios"), data);
-alert("✅ Comercio creado con éxito");
-}
-const file = document.getElementById('logo-file').files[0];
-if (file) {
-try {
-const logoUrl = await subirLogoAFirebase(file);
-if (logoUrl) await updateDoc(docRef, { logoUrl });
-} catch (err) {
-console.warn("No se pudo subir el logo:", err);
-alert("⚠️ No se pudo guardar la imagen. El comercio se registró sin logo.");
-}
-}
-window.clear();
-} catch(e) {
-console.error("Error al guardar comercio:", e);
-alert("❌ Error: " + (e.message || "Verifica tu conexión"));
-}
-};
+
 window.clear = () => {
 document.getElementById('edit-id').value = "";
 document.querySelectorAll('.sidebar input, .sidebar textarea').forEach(i => {
@@ -738,7 +740,7 @@ document.getElementById('usos-lead').value = "1";
 document.getElementById('vigencia-lead').value = "";
 document.getElementById('usos-vip').value = "0";
 document.getElementById('vigencia-vip').value = "";
-// ✅ LIMPIEZA DE CAMPOS DE SORTEOS Y PROMOS (ACTUALIZADO)
+// ✅ LIMPIEZA DE CAMPOS DE SORTEOS Y PROMOCIONES
 document.getElementById('titulo_sorteo').value = "";
 document.getElementById('descripcion_sorteo').value = "";
 document.getElementById('fecha_sorteo').value = "";
@@ -772,4 +774,3 @@ window.render();
 </script>
 </body>
 </html>
-
