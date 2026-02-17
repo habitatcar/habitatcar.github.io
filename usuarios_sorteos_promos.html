@@ -197,74 +197,99 @@
         </div>
     </div>
 
-    <!-- ✅ SCRIPT CON LÓGICA DE CARGA CORREGIDA -->
+    <!-- ✅ SCRIPT ACTUALIZADO CON BÚSQUEDA POR idComercio -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
+        // 🔥 TU MISMA CONFIG (la copié del admin)
         const firebaseConfig = {
-            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
-            authDomain: "habitatcar-pro.firebaseapp.com",
-            projectId: "habitatcar-pro",
-            storageBucket: "habitatcar-pro.firebasestorage.app",
-            messagingSenderId: "311691258694",
-            appId: "1:311691258694:web:17a09051dcea7707af9347"
+          apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+          authDomain: "habitatcar-pro.firebaseapp.com",
+          projectId: "habitatcar-pro",
+          storageBucket: "habitatcar-pro.firebasestorage.app",
+          messagingSenderId: "311691258694",
+          appId: "1:311691258694:web:17a09051dcea7707af9347"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
+        // 📌 agarramos el id del comercio desde la URL
         const params = new URLSearchParams(window.location.search);
-        const idComercio = params.get('id');
-        let fechaSorteoData = "";
+        const idComercio = params.get("id");
 
         async function cargarDatos() {
-            if (!idComercio) return;
-
-            try {
-                const docSnap = await getDoc(doc(db, "comercios", idComercio));
-                
-                // ✅ LÓGICA DE CARGA CORREGIDA
-                if (docSnap.exists()) {
-                    const c = docSnap.data();
-                    document.getElementById('nombre-comercio').innerText = c.nombre || "Comercio";
-
-                    // CARGA DE SORTEO
-                    if (c.titulo_sorteo) {
-                        document.getElementById('card-sorteo').style.display = 'flex';
-                        document.getElementById('tit-sorteo').innerText = c.titulo_sorteo;
-                        document.getElementById('desc-sorteo').innerText = c.descripcion_sorteo || "";
-                        document.getElementById('fecha-sorteo-texto').innerText = "📅 Fecha: " + (c.fecha_sorteo || "A confirmar");
-                        fechaSorteoData = c.fecha_sorteo || "programado";
-                    }
-
-                    // CARGA DE PROMO
-                    if (c.titulo_promo) {
-                        document.getElementById('card-promo').style.display = 'flex';
-                        document.getElementById('tit-promo').innerText = c.titulo_promo;
-                        document.getElementById('desc-promo').innerText = c.descripcion_promo || "";
-                    }
-                }
-            } catch (e) {
-                console.error("Error cargando datos:", e);
+          try {
+            if (!idComercio) {
+              console.warn("❌ No vino id de comercio");
+              document.getElementById('nombre-comercio').innerText = "ERROR: No se especificó comercio";
+              return;
             }
+
+            // 🔍 buscamos el comercio por idComercio
+            const q = query(
+              collection(db, "comercios"),
+              where("idComercio", "==", idComercio)
+            );
+
+            const snap = await getDocs(q);
+
+            if (snap.empty) {
+              console.warn("❌ Comercio no encontrado");
+              document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
+              return;
+            }
+
+            const data = snap.docs[0].data();
+
+            // ✅ cargar datos reales
+            document.getElementById("nombre-comercio").innerText = data.nombre || "Comercio";
+
+            // CARGA DE SORTEO (con nombres de campo corregidos)
+            if (data.titulo_sorteo && data.titulo_sorteo.trim() !== "") {
+                document.getElementById("card-sorteo").style.display = 'flex';
+                document.getElementById("tit-sorteo").innerText = data.titulo_sorteo;
+                document.getElementById("desc-sorteo").innerText = data.descripcion_sorteo || "Sin información de sorteo.";
+                document.getElementById("fecha-sorteo-texto").innerText = "📅 Fecha: " + (data.fecha_sorteo || "A confirmar");
+                window._fechaSorteo = data.fecha_sorteo || "próximamente";
+            }
+
+            // CARGA DE PROMO (con nombres de campo corregidos)
+            if (data.titulo_promo && data.titulo_promo.trim() !== "") {
+                document.getElementById("card-promo").style.display = 'flex';
+                document.getElementById("tit-promo").innerText = data.titulo_promo;
+                document.getElementById("desc-promo").innerText = data.descripcion_promo || "Sin información de promoción.";
+                
+                // Mostrar vigencia si existe
+                if (data.promo_vence && data.promo_vence.trim() !== "") {
+                    const v = document.getElementById("vence-promo");
+                    v.innerText = "⏰ Promo válida hasta: " + data.promo_vence;
+                    v.style.display = 'block';
+                }
+            }
+
+          } catch (err) {
+            console.error("❌ Error cargando comercio:", err);
+            document.getElementById('nombre-comercio').innerText = "Error de conexión";
+          }
         }
 
-        window.abrirPopupExito = () => {
-            document.getElementById('txt-exito-dinamico').innerText = 
-                `Ya estás participando del sorteo a llevarse a cabo el día ${fechaSorteoData || 'programado'}. ¡Mucha suerte!`;
-            document.getElementById('overlay').style.display = 'flex';
-        }
-
-        window.cerrarPopup = () => {
-            document.getElementById('overlay').style.display = 'none';
-        }
-
-        // Hacer funciones accesibles globalmente
-        window.abrirPopupExito = abrirPopupExito;
-        window.cerrarPopup = cerrarPopup;
-
+        // 🚀 ejecutar al cargar
         cargarDatos();
+
+        // ================= POPUP =================
+
+        window.abrirPopupExito = function () {
+          document.getElementById("txt-exito-dinamico").innerText =
+            `Ya estás participando del sorteo a llevarse a cabo el día ${window._fechaSorteo || "próximamente"}. ¡Mucha suerte!`;
+
+          document.getElementById("overlay").style.display = "flex";
+        };
+
+        window.cerrarPopup = function () {
+          document.getElementById("overlay").style.display = "none";
+        };
     </script>
 </body>
 </html>
