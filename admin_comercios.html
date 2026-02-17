@@ -137,7 +137,33 @@ transition: 0.3s;
 .visual-side { width: 160px; background: rgba(0,0,0,0.15); display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 25px; border-right: 1px solid rgba(255,255,255,0.05); }
 .img-preview { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; background: white; border: 3px solid var(--azul-claro); cursor: zoom-in; }
 .info-side { flex: 1; padding: 25px; }
-.comercio-title { font-size: 2.2em; color: var(--oro); margin: 0 0 15px 0; font-weight: 900; }
+
+/* ✅ MODIFICACIÓN: Header con Nombre y Rubro en línea */
+.comercio-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin: 0 0 15px 0;
+    gap: 15px;
+    flex-wrap: wrap;
+}
+.comercio-title { 
+    font-size: 2.2em; 
+    color: var(--oro); 
+    margin: 0; 
+    font-weight: 900; 
+    line-height: 1;
+}
+.comercio-rubro {
+    font-size: 1.1em;
+    color: #ffffff;
+    margin: 0;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+}
+
 .data-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 18px; }
 .data-box b { display: block; color: #cbd5e0; font-size: 0.8em; text-transform: uppercase; margin-bottom: 5px; }
 .data-box span { font-size: 1.1em; color: white; font-weight: 600; }
@@ -294,7 +320,10 @@ details[open] summary::after {
 <h3 id="titulo-form" style="margin-top:0; color:var(--oro); font-size: 1.5em; text-align: center; margin-bottom: 25px;">➕ REGISTRAR COMERCIO</h3>
 <input type="hidden" id="edit-id">
 <div class="form-grid">
+<!-- ✅ RUBRO DEBAJO DE NOMBRE FANTASÍA -->
 <input type="text" id="nombre-input" class="full" placeholder="Nombre Fantasía" oninput="genID()">
+<input type="text" id="rubro-input" class="full" placeholder="Rubro">
+
 <input type="text" id="id-input" class="read-only" placeholder="ID SISTEMA (AUTO)" readonly>
 <input type="text" id="token-input" class="read-only" placeholder="TOKEN QR (AUTO)" readonly>
 <input type="file" id="logo-file" accept="image/*" class="full" style="background: var(--azul-oscuro); color: white; padding: 12px; border: 1px solid var(--azul-claro); box-sizing: border-box; font-size: 0.95em;">
@@ -527,7 +556,7 @@ const box = document.getElementById('lista-comercios');
 if(!box) return;
 box.innerHTML = "";
 let filtrados = COMERCIOS.filter(c => {
-const searchStr = ((c.nombre || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const matchesSearch = searchStr.includes(term);
 const matchesFiltro = FILTRO_ESTADO === 'todos' || (FILTRO_ESTADO === 'inactivo' && c.estado !== 'activo');
 const matchesForzado = !idForzado || c.idComercio === idForzado;
@@ -553,31 +582,49 @@ ${!idForzado ? `
 ` : ''}
 </div>
 <div class="info-side">
-<h2 class="comercio-title">${c.nombre || 'Sin Nombre'}</h2>
+<!-- ✅ MODIFICACIÓN: Header con Nombre y Rubro en línea -->
+<div class="comercio-header">
+    <h2 class="comercio-title">${c.nombre || 'Sin Nombre'}</h2>
+    ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
+</div>
+
 <div class="data-grid">
 <div class="data-box"><b>ID SISTEMA</b><span>${displayID}</span></div>
 <div class="data-box"><b>Token QR</b><span>${c.tokenQR || '-'}</span></div>
 <div class="data-box"><b>Reporte</b><span>${c.frecuenciaReporte || 'Semanal'}</span></div>
-<div class="data-box"><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
-<div class="data-box" style="grid-column: span 2"><b>Último Envío</b><span style="color:var(--oro)">${formatearFecha(c.lastSubmission)}</span></div>
-<div class="data-box" style="grid-column: span 2"><b>Ubicación</b><span>${c.ciudad || '-'} (${c.provincia || '-'})</span></div>
+<div style="display: flex; flex-direction: column; gap: 5px;">
+    <div><b>WhatsApp</b><span>${c.telefono || '-'}</span></div>
+    <div><b>Último Envío</b><span style="color:var(--oro)">${formatearFecha(c.lastSubmission)}</span></div>
+</div>
+
+<!-- ✅ LEAD Y VIP UNO AL LADO DEL OTRO -->
 <div class="data-box benefit-box" style="grid-column: span 2;">
-<b>Lead</b>
+<b>LEAD</b>
 <span class="highlight-ben">${descLeadDisplay} ${c.detalleLead || ''}</span>
 </div>
 <div class="data-box benefit-box" style="grid-column: span 2;">
 <b>VIP</b>
 <span class="highlight-ben" style="color:var(--oro)!important">${descVipDisplay} ${c.detalleVip || ''}</span>
 </div>
+
+<!-- ✅ USOS ASIGNADOS - LEAD (IZQUIERDA) -->
 <div style="grid-column: span 2; padding: 8px 12px; background: rgba(0,0,0,0.15); border-radius: 8px; margin-top: 4px; font-size: 0.85em; color: var(--blanco-suave); display: flex; align-items: center; gap: 10px;">
 <span><b style="color: #00d4ff;">USOS ASIGNADOS:</b> ${(c.usosLead == 0 || c.usosLead == null) ? 'ILIMITADO' : c.usosLead}</span>
 <span style="color: rgba(255,255,255,0.4);">|</span>
 <span><b style="color: #00d4ff;">VIGENCIA:</b> ${(c.vigenciaLead || 'ilimitada').toLowerCase()}</span>
 </div>
+
+<!-- ✅ USOS ASIGNADOS - VIP (DERECHA) -->
 <div style="grid-column: span 2; padding: 8px 12px; background: rgba(0,0,0,0.15); border-radius: 8px; margin-top: 4px; font-size: 0.85em; color: var(--blanco-suave); display: flex; align-items: center; gap: 10px;">
 <span><b style="color: var(--oro);">USOS ASIGNADOS:</b> ${(c.usosVip == 0 || c.usosVip == null) ? 'ILIMITADO' : c.usosVip}</span>
 <span style="color: rgba(255,255,255,0.4);">|</span>
 <span><b style="color: var(--oro);">VIGENCIA:</b> ${(c.vigenciaVip || 'ilimitada').toLowerCase()}</span>
+</div>
+
+<!-- ✅ FILA LARGA CON DIRECCIÓN Y UBICACIÓN -->
+<div style="grid-column: span 4; padding: 8px 12px; background: rgba(0,0,0,0); border-radius: 8px; margin-top: 4px; font-size: 0.85em; color: var(--blanco-suave); display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+    <div><b style="color: #cbd5e0;">DIRECCIÓN:</b> <span>${c.direccion || '-'}</span></div>
+    <div><b style="color: #cbd5e0;">UBICACIÓN:</b> <span>${c.ciudad || '-'} (${c.provincia || '-'})</span></div>
 </div>
 </div>
 <div class="btn-group">
@@ -615,6 +662,7 @@ const c = COMERCIOS.find(x => x.fbId === id);
 if(!c) return;
 document.getElementById('edit-id').value = id;
 document.getElementById('nombre-input').value = c.nombre || "";
+document.getElementById('rubro-input').value = c.rubro || "";
 document.getElementById('id-input').value = c.idComercio || "";
 document.getElementById('token-input').value = c.tokenQR || "";
 document.getElementById('logo-url-actual').value = c.logoUrl || "";
@@ -627,7 +675,6 @@ document.getElementById('usos-lead').value = c.usosLead || 1;
 document.getElementById('vigencia-lead').value = c.vigenciaLead || "";
 document.getElementById('usos-vip').value = c.usosVip || 0;
 document.getElementById('vigencia-vip').value = c.vigenciaVip || "";
-// ✅ CARGA DE CAMPOS DE SORTEOS Y PROMOCIONES
 document.getElementById('titulo_sorteo').value = c.titulo_sorteo || "";
 document.getElementById('descripcion_sorteo').value = c.descripcion_sorteo || "";
 document.getElementById('fecha_sorteo').value = c.fecha_sorteo || "";
@@ -669,6 +716,7 @@ window.guardar = async () => {
     // ✅ OBJETO DATA CORREGIDO (FORMATO ACORDADO)
     const data = {
         nombre: nombre,
+        rubro: document.getElementById('rubro-input').value.trim(),
         idComercio: document.getElementById('id-input').value,
         tokenQR: document.getElementById('token-input').value,
         descLead: document.getElementById('desc-lead').value,
@@ -680,7 +728,6 @@ window.guardar = async () => {
         usosVip: document.getElementById('usos-vip').value,
         vigenciaVip: document.getElementById('vigencia-vip').value,
         
-        // ESTOS SON LOS QUE IMPORTAN:
         titulo_sorteo: document.getElementById('titulo_sorteo').value.trim(),
         descripcion_sorteo: document.getElementById('descripcion_sorteo').value.trim(),
         fecha_sorteo: document.getElementById('fecha_sorteo').value.trim(),
@@ -740,7 +787,6 @@ document.getElementById('usos-lead').value = "1";
 document.getElementById('vigencia-lead').value = "";
 document.getElementById('usos-vip').value = "0";
 document.getElementById('vigencia-vip').value = "";
-// ✅ LIMPIEZA DE CAMPOS DE SORTEOS Y PROMOCIONES
 document.getElementById('titulo_sorteo').value = "";
 document.getElementById('descripcion_sorteo').value = "";
 document.getElementById('fecha_sorteo').value = "";
@@ -748,6 +794,7 @@ document.getElementById('titulo_promo').value = "";
 document.getElementById('descripcion_promo').value = "";
 document.getElementById('promo_vence').value = "";
 document.getElementById('maps-url').value = "";
+document.getElementById('rubro-input').value = "";
 document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
 document.getElementById('btn-cancel-edit').style.display = 'none';
 };
