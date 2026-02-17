@@ -11,7 +11,7 @@
     <meta name="apple-mobile-web-app-title" content="Hábitat-Car">
     <meta name="apple-mobile-web-app-status-bar-style" content="black">
 
-    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIiwKICAic2hvcnRfbmFtZSI6ICJIYWJpdGF0LUNhciIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vZ2l0aHViLmNvbS9oYWJpdGF0Y2FyL2hhYml0YXRjYXIuZ2l0aHViLmlvL2Jsb2IvbWFpbi9sb2dvX3JlZG9uZG8ucG5nP3Jhdz10cnVlIiwKICAgICAgInNpemVzIjogIjUxMng1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9wbmciLAogICAgIiwicHVycG9zZSI6ICJhbnkgbWFza2FibGUiCiAgICB9CiAgXSwKICAic3RhcnRsdXJsIjogInVzdWFyaW9zX2N1cG9uZXNfdmlwcy5odG1sIiwKICAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwKICAiYmFja2dyb3VuZF9jb2xvciI6ICIjMGEwYTAwIiwKICAidGhlbWVfY29sb3IiOiAiI2Q0YWYzNyIKfQ==">
+    <link rel="manifest" href="data:application/json;base64,ewogICJuYW1lIjogIkhhYml0YXQtQ2FyIiwKICAic2hvcnRfbmFtZSI6ICJIYWJpdGF0LUNhciIsCiAgImljb25zIjogWwogICAgewogICAgICAic3JjIjogImh0dHBzOi8vZ2l0aHViLmNvbS9oYWJpdGF0Y2FyL2hhYml0YXRjYXIuZ2l0aHViLmlvL2Jsb2IvbWFpbi9sb2dvX3JlZG9uZG8ucG5nP3Jhdz10cnVlIiwKICAgICAgInNpemVzIjogIjUxMng1MTIiLAogICAgICAidHlwZSI6ICJpbWFnZS9wbmciLAogICAgICAicHVycG9zZSI6ICJhbnkgbWFza2FibGUiCiAgICB9CiAgXSwKICAic3RhcnR1cmwiOiAidXN1YXJpb3NfY3Vwb25lc192aXBzLmh0bWwiLAogICJkaXNwbGF5IjogInN0YW5kYWxvbmUiLAogICJiYWNrZ3JvdW5kX2NvbG9yIjogIiMwYTBhMDAiLAogICJ0aGVtZV9jb2xvciI6ICIjZDRhZjM3Igp9">
 
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
@@ -25,7 +25,7 @@
             --azul-lindo: #0056b3;
             --verde: #2e7d32;
             --rosa: #c2185b;
-            --naranja-sorteo: #f57c00; /* Color para el nuevo botón */
+            --naranja-sorteo: #f57c00;
             --gris-volver: #757575;
             --facebook: #1877f2;
             --instagram: #e4405f;
@@ -113,6 +113,24 @@
             0% { box-shadow: 0 0 5px var(--dorado); border-color: var(--dorado); }
             50% { box-shadow: 0 0 20px var(--dorado); border-color: var(--dorado-brillante); }
             100% { box-shadow: 0 0 5px var(--dorado); border-color: var(--dorado); }
+        }
+
+        /* ✅ ANIMACIÓN DE DESTELLO CENTRÍFUGO */
+        @keyframes destello-centrifugo {
+            0% { box-shadow: 0 0 0 0 rgba(245, 124, 0, 0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(245, 124, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(245, 124, 0, 0); }
+        }
+
+        .btn-sorteo.animar-pulso {
+            animation: destello-centrifugo 2s infinite;
+            position: relative;
+            z-index: 1;
+        }
+
+        /* Clase para quitar la animación tras el primer toque */
+        .sin-pulso {
+            animation: none !important;
         }
 
         .contador-nube { background: var(--dorado); color: black; padding: 4px 12px; border-radius: 10px; margin-left: 10px; font-size: 1.2em; font-weight: 900; }
@@ -310,6 +328,21 @@
                 const htmlLogo = c.logoUrl 
                     ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` 
                     : '';
+
+                // ✅ VERIFICACIÓN DE CONTENIDO DE SORTEOS/PROMOS
+                const tieneSorteoOPromo = (c.titulo_sorteo || c.titulo_promo);
+                
+                // ✅ VERIFICAR SI YA TOCÓ EL BOTÓN EN ESTA SESIÓN
+                const yaTocado = localStorage.getItem('toco_sorteo_' + id) === 'true';
+                const claseAnimacion = yaTocado ? 'sin-pulso' : 'animar-pulso';
+                
+                // ✅ SOLO GENERAR BOTÓN SI HAY CONTENIDO
+                const botonSorteo = tieneSorteoOPromo ? 
+                    `<button class="btn-act btn-sorteo ${claseAnimacion}" 
+                             id="btn-sorteo-${id}" 
+                             onclick="tocarSorteo('${id}', '${c.nombre}')">
+                        SORTEOS y PROMOS
+                    </button>` : '';
                 
                 html += `
                     <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">
@@ -319,9 +352,7 @@
                         <div class="vence-vip">★ Vence en ${c.vigenciaVip || 'X'} días ★</div>
                         <div class="btn-stack">
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${id}')">Conozca el comercio</button>` : ''}
-                            
-                            <button class="btn-act btn-sorteo" onclick="verSorteos('${id}')">SORTEOS y PROMOS</button>
-                            
+                            ${botonSorteo}
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
                             <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajeroVIP('${id}', '${c.nombre}', '${c.valVip}% OFF')">
@@ -333,15 +364,23 @@
             contenedor.innerHTML = html;
         });
 
-        // CORRECCIÓN: Función para redirigir al archivo de sorteos local
-        window.verSorteos = (id) => {
-            const c = listaComercios.find(x => x.id === id);
-            if (c) {
-                // Redirige a usuarios_sorteos_promos.html pasando el nombre por URL
-                window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(c.nombre)}`;
+        // ✅ NUEVA FUNCIÓN: TOCAR SORTEO (detiene animación y redirige)
+        window.tocarSorteo = (id, nombre) => {
+            const btn = document.getElementById(`btn-sorteo-${id}`);
+            if (btn) {
+                // Quitamos la clase de animación
+                btn.classList.remove('animar-pulso');
+                btn.classList.add('sin-pulso');
+                
+                // Guardamos en localStorage que ya se tocó para que no brille más en esta sesión
+                localStorage.setItem('toco_sorteo_' + id, 'true');
             }
+            
+            // Ejecutamos la redirección
+            window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`;
         };
 
+        // ✅ FUNCIÓN ACTUALIZADA PARA VER REDES
         window.verRedes = (id) => {
             const c = listaComercios.find(x => x.id === id);
             const overlay = document.createElement('div');
