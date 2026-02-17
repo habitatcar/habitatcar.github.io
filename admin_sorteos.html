@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Sorteos | Hábitat-Car</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --azul-fondo: #0a192f;
+            --azul-tarjeta: #172a45;
+            --esmeralda: #64ffda; /* Color principal (reemplaza al amarillo) */
+            --esmeralda-glow: rgba(100, 255, 218, 0.3);
+            --blanco: #e6f1ff;
+            --gris-texto: #8892b0;
+            --rojo: #ff4d4d;
+        }
+
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--azul-fondo);
+            color: var(--blanco);
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container { max-width: 1100px; margin: auto; }
+
+        .header-admin {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 2px solid var(--esmeralda);
+            padding-bottom: 15px;
+            margin-bottom: 20px;
+        }
+
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+
+        .tab-btn {
+            background: var(--azul-tarjeta);
+            color: var(--gris-texto);
+            border: 1px solid var(--esmeralda);
+            padding: 10px 20px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: 0.3s;
+        }
+
+        .tab-btn.active {
+            background: var(--esmeralda);
+            color: var(--azul-fondo);
+            font-weight: bold;
+            box-shadow: 0 0 15px var(--esmeralda-glow);
+        }
+
+        /* Tarjetas de Sorteo */
+        .card-sorteo {
+            background: var(--azul-tarjeta);
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 20px;
+            border-left: 5px solid var(--esmeralda);
+            position: relative;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-box {
+            background: rgba(100, 255, 218, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: center;
+            border: 1px solid rgba(100, 255, 218, 0.1);
+        }
+
+        .stat-box span { font-size: 24px; font-weight: bold; color: var(--esmeralda); display: block; }
+
+        /* Tabla Estilo Moderno */
+        .tabla-scroll { overflow-x: auto; background: var(--azul-tarjeta); border-radius: 12px; padding: 10px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 15px; text-align: left; border-bottom: 1px solid rgba(255,255,255,0.05); }
+        th { color: var(--esmeralda); text-transform: uppercase; font-size: 12px; letter-spacing: 1px; }
+
+        .btn {
+            padding: 10px 18px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: 0.3s;
+        }
+
+        .btn-sortear { background: var(--esmeralda); color: var(--azul-fondo); }
+        .btn-sortear:hover { transform: scale(1.05); box-shadow: 0 0 20px var(--esmeralda-glow); }
+        
+        .btn-test { background: #334766; color: white; margin-bottom: 10px; font-size: 11px; }
+
+        .btn-whatsapp { background: #25d366; color: white; padding: 5px 10px; font-size: 12px; }
+
+        /* Modal Ganador */
+        #ganador-animado {
+            display: none;
+            position: fixed;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--esmeralda);
+            color: var(--azul-fondo);
+            padding: 50px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 1000;
+            box-shadow: 0 0 100px rgba(0,0,0,0.8);
+        }
+
+        .tag-tipo {
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 10px;
+            margin-left: 5px;
+        }
+        .tag-vip { background: #ff4500; color: white; }
+        .tag-lead { background: #007bff; color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <div class="header-admin">
+            <h2><i class="fas fa-bolt" style="color: var(--esmeralda)"></i> PANEL DE SORTEOS</h2>
+            <span id="label-perfil">Cargando...</span>
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('activos')">SORTEOS ACTIVOS</button>
+            <button class="tab-btn" onclick="switchTab('historial')">HISTORIAL GANADORES</button>
+        </div>
+
+        <div id="sec-activos">
+            <button class="btn btn-test" onclick="crearParticipantesFake()"><i class="fas fa-vial"></i> SIMULAR 5 PARTICIPANTES (Para pruebas)</button>
+            
+            <div id="lista-sorteos-activos"></div>
+        </div>
+
+        <div id="sec-historial" style="display:none;">
+            <div class="tabla-scroll">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Comercio / Premio</th>
+                            <th>Ganadores (Nombre y WhatsApp)</th>
+                            <th>Participantes (V/L/T)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="lista-historial"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div id="ganador-animado">
+        <h1 style="font-size: 40px;">🏆</h1>
+        <h1 id="nombre-ganador-anim">---</h1>
+        <p>¡Se ha registrado en el historial!</p><br>
+        <button class="btn" onclick="document.getElementById('ganador-animado').style.display='none'" style="background: #000; color: #fff;">CONTINUAR</button>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, where, onSnapshot, addDoc, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+            authDomain: "habitatcar-pro.firebaseapp.com",
+            projectId: "habitatcar-pro",
+            storageBucket: "habitatcar-pro.firebasestorage.app",
+            messagingSenderId: "311691258694",
+            appId: "1:311691258694:web:17a09051dcea7707af9347"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const params = new URLSearchParams(window.location.search);
+        const comercioIdLogin = params.get('comercioId'); 
+        
+        document.getElementById('label-perfil').innerText = comercioIdLogin ? `COMERCIO` : `SUPER ADMIN`;
+
+        let participantesGlobales = [];
+
+        // 1. CARGAR SORTEOS
+        const qComercios = comercioIdLogin 
+            ? query(collection(db, "comercios"), where("__name__", "==", comercioIdLogin))
+            : query(collection(db, "comercios"));
+
+        onSnapshot(qComercios, (snap) => {
+            const container = document.getElementById('lista-sorteos-activos');
+            container.innerHTML = "";
+
+            snap.forEach(docCom => {
+                const c = docCom.data();
+                if (!c.titulo_sorteo) return;
+
+                const card = document.createElement('div');
+                card.className = 'card-sorteo';
+                card.innerHTML = `
+                    <h3>${c.nombre}</h3>
+                    <p style="color: var(--gris-texto)">Premio: <b style="color: white">${c.titulo_sorteo}</b></p>
+                    
+                    <div class="stats-grid">
+                        <div class="stat-box"><span id="count-total-${docCom.id}">0</span>TOTAL</div>
+                        <div class="stat-box"><span id="count-vip-${docCom.id}">0</span>VIPS</div>
+                        <div class="stat-box"><span id="count-lead-${docCom.id}">0</span>LEADS</div>
+                    </div>
+
+                    <button class="btn btn-sortear" onclick="realizarSorteo('${docCom.id}', '${c.nombre}', '${c.titulo_sorteo}')">
+                        <i class="fas fa-trophy"></i> REALIZAR SORTEO
+                    </button>
+                `;
+                container.appendChild(card);
+                escucharParticipantes(c.nombre, docCom.id);
+            });
+        });
+
+        function escucharParticipantes(nombreCom, idDoc) {
+            const qP = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nombreCom));
+            onSnapshot(qP, (snap) => {
+                let vips = 0, leads = 0;
+                participantesGlobales[idDoc] = [];
+                snap.forEach(pDoc => {
+                    const p = pDoc.data();
+                    participantesGlobales[idDoc].push(p);
+                    if (p.tipo === "VIP") vips++; else leads++;
+                });
+                if(document.getElementById(`count-total-${idDoc}`)){
+                    document.getElementById(`count-total-${idDoc}`).innerText = snap.size;
+                    document.getElementById(`count-vip-${idDoc}`).innerText = vips;
+                    document.getElementById(`count-lead-${idDoc}`).innerText = leads;
+                }
+            });
+        }
+
+        // 2. LÓGICA SORTEAR
+        window.realizarSorteo = async (idDoc, nombreCom, premio) => {
+            const lista = participantesGlobales[idDoc];
+            if (!lista || lista.length === 0) return alert("No hay participantes cargados.");
+
+            const cant = prompt("¿Cuántos ganadores elegir?", "1");
+            if (!cant || isNaN(cant)) return;
+
+            let seleccionados = [];
+            let copia = [...lista];
+            for (let i = 0; i < parseInt(cant); i++) {
+                if (copia.length === 0) break;
+                let idx = Math.floor(Math.random() * copia.length);
+                seleccionados.push(copia.splice(idx, 1)[0]);
+            }
+
+            // Guardar Historial con desglose V/L
+            const v = lista.filter(x => x.tipo === "VIP").length;
+            const l = lista.filter(x => x.tipo === "LEAD").length;
+
+            await addDoc(collection(db, "historial_sorteos"), {
+                comercio: nombreCom,
+                premio: premio,
+                ganadores: seleccionados,
+                vips: v,
+                leads: l,
+                total: lista.length,
+                fecha: serverTimestamp()
+            });
+
+            document.getElementById('nombre-ganador-anim').innerText = seleccionados.map(s => s.nombre).join(" y ");
+            document.getElementById('ganador-animado').style.display = 'block';
+        };
+
+        // 3. CARGAR HISTORIAL
+        onSnapshot(query(collection(db, "historial_sorteos")), (snap) => {
+            const body = document.getElementById('lista-historial');
+            body.innerHTML = "";
+            snap.forEach(d => {
+                const h = d.data();
+                const fecha = h.fecha?.toDate().toLocaleDateString() || "---";
+                
+                let gHTML = h.ganadores.map(g => `
+                    <div style="margin-bottom:8px">
+                        <b>${g.nombre}</b> <span class="tag-tipo ${g.tipo === 'VIP' ? 'tag-vip':'tag-lead'}">${g.tipo}</span><br>
+                        <a href="https://wa.me/${g.celular}" target="_blank" class="btn btn-whatsapp">
+                            <i class="fab fa-whatsapp"></i> ${g.celular}
+                        </a>
+                    </div>
+                `).join("");
+
+                body.innerHTML += `
+                    <tr>
+                        <td style="font-size: 11px; color: var(--gris-texto)">${fecha}</td>
+                        <td><b>${h.comercio}</b><br><span style="color:var(--esmeralda); font-size:12px">${h.premio}</span></td>
+                        <td>${gHTML}</td>
+                        <td>
+                           <small>Vips: ${h.vips}</small><br>
+                           <small>Leads: ${h.leads}</small><br>
+                           <b>Total: ${h.total}</b>
+                        </td>
+                    </tr>
+                `;
+            });
+        });
+
+        // 4. FUNCIÓN PARA TESTEAR (SIMULADOR)
+        window.crearParticipantesFake = async () => {
+            if(!confirm("¿Cargar 5 participantes de prueba?")) return;
+            const nombres = ["Juan Perez", "Maria Garcia", "Carlos Lopez", "Ana Martinez", "VIP Tester"];
+            for(let n of nombres){
+                await addDoc(collection(db, "admin_participantes_sorteos"), {
+                    nombre: n,
+                    celular: "5491100000000",
+                    tipo: n.includes("VIP") ? "VIP" : "LEAD",
+                    comercio: "Comercio de Prueba", // Ajustar esto para que coincida con uno real o crearlo
+                    timestamp: serverTimestamp()
+                });
+            }
+            alert("Participantes de prueba creados. Si no ves el comercio 'Comercio de Prueba', asegúrate de tener uno con ese nombre exacto en la base de datos.");
+        };
+
+        window.switchTab = (t) => {
+            document.getElementById('sec-activos').style.display = t === 'activos' ? 'block' : 'none';
+            document.getElementById('sec-historial').style.display = t === 'historial' ? 'block' : 'none';
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+        };
+    </script>
+</body>
+</html>
