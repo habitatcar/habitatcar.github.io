@@ -25,11 +25,9 @@
             --azul-lindo: #0056b3;
             --verde: #2e7d32;
             --rosa: #c2185b;
-            --naranja-sorteo: #f57c00;
             --gris-volver: #757575;
             --facebook: #1877f2;
             --instagram: #e4405f;
-            --tiktok: #000000;
         }
 
         body { 
@@ -40,6 +38,7 @@
             padding-bottom: 80px; 
             width: 100vw;
             overflow-x: hidden;
+            /* Evita que el navegador recargue la página al deslizar hacia abajo en móviles */
             overscroll-behavior-y: contain; 
         }
 
@@ -97,7 +96,6 @@
         }
         
         .btn-conozca { background-color: var(--azul-lindo); }
-        .btn-sorteo { background-color: var(--naranja-sorteo); }
         .btn-llegar { background-color: var(--verde); }
         .btn-validar { background-color: var(--rosa); }
         .btn-usar { background-color: #222; color: #555; border-color: #444; pointer-events: none; }
@@ -127,8 +125,8 @@
             width: 80%; max-width: 300px; text-align: center;
         }
         .btn-red { 
-            display: flex; align-items: center; justify-content: center; gap: 10px; width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px;
-            text-decoration: none; color: white; font-weight: bold; text-transform: uppercase; border: none; box-sizing: border-box;
+            display: block; width: 100%; padding: 15px; margin: 10px 0; border-radius: 10px;
+            text-decoration: none; color: white; font-weight: bold; text-transform: uppercase;
         }
 
         .advertencia-overlay {
@@ -271,13 +269,19 @@
     </footer>
 
     <script type="module">
+        // BLOQUEO DE BOTÓN ATRÁS
         (function () {
+            // Agregamos un estado ficticio al historial
             history.pushState(null, null, document.URL);
+            
+            // Escuchamos cuando el usuario intenta volver atrás
             window.addEventListener('popstate', function () {
+                // Si intenta volver, lo empujamos de nuevo hacia adelante
                 history.pushState(null, null, document.URL);
             });
         })();
 
+        // ✅ PASO A: Importación corregida — se agrega 'increment'
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -308,8 +312,6 @@
                 
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0");
                 const tieneRedes = (c.facebook || c.instagram || c.web);
-                const tieneSorteoCargado = (c.sorteoTitulo && c.sorteoTitulo.trim() !== "") || (c.promoTitulo && c.promoTitulo.trim() !== "");
-                
                 const htmlLogo = c.logoUrl 
                     ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` 
                     : '';
@@ -322,9 +324,6 @@
                         <div class="vence-vip">★ Vence en ${c.vigenciaVip || 'X'} días ★</div>
                         <div class="btn-stack">
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${id}')">Conozca el comercio</button>` : ''}
-                            
-                            ${tieneSorteoCargado ? `<button class="btn-act btn-sorteo" onclick="verSorteos('${id}')">SORTEOS y PROMOS</button>` : ''}
-                            
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
                             <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajeroVIP('${id}', '${c.nombre}', '${c.valVip}% OFF')">
@@ -336,13 +335,6 @@
             contenedor.innerHTML = html;
         });
 
-        window.verSorteos = (id) => {
-            const c = listaComercios.find(x => x.id === id);
-            if (c) {
-                window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(c.nombre)}`;
-            }
-        };
-
         window.verRedes = (id) => {
             const c = listaComercios.find(x => x.id === id);
             const overlay = document.createElement('div');
@@ -350,9 +342,9 @@
             overlay.onclick = () => overlay.remove();
             
             let btns = "";
-            if(c.facebook) btns += `<a href="${c.facebook}" target="_blank" class="btn-red" style="background:var(--facebook)"><i class="fab fa-facebook"></i> Facebook</a>`;
-            if(c.instagram) btns += `<a href="${c.instagram}" target="_blank" class="btn-red" style="background:var(--instagram)"><i class="fab fa-instagram"></i> Instagram</a>`;
-            if(c.web) btns += `<a href="${c.web}" target="_blank" class="btn-red" style="background:var(--tiktok)"><i class="fab fa-tiktok"></i> TikTok</a>`;
+            if(c.facebook) btns += `<a href="${c.facebook}" target="_blank" class="btn-red" style="background:var(--facebook)">Facebook</a>`;
+            if(c.instagram) btns += `<a href="${c.instagram}" target="_blank" class="btn-red" style="background:var(--instagram)">Instagram</a>`;
+            if(c.web) btns += `<a href="${c.web}" target="_blank" class="btn-red" style="background:var(--azul-lindo)">Página Web</a>`;
             
             overlay.innerHTML = `<div class="redes-box" onclick="event.stopPropagation()">
                 <h3 style="color:var(--dorado); margin-top:0;">${c.nombre}</h3>
@@ -437,6 +429,7 @@
                     lastSubmission: fechaLegible 
                 });
 
+                // ✅ PASO B: Nueva lógica unificada para leads
                 const leadId = localStorage.getItem('leadId_v16');
                 if (leadId) {
                     const idComercioLimpio = nom.replace(/\s+/g, '_');
@@ -455,6 +448,7 @@
                     });
                 }
 
+                // Cambio solicitado: Font weight bold para el texto bajo el código
                 JsBarcode("#barcodeVIP", codigoIdentidad, {
                     format: "CODE128",
                     lineColor: "#000",
