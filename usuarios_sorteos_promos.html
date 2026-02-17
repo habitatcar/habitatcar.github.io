@@ -111,15 +111,6 @@
             transition: all 0.3s;
         }
 
-        /* ✅ NUEVO ESTADO: BOTÓN DESACTIVADO (YA PARTICIPÓ) */
-        .btn-participar.ya-participo {
-            background: var(--gris);
-            color: #aaa;
-            cursor: not-allowed;
-            pointer-events: none;
-            border: 2px solid #555;
-        }
-
         .btn-especificaciones {
             background: transparent;
             color: var(--oro);
@@ -204,7 +195,7 @@
             <!-- ✅ BOTÓN CON ESTADO DINÁMICO -->
             <button class="btn-participar" id="btn-participar" onclick="registrarParticipacion()">QUIERO PARTICIPAR</button>
             
-            <!-- ✅ MENSAJE DE YA PARTICIPÓ -->
+            <!-- ✅ MENSAJE DE YA PARTICIPÓ (SOLO ESTE SE MUESTRA) -->
             <div class="participacion-info" id="participacionInfo">
                 <i class="fas fa-check-circle" style="color: var(--verde); font-size: 2em; margin-bottom: 10px;"></i>
                 <p style="color: var(--verde); font-weight: bold; margin: 0;">✅ YA ESTÁS PARTICIPANDO</p>
@@ -264,7 +255,7 @@
             // Check localStorage primero (más rápido)
             const yaParticipoLocal = localStorage.getItem(participacionKey);
             if (yaParticipoLocal === 'true') {
-                desactivarBotonParticipar();
+                mostrarSoloCartelVerde();
                 return true;
             }
 
@@ -277,7 +268,7 @@
                 );
                 const snap = await getDocs(q);
                 if (!snap.empty) {
-                    desactivarBotonParticipar();
+                    mostrarSoloCartelVerde();
                     return true;
                 }
             } catch (e) {
@@ -287,17 +278,17 @@
             return false;
         }
 
-        // ✅ DESACTIVAR BOTÓN Y MOSTRAR MENSAJE
-        function desactivarBotonParticipar() {
+        // ✅ OCULTAR BOTÓN Y MOSTRAR SOLO CARTEL VERDE
+        function mostrarSoloCartelVerde() {
             const btn = document.getElementById('btn-participar');
             const info = document.getElementById('participacionInfo');
             
+            // ✅ OCULTAR BOTÓN COMPLETAMENTE
             if (btn) {
-                btn.innerText = "PARTICIPANDO";
-                btn.classList.add('ya-participo');
-                btn.disabled = true;
+                btn.style.display = 'none';
             }
             
+            // ✅ MOSTRAR SOLO CARTEL VERDE
             if (info) {
                 info.classList.add('visible');
             }
@@ -331,8 +322,8 @@
                     `¡Tu participación para el día ${fechaSorteoData || 'programado'} fue registrada exitosamente!`;
                 document.getElementById('overlay').style.display = 'flex';
 
-                // Desactivar botón
-                desactivarBotonParticipar();
+                // ✅ OCULTAR BOTÓN Y MOSTRAR SOLO CARTEL VERDE
+                mostrarSoloCartelVerde();
 
                 // Log de actividad
                 await addDoc(collection(db, "logs_actividad"), {
