@@ -25,6 +25,7 @@
             --azul-lindo: #0056b3;
             --verde: #2e7d32;
             --rosa: #c2185b;
+            --naranja-sorteo: #f57c00; /* Color para el nuevo botón */
             --gris-volver: #757575;
             --facebook: #1877f2;
             --instagram: #e4405f;
@@ -38,7 +39,6 @@
             padding-bottom: 80px; 
             width: 100vw;
             overflow-x: hidden;
-            /* Evita que el navegador recargue la página al deslizar hacia abajo en móviles */
             overscroll-behavior-y: contain; 
         }
 
@@ -96,6 +96,7 @@
         }
         
         .btn-conozca { background-color: var(--azul-lindo); }
+        .btn-sorteo { background-color: var(--naranja-sorteo); } /* Estilo del nuevo botón */
         .btn-llegar { background-color: var(--verde); }
         .btn-validar { background-color: var(--rosa); }
         .btn-usar { background-color: #222; color: #555; border-color: #444; pointer-events: none; }
@@ -269,19 +270,13 @@
     </footer>
 
     <script type="module">
-        // BLOQUEO DE BOTÓN ATRÁS
         (function () {
-            // Agregamos un estado ficticio al historial
             history.pushState(null, null, document.URL);
-            
-            // Escuchamos cuando el usuario intenta volver atrás
             window.addEventListener('popstate', function () {
-                // Si intenta volver, lo empujamos de nuevo hacia adelante
                 history.pushState(null, null, document.URL);
             });
         })();
 
-        // ✅ PASO A: Importación corregida — se agrega 'increment'
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -324,6 +319,9 @@
                         <div class="vence-vip">★ Vence en ${c.vigenciaVip || 'X'} días ★</div>
                         <div class="btn-stack">
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${id}')">Conozca el comercio</button>` : ''}
+                            
+                            <button class="btn-act btn-sorteo" onclick="verSorteos('${id}')">SORTEOS y PROMOS</button>
+                            
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
                             <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajeroVIP('${id}', '${c.nombre}', '${c.valVip}% OFF')">
@@ -334,6 +332,16 @@
             });
             contenedor.innerHTML = html;
         });
+
+        // Función para el nuevo botón de Sorteos
+        window.verSorteos = (id) => {
+            const c = listaComercios.find(x => x.id === id);
+            if (c.sorteosUrl) {
+                window.open(c.sorteosUrl, '_blank');
+            } else {
+                alert("Este comercio no tiene sorteos o promociones especiales vigentes en este momento.");
+            }
+        };
 
         window.verRedes = (id) => {
             const c = listaComercios.find(x => x.id === id);
@@ -429,7 +437,6 @@
                     lastSubmission: fechaLegible 
                 });
 
-                // ✅ PASO B: Nueva lógica unificada para leads
                 const leadId = localStorage.getItem('leadId_v16');
                 if (leadId) {
                     const idComercioLimpio = nom.replace(/\s+/g, '_');
@@ -448,7 +455,6 @@
                     });
                 }
 
-                // Cambio solicitado: Font weight bold para el texto bajo el código
                 JsBarcode("#barcodeVIP", codigoIdentidad, {
                     format: "CODE128",
                     lineColor: "#000",
