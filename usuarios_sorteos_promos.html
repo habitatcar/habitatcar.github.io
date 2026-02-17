@@ -26,7 +26,6 @@
             min-height: 100vh;
         }
 
-        /* DISEÑO ORIGINAL RESTAURADO */
         .header {
             width: 100%;
             padding: 30px 0;
@@ -35,9 +34,9 @@
             border-bottom: 3px solid var(--oro);
         }
         .header img {
-            max-width: 220px;
+            max-width: 200px;
             height: auto;
-            margin-bottom: 15px;
+            margin-bottom: 10px;
         }
 
         .container {
@@ -54,19 +53,10 @@
             margin-bottom: 25px;
             border-left: 5px solid var(--oro);
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            display: none; /* Se muestra solo si tiene datos */
+            display: none; /* Se activa si hay datos */
         }
 
-        .card h2 { 
-            color: var(--oro); 
-            margin-top: 0; 
-            display: flex; 
-            align-items: center; 
-            gap: 10px; 
-            text-transform: uppercase;
-            font-size: 1.2em;
-        }
-        
+        .card h2 { color: var(--oro); margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.2em; text-transform: uppercase; }
         .card h3 { color: white; margin: 10px 0; font-size: 1.4em; }
         .card p { line-height: 1.6; font-size: 1.1em; color: #ccc; }
 
@@ -94,7 +84,7 @@
         }
 
         .btn-volver {
-            margin-top: 20px;
+            margin-top: 10px;
             background: rgba(255,255,255,0.1);
             color: white;
             padding: 12px 25px;
@@ -110,7 +100,7 @@
 
     <div class="header">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" alt="Hábitat-Car">
-        <h1 id="nombre-comercio" style="font-size: 1.6em; margin: 0; color: var(--oro);">Cargando...</h1>
+        <h1 id="nombre-comercio" style="font-size: 1.5em; margin: 0; color: var(--oro);">Cargando...</h1>
     </div>
 
     <div class="container">
@@ -118,7 +108,7 @@
             <h2><i class="fas fa-trophy"></i> SORTEO ACTIVO</h2>
             <h3 id="tit-sorteo"></h3>
             <p id="desc-sorteo"></p>
-            <p style="color: var(--oro); font-weight: bold; margin-top: 10px;">
+            <p style="color: var(--oro); font-weight: bold;">
                 <i class="far fa-calendar-alt"></i> Fecha: <span id="fecha-sorteo"></span>
             </p>
             <button class="btn-participar" onclick="abrirPopupExito()">¡QUIERO PARTICIPAR!</button>
@@ -130,7 +120,7 @@
             <p id="desc-promo"></p>
         </div>
 
-        <div style="text-align: center;">
+        <div style="text-align: center; margin-top: 20px;">
             <a href="usuarios_cupones_vips.html" class="btn-volver">VOLVER A CUPONES</a>
         </div>
     </div>
@@ -146,7 +136,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -161,26 +151,23 @@
         const db = getFirestore(app);
 
         const params = new URLSearchParams(window.location.search);
-        const nombreBusqueda = params.get('id'); 
+        const idComercio = params.get('id'); 
 
         let fechaSorteoGlobal = "";
 
         async function cargarDatos() {
-            if (!nombreBusqueda) {
-                document.getElementById('nombre-comercio').innerText = "Comercio Amigo";
-                return;
-            }
+            if (!idComercio) return;
 
             try {
-                // Buscamos el comercio por su nombre exacto
-                const q = query(collection(db, "comercios"), where("nombre", "==", nombreBusqueda));
-                const querySnapshot = await getDocs(q);
+                // LÓGICA DE LEADS: Obtener el documento directamente por su ID
+                const docRef = doc(db, "comercios", idComercio);
+                const docSnap = await getDoc(docRef);
 
-                if (!querySnapshot.empty) {
-                    const c = querySnapshot.docs[0].data();
+                if (docSnap.exists()) {
+                    const c = docSnap.data();
                     document.getElementById('nombre-comercio').innerText = c.nombre;
 
-                    // CARGAR SORTEO (Usando los campos de admin_comercios.html)
+                    // Carga de Sorteo con los nombres de admin_comercios.html
                     if (c.sorteoTit && c.sorteoTit.trim() !== "") {
                         document.getElementById('card-sorteo').style.display = 'block';
                         document.getElementById('tit-sorteo').innerText = c.sorteoTit;
@@ -189,22 +176,22 @@
                         fechaSorteoGlobal = c.sorteoFecha || "próximamente";
                     }
 
-                    // CARGAR PROMO (Usando los campos de admin_comercios.html)
+                    // Carga de Promo con los nombres de admin_comercios.html
                     if (c.promoTit && c.promoTit.trim() !== "") {
                         document.getElementById('card-promo').style.display = 'block';
                         document.getElementById('tit-promo').innerText = c.promoTit;
                         document.getElementById('desc-promo').innerText = c.promoDesc || "";
                     }
-
-                    if (!c.sorteoTit && !c.promoTit) {
+                    
+                    if(!c.sorteoTit && !c.promoTit) {
                         document.getElementById('nombre-comercio').innerText = "Sin promociones activas";
                     }
-
                 } else {
                     document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
                 }
             } catch (error) {
                 console.error("Error:", error);
+                document.getElementById('nombre-comercio').innerText = "Error de carga";
             }
         }
 
