@@ -12,6 +12,7 @@
             --azul-medio: #112240;
             --blanco: #e6f1ff;
             --naranja: #ff8c00;
+            --verde: #28a745;
         }
 
         body {
@@ -33,9 +34,9 @@
             border-bottom: 3px solid var(--oro);
         }
         .header img {
-            max-width: 180px;
+            max-width: 220px;
             height: auto;
-            margin-bottom: 10px;
+            margin-bottom: 15px;
         }
 
         .container {
@@ -52,12 +53,21 @@
             margin-bottom: 25px;
             border-left: 5px solid var(--oro);
             box-shadow: 0 4px 15px rgba(0,0,0,0.3);
-            display: none; /* Se activa por JS */
+            display: none; /* Se muestra solo si hay datos */
         }
 
-        .card h2 { color: var(--oro); margin-top: 0; display: flex; align-items: center; gap: 10px; font-size: 1.1em; }
-        .card h3 { color: white; margin: 10px 0; font-size: 1.3em; }
-        .card p { line-height: 1.5; color: #ccc; font-size: 1.05em; }
+        .card h2 { 
+            color: var(--oro); 
+            margin-top: 0; 
+            display: flex; 
+            align-items: center; 
+            gap: 10px; 
+            text-transform: uppercase;
+            font-size: 1.2em;
+        }
+        
+        .card h3 { color: white; margin: 10px 0; font-size: 1.4em; }
+        .card p { line-height: 1.6; font-size: 1.1em; color: #ccc; }
 
         .btn-participar {
             background: linear-gradient(45deg, var(--naranja), #ff4500);
@@ -67,7 +77,7 @@
             width: 100%;
             border-radius: 10px;
             font-weight: bold;
-            font-size: 1.1em;
+            font-size: 1.2em;
             cursor: pointer;
             text-transform: uppercase;
             margin-top: 15px;
@@ -75,22 +85,23 @@
 
         .overlay {
             position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.85); display: none; justify-content: center; align-items: center; z-index: 1000;
+            background: rgba(0,0,0,0.9); display: none; justify-content: center; align-items: center; z-index: 1000;
         }
         .popup {
-            background: white; color: #333; padding: 25px; border-radius: 15px;
-            text-align: center; width: 80%; max-width: 320px; border: 3px solid var(--oro);
+            background: white; color: #333; padding: 30px; border-radius: 20px;
+            text-align: center; width: 85%; max-width: 350px; border: 4px solid var(--oro);
         }
 
         .btn-volver {
-            margin-top: 10px;
+            margin-top: 20px;
             background: rgba(255,255,255,0.1);
             color: white;
-            padding: 10px 20px;
+            padding: 12px 25px;
             border-radius: 8px;
             text-decoration: none;
             display: inline-block;
             border: 1px solid var(--oro);
+            font-weight: bold;
         }
     </style>
 </head>
@@ -98,36 +109,36 @@
 
     <div class="header">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" alt="Hábitat-Car">
-        <h1 id="nombre-comercio" style="font-size: 1.4em; margin: 0; color: var(--oro);">Cargando información...</h1>
+        <h1 id="nombre-comercio" style="font-size: 1.6em; margin: 0; color: var(--oro);">Cargando...</h1>
     </div>
 
     <div class="container">
         <div class="card" id="card-sorteo">
-            <h2><i class="fas fa-trophy"></i> SORTEO DISPONIBLE</h2>
+            <h2><i class="fas fa-trophy"></i> SORTEO ACTIVO</h2>
             <h3 id="tit-sorteo"></h3>
-            <p id="desc-sorteo"></p>
-            <p style="color: var(--oro); font-weight: bold; margin-top: 10px;">
+            <p id="desc-sorteo"></p> <p style="color: var(--oro); font-weight: bold; margin-top: 10px;">
                 <i class="far fa-calendar-alt"></i> Fecha: <span id="fecha-sorteo"></span>
             </p>
             <button class="btn-participar" onclick="abrirPopupExito()">¡QUIERO PARTICIPAR!</button>
         </div>
 
         <div class="card" id="card-promo">
-            <h2><i class="fas fa-tag"></i> PROMO DEL COMERCIO</h2>
+            <h2><i class="fas fa-tag"></i> PROMOCIÓN ESPECIAL</h2>
             <h3 id="tit-promo"></h3>
             <p id="desc-promo"></p>
         </div>
 
         <div style="text-align: center;">
-            <a href="usuarios_cupones_vips.html" class="btn-volver">VOLVER</a>
+            <a href="usuarios_cupones_vips.html" class="btn-volver">VOLVER A CUPONES</a>
         </div>
     </div>
 
     <div id="overlay" class="overlay">
         <div class="popup">
-            <h2 style="color: #28a745;">¡REGISTRADO!</h2>
-            <p id="txt-exito-dinamico"></p>
-            <button onclick="cerrarPopup()" style="padding:10px 20px; background:var(--azul-oscuro); color:white; border:none; border-radius:5px; width:100%;">CERRAR</button>
+            <i class="fas fa-check-circle" style="font-size: 50px; color: var(--verde); margin-bottom: 15px;"></i>
+            <h2 style="color: #000; margin: 0;">¡REGISTRO EXITOSO!</h2>
+            <p id="txt-exito-dinamico" style="color: #444; margin: 15px 0;"></p>
+            <button onclick="cerrarPopup()" style="padding:12px 30px; background:var(--azul-oscuro); color:white; border:none; border-radius:8px; font-weight:bold; width:100%;">ACEPTAR</button>
         </div>
     </div>
 
@@ -148,61 +159,60 @@
         const db = getFirestore(app);
 
         const params = new URLSearchParams(window.location.search);
-        const id = params.get('id');
+        const idComercio = params.get('id'); 
 
-        let fechaGlobal = "";
+        let fechaSorteoGlobal = "";
 
-        async function cargar() {
-            if(!id) {
-                document.getElementById('nombre-comercio').innerText = "ID no encontrado";
+        async function cargarDatosReal() {
+            if (!idComercio) {
+                document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
                 return;
             }
 
             try {
-                const docSnap = await getDoc(doc(db, "comercios", id));
-                
+                const docRef = doc(db, "comercios", idComercio);
+                const docSnap = await getDoc(docRef);
+
                 if (docSnap.exists()) {
                     const c = docSnap.data();
-                    document.getElementById('nombre-comercio').innerText = c.nombre || "Comercio";
+                    document.getElementById('nombre-comercio').innerText = c.nombre;
 
-                    // SORTEOS (Campos exactos de admin_comercios.html)
-                    if(c.sorteoTit && c.sorteoTit.trim() !== "") {
+                    // Mapeo de campos de Sorteo
+                    if (c.sorteoTit && c.sorteoTit.trim() !== "") {
+                        document.getElementById('card-sorteo').style.display = 'block';
                         document.getElementById('tit-sorteo').innerText = c.sorteoTit;
                         document.getElementById('desc-sorteo').innerText = c.sorteoDesc || "";
                         document.getElementById('fecha-sorteo').innerText = c.sorteoFecha || "A confirmar";
-                        fechaGlobal = c.sorteoFecha || "próximamente";
-                        document.getElementById('card-sorteo').style.display = 'block';
+                        fechaSorteoGlobal = c.sorteoFecha || "próximamente";
                     }
 
-                    // PROMOS (Campos exactos de admin_comercios.html)
-                    if(c.promoTit && c.promoTit.trim() !== "") {
+                    // Mapeo de campos de Promoción
+                    if (c.promoTit && c.promoTit.trim() !== "") {
+                        document.getElementById('card-promo').style.display = 'block';
                         document.getElementById('tit-promo').innerText = c.promoTit;
                         document.getElementById('desc-promo').innerText = c.promoDesc || "";
-                        document.getElementById('card-promo').style.display = 'block';
                     }
 
-                    // Si no hay nada cargado en el admin para este comercio
-                    if(!c.sorteoTit && !c.promoTit) {
-                        document.getElementById('nombre-comercio').innerText = "Sin promos activas";
+                    if (!c.sorteoTit && !c.promoTit) {
+                        document.getElementById('nombre-comercio').innerText = "Sin promociones vigentes";
                     }
-
-                } else {
-                    document.getElementById('nombre-comercio').innerText = "Comercio no registrado";
                 }
-            } catch (e) {
-                console.error(e);
-                document.getElementById('nombre-comercio').innerText = "Error de conexión";
+            } catch (error) {
+                console.error("Error al cargar:", error);
             }
         }
 
         window.abrirPopupExito = () => {
-            document.getElementById('txt-exito-dinamico').innerText = `Ya participas. Fecha: ${fechaGlobal}.`;
+            document.getElementById('txt-exito-dinamico').innerText = 
+                `Ya estás participando del sorteo a llevarse a cabo el día ${fechaSorteoGlobal}. ¡Mucha suerte!`;
             document.getElementById('overlay').style.display = 'flex';
-        };
-        window.cerrarPopup = () => { document.getElementById('overlay').style.display = 'none'; };
+        }
 
-        // Ejecutar carga
-        cargar();
+        window.cerrarPopup = () => {
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        cargarDatosReal();
     </script>
 </body>
 </html>
