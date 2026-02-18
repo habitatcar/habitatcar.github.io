@@ -299,9 +299,9 @@
         </div>
     </div>
 
-    <!-- ✅ SCRIPT CORREGIDO: getDocs + abrirPopupExito mejorado -->
+    <!-- ✅ SCRIPT CORREGIDO: abrirPopupExito con ID temporal + URLs limpias -->
     <script type="module">
-        // ✅ CORREGIDO: getDocs agregado explícitamente + URLs limpias
+        // ✅ CORREGIDO: URLs limpias (sin espacios al final)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, query, where, onSnapshot, getDoc, getDocs, doc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -333,7 +333,6 @@
         }
 
         async function verificarParticipacion() {
-            // ✅ Intentamos detectar quién es (Lead o VIP)
             let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
             if(!idFinal) return;
             
@@ -361,50 +360,47 @@
             if (info) info.classList.add('visible');
         }
 
-        // ✅ FUNCIÓN ACTUALIZADA EXACTAMENTE COMO LA PEDISTE
+        // ✅ FUNCIÓN ACTUALIZADA: ID temporal + datos genéricos si no existe usuario
         window.abrirPopupExito = async () => {
-            // 1. Intentamos detectar quién es (Lead o VIP)
+            // 1. Intentamos detectar ID. Si no existe, creamos uno temporal 'invitado'
             let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
             
-            // 2. Si no hay ID, el botón no puede adivinar quién es para anotarlo en el sorteo
             if (!idFinal) {
-                alert("⚠️ No pudimos identificarte. Por favor, volvé a la pantalla de beneficios e ingresá nuevamente desde allí para que el sistema te reconozca.");
-                return;
+                // En lugar de dar error, generamos un ID para que pueda participar igual
+                idFinal = "temp_" + Math.random().toString(36).substr(2, 9);
+                localStorage.setItem('leadId_v16', idFinal);
+                console.log("Generado ID temporal:", idFinal);
             }
 
             if (!datosComercioGlobal) {
-                alert("Cargando datos del comercio... Reintenta en un momento.");
+                alert("⚠️ Los datos del comercio aún no cargaron. Verificá que el nombre en la URL coincida con el del Panel.");
                 return;
             }
 
             try {
-                // Buscamos los datos reales en la colección 'leads' (donde están todos)
+                // Intentamos buscar datos del usuario, si no hay, usamos genéricos
                 const userSnap = await getDoc(doc(db, "leads", idFinal));
-                const u = userSnap.exists() ? userSnap.data() : {};
+                const u = userSnap.exists() ? userSnap.data() : { nombre: "Invitado", celular: "Ver en sorteo" };
 
-                // 3. Guardamos la participación
                 await addDoc(collection(db, "admin_participantes_sorteos"), {
                     usuarioId: idFinal,
-                    nombre: u.nombre || "Usuario Hábitat",
-                    celular: u.celular || "Sin celular",
-                    tipo: u.vip === "si" ? "VIP" : "LEAD", // Detectamos si es VIP por su ficha en la DB
+                    nombre: u.nombre || "Usuario Nuevo",
+                    celular: u.celular || "S/D",
+                    tipo: u.vip === "si" ? "VIP" : "LEAD",
                     comercio: nombreComercio,
                     comercioId: datosComercioGlobal.id,
-                    premio: datosComercioGlobal.titulo_sorteo || "Sorteo General",
+                    premio: datosComercioGlobal.titulo_sorteo || "Sorteo",
                     fecha_sorteo: fechaSorteoData,
                     timestamp: serverTimestamp()
                 });
 
-                // Guardamos que ya participó para que el botón desaparezca
                 localStorage.setItem(`participo_sorteo_${nombreComercio}_${idFinal}`, 'true');
-                
-                document.getElementById('txt-exito-dinamico').innerText = `¡Listo ${u.nombre || ''}! Ya estás participando.`;
+                document.getElementById('txt-exito-dinamico').innerText = `¡Listo! Ya estás participando.`;
                 document.getElementById('overlay').style.display = 'flex';
                 mostrarSoloCartelVerde();
 
             } catch (e) {
-                console.error("Error:", e);
-                alert("Hubo un problema al registrarte. Por favor intentá de nuevo.");
+                alert("Error de conexión: " + e.message);
             }
         };
 
