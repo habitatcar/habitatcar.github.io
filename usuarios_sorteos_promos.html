@@ -14,7 +14,6 @@
             --naranja: #ff8c00;
             --verde: #28a745;
         }
-
         body {
             font-family: 'Segoe UI', sans-serif;
             background-color: var(--azul-oscuro);
@@ -25,7 +24,6 @@
             align-items: center;
             min-height: 100vh;
         }
-
         .header {
             width: 100%;
             padding: 30px 0;
@@ -33,34 +31,25 @@
             background: var(--azul-medio);
             border-bottom: 4px solid var(--naranja);
         }
-
-        .logo { 
-            width: 90%;
-            max-width: 450px; 
-            height: auto;
-        }
-
+        .logo { width: 90%; max-width: 450px; height: auto; }
         .container {
             width: 90%;
             max-width: 500px;
             padding: 20px;
             text-align: center;
         }
-
         .comercio-info h1 {
             color: var(--oro);
             font-size: 2.2em;
             margin-bottom: 5px;
             text-transform: uppercase;
         }
-
         .leyenda-ecosistema {
             color: #8892b0;
             font-size: 0.95em;
             margin-bottom: 25px;
             font-style: italic;
         }
-
         .promo-card {
             background: linear-gradient(145deg, #112240, #1a3055);
             border-radius: 20px;
@@ -72,14 +61,12 @@
             flex-direction: column;
             align-items: center;
         }
-
         .promo-titulo {
             font-size: 1.6em;
             margin-bottom: 15px;
             color: white;
             font-weight: bold;
         }
-
         .promo-detalle {
             font-size: 1.15em;
             color: #ccd6f6;
@@ -87,7 +74,6 @@
             margin-bottom: 20px;
             white-space: pre-wrap;
         }
-
         .vigencia-texto {
             color: var(--naranja);
             font-weight: bold;
@@ -95,7 +81,6 @@
             font-size: 0.95em;
             display: none;
         }
-
         .btn-participar {
             background: var(--naranja);
             color: white;
@@ -107,8 +92,13 @@
             cursor: pointer;
             width: 100%;
             margin-bottom: 15px;
+            transition: all 0.2s;
         }
-
+        .btn-participar:disabled {
+            background: #666;
+            cursor: not-allowed;
+            opacity: 0.7;
+        }
         .btn-especificaciones {
             background: transparent;
             color: var(--oro);
@@ -117,7 +107,6 @@
             border-radius: 8px;
             cursor: pointer;
         }
-
         #overlay {
             display: none;
             position: fixed;
@@ -127,7 +116,6 @@
             justify-content: center;
             align-items: center;
         }
-
         .popup {
             background: var(--azul-medio);
             padding: 40px 30px;
@@ -137,10 +125,8 @@
             max-width: 380px;
             border: 2px solid var(--verde);
         }
-
         .popup i { font-size: 4.5em; color: var(--verde); margin-bottom: 20px; }
         .popup h2 { color: white; margin: 0 0 10px 0; font-size: 1.8em; }
-
         .footer-link {
             margin: 40px 0;
             background: rgba(255,255,255,0.05);
@@ -172,7 +158,7 @@
             <h2 id="tit-sorteo" class="promo-titulo"></h2>
             <p id="desc-sorteo" class="promo-detalle"></p>
             <p id="fecha-sorteo-texto" style="color: var(--oro); font-weight: bold; margin-bottom: 15px;"></p>
-            <button class="btn-participar" onclick="abrirPopupExito()">QUIERO PARTICIPAR</button>
+            <button class="btn-participar" id="btn-participar" onclick="abrirPopupExito()">QUIERO PARTICIPAR</button>
             <button class="btn-especificaciones" onclick="alert('Bases: 1. Ser miembro activo. 2. Presentar cupón.')">Bases del Sorteo</button>
         </div>
 
@@ -197,8 +183,9 @@
         </div>
     </div>
 
-    <!-- ✅ SCRIPT ACTUALIZADO CON BÚSQUEDA POR idComercio -->
+    <!-- ✅ SCRIPT CORREGIDO: getDocs agregado a los imports + URLs limpias -->
     <script type="module">
+        // ✅ CORRECCIÓN: getDocs agregado explícitamente a la lista de imports
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -218,12 +205,17 @@
         // 📌 agarramos el id del comercio desde la URL
         const params = new URLSearchParams(window.location.search);
         const idComercio = params.get("id");
+        
+        // ✅ Variable global para almacenar datos del comercio
+        let datosComercioGlobal = null;
 
         async function cargarDatos() {
           try {
             if (!idComercio) {
               console.warn("❌ No vino id de comercio");
               document.getElementById('nombre-comercio').innerText = "ERROR: No se especificó comercio";
+              const btn = document.getElementById('btn-participar');
+              if(btn) { btn.disabled = true; btn.innerHTML = '⚠️ SIN COMERCIO'; }
               return;
             }
 
@@ -233,17 +225,23 @@
               where("idComercio", "==", idComercio)
             );
 
+            // ✅ getDocs ahora está disponible porque lo importamos arriba
             const snap = await getDocs(q);
 
             if (snap.empty) {
-              console.warn("❌ Comercio no encontrado");
+              console.warn("❌ Comercio no encontrado con idComercio:", idComercio);
               document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
+              const btn = document.getElementById('btn-participar');
+              if(btn) { btn.disabled = true; btn.innerHTML = '❌ NO ENCONTRADO'; }
               return;
             }
 
             const data = snap.docs[0].data();
+            
+            // ✅ Guardamos los datos en la variable global para que el botón funcione
+            datosComercioGlobal = { id: snap.docs[0].id, ...data };
 
-            // ✅ cargar datos reales
+            // ✅ cargar datos reales en la interfaz
             document.getElementById("nombre-comercio").innerText = data.nombre || "Comercio";
 
             // CARGA DE SORTEO (con nombres de campo corregidos)
@@ -253,6 +251,10 @@
                 document.getElementById("desc-sorteo").innerText = data.descripcion_sorteo || "Sin información de sorteo.";
                 document.getElementById("fecha-sorteo-texto").innerText = "📅 Fecha: " + (data.fecha_sorteo || "A confirmar");
                 window._fechaSorteo = data.fecha_sorteo || "próximamente";
+            } else {
+                // Si no hay sorteo, deshabilitamos el botón
+                const btn = document.getElementById('btn-participar');
+                if(btn) { btn.disabled = true; btn.innerHTML = '⚠️ SIN SORTEO'; }
             }
 
             // CARGA DE PROMO (con nombres de campo corregidos)
@@ -272,24 +274,36 @@
           } catch (err) {
             console.error("❌ Error cargando comercio:", err);
             document.getElementById('nombre-comercio').innerText = "Error de conexión";
+            const btn = document.getElementById('btn-participar');
+            if(btn) { btn.disabled = true; btn.innerHTML = '❌ ERROR'; }
           }
         }
 
-        // 🚀 ejecutar al cargar
-        cargarDatos();
-
-        // ================= POPUP =================
+        // ================= POPUP / PARTICIPACIÓN =================
 
         window.abrirPopupExito = function () {
+          // ✅ Verificación de seguridad: si datosComercioGlobal es null, algo falló
+          if (!datosComercioGlobal) {
+            alert("⚠️ Los datos del comercio no se cargaron correctamente. Por favor, recargá la página.");
+            return;
+          }
+          
           document.getElementById("txt-exito-dinamico").innerText =
             `Ya estás participando del sorteo a llevarse a cabo el día ${window._fechaSorteo || "próximamente"}. ¡Mucha suerte!`;
 
           document.getElementById("overlay").style.display = "flex";
+          
+          // ✅ Opcional: deshabilitar botón después de participar
+          const btn = document.getElementById('btn-participar');
+          if(btn) { btn.disabled = true; btn.innerHTML = '✅ YA PARTICIPASTE'; }
         };
 
         window.cerrarPopup = function () {
           document.getElementById("overlay").style.display = "none";
         };
+        
+        // 🚀 ejecutar al cargar
+        document.addEventListener('DOMContentLoaded', cargarDatos);
     </script>
 </body>
 </html>
