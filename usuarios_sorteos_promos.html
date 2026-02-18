@@ -1,309 +1,411 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sorteos y Promociones | Hábitat-Car</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --oro: #ffc107;
-            --azul-oscuro: #0a192f;
-            --azul-medio: #112240;
-            --blanco: #e6f1ff;
-            --naranja: #ff8c00;
-            --verde: #28a745;
-        }
-        body {
-            font-family: 'Segoe UI', sans-serif;
-            background-color: var(--azul-oscuro);
-            color: var(--blanco);
-            margin: 0;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-height: 100vh;
-        }
-        .header {
-            width: 100%;
-            padding: 30px 0;
-            text-align: center;
-            background: var(--azul-medio);
-            border-bottom: 4px solid var(--naranja);
-        }
-        .logo { width: 90%; max-width: 450px; height: auto; }
-        .container {
-            width: 90%;
-            max-width: 500px;
-            padding: 20px;
-            text-align: center;
-        }
-        .comercio-info h1 {
-            color: var(--oro);
-            font-size: 2.2em;
-            margin-bottom: 5px;
-            text-transform: uppercase;
-        }
-        .leyenda-ecosistema {
-            color: #8892b0;
-            font-size: 0.95em;
-            margin-bottom: 25px;
-            font-style: italic;
-        }
-        .promo-card {
-            background: linear-gradient(145deg, #112240, #1a3055);
-            border-radius: 20px;
-            padding: 30px;
-            margin-top: 25px;
-            border: 2px solid var(--naranja);
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            display: none;
-            flex-direction: column;
-            align-items: center;
-        }
-        .promo-titulo {
-            font-size: 1.6em;
-            margin-bottom: 15px;
-            color: white;
-            font-weight: bold;
-        }
-        .promo-detalle {
-            font-size: 1.15em;
-            color: #ccd6f6;
-            line-height: 1.6;
-            margin-bottom: 20px;
-            white-space: pre-wrap;
-        }
-        .vigencia-texto {
-            color: var(--naranja);
-            font-weight: bold;
-            margin-top: 10px;
-            font-size: 0.95em;
-            display: none;
-        }
-        .btn-participar {
-            background: var(--naranja);
-            color: white;
-            padding: 18px;
-            border-radius: 50px;
-            font-weight: bold;
-            font-size: 1.2em;
-            border: none;
-            cursor: pointer;
-            width: 100%;
-            margin-bottom: 15px;
-            transition: all 0.2s;
-        }
-        .btn-participar:disabled {
-            background: #666;
-            cursor: not-allowed;
-            opacity: 0.7;
-        }
-        .btn-especificaciones {
-            background: transparent;
-            color: var(--oro);
-            border: 1px solid var(--oro);
-            padding: 10px 20px;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-        #overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 2000;
-            justify-content: center;
-            align-items: center;
-        }
-        .popup {
-            background: var(--azul-medio);
-            padding: 40px 30px;
-            border-radius: 30px;
-            text-align: center;
-            width: 85%;
-            max-width: 380px;
-            border: 2px solid var(--verde);
-        }
-        .popup i { font-size: 4.5em; color: var(--verde); margin-bottom: 20px; }
-        .popup h2 { color: white; margin: 0 0 10px 0; font-size: 1.8em; }
-        .footer-link {
-            margin: 40px 0;
-            background: rgba(255,255,255,0.05);
-            color: var(--blanco);
-            text-decoration: none;
-            padding: 15px 30px;
-            border-radius: 12px;
-            display: inline-block;
-            font-weight: bold;
-            border: 1px solid rgba(255,255,255,0.2);
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Panel de Sorteos Elite | Hábitat-Car</title>
+<!-- ✅ jsPDF para generación de certificados -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8f9fa; color: #333; line-height: 1.6; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
+header h1 { font-size: 1.8rem; margin-bottom: 8px; }
+header p { opacity: 0.9; font-size: 0.95rem; }
+.controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+.btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+.btn-primary { background: #667eea; color: white; }
+.btn-primary:hover { background: #5568d3; }
+.btn-success { background: #28a745; color: white; }
+.btn-success:hover { background: #218838; }
+.btn-warning { background: #ffc107; color: #333; }
+.btn-warning:hover { background: #e0a800; }
+.btn:disabled { opacity: 0.6; cursor: not-allowed; }
+table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+th { background: #667eea; color: white; padding: 14px 12px; text-align: left; font-weight: 600; }
+td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover { background: #f8f9ff; }
+.btn-accion { padding: 6px 12px; margin: 2px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+.btn-wa { background: #25D366; color: white; }
+.btn-wa:hover { background: #128C7E; }
+.btn-mail { background: #ea4335; color: white; }
+.btn-mail:hover { background: #d33426; }
+.btn-copy { background: #6c757d; color: white; }
+.btn-copy:hover { background: #5a6268; }
+.badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+.badge-premio { background: #fff3cd; color: #856404; }
+.badge-comercio { background: #d1ecf1; color: #0c5460; }
+.toast { position: fixed; top: 20px; right: 20px; padding: 14px 20px; border-radius: 10px; color: white; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; animation: slideIn 0.3s ease; }
+.toast.success { background: #28a745; }
+.toast.error { background: #dc3545; }
+.toast.warning { background: #ffc107; color: #333; }
+@keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+.modal.active { display: flex; }
+.modal-content { background: white; padding: 25px; border-radius: 16px; max-width: 500px; width: 90%; }
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+.modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; }
+.modal-close:hover { color: #333; }
+.form-group { margin-bottom: 15px; }
+.form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
+.form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+.loading { text-align: center; padding: 40px; color: #666; }
+</style>
 </head>
 <body>
+<div class="container">
+<header>
+<h1>🏆 SORTEOS PREMIUM</h1>
+<p>Panel de Sorteos Elite | Hábitat-Car</p>
+</header>
+<div class="controls">
+<button class="btn btn-primary" onclick="cargarPrueba()">🧪 CARGAR PRUEBA</button>
+<button class="btn btn-success" onclick="cargarActivos()">SORTEOS ACTIVOS</button>
+<button class="btn btn-warning" onclick="cargarHistorial()">HISTORIAL DE ÉXITOS</button>
+</div>
+<table>
+<thead>
+<tr>
+<th>FECHA</th>
+<th>COMERCIO / PREMIO</th>
+<th>GANADORES Y ACCIONES</th>
+<th>DATOS</th>
+</tr>
+</thead>
+<tbody id="tabla-sorteos">
+<tr><td colspan="4" class="loading">🔄 Conectando con Firebase...</td></tr>
+</tbody>
+</table>
+</div>
+<!-- Modal de cierre -->
+<div id="modal-cerrar" class="modal">
+<div class="modal-content">
+<div class="modal-header">
+<h3>🏆 CERRAR SORTEO</h3>
+<button class="modal-close" onclick="cerrarModal()">&times;</button>
+</div>
+<div class="form-group">
+<label>Confirmar cierre del sorteo</label>
+<input type="text" placeholder="Escribí 'CERRAR' para confirmar" id="confirmar-cierre">
+</div>
+<button class="btn btn-primary" onclick="confirmarCierre()">Confirmar Cierre</button>
+</div>
+</div>
 
-    <header class="header">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo" alt="Hábitat-Car">
-    </header>
+<script>
+/* =========================================================
+📱 WHATSAPP — (INTACTO, COMO PEDISTE)
+========================================================== */
+function normalizarTelefonoAR(numero) {
+if (!numero) return null;
+let num = numero.toString().replace(/\D/g, '');
+if (num.length === 10) return '549' + num;
+if (num.startsWith('54') && !num.startsWith('549')) return '549' + num.substring(2);
+if (num.startsWith('549')) return num;
+return num;
+}
+window.abrirWA = (cel, nom, pre) => {
+if (!cel) return mostrarToast("⚠️ El participante no tiene celular.", "error");
+const num = normalizarTelefonoAR(cel);
+const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`);
+window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+};
 
-    <div class="container">
-        <div class="comercio-info">
-            <h1 id="nombre-comercio">CARGANDO...</h1>
-            <p style="color: var(--naranja); font-weight: bold; margin-bottom: 5px; font-size: 1.1em;">SORTEOS Y PROMOCIONES</p>
-            <p class="leyenda-ecosistema">Este es un espacio Válido para todos los miembros del Ecosistema Habitat-Car.</p>
-        </div>
+/* =========================================================
+🎨 GENERADOR DE PDF (ESTILO DIPLOMA ALEGRE)
+========================================================== */
+window.generarPDFDiploma = (nombre, premio, comercio) => {
+const { jsPDF } = window.jspdf;
+const doc = new jsPDF('l', 'mm', 'a5');
+doc.setFillColor(255, 255, 255); doc.rect(0, 0, 210, 148, 'F');
+doc.setDrawColor(230, 57, 70); doc.setLineWidth(2); doc.rect(5, 5, 200, 138);
+doc.setDrawColor(255, 193, 7); doc.setLineWidth(0.5); doc.rect(7, 7, 196, 134);
+doc.setTextColor(0, 74, 153); doc.setFontSize(30); doc.text("¡FELICITACIONES!", 105, 35, { align: "center" });
+doc.setTextColor(60, 60, 60); doc.setFontSize(16); doc.text("Certificado otorgado a:", 105, 55, { align: "center" });
+doc.setTextColor(230, 57, 70); doc.setFontSize(26); doc.text(nombre.toUpperCase(), 105, 75, { align: "center" });
+doc.setTextColor(40, 40, 40); doc.setFontSize(16); doc.text(`Ganador de: ${premio}`, 105, 100, { align: "center" });
+doc.setFontSize(10); doc.text(`Gentileza de: ${comercio} & Hábitat-Car`, 105, 130, { align: "center" });
+return doc;
+};
 
-        <div class="promo-card" id="card-sorteo">
-            <div style="font-size: 3em; color: var(--oro); margin-bottom: 10px;"><i class="fas fa-gift"></i></div>
-            <h2 id="tit-sorteo" class="promo-titulo"></h2>
-            <p id="desc-sorteo" class="promo-detalle"></p>
-            <p id="fecha-sorteo-texto" style="color: var(--oro); font-weight: bold; margin-bottom: 15px;"></p>
-            <button class="btn-participar" id="btn-participar" onclick="abrirPopupExito()">QUIERO PARTICIPAR</button>
-            <button class="btn-especificaciones" onclick="alert('Bases: 1. Ser miembro activo. 2. Presentar cupón.')">Bases del Sorteo</button>
-        </div>
+/* =========================================================
+📬 EMAIL — "SIN VUELTAS" (CON PDF ADJUNTO) - INTACTO
+========================================================== */
+window.enviarMail = async (btn, mailG, nombre, premio, comercio, mailC) => {
+if (!mailG) return mostrarToast("⚠️ El participante no tiene email.", "error");
+const original = btn.innerHTML;
+btn.disabled = true;
+btn.innerHTML = "⏳";
+const docPDF = window.generarPDFDiploma(nombre, premio, comercio);
+const pdfBase64 = docPDF.output('datauristring').split(',')[1];
+const payload = {
+email: mailG.trim(),
+nombreGanador: nombre,
+premio: premio,
+comercio: comercio,
+pdfB64: pdfBase64,
+asunto: `🏆 ¡FELICITACIONES! Ganaste en el sorteo de Hábitat-Car`,
+cc: `habitatcar@gmail.com, ${mailC}`
+};
+const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
+try {
+await fetch(URL_SCRIPT, {
+method: 'POST',
+mode: 'no-cors',
+headers: { 'Content-Type': 'application/json' },
+body: JSON.stringify(payload)
+});
+mostrarToast("✅ ¡Enviado! El sistema Hábitat-Car está despachando el mail.", "success");
+} catch (err) {
+console.error(err);
+mostrarToast("❌ Error al conectar con el servidor de correo.", "error");
+} finally {
+btn.disabled = false;
+btn.innerHTML = original;
+}
+};
 
-        <div class="promo-card" id="card-promo" style="border-color: var(--oro);">
-            <div style="font-size: 3em; color: var(--oro); margin-bottom: 10px;"><i class="fas fa-star"></i></div>
-            <h2 id="tit-promo" class="promo-titulo"></h2>
-            <p id="desc-promo" class="promo-detalle"></p>
-            <p id="vence-promo" class="vigencia-texto"></p>
-        </div>
+/* =========================================================
+📊 FIREBASE - CARGA DINÁMICA DE COMERCIOS
+========================================================== */
+const firebaseConfig = {
+apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+authDomain: "habitatcar-pro.firebaseapp.com",
+projectId: "habitatcar-pro",
+storageBucket: "habitatcar-pro.firebasestorage.app",
+messagingSenderId: "311691258694",
+appId: "1:311691258694:web:17a09051dcea7707af9347"
+};
 
-        <a href="javascript:history.back()" class="footer-link">
-            <i class="fas fa-arrow-left"></i> VOLVER A BENEFICIOS
-        </a>
-    </div>
+// Inicializar Firebase (solo si no está inicializado)
+if (!window.firebaseApp) {
+window.firebaseApp = firebase.initializeApp(firebaseConfig);
+window.firebaseDb = firebase.firestore(window.firebaseApp);
+}
+const db = window.firebaseDb;
 
-    <div id="overlay">
-        <div class="popup">
-            <i class="fas fa-check-circle"></i>
-            <h2>¡MUCHAS GRACIAS!</h2>
-            <p id="txt-exito-dinamico"></p>
-            <button class="btn-participar" style="margin-top: 25px;" onclick="cerrarPopup()">EXCELENTE</button>
-        </div>
-    </div>
+window.cargarActivos = () => {
+const tabla = document.getElementById('tabla-sorteos');
+tabla.innerHTML = `<tr><td colspan="4" class="loading">🔄 Cargando sorteos activos...</td></tr>`;
 
-    <!-- ✅ SCRIPT CORREGIDO: getDocs agregado a los imports + URLs limpias -->
-    <script type="module">
-        // ✅ CORRECCIÓN: getDocs agregado explícitamente a la lista de imports
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+db.collection("comercios").onSnapshot((snap) => {
+tabla.innerHTML = "";
+let haySorteos = false;
 
-        // 🔥 TU MISMA CONFIG (la copié del admin)
-        const firebaseConfig = {
-          apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
-          authDomain: "habitatcar-pro.firebaseapp.com",
-          projectId: "habitatcar-pro",
-          storageBucket: "habitatcar-pro.firebasestorage.app",
-          messagingSenderId: "311691258694",
-          appId: "1:311691258694:web:17a09051dcea7707af9347"
-        };
+snap.forEach(docSnap => {
+const c = docSnap.data();
+if (c.titulo_sorteo && c.titulo_sorteo.trim() !== "" && c.estado !== "inactivo") {
+haySorteos = true;
+const cant = c.cantidad_ganadores || 1;
+const fecha = c.fecha_inicio_sorteo ? new Date(c.fecha_inicio_sorteo).toLocaleDateString('es-AR') : 'Vigente';
 
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
+const fila = `
+<tr data-tipo="activo" data-id="${docSnap.id}">
+<td>${fecha}</td>
+<td>
+<span class="badge badge-comercio">${c.nombre}</span><br>
+<span class="badge badge-premio">🎁 ${c.titulo_sorteo}</span>
+</td>
+<td>
+<button class="btn btn-primary" onclick="ejecutarSorteo('${docSnap.id}', '${c.nombre}', '${c.titulo_sorteo}', ${cant}, '${c.email || 'habitatcar@gmail.com'}')">
+🎲 SORTEAR (${cant})
+</button>
+</td>
+<td><small>${cant} ganador/es</small></td>
+</tr>`;
+tabla.innerHTML += fila;
+}
+});
 
-        // 📌 agarramos el id del comercio desde la URL
-        const params = new URLSearchParams(window.location.search);
-        const idComercio = params.get("id");
-        
-        // ✅ Variable global para almacenar datos del comercio
-        let datosComercioGlobal = null;
+if (!haySorteos) {
+tabla.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#666">No hay sorteos activos. Registra un comercio con "Título de Sorteo" en admin_comercios.html</td></tr>`;
+}
+});
+};
 
-        async function cargarDatos() {
-          try {
-            if (!idComercio) {
-              console.warn("❌ No vino id de comercio");
-              document.getElementById('nombre-comercio').innerText = "ERROR: No se especificó comercio";
-              const btn = document.getElementById('btn-participar');
-              if(btn) { btn.disabled = true; btn.innerHTML = '⚠️ SIN COMERCIO'; }
-              return;
-            }
+window.ejecutarSorteo = async (idComercio, nombreComercio, premio, cantidad, mailComercio) => {
+mostrarToast(`🎲 Sorteando ${cantidad} premio/s para ${nombreComercio}...`, "warning");
 
-            // 🔍 buscamos el comercio por idComercio
-            const q = query(
-              collection(db, "comercios"),
-              where("idComercio", "==", idComercio)
-            );
+try {
+// Obtener participantes de este comercio
+const snap = await db.collection("admin_participantes_sorteos")
+.where("comercio", "==", nombreComercio).get();
 
-            // ✅ getDocs ahora está disponible porque lo importamos arriba
-            const snap = await getDocs(q);
+let participantes = [];
+snap.forEach(d => participantes.push({ id: d.id, ...d.data() }));
 
-            if (snap.empty) {
-              console.warn("❌ Comercio no encontrado con idComercio:", idComercio);
-              document.getElementById('nombre-comercio').innerText = "Comercio no encontrado";
-              const btn = document.getElementById('btn-participar');
-              if(btn) { btn.disabled = true; btn.innerHTML = '❌ NO ENCONTRADO'; }
-              return;
-            }
+if (participantes.length === 0) {
+return mostrarToast("⚠️ No hay participantes para este comercio. Usá 🧪 CARGAR PRUEBA.", "error");
+}
 
-            const data = snap.docs[0].data();
-            
-            // ✅ Guardamos los datos en la variable global para que el botón funcione
-            datosComercioGlobal = { id: snap.docs[0].id, ...data };
+// Seleccionar ganadores aleatorios
+let bolsa = [...participantes];
+let ganadores = [];
 
-            // ✅ cargar datos reales en la interfaz
-            document.getElementById("nombre-comercio").innerText = data.nombre || "Comercio";
+for (let i = 0; i < Math.min(cantidad, bolsa.length); i++) {
+const idx = Math.floor(Math.random() * bolsa.length);
+ganadores.push(bolsa.splice(idx, 1)[0]);
+}
 
-            // CARGA DE SORTEO (con nombres de campo corregidos)
-            if (data.titulo_sorteo && data.titulo_sorteo.trim() !== "") {
-                document.getElementById("card-sorteo").style.display = 'flex';
-                document.getElementById("tit-sorteo").innerText = data.titulo_sorteo;
-                document.getElementById("desc-sorteo").innerText = data.descripcion_sorteo || "Sin información de sorteo.";
-                document.getElementById("fecha-sorteo-texto").innerText = "📅 Fecha: " + (data.fecha_sorteo || "A confirmar");
-                window._fechaSorteo = data.fecha_sorteo || "próximamente";
-            } else {
-                // Si no hay sorteo, deshabilitamos el botón
-                const btn = document.getElementById('btn-participar');
-                if(btn) { btn.disabled = true; btn.innerHTML = '⚠️ SIN SORTEO'; }
-            }
+// Guardar en historial
+await db.collection("historial_sorteos").add({
+comercio: nombreComercio,
+premio: premio,
+ganadores: ganadores,
+mailComercio: mailComercio,
+fecha: firebase.firestore.FieldValue.serverTimestamp(),
+cantidad_ganadores: cantidad
+});
 
-            // CARGA DE PROMO (con nombres de campo corregidos)
-            if (data.titulo_promo && data.titulo_promo.trim() !== "") {
-                document.getElementById("card-promo").style.display = 'flex';
-                document.getElementById("tit-promo").innerText = data.titulo_promo;
-                document.getElementById("desc-promo").innerText = data.descripcion_promo || "Sin información de promoción.";
-                
-                // Mostrar vigencia si existe
-                if (data.promo_vence && data.promo_vence.trim() !== "") {
-                    const v = document.getElementById("vence-promo");
-                    v.innerText = "⏰ Promo válida hasta: " + data.promo_vence;
-                    v.style.display = 'block';
-                }
-            }
+mostrarToast(`✅ ¡Sorteo realizado! ${ganadores.length} ganador/es guardado/s.`, "success");
+cargarHistorial();
 
-          } catch (err) {
-            console.error("❌ Error cargando comercio:", err);
-            document.getElementById('nombre-comercio').innerText = "Error de conexión";
-            const btn = document.getElementById('btn-participar');
-            if(btn) { btn.disabled = true; btn.innerHTML = '❌ ERROR'; }
-          }
-        }
+} catch (e) {
+console.error("Error en sorteo:", e);
+mostrarToast("❌ Error al realizar el sorteo: " + e.message, "error");
+}
+};
 
-        // ================= POPUP / PARTICIPACIÓN =================
+window.cargarHistorial = () => {
+const tabla = document.getElementById('tabla-sorteos');
+tabla.innerHTML = `<tr><td colspan="4" class="loading">📜 Cargando historial de éxitos...</td></tr>`;
 
-        window.abrirPopupExito = function () {
-          // ✅ Verificación de seguridad: si datosComercioGlobal es null, algo falló
-          if (!datosComercioGlobal) {
-            alert("⚠️ Los datos del comercio no se cargaron correctamente. Por favor, recargá la página.");
-            return;
-          }
-          
-          document.getElementById("txt-exito-dinamico").innerText =
-            `Ya estás participando del sorteo a llevarse a cabo el día ${window._fechaSorteo || "próximamente"}. ¡Mucha suerte!`;
+db.collection("historial_sorteos").orderBy("fecha", "desc").onSnapshot((snap) => {
+tabla.innerHTML = "";
 
-          document.getElementById("overlay").style.display = "flex";
-          
-          // ✅ Opcional: deshabilitar botón después de participar
-          const btn = document.getElementById('btn-participar');
-          if(btn) { btn.disabled = true; btn.innerHTML = '✅ YA PARTICIPASTE'; }
-        };
+if (snap.empty) {
+tabla.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#666">Aún no hay sorteos registrados</td></tr>`;
+return;
+}
 
-        window.cerrarPopup = function () {
-          document.getElementById("overlay").style.display = "none";
-        };
-        
-        // 🚀 ejecutar al cargar
-        document.addEventListener('DOMContentLoaded', cargarDatos);
-    </script>
+snap.forEach(docSnap => {
+const h = docSnap.data();
+const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '---';
+
+h.ganadores?.forEach((g, idx) => {
+const cel = g.celular || g.cel || '';
+const email = g.email || '';
+const nombre = g.nombre || 'Sin nombre';
+
+const fila = `
+<tr style="background: ${idx === 0 ? '#fff9e6' : 'white'}">
+<td>${idx === 0 ? fecha : ''}</td>
+<td>
+${idx === 0 ? `<span class="badge badge-comercio">${h.comercio}</span><br>` : ''}
+<span class="badge badge-premio">🏆 ${h.premio}</span>
+</td>
+<td>
+<strong>${nombre}</strong><br>
+<small>${cel || '---'}</small><br>
+<div style="margin-top:5px;">
+<button class="btn-accion btn-wa" onclick="abrirWA('${cel}','${nombre}','${h.premio}')">💬 WA</button>
+<button class="btn-accion btn-mail" onclick="enviarMail(this,'${email}','${nombre}','${h.premio}','${h.comercio}','${h.mailComercio || ''}')">📧 Mail</button>
+</div>
+</td>
+<td>
+<button class="btn-accion btn-copy" onclick="copiarDatos('${nombre} | ${email}')">📋 Copiar</button>
+</td>
+</tr>`;
+tabla.innerHTML += fila;
+});
+});
+});
+};
+
+/* =========================================================
+🧪 CARGAR PRUEBA (CON TUS MAILS) - INTACTO
+========================================================== */
+function cargarPrueba() {
+const tabla = document.getElementById('tabla-sorteos');
+const pruebaData = [
+{ nombre: "Maxi Test", cel: "+543884618228", mail: "lormaxi@hotmail.com", premio: "Orden de Compra $50.000", comercio: "Hábitat-Car Central", mailC: "central@habitatcar.com" },
+{ nombre: "Admin Test", cel: "3884618156", mail: "habitatcar@gmail.com", premio: "Kit de Limpieza Pro", comercio: "Hábitat-Car Norte", mailC: "norte@habitatcar.com" }
+];
+tabla.innerHTML = "";
+pruebaData.forEach(p => {
+const fila = `
+<tr>
+<td>${new Date().toLocaleDateString()}</td>
+<td>
+<span class="badge badge-comercio">${p.comercio}</span><br>
+<span class="badge badge-premio">🎁 ${p.premio}</span>
+</td>
+<td>
+<strong>${p.nombre}</strong><br>
+<small>${p.cel}</small><br>
+<div style="margin-top: 8px;">
+<button class="btn-accion btn-wa" onclick="abrirWA('${p.cel}','${p.nombre}','${p.premio}')">💬 WA</button>
+<button class="btn-accion btn-mail" onclick="enviarMail(this,'${p.mail}','${p.nombre}','${p.premio}','${p.comercio}','${p.mailC}')">📧 Mail</button>
+</div>
+</td>
+<td>
+<button class="btn-accion btn-copy" onclick="copiarDatos('${p.nombre} | ${p.mail}')">📋 Copiar</button>
+</td>
+</tr>`;
+tabla.innerHTML += fila;
+});
+mostrarToast("🔄 Datos de prueba cargados (Maxi y Admin)", "success");
+}
+
+/* =========================================================
+📋 FUNCIONES AUXILIARES (INTACTAS)
+========================================================== */
+function mostrarToast(mensaje, tipo = 'success') {
+const toast = document.createElement('div');
+toast.className = `toast ${tipo}`;
+toast.textContent = mensaje;
+document.body.appendChild(toast);
+setTimeout(() => toast.remove(), 3000);
+}
+function copiarDatos(datos) {
+navigator.clipboard.writeText(datos).then(() => {
+mostrarToast("📋 Datos copiados al portapapeles", "success");
+}).catch(() => {
+mostrarToast("❌ Error al copiar", "error");
+});
+}
+function cerrarModal() {
+document.getElementById('modal-cerrar').classList.remove('active');
+}
+function confirmarCierre() {
+const confirmacion = document.getElementById('confirmar-cierre').value.trim();
+if (confirmacion === 'CERRAR') {
+mostrarToast("✅ Sorteo cerrado exitosamente", "success");
+cerrarModal();
+} else {
+mostrarToast("⚠️ Escribí 'CERRAR' para confirmar", "warning");
+}
+}
+
+/* =========================================================
+INICIALIZACIÓN
+========================================================== */
+document.addEventListener('DOMContentLoaded', () => {
+console.log("🚀 Panel de Sorteos Elite cargado");
+// Cargar sorteos activos por defecto
+cargarActivos();
+});
+
+/* =========================================================
+EXPOSICIÓN GLOBAL DE FUNCIONES
+========================================================== */
+window.abrirWA = abrirWA;
+window.enviarMail = enviarMail;
+window.generarPDFDiploma = generarPDFDiploma;
+window.cargarPrueba = cargarPrueba;
+window.cargarActivos = cargarActivos;
+window.cargarHistorial = cargarHistorial;
+window.ejecutarSorteo = ejecutarSorteo;
+window.cerrarModal = cerrarModal;
+window.confirmarCierre = confirmarCierre;
+window.mostrarToast = mostrarToast;
+window.copiarDatos = copiarDatos;
+</script>
+
+<!-- Firebase SDKs (necesarios para que funcione) -->
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
 </body>
 </html>
