@@ -1,283 +1,156 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Sorteos Elite | Hábitat-Car</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8f9fa; color: #333; line-height: 1.6; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
-        header h1 { font-size: 1.8rem; margin-bottom: 8px; }
-        header p { opacity: 0.9; font-size: 0.95rem; }
-        
-        .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
-        .btn-primary { background: #667eea; color: white; }
-        .btn-primary:hover { background: #5568d3; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-success:hover { background: #218838; }
-        .btn-warning { background: #ffc107; color: #333; }
-        .btn-warning:hover { background: #e0a800; }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+<script type="module">
+    // ... (Mantener inicialización de Firebase igual) ...
 
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-        th { background: #667eea; color: white; padding: 14px 12px; text-align: left; font-weight: 600; }
-        td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
-        tr:last-child td { border-bottom: none; }
-        tr:hover { background: #f8f9ff; }
+    // URL de tu Google Apps Script (la misma de admin_estadisticas.html)
+    const WEB_APP_URL = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
 
-        .btn-accion { padding: 6px 12px; margin: 2px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
-        .btn-wa { background: #25D366; color: white; }
-        .btn-wa:hover { background: #128C7E; }
-        .btn-mail { background: #ea4335; color: white; }
-        .btn-mail:hover { background: #d33426; }
-        .btn-copy { background: #6c757d; color: white; }
-        .btn-copy:hover { background: #5a6268; }
+    // 1. CARGA DE COMERCIOS CON CANTIDAD DE GANADORES DESDE LA BASE
+    onSnapshot(collection(db, "comercios"), (snap) => {
+        const cont = document.getElementById('lista-activos');
+        cont.innerHTML = "";
+        snap.forEach(docCom => {
+            const c = docCom.data();
+            if (!c.titulo_sorteo) return;
+            
+            // Lógica: Si el comercio tiene definido 'cantidad_ganadores', se usa, sino 1.
+            const cantConfigurada = c.cantidad_ganadores || 1;
 
-        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
-        .badge-premio { background: #fff3cd; color: #856404; }
-        .badge-comercio { background: #d1ecf1; color: #0c5460; }
-
-        .toast { position: fixed; top: 20px; right: 20px; padding: 14px 20px; border-radius: 10px; color: white; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; animation: slideIn 0.3s ease; }
-        .toast.success { background: #28a745; }
-        .toast.error { background: #dc3545; }
-        .toast.warning { background: #ffc107; color: #333; }
-        @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-        .modal.active { display: flex; }
-        .modal-content { background: white; padding: 25px; border-radius: 16px; max-width: 500px; width: 90%; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; }
-        .modal-close:hover { color: #333; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
-        .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
-    </style>
-</head>
-<body>
-    <div class="container">
-        <header>
-            <h1>🏆 SORTEOS PREMIUM</h1>
-            <p>Panel de Sorteos Elite | Hábitat-Car</p>
-        </header>
-
-        <div class="controls">
-            <button class="btn btn-primary" onclick="cargarPrueba()">CARGAR PRUEBA</button>
-            <button class="btn btn-success">SORTEOS ACTIVOS</button>
-            <button class="btn btn-warning">HISTORIAL DE ÉXITOS</button>
-        </div>
-
-        <table>
-            <thead>
-                <tr>
-                    <th>FECHA</th>
-                    <th>COMERCIO / PREMIO</th>
-                    <th>GANADORES Y ACCIONES</th>
-                    <th>DATOS</th>
-                </tr>
-            </thead>
-            <tbody id="tabla-sorteos">
-                <!-- Ejemplo de fila - reemplazá con tus datos dinámicos -->
-                <tr>
-                    <td>19/02/2026</td>
-                    <td>
-                        <span class="badge badge-comercio">Hábitat-Car Norte</span><br>
-                        <span class="badge badge-premio">🎁 Smart TV 50"</span>
-                    </td>
-                    <td>
-                        <strong>María López</strong><br>
-                        <small>3884618228</small><br>
-                        <div style="margin-top: 8px;">
-                            <button class="btn-accion btn-wa" onclick="abrirWA('3884618228','María López','Smart TV 50&#34;')">💬 WA</button>
-                            <button class="btn-accion btn-mail" onclick="enviarMail(this,'maria@email.com','María López','Smart TV 50&#34;','Hábitat-Car Norte','comercio@habitatcar.com')">📧 Mail</button>
-                        </div>
-                    </td>
-                    <td>
-                        <button class="btn-accion btn-copy" onclick="copiarDatos('{&quot;nombre&quot;:&quot;María López&quot;,&quot;cel&quot;:&quot;3884618228&quot;,&quot;mail&quot;:&quot;maria@email.com&quot;}')">📋 Copiar</button>
-                    </td>
-                </tr>
-                <!-- Más filas dinámicas acá -->
-            </tbody>
-        </table>
-    </div>
-
-    <!-- Modal de cierre -->
-    <div id="modal-cerrar" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>🏆 CERRAR SORTEO</h3>
-                <button class="modal-close" onclick="cerrarModal()">&times;</button>
-            </div>
-            <div class="form-group">
-                <label>Confirmar cierre del sorteo</label>
-                <input type="text" placeholder="Escribí 'CERRAR' para confirmar" id="confirmar-cierre">
-            </div>
-            <button class="btn btn-primary" onclick="confirmarCierre()">Confirmar Cierre</button>
-        </div>
-    </div>
-
-    <script>
-        /* =========================================================
-           🧠 NORMALIZADOR TELÉFONO ARGENTINA (PRO)
-        ========================================================== */
-        function normalizarTelefonoAR(numero) {
-            if (!numero) return null;
-
-            let num = numero.toString().replace(/\D/g, '');
-
-            // Caso: número local 10 dígitos
-            if (num.length === 10) {
-                return '549' + num;
-            }
-
-            // Caso: empieza con 54 pero sin 9 móvil
-            if (num.startsWith('54') && !num.startsWith('549')) {
-                return '549' + num.substring(2);
-            }
-
-            // Caso: ya correcto
-            if (num.startsWith('549')) {
-                return num;
-            }
-
-            return num;
-        }
-
-        /* =========================================================
-           📱 WHATSAPP — VERSIÓN PROFESIONAL
-        ========================================================== */
-        window.abrirWA = (cel, nom, pre) => {
-            if (!cel) {
-                return mostrarToast("⚠️ El participante no tiene celular.", "error");
-            }
-
-            const num = normalizarTelefonoAR(cel);
-
-            const msg = encodeURIComponent(
-                `¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`
-            );
-
-            const url = `https://wa.me/${num}?text=${msg}`;
-
-            console.log("📱 WhatsApp final:", num);
-
-            window.open(url, '_blank');
-        };
-
-        /* =========================================================
-           📬 EMAIL — ENVÍO PROFESIONAL CON REINTENTO
-        ========================================================== */
-        window.enviarMail = async (btn, mailG, nombre, premio, comercio, mailC) => {
-            if (!mailG) {
-                return mostrarToast("⚠️ El participante no tiene email.", "error");
-            }
-
-            const original = btn.innerHTML;
-            btn.disabled = true;
-            btn.innerHTML = "⏳";
-
-            const payload = {
-                emailGanador: mailG,
-                nombre,
-                premio,
-                comercio,
-                emailComercio: mailC
-            };
-
-            // ✅ URL REAL DE TU APPS SCRIPT (extraída de admin_estadisticas.html)
-            const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
-
-            try {
-                console.log("📬 Enviando mail...", payload);
-
-                await fetch(URL_SCRIPT, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-
-                setTimeout(() => {
-                    mostrarToast("📬 Email enviado correctamente.", "success");
-                }, 800);
-
-            } catch (err) {
-                console.error("❌ Error enviando mail:", err);
-
-                // 🔁 reintento automático
-                try {
-                    console.log("🔄 Reintentando envío...");
-
-                    await fetch(URL_SCRIPT, {
-                        method: 'POST',
-                        mode: 'no-cors',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
-
-                    mostrarToast("📬 Email enviado (reintento).", "success");
-
-                } catch (err2) {
-                    console.error("❌ Falló reintento:", err2);
-                    mostrarToast("❌ No se pudo enviar el email.", "error");
-                }
-            } finally {
-                btn.disabled = false;
-                btn.innerHTML = original;
-            }
-        };
-
-        /* =========================================================
-           📋 FUNCIONES AUXILIARES
-        ========================================================== */
-        function mostrarToast(mensaje, tipo = 'success') {
-            const toast = document.createElement('div');
-            toast.className = `toast ${tipo}`;
-            toast.textContent = mensaje;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
-
-        function copiarDatos(datos) {
-            navigator.clipboard.writeText(datos).then(() => {
-                mostrarToast("📋 Datos copiados al portapapeles", "success");
-            }).catch(() => {
-                mostrarToast("❌ Error al copiar", "error");
-            });
-        }
-
-        function cargarPrueba() {
-            mostrarToast("🔄 Cargando datos de prueba...", "warning");
-            // Acá iría tu lógica de carga desde Firebase/Sheets
-        }
-
-        function cerrarModal() {
-            document.getElementById('modal-cerrar').classList.remove('active');
-        }
-
-        function confirmarCierre() {
-            const confirmacion = document.getElementById('confirmar-cierre').value.trim();
-            if (confirmacion === 'CERRAR') {
-                mostrarToast("✅ Sorteo cerrado exitosamente", "success");
-                cerrarModal();
-            } else {
-                mostrarToast("⚠️ Escribí 'CERRAR' para confirmar", "warning");
-            }
-        }
-
-        // Abrir modal desde el botón 🏆 CERRAR
-        document.addEventListener('DOMContentLoaded', () => {
-            const btnCerrar = document.querySelector('.btn-primary');
-            if (btnCerrar) {
-                btnCerrar.addEventListener('click', (e) => {
-                    if (e.target.textContent.includes('CARGAR')) return;
-                    document.getElementById('modal-cerrar').classList.add('active');
-                });
-            }
+            const div = document.createElement('div');
+            div.className = 'card-sorteo';
+            div.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div>
+                        <h3 style="margin:0">${c.nombre}</h3>
+                        <span style="color:var(--red-laser); font-size:12px; font-weight:bold;">${c.titulo_sorteo}</span>
+                    </div>
+                    <button class="btn btn-main" onclick="lanzarSorteo('${docCom.id}', '${c.nombre}', '${c.titulo_sorteo}', '${c.email || 'habitatcar@gmail.com'}', ${cantConfigurada})">
+                        <i class="fas fa-trophy"></i> SORTEAR (${cantConfigurada})
+                    </button>
+                </div>
+                <div class="stats-row">
+                    <div class="stat-item"><span id="t-${docCom.id}">0</span><label>Participantes</label></div>
+                </div>
+            `;
+            cont.appendChild(div);
+            vincularParticipantes(c.nombre, docCom.id);
         });
-    </script>
-</body>
-</html>
+    });
+
+    // 2. ENVÍO DE EMAIL DIRECTO (MISMA LÓGICA QUE ESTADÍSTICAS)
+    window.enviarMail = async (mailG, nombre, premio, comercio, mailC) => {
+        const btn = event.currentTarget;
+        const iconOriginal = btn.innerHTML;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        // Generamos el PDF alegre en memoria
+        const docPDF = window.generarEstructuraPDF(nombre, premio, comercio);
+        const pdfBase64 = docPDF.output('datauristring').split(',')[1];
+
+        const payload = {
+            email: mailG,
+            nombreGanador: nombre,
+            premio: premio,
+            comercio: comercio,
+            pdfB64: pdfBase64,
+            asunto: `🏆 ¡FELICITACIONES! Ganaste en el sorteo de Hábitat-Car`,
+            cc: `habitatcar@gmail.com, ${mailC}`
+        };
+
+        try {
+            await fetch(WEB_APP_URL, {
+                method: "POST",
+                mode: 'no-cors',
+                body: JSON.stringify(payload)
+            });
+            alert(`✅ Mail enviado a ${nombre} (${mailG}). Copia enviada a Admin y Comercio.`);
+        } catch (e) {
+            console.error("Error envío:", e);
+            alert("Error en el servidor de correo.");
+        } finally {
+            btn.innerHTML = iconOriginal;
+        }
+    };
+
+    // 3. GENERADOR DE PDF "ALEGRE Y CLARO" (ESTILO DIPLOMA)
+    window.generarEstructuraPDF = (nombre, premio, comercio) => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF('l', 'mm', 'a5');
+
+        // Diseño Fondo Blanco (Limpio para imprimir)
+        doc.setFillColor(255, 255, 255);
+        doc.rect(0, 0, 210, 148, 'F');
+
+        // Bordes Oro y Rojo
+        doc.setDrawColor(230, 57, 70); doc.setLineWidth(2); doc.rect(5, 5, 200, 138); 
+        doc.setDrawColor(255, 193, 7); doc.setLineWidth(0.5); doc.rect(7, 7, 196, 134);
+
+        doc.setTextColor(0, 74, 153);
+        doc.setFontSize(30);
+        doc.setFont("helvetica", "bold");
+        doc.text("¡FELICITACIONES!", 105, 40, { align: "center" });
+
+        doc.setTextColor(60, 60, 60);
+        doc.setFontSize(16);
+        doc.text("Se otorga este certificado a:", 105, 55, { align: "center" });
+
+        doc.setTextColor(230, 57, 70); // Rojo
+        doc.setFontSize(26);
+        doc.text(nombre.toUpperCase(), 105, 75, { align: "center" });
+
+        doc.setTextColor(40, 40, 40);
+        doc.setFontSize(18);
+        doc.text(`Ganador del premio: ${premio}`, 105, 100, { align: "center" });
+        
+        doc.setFontSize(12);
+        doc.setTextColor(150, 150, 150);
+        doc.text(`${comercio} | Hábitat-Car Ecosistema`, 105, 130, { align: "center" });
+
+        return doc;
+    };
+
+    // Función para descargar solo el PDF desde la tabla
+    window.descargarPDF = (nombre, premio, comercio) => {
+        const doc = window.generarEstructuraPDF(nombre, premio, comercio);
+        doc.save(`Certificado_${nombre}.pdf`);
+    };
+
+    // 4. LÓGICA DE SORTEO MULTI-GANADOR
+    window.lanzarSorteo = async (id, nom, pre, mailC, cant) => {
+        const list = partGlobal[id];
+        if(!list || list.length === 0) return alert("Sin participantes.");
+
+        let seleccionados = [];
+        let bolsa = [...list];
+
+        for(let i=0; i < cant; i++) {
+            if(bolsa.length === 0) break;
+            const index = Math.floor(Math.random() * bolsa.length);
+            seleccionados.push(bolsa.splice(index, 1)[0]);
+        }
+
+        await addDoc(collection(db, "historial_sorteos"), {
+            comercio: nom, 
+            premio: pre, 
+            ganadores: seleccionados, 
+            mailComercio: mailC,
+            fecha: serverTimestamp()
+        });
+
+        document.getElementById('ganador-nombre-anim').innerText = seleccionados.map(g => g.nombre).join(" & ");
+        document.getElementById('modal-ganador').style.display = 'block';
+    };
+
+    // 5. TEST DATA CON MAILS SOLICITADOS
+    window.testRealData = async () => {
+        const tests = [
+            { nombre: "MAXI TEST", celular: "+543884618228", email: "lormaxi@hotmail.com", tipo: "VIP", comercio: "COMERCIO DE PRUEBA" },
+            { nombre: "HABITAT ADMIN", celular: "3884618156", email: "habitatcar@gmail.com", tipo: "LEAD", comercio: "COMERCIO DE PRUEBA" }
+        ];
+        for(let t of tests) {
+            await addDoc(collection(db, "admin_participantes_sorteos"), t);
+        }
+        alert("Datos de prueba cargados.");
+    };
+
+    // ... (Mantener switchTab y resto de estructura) ...
+</script>
