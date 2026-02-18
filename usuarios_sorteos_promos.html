@@ -299,9 +299,9 @@
         </div>
     </div>
 
-    <!-- ✅ SCRIPT CORREGIDO: getDocs agregado + URLs limpias + lógica VIP/LEAD -->
+    <!-- ✅ SCRIPT CORREGIDO: getDocs + abrirPopupExito mejorado -->
     <script type="module">
-        // ✅ CORREGIDO: getDocs agregado explícitamente a la lista de imports
+        // ✅ CORREGIDO: getDocs agregado explícitamente + URLs limpias
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, query, where, onSnapshot, getDoc, getDocs, doc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -320,10 +320,6 @@
         const params = new URLSearchParams(window.location.search);
         const nombreComercio = decodeURIComponent(params.get('id') || "");
         
-        // ✅ BUSQUEDA DE ID: Primero busca VIP, si no, busca LEAD
-        let leadId = localStorage.getItem('leadId_v16'); 
-        if(!leadId) leadId = localStorage.getItem('userId_vip');
-
         let datosComercioGlobal = null;
         let fechaSorteoData = "";
 
@@ -337,17 +333,19 @@
         }
 
         async function verificarParticipacion() {
-            if(!leadId) return;
-            const participacionKey = `participo_sorteo_${nombreComercio}_${leadId}`;
+            // ✅ Intentamos detectar quién es (Lead o VIP)
+            let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
+            if(!idFinal) return;
+            
+            const participacionKey = `participo_sorteo_${nombreComercio}_${idFinal}`;
             if (localStorage.getItem(participacionKey) === 'true') {
                 mostrarSoloCartelVerde();
                 return;
             }
             try {
-                // ✅ Ahora getDocs funciona porque está importado arriba
                 const q = query(collection(db, "admin_participantes_sorteos"), 
                             where("comercio", "==", nombreComercio), 
-                            where("usuarioId", "==", leadId));
+                            where("usuarioId", "==", idFinal));
                 const snap = await getDocs(q);
                 if (!snap.empty) {
                     localStorage.setItem(participacionKey, 'true');
@@ -363,39 +361,51 @@
             if (info) info.classList.add('visible');
         }
 
+        // ✅ FUNCIÓN ACTUALIZADA EXACTAMENTE COMO LA PEDISTE
         window.abrirPopupExito = async () => {
-            if (!leadId) {
-                alert("No se detectó tu identidad de usuario. Por favor, reingresa desde la App.");
+            // 1. Intentamos detectar quién es (Lead o VIP)
+            let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
+            
+            // 2. Si no hay ID, el botón no puede adivinar quién es para anotarlo en el sorteo
+            if (!idFinal) {
+                alert("⚠️ No pudimos identificarte. Por favor, volvé a la pantalla de beneficios e ingresá nuevamente desde allí para que el sistema te reconozca.");
                 return;
             }
+
             if (!datosComercioGlobal) {
-                alert("Cargando datos del comercio...");
+                alert("Cargando datos del comercio... Reintenta en un momento.");
                 return;
             }
 
             try {
-                // ✅ Buscamos si es VIP o LEAD en la base de datos
-                const userSnap = await getDoc(doc(db, "leads", leadId));
-                const u = userSnap.exists() ? userSnap.data() : { nombre: "Usuario", vip: "no" };
+                // Buscamos los datos reales en la colección 'leads' (donde están todos)
+                const userSnap = await getDoc(doc(db, "leads", idFinal));
+                const u = userSnap.exists() ? userSnap.data() : {};
 
+                // 3. Guardamos la participación
                 await addDoc(collection(db, "admin_participantes_sorteos"), {
-                    usuarioId: leadId,
-                    nombre: u.nombre || "Participante",
-                    celular: u.celular || "",
-                    // ✅ Detectamos automáticamente si es VIP o LEAD para tus estadísticas
-                    tipo: (u.vip === "si" || localStorage.getItem('userId_vip')) ? "VIP" : "LEAD",
+                    usuarioId: idFinal,
+                    nombre: u.nombre || "Usuario Hábitat",
+                    celular: u.celular || "Sin celular",
+                    tipo: u.vip === "si" ? "VIP" : "LEAD", // Detectamos si es VIP por su ficha en la DB
                     comercio: nombreComercio,
                     comercioId: datosComercioGlobal.id,
-                    premio: datosComercioGlobal.titulo_sorteo || "Sorteo",
+                    premio: datosComercioGlobal.titulo_sorteo || "Sorteo General",
                     fecha_sorteo: fechaSorteoData,
                     timestamp: serverTimestamp()
                 });
 
-                localStorage.setItem(`participo_sorteo_${nombreComercio}_${leadId}`, 'true');
+                // Guardamos que ya participó para que el botón desaparezca
+                localStorage.setItem(`participo_sorteo_${nombreComercio}_${idFinal}`, 'true');
+                
                 document.getElementById('txt-exito-dinamico').innerText = `¡Listo ${u.nombre || ''}! Ya estás participando.`;
                 document.getElementById('overlay').style.display = 'flex';
                 mostrarSoloCartelVerde();
-            } catch (e) { alert("Error al participar: " + e.message); }
+
+            } catch (e) {
+                console.error("Error:", e);
+                alert("Hubo un problema al registrarte. Por favor intentá de nuevo.");
+            }
         };
 
         // Carga de Datos Principal
