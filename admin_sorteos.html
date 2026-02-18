@@ -1,151 +1,199 @@
-<script type="module">
-    // 1. CONFIGURACIÓN E IMPORTACIONES (Usando tu lógica de admin_comercios)
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-    import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panel de Sorteos Elite | Hábitat-Car</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8f9fa; color: #333; line-height: 1.6; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
+        header h1 { font-size: 1.8rem; margin-bottom: 8px; }
+        header p { opacity: 0.9; font-size: 0.95rem; }
+        .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+        .btn-primary { background: #667eea; color: white; }
+        .btn-success { background: #28a745; color: white; }
+        .btn-warning { background: #ffc107; color: #333; }
+        table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
+        th { background: #667eea; color: white; padding: 14px 12px; text-align: left; }
+        td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
+        .btn-accion { padding: 6px 12px; margin: 2px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; color: white; }
+        .btn-wa { background: #25D366; }
+        .btn-mail { background: #ea4335; }
+        .btn-copy { background: #6c757d; }
+        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
+        .badge-premio { background: #fff3cd; color: #856404; }
+        .badge-comercio { background: #d1ecf1; color: #0c5460; }
+        .toast { position: fixed; top: 20px; right: 20px; padding: 14px 20px; border-radius: 10px; color: white; z-index: 9999; animation: slideIn 0.3s ease; }
+        .success { background: #28a745; } .error { background: #dc3545; } .warning { background: #ffc107; color: #333; }
+        @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🏆 SORTEOS PREMIUM</h1>
+            <p>Panel de Sorteos Elite | Hábitat-Car</p>
+        </header>
 
-    // ✅ Usa tu constante firebaseConfig aquí (la misma de admin_comercios.html)
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+        <div class="controls">
+            <button class="btn btn-primary" id="btn-prueba">🧪 CARGAR PRUEBA</button>
+            <button class="btn btn-success" id="btn-activos">SORTEOS ACTIVOS</button>
+            <button class="btn btn-warning" id="btn-historial">HISTORIAL DE ÉXITOS</button>
+        </div>
 
-    /* =========================================================
-       🚀 CARGA DE SORTEOS ACTIVOS (VINCULADO A COMERCIOS)
-    ========================================================== */
-    function cargarSorteosActivos() {
-        const tabla = document.getElementById('tabla-sorteos');
-        
-        // Escuchamos la colección 'comercios'
-        onSnapshot(collection(db, "comercios"), (snap) => {
-            tabla.innerHTML = ""; // Limpiar para recargar
-            snap.forEach(docCom => {
-                const c = docCom.data();
-                
-                // SOLO MOSTRAR SI TIENE SORTEO O PROMO VIGENTE
-                if (c.titulo_sorteo && c.titulo_sorteo.trim() !== "") {
-                    const fila = `
-                        <tr>
-                            <td>${c.fecha_inicio_sorteo || 'Activo'}</td>
-                            <td>
-                                <span class="badge badge-comercio">${c.nombre}</span><br>
-                                <span class="badge badge-premio">🎁 ${c.titulo_sorteo}</span>
-                            </td>
-                            <td>
-                                <div id="ganadores-${docCom.id}">
-                                    <button class="btn btn-primary" style="padding: 5px 12px; font-size: 0.8rem;" 
-                                        onclick="ejecutarSorteoReal('${docCom.id}', '${c.nombre}', '${c.titulo_sorteo}', ${c.cantidad_ganadores || 1}, '${c.email || ''}')">
-                                        🎲 REALIZAR SORTEO (${c.cantidad_ganadores || 1})
-                                    </button>
-                                </div>
-                            </td>
-                            <td>
-                                <small>Participantes:</small><br>
-                                <strong id="count-${docCom.id}">...</strong>
-                            </td>
-                        </tr>`;
-                    tabla.innerHTML += fila;
-                    contarParticipantes(c.nombre, docCom.id);
-                }
-            });
-        });
-    }
+        <table>
+            <thead>
+                <tr>
+                    <th>FECHA / INFO</th>
+                    <th>COMERCIO / PREMIO</th>
+                    <th>GANADORES Y ACCIONES</th>
+                    <th>DATOS</th>
+                </tr>
+            </thead>
+            <tbody id="tabla-sorteos"></tbody>
+        </table>
+    </div>
 
-    /* =========================================================
-       🎯 LÓGICA DE SORTEO REAL (BUSCA EN PARTICIPANTES)
-    ========================================================== */
-    window.ejecutarSorteoReal = async (idDoc, nombreCom, premio, cant, mailC) => {
-        mostrarToast(`Buscando ganadores para ${nombreCom}...`, "warning");
-        
-        try {
-            // Buscamos participantes que se registraron para este comercio
-            const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nombreCom));
-            const querySnap = await getDocs(q);
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+
+        // 📝 COPIA AQUÍ TUS CREDENCIALES DE admin_comercios.html
+        const firebaseConfig = {
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_AUTH_DOMAIN",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_STORAGE_BUCKET",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID",
+            appId: "TU_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
+
+        /* =========================================================
+           🛠️ LÓGICA DE WHATSAPP Y MAIL (SACADAS A WINDOW)
+        ========================================================== */
+        window.normalizarTelefonoAR = (numero) => {
+            if (!numero) return null;
+            let num = numero.toString().replace(/\D/g, '');
+            if (num.length === 10) return '549' + num;
+            if (num.startsWith('54') && !num.startsWith('549')) return '549' + num.substring(2);
+            return num.startsWith('549') ? num : '549' + num;
+        };
+
+        window.abrirWA = (cel, nom, pre) => {
+            const num = window.normalizarTelefonoAR(cel);
+            const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`);
+            window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+        };
+
+        window.enviarMail = async (btn, mailG, nombre, premio, comercio, mailC) => {
+            const original = btn.innerHTML;
+            btn.disabled = true; btn.innerHTML = "⏳";
             
-            let participantes = [];
-            querySnap.forEach(p => participantes.push(p.data()));
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a5');
+            doc.setDrawColor(230, 57, 70); doc.setLineWidth(2); doc.rect(5, 5, 200, 138);
+            doc.text("¡FELICITACIONES!", 105, 35, { align: "center" });
+            doc.text(nombre.toUpperCase(), 105, 75, { align: "center" });
+            const pdfBase64 = doc.output('datauristring').split(',')[1];
 
-            if (participantes.length === 0) {
-                return mostrarToast("❌ No hay participantes para este sorteo.", "error");
-            }
+            try {
+                await fetch(URL_SCRIPT, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    body: JSON.stringify({ email: mailG, nombreGanador: nombre, premio, comercio, pdfB64: pdfBase64, cc: `habitatcar@gmail.com, ${mailC}` })
+                });
+                mostrarToast("✅ Mail enviado correctamente");
+            } catch (e) { mostrarToast("❌ Error en envío", "error"); }
+            btn.disabled = false; btn.innerHTML = original;
+        };
 
-            // Selección Aleatoria
-            let ganadores = [];
-            for (let i = 0; i < cant; i++) {
-                if (participantes.length === 0) break;
-                const index = Math.floor(Math.random() * participantes.length);
-                ganadores.push(participantes.splice(index, 1)[0]);
-            }
-
-            // Guardar en Historial
-            await addDoc(collection(db, "historial_sorteos"), {
-                comercio: nombreCom,
-                premio: premio,
-                ganadores: ganadores,
-                fecha: serverTimestamp(),
-                mailComercio: mailC
-            });
-
-            mostrarToast(`✅ ¡Sorteo finalizado! ${ganadores.length} ganadores hallados.`, "success");
-            
-            // Refrescar la vista del historial para ver las acciones (WA/Mail)
-            window.mostrarHistorial();
-
-        } catch (e) {
-            console.error(e);
-            mostrarToast("Error al realizar el sorteo", "error");
-        }
-    };
-
-    /* =========================================================
-       📜 HISTORIAL DE ÉXITOS
-    ========================================================== */
-    window.mostrarHistorial = () => {
-        const tabla = document.getElementById('tabla-sorteos');
-        tabla.innerHTML = "<tr><td colspan='4' style='text-align:center'>Cargando historial...</td></tr>";
-
-        onSnapshot(collection(db, "historial_sorteos"), (snap) => {
-            tabla.innerHTML = "";
-            snap.forEach(doc => {
-                const h = doc.data();
-                const fecha = h.fecha ? new Date(h.fecha.seconds * 1000).toLocaleDateString() : '---';
-                
-                h.ganadores.forEach(g => {
-                    const fila = `
-                        <tr style="background: #fff9e6">
-                            <td>${fecha}</td>
-                            <td>
-                                <span class="badge badge-comercio">${h.comercio}</span><br>
-                                <span class="badge badge-premio">🏆 ${h.premio}</span>
-                            </td>
-                            <td>
-                                <strong>${g.nombre}</strong><br>
-                                <small>${g.celular || g.telefono || ''}</small><br>
-                                <div style="margin-top: 8px;">
-                                    <button class="btn-accion btn-wa" onclick="abrirWA('${g.celular || g.telefono}','${g.nombre}','${h.premio}')">💬 WA</button>
-                                    <button class="btn-accion btn-mail" onclick="enviarMail(this,'${g.email}','${g.nombre}','${h.premio}','${h.comercio}','${h.mailComercio}')">📧 Mail</button>
-                                </div>
-                            </td>
-                            <td>
-                                <button class="btn-accion btn-copy" onclick="copiarDatos('${g.nombre} | ${g.email}')">📋 Copiar</button>
-                            </td>
+        /* =========================================================
+           📊 CARGA DE DATOS REALES
+        ========================================================== */
+        const cargarActivos = () => {
+            onSnapshot(collection(db, "comercios"), (snap) => {
+                const tabla = document.getElementById('tabla-sorteos');
+                tabla.innerHTML = "";
+                snap.forEach(docCom => {
+                    const c = docCom.data();
+                    if (c.titulo_sorteo) {
+                        const fila = `<tr>
+                            <td>${c.fecha_inicio_sorteo || 'Vigente'}</td>
+                            <td><span class="badge badge-comercio">${c.nombre}</span><br><span class="badge badge-premio">🎁 ${c.titulo_sorteo}</span></td>
+                            <td><button class="btn btn-primary" id="btn-${docCom.id}">🎲 SORTEAR (${c.cantidad_ganadores || 1})</button></td>
+                            <td id="count-${docCom.id}">Calculando...</td>
                         </tr>`;
-                    tabla.innerHTML += fila;
+                        tabla.innerHTML += fila;
+                        // Delegar evento después de insertar
+                        setTimeout(() => {
+                            const b = document.getElementById(`btn-${docCom.id}`);
+                            if(b) b.onclick = () => ejecutarSorteo(c.nombre, c.titulo_sorteo, c.cantidad_ganadores || 1, c.email);
+                        }, 100);
+                    }
                 });
             });
-        });
-    };
+        };
 
-    async function contarParticipantes(nombreCom, idDoc) {
-        const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nombreCom));
-        const snap = await getDocs(q);
-        const el = document.getElementById(`count-${idDoc}`);
-        if(el) el.innerText = snap.size;
-    }
+        const ejecutarSorteo = async (nomCom, premio, cant, mailC) => {
+            mostrarToast("Sorteando...");
+            const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
+            const snap = await getDocs(q);
+            let p = []; snap.forEach(d => p.push(d.data()));
+            
+            if(p.length === 0) return mostrarToast("Sin participantes", "error");
+            
+            let gans = [];
+            for(let i=0; i<cant; i++) {
+                if(p.length===0) break;
+                gans.push(p.splice(Math.floor(Math.random()*p.length), 1)[0]);
+            }
 
-    // Vinculación de botones de la interfaz
-    document.addEventListener('DOMContentLoaded', () => {
-        const btns = document.querySelectorAll('.controls .btn');
-        btns[1].onclick = cargarSorteosActivos; // Botón Sorteos Activos
-        btns[2].onclick = window.mostrarHistorial; // Botón Historial
-        
-        cargarSorteosActivos(); // Carga inicial
-    });
-</script>
+            await addDoc(collection(db, "historial_sorteos"), { comercio: nomCom, premio, ganadores: gans, fecha: serverTimestamp(), mailComercio: mailC });
+            mostrarToast("✅ Sorteo guardado. Revisa el historial.");
+        };
+
+        window.mostrarHistorial = () => {
+            onSnapshot(collection(db, "historial_sorteos"), (snap) => {
+                const tabla = document.getElementById('tabla-sorteos');
+                tabla.innerHTML = "";
+                snap.forEach(doc => {
+                    const h = doc.data();
+                    h.ganadores.forEach(g => {
+                        tabla.innerHTML += `<tr>
+                            <td>${h.fecha ? new Date(h.fecha.seconds*1000).toLocaleDateString() : '-'}</td>
+                            <td><span class="badge badge-comercio">${h.comercio}</span></td>
+                            <td><strong>${g.nombre}</strong><br>
+                                <button class="btn-accion btn-wa" onclick="abrirWA('${g.celular || g.telefono}','${g.nombre}','${h.premio}')">💬</button>
+                                <button class="btn-accion btn-mail" onclick="enviarMail(this,'${g.email}','${g.nombre}','${h.premio}','${h.comercio}','${h.mailComercio}')">📧</button>
+                            </td>
+                            <td><button class="btn-accion btn-copy" onclick="navigator.clipboard.writeText('${g.nombre}')">📋</button></td>
+                        </tr>`;
+                    });
+                });
+            });
+        };
+
+        function mostrarToast(m, t="success") {
+            const div = document.createElement('div'); div.className = `toast ${t}`;
+            div.innerText = m; document.body.appendChild(div);
+            setTimeout(() => div.remove(), 3000);
+        }
+
+        // Asignar botones
+        document.getElementById('btn-activos').onclick = cargarActivos;
+        document.getElementById('btn-historial').onclick = window.mostrarHistorial;
+        document.getElementById('btn-prueba').onclick = () => mostrarToast("Modo prueba listo", "warning");
+
+        // Carga inicial
+        cargarActivos();
+    </script>
+</body>
+</html>
