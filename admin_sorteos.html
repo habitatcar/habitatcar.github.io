@@ -42,16 +42,7 @@
         .toast.error { background: #dc3545; }
         .toast.warning { background: #ffc107; color: #333; }
         @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
-        .modal.active { display: flex; }
-        .modal-content { background: white; padding: 25px; border-radius: 16px; max-width: 500px; width: 90%; }
-        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
-        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; }
-        .modal-close:hover { color: #333; }
-        .form-group { margin-bottom: 15px; }
-        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
-        .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
-        .loading { text-align: center; padding: 20px; color: #666; }
+        .loading { text-align: center; padding: 40px; color: #666; }
     </style>
 </head>
 <body>
@@ -77,24 +68,9 @@
                 </tr>
             </thead>
             <tbody id="tabla-sorteos">
-                <tr><td colspan="4" class="loading">Cargando sorteos desde Firebase...</td></tr>
+                <tr><td colspan="4" class="loading">🔄 Conectando con Firebase...</td></tr>
             </tbody>
         </table>
-    </div>
-
-    <!-- Modal de cierre -->
-    <div id="modal-cerrar" class="modal">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h3>🏆 CERRAR SORTEO</h3>
-                <button class="modal-close" onclick="cerrarModal()">&times;</button>
-            </div>
-            <div class="form-group">
-                <label>Confirmar cierre del sorteo</label>
-                <input type="text" placeholder="Escribí 'CERRAR' para confirmar" id="confirmar-cierre">
-            </div>
-            <button class="btn btn-primary" onclick="confirmarCierre()">Confirmar Cierre</button>
-        </div>
     </div>
 
     <script type="module">
@@ -119,14 +95,16 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         
-        // ✅ URL DE APPS SCRIPT (limpia, sin espacios)
+        /* =========================================================
+           3. URL DE APPS SCRIPT (Para envío de emails - MISMA QUE admin_estadisticas.html)
+           ⚠️ Esto es NECESARIO porque Firebase no envía emails directamente
+        ========================================================== */
         const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
 
         /* =========================================================
-           3. VARIABLES GLOBALES
+           4. VARIABLES GLOBALES
         ========================================================== */
-        let comerciosActivos = [];
-        let vistaActual = 'activos'; // 'activos' | 'historial'
+        let vistaActual = 'activos';
 
         /* =========================================================
            📱 WHATSAPP — NORMALIZADOR ARGENTINO
@@ -165,7 +143,8 @@
         };
 
         /* =========================================================
-           📬 EMAIL — CON PDF ADJUNTO
+           📬 EMAIL — CON PDF ADJUNTO (VIA APPS SCRIPT)
+           ⚠️ Firebase no puede enviar emails, por eso usamos Apps Script
         ========================================================== */
         window.enviarMail = async (btn, mailG, nombre, premio, comercio, mailC) => {
             if (!mailG) return mostrarToast("⚠️ El participante no tiene email.", "error");
@@ -211,17 +190,13 @@
             tabla.innerHTML = `<tr><td colspan="4" class="loading">🔄 Cargando comercios con sorteos activos...</td></tr>`;
             
             onSnapshot(collection(db, "comercios"), (snap) => {
-                comerciosActivos = [];
                 tabla.innerHTML = "";
                 let haySorteos = false;
                 
                 snap.forEach(docSnap => {
                     const c = docSnap.data();
-                    // Solo mostramos comercios con título de sorteo activo
                     if (c.titulo_sorteo && c.titulo_sorteo.trim() !== "" && c.estado !== "inactivo") {
                         haySorteos = true;
-                        comerciosActivos.push({ id: docSnap.id, ...c });
-                        
                         const cant = c.cantidad_ganadores || 1;
                         const fecha = c.fecha_inicio_sorteo ? new Date(c.fecha_inicio_sorteo).toLocaleDateString('es-AR') : 'Vigente';
                         
@@ -233,21 +208,18 @@
                                     <span class="badge badge-premio">🎁 ${c.titulo_sorteo}</span>
                                 </td>
                                 <td>
-                                    <button class="btn btn-primary" id="btn-sorteo-${docSnap.id}" 
-                                        onclick="ejecutarSorteo('${docSnap.id}', '${c.nombre}', '${c.titulo_sorteo}', ${cant}, '${c.email || 'habitatcar@gmail.com'}')">
+                                    <button class="btn btn-primary" onclick="ejecutarSorteo('${docSnap.id}', '${c.nombre}', '${c.titulo_sorteo}', ${cant}, '${c.email || 'habitatcar@gmail.com'}')">
                                         🎲 SORTEAR (${cant})
                                     </button>
                                 </td>
-                                <td>
-                                    <small>${cant} ganador/es</small>
-                                </td>
+                                <td><small>${cant} ganador/es</small></td>
                             </tr>`;
                         tabla.innerHTML += fila;
                     }
                 });
                 
                 if (!haySorteos) {
-                    tabla.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#666">No hay sorteos activos en este momento</td></tr>`;
+                    tabla.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#666">No hay sorteos activos. Registra un comercio con "Título de Sorteo" en admin_comercios.html</td></tr>`;
                 }
             });
         }
@@ -259,7 +231,7 @@
             mostrarToast(`🎲 Sorteando ${cantidad} premio/s para ${nombreComercio}...`, "warning");
             
             try {
-                // 1. Obtener participantes de este comercio desde admin_participantes_sorteos
+                // 1. Obtener participantes de este comercio desde Firebase
                 const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nombreComercio));
                 const snap = await getDocs(q);
                 
@@ -267,10 +239,10 @@
                 snap.forEach(d => participantes.push({ id: d.id, ...d.data() }));
                 
                 if (participantes.length === 0) {
-                    return mostrarToast("⚠️ No hay participantes registrados para este comercio.", "error");
+                    return mostrarToast("⚠️ No hay participantes para este comercio. Usá 🧪 CARGAR PRUEBA para testear.", "error");
                 }
                 
-                // 2. Seleccionar ganadores aleatorios (sin repetir)
+                // 2. Seleccionar ganadores aleatorios
                 let bolsa = [...participantes];
                 let ganadores = [];
                 
@@ -279,7 +251,7 @@
                     ganadores.push(bolsa.splice(idx, 1)[0]);
                 }
                 
-                // 3. Guardar resultado en historial_sorteos
+                // 3. Guardar resultado en Firebase (historial_sorteos)
                 await addDoc(collection(db, "historial_sorteos"), {
                     comercio: nombreComercio,
                     premio: premio,
@@ -289,12 +261,8 @@
                     cantidad_ganadores: cantidad
                 });
                 
-                mostrarToast(`✅ ¡Sorteo realizado! ${ganadores.length} ganador/es guardado/s.`, "success");
-                
-                // 4. Recargar vista de activos para actualizar
-                if (vistaActual === 'activos') {
-                    cargarSorteosActivos();
-                }
+                mostrarToast(`✅ ¡Sorteo realizado! ${ganadores.length} ganador/es guardado/s en Firebase.`, "success");
+                cargarSorteosActivos();
                 
             } catch (e) {
                 console.error("Error en sorteo:", e);
@@ -303,7 +271,7 @@
         };
 
         /* =========================================================
-           📜 CARGA DEL HISTORIAL DE SORTEOS
+           📜 CARGA DEL HISTORIAL DE SORTEOS DESDE FIREBASE
         ========================================================== */
         window.cargarHistorial = () => {
             vistaActual = 'historial';
@@ -318,7 +286,6 @@
                     return;
                 }
                 
-                // Ordenar por fecha descendente
                 const sorteos = [];
                 snap.forEach(docSnap => {
                     const data = docSnap.data();
@@ -358,11 +325,11 @@
                 });
             });
             
-            mostrarToast("📜 Historial cargado", "success");
+            mostrarToast("📜 Historial cargado desde Firebase", "success");
         };
 
         /* =========================================================
-           🧪 CARGAR DATOS DE PRUEBA (TUS MAILS Y NÚMEROS)
+           🧪 CARGAR DATOS DE PRUEBA EN FIREBASE
         ========================================================== */
         window.cargarPrueba = async () => {
             const pruebaData = [
@@ -373,7 +340,7 @@
             for (let p of pruebaData) {
                 await addDoc(collection(db, "admin_participantes_sorteos"), p);
             }
-            mostrarToast("✅ Datos de prueba cargados: Maxi y Admin", "success");
+            mostrarToast("✅ Datos de prueba cargados en Firebase: Maxi y Admin", "success");
         };
 
         /* =========================================================
@@ -387,37 +354,19 @@
             setTimeout(() => toast.remove(), 3000);
         }
 
-        function cerrarModal() {
-            document.getElementById('modal-cerrar').classList.remove('active');
-        }
-
-        function confirmarCierre() {
-            const confirmacion = document.getElementById('confirmar-cierre').value.trim();
-            if (confirmacion === 'CERRAR') {
-                mostrarToast("✅ Sorteo cerrado exitosamente", "success");
-                cerrarModal();
-            } else {
-                mostrarToast("⚠️ Escribí 'CERRAR' para confirmar", "warning");
-            }
-        }
-
         /* =========================================================
            🚀 INICIALIZACIÓN
         ========================================================== */
         document.addEventListener('DOMContentLoaded', () => {
-            // Vincular botones de controles
             document.getElementById('btn-activos').onclick = cargarSorteosActivos;
             document.getElementById('btn-historial').onclick = cargarHistorial;
             document.getElementById('btn-prueba').onclick = cargarPrueba;
-            
-            // Cargar sorteos activos por defecto
             cargarSorteosActivos();
-            
-            console.log("🚀 Panel de Sorteos Elite conectado a Firebase");
+            console.log("🚀 Panel de Sorteos Elite conectado a Firebase:", firebaseConfig.projectId);
         });
 
         /* =========================================================
-           🌍 EXPOSICIÓN GLOBAL DE FUNCIONES (para onclick en HTML)
+           🌍 EXPOSICIÓN GLOBAL DE FUNCIONES
         ========================================================== */
         window.abrirWA = abrirWA;
         window.enviarMail = enviarMail;
@@ -425,8 +374,6 @@
         window.ejecutarSorteo = ejecutarSorteo;
         window.cargarHistorial = cargarHistorial;
         window.cargarPrueba = cargarPrueba;
-        window.cerrarModal = cerrarModal;
-        window.confirmarCierre = confirmarCierre;
         window.mostrarToast = mostrarToast;
     </script>
 </body>
