@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Sorteos Elite | Hábitat-Car</title>
-    <!-- ✅ jsPDF corregido (sin espacios) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -60,24 +59,21 @@
     </div>
 
     <script type="module">
-        // ✅ Imports corregidos (sin espacios al final)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
         import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
-        // 📝 COPIA AQUÍ TUS CREDENCIALES REALES de admin_comercios.html
+        // 📝 COPIA AQUÍ TUS CREDENCIALES DE admin_comercios.html
         const firebaseConfig = {
-            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
-            authDomain: "habitatcar-pro.firebaseapp.com",
-            projectId: "habitatcar-pro",
-            storageBucket: "habitatcar-pro.firebasestorage.app",
-            messagingSenderId: "311691258694",
-            appId: "1:311691258694:web:17a09051dcea7707af9347"
+            apiKey: "TU_API_KEY",
+            authDomain: "TU_AUTH_DOMAIN",
+            projectId: "TU_PROJECT_ID",
+            storageBucket: "TU_STORAGE_BUCKET",
+            messagingSenderId: "TU_MESSAGING_SENDER_ID",
+            appId: "TU_APP_ID"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
-        
-        // ✅ URL corregida (sin espacios al final)
         const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
 
         /* =========================================================
@@ -92,74 +88,31 @@
         };
 
         window.abrirWA = (cel, nom, pre) => {
-            if (!cel) return mostrarToast("⚠️ El participante no tiene celular.", "error");
             const num = window.normalizarTelefonoAR(cel);
             const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`);
-            // ✅ URL corregida (sin espacios)
             window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
         };
 
         window.enviarMail = async (btn, mailG, nombre, premio, comercio, mailC) => {
-            if (!mailG) return mostrarToast("⚠️ El participante no tiene email.", "error");
-            
             const original = btn.innerHTML;
-            btn.disabled = true; 
-            btn.innerHTML = "⏳";
+            btn.disabled = true; btn.innerHTML = "⏳";
             
-            // Generar PDF con jsPDF
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('l', 'mm', 'a5');
-            
-            // Diseño diploma
-            doc.setFillColor(255, 255, 255); 
-            doc.rect(0, 0, 210, 148, 'F');
-            doc.setDrawColor(230, 57, 70); 
-            doc.setLineWidth(2); 
-            doc.rect(5, 5, 200, 138);
-            doc.setDrawColor(255, 193, 7); 
-            doc.setLineWidth(0.5); 
-            doc.rect(7, 7, 196, 134);
-            
-            doc.setTextColor(0, 74, 153); 
-            doc.setFontSize(30); 
+            doc.setDrawColor(230, 57, 70); doc.setLineWidth(2); doc.rect(5, 5, 200, 138);
             doc.text("¡FELICITACIONES!", 105, 35, { align: "center" });
-            doc.setTextColor(60, 60, 60); 
-            doc.setFontSize(16); 
-            doc.text("Certificado otorgado a:", 105, 55, { align: "center" });
-            doc.setTextColor(230, 57, 70); 
-            doc.setFontSize(26); 
             doc.text(nombre.toUpperCase(), 105, 75, { align: "center" });
-            doc.setTextColor(40, 40, 40); 
-            doc.setFontSize(16); 
-            doc.text(`Ganador de: ${premio}`, 105, 100, { align: "center" });
-            doc.setFontSize(10); 
-            doc.text(`${comercio} & Hábitat-Car`, 105, 130, { align: "center" });
-            
             const pdfBase64 = doc.output('datauristring').split(',')[1];
 
             try {
                 await fetch(URL_SCRIPT, {
                     method: 'POST',
                     mode: 'no-cors',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        email: mailG.trim(), 
-                        nombreGanador: nombre, 
-                        premio, 
-                        comercio, 
-                        pdfB64: pdfBase64, 
-                        asunto: `🏆 ¡Felicidades ${nombre}!`,
-                        cc: `habitatcar@gmail.com, ${mailC}` 
-                    })
+                    body: JSON.stringify({ email: mailG, nombreGanador: nombre, premio, comercio, pdfB64: pdfBase64, cc: `habitatcar@gmail.com, ${mailC}` })
                 });
-                mostrarToast("✅ Mail enviado correctamente", "success");
-            } catch (e) { 
-                console.error(e);
-                mostrarToast("❌ Error en envío", "error"); 
-            } finally {
-                btn.disabled = false; 
-                btn.innerHTML = original; 
-            }
+                mostrarToast("✅ Mail enviado correctamente");
+            } catch (e) { mostrarToast("❌ Error en envío", "error"); }
+            btn.disabled = false; btn.innerHTML = original;
         };
 
         /* =========================================================
@@ -172,137 +125,75 @@
                 snap.forEach(docCom => {
                     const c = docCom.data();
                     if (c.titulo_sorteo) {
-                        const cant = c.cantidad_ganadores || 1;
                         const fila = `<tr>
                             <td>${c.fecha_inicio_sorteo || 'Vigente'}</td>
-                            <td>
-                                <span class="badge badge-comercio">${c.nombre}</span><br>
-                                <span class="badge badge-premio">🎁 ${c.titulo_sorteo}</span>
-                            </td>
-                            <td>
-                                <button class="btn btn-primary" id="btn-${docCom.id}">
-                                    🎲 SORTEAR (${cant})
-                                </button>
-                            </td>
-                            <td id="count-${docCom.id}">
-                                <small>${cant} ganador/es</small>
-                            </td>
+                            <td><span class="badge badge-comercio">${c.nombre}</span><br><span class="badge badge-premio">🎁 ${c.titulo_sorteo}</span></td>
+                            <td><button class="btn btn-primary" id="btn-${docCom.id}">🎲 SORTEAR (${c.cantidad_ganadores || 1})</button></td>
+                            <td id="count-${docCom.id}">Calculando...</td>
                         </tr>`;
                         tabla.innerHTML += fila;
-                        
                         // Delegar evento después de insertar
                         setTimeout(() => {
                             const b = document.getElementById(`btn-${docCom.id}`);
-                            if(b) b.onclick = () => ejecutarSorteo(
-                                docCom.id, 
-                                c.nombre, 
-                                c.titulo_sorteo, 
-                                cant, 
-                                c.email
-                            );
+                            if(b) b.onclick = () => ejecutarSorteo(c.nombre, c.titulo_sorteo, c.cantidad_ganadores || 1, c.email);
                         }, 100);
                     }
                 });
             });
         };
 
-        const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC) => {
-            mostrarToast(`🎲 Sorteando ${cant} premio/s para ${nomCom}...`, "warning");
-            
-            // Obtener participantes del comercio
+        const ejecutarSorteo = async (nomCom, premio, cant, mailC) => {
+            mostrarToast("Sorteando...");
             const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
             const snap = await getDocs(q);
-            let participantes = [];
-            snap.forEach(d => participantes.push(d.data()));
+            let p = []; snap.forEach(d => p.push(d.data()));
             
-            if(participantes.length === 0) {
-                return mostrarToast("⚠️ Sin participantes para este comercio", "error");
-            }
+            if(p.length === 0) return mostrarToast("Sin participantes", "error");
             
-            // Seleccionar ganadores aleatorios
-            let bolsa = [...participantes];
-            let ganadores = [];
-            for(let i = 0; i < Math.min(cant, bolsa.length); i++) {
-                const idx = Math.floor(Math.random() * bolsa.length);
-                ganadores.push(bolsa.splice(idx, 1)[0]);
+            let gans = [];
+            for(let i=0; i<cant; i++) {
+                if(p.length===0) break;
+                gans.push(p.splice(Math.floor(Math.random()*p.length), 1)[0]);
             }
 
-            // Guardar en historial
-            await addDoc(collection(db, "historial_sorteos"), { 
-                comercio: nomCom, 
-                premio, 
-                ganadores, 
-                mailComercio: mailC || 'habitatcar@gmail.com',
-                fecha: serverTimestamp() 
-            });
-            
-            mostrarToast(`✅ ¡Sorteo realizado! ${ganadores.length} ganador/es`, "success");
-            
-            // Recargar vista
-            cargarActivos();
+            await addDoc(collection(db, "historial_sorteos"), { comercio: nomCom, premio, ganadores: gans, fecha: serverTimestamp(), mailComercio: mailC });
+            mostrarToast("✅ Sorteo guardado. Revisa el historial.");
         };
 
         window.mostrarHistorial = () => {
-            const tabla = document.getElementById('tabla-sorteos');
-            tabla.innerHTML = "<tr><td colspan='4' style='text-align:center'>Cargando historial...</td></tr>";
-            
             onSnapshot(collection(db, "historial_sorteos"), (snap) => {
+                const tabla = document.getElementById('tabla-sorteos');
                 tabla.innerHTML = "";
-                if (snap.empty) {
-                    tabla.innerHTML = "<tr><td colspan='4' style='text-align:center;color:#666'>Sin sorteos registrados</td></tr>";
-                    return;
-                }
                 snap.forEach(doc => {
                     const h = doc.data();
-                    const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleDateString('es-AR') : '-';
-                    h.ganadores?.forEach(g => {
-                        const cel = g.celular || g.telefono || '';
-                        const email = g.email || '';
-                        const nombre = g.nombre || 'Sin nombre';
-                        tabla.innerHTML += `<tr style="background:#fff9e6">
-                            <td>${fecha}</td>
+                    h.ganadores.forEach(g => {
+                        tabla.innerHTML += `<tr>
+                            <td>${h.fecha ? new Date(h.fecha.seconds*1000).toLocaleDateString() : '-'}</td>
                             <td><span class="badge badge-comercio">${h.comercio}</span></td>
-                            <td>
-                                <strong>${nombre}</strong><br>
-                                <small>${cel || '---'}</small><br>
-                                <div style="margin-top:5px;">
-                                    <button class="btn-accion btn-wa" onclick="abrirWA('${cel}','${nombre}','${h.premio}')">💬 WA</button>
-                                    <button class="btn-accion btn-mail" onclick="enviarMail(this,'${email}','${nombre}','${h.premio}','${h.comercio}','${h.mailComercio || ''}')">📧 Mail</button>
-                                </div>
+                            <td><strong>${g.nombre}</strong><br>
+                                <button class="btn-accion btn-wa" onclick="abrirWA('${g.celular || g.telefono}','${g.nombre}','${h.premio}')">💬</button>
+                                <button class="btn-accion btn-mail" onclick="enviarMail(this,'${g.email}','${g.nombre}','${h.premio}','${h.comercio}','${h.mailComercio}')">📧</button>
                             </td>
-                            <td>
-                                <button class="btn-accion btn-copy" onclick="navigator.clipboard.writeText('${nombre} | ${email}')">📋 Copiar</button>
-                            </td>
+                            <td><button class="btn-accion btn-copy" onclick="navigator.clipboard.writeText('${g.nombre}')">📋</button></td>
                         </tr>`;
                     });
                 });
             });
-            mostrarToast("📜 Historial cargado", "success");
         };
 
-        function mostrarToast(mensaje, tipo = "success") {
-            const div = document.createElement('div'); 
-            div.className = `toast ${tipo}`;
-            div.innerText = mensaje; 
-            document.body.appendChild(div);
+        function mostrarToast(m, t="success") {
+            const div = document.createElement('div'); div.className = `toast ${t}`;
+            div.innerText = m; document.body.appendChild(div);
             setTimeout(() => div.remove(), 3000);
         }
 
         // Asignar botones
         document.getElementById('btn-activos').onclick = cargarActivos;
         document.getElementById('btn-historial').onclick = window.mostrarHistorial;
-        document.getElementById('btn-prueba').onclick = () => mostrarToast("🧪 Modo prueba listo", "warning");
+        document.getElementById('btn-prueba').onclick = () => mostrarToast("Modo prueba listo", "warning");
 
         // Carga inicial
-        document.addEventListener('DOMContentLoaded', () => {
-            cargarActivos();
-        });
-
-        // Exponer funciones globalmente
-        window.abrirWA = abrirWA;
-        window.enviarMail = enviarMail;
-        window.mostrarHistorial = mostrarHistorial;
-        window.mostrarToast = mostrarToast;
+        cargarActivos();
     </script>
 </body>
 </html>
