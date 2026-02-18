@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel de Sorteos Elite | Hábitat-Car</title>
+    <!-- ✅ jsPDF para generación de certificados -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -15,21 +16,42 @@
         .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
         .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
         .btn-primary { background: #667eea; color: white; }
+        .btn-primary:hover { background: #5568d3; }
         .btn-success { background: #28a745; color: white; }
+        .btn-success:hover { background: #218838; }
         .btn-warning { background: #ffc107; color: #333; }
+        .btn-warning:hover { background: #e0a800; }
+        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-        th { background: #667eea; color: white; padding: 14px 12px; text-align: left; }
+        th { background: #667eea; color: white; padding: 14px 12px; text-align: left; font-weight: 600; }
         td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
-        .btn-accion { padding: 6px 12px; margin: 2px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; color: white; }
-        .btn-wa { background: #25D366; }
-        .btn-mail { background: #ea4335; }
-        .btn-copy { background: #6c757d; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover { background: #f8f9ff; }
+        .btn-accion { padding: 6px 12px; margin: 2px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+        .btn-wa { background: #25D366; color: white; }
+        .btn-wa:hover { background: #128C7E; }
+        .btn-mail { background: #ea4335; color: white; }
+        .btn-mail:hover { background: #d33426; }
+        .btn-copy { background: #6c757d; color: white; }
+        .btn-copy:hover { background: #5a6268; }
         .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
         .badge-premio { background: #fff3cd; color: #856404; }
         .badge-comercio { background: #d1ecf1; color: #0c5460; }
-        .toast { position: fixed; top: 20px; right: 20px; padding: 14px 20px; border-radius: 10px; color: white; z-index: 9999; animation: slideIn 0.3s ease; }
-        .success { background: #28a745; } .error { background: #dc3545; } .warning { background: #ffc107; color: #333; }
-        @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
+        .toast { position: fixed; top: 20px; right: 20px; padding: 14px 20px; border-radius: 10px; color: white; font-weight: 500; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 9999; animation: slideIn 0.3s ease; }
+        .toast.success { background: #28a745; }
+        .toast.error { background: #dc3545; }
+        .toast.warning { background: #ffc107; color: #333; }
+        @keyframes slideIn { from { transform: translateX(120%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: white; padding: 25px; border-radius: 16px; max-width: 500px; width: 90%; }
+        .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        .modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #666; }
+        .modal-close:hover { color: #333; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: 600; }
+        .form-group input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 1rem; }
+        .loading { text-align: center; padding: 20px; color: #666; }
     </style>
 </head>
 <body>
@@ -54,146 +76,358 @@
                     <th>DATOS</th>
                 </tr>
             </thead>
-            <tbody id="tabla-sorteos"></tbody>
+            <tbody id="tabla-sorteos">
+                <tr><td colspan="4" class="loading">Cargando sorteos desde Firebase...</td></tr>
+            </tbody>
         </table>
     </div>
 
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+    <!-- Modal de cierre -->
+    <div id="modal-cerrar" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🏆 CERRAR SORTEO</h3>
+                <button class="modal-close" onclick="cerrarModal()">&times;</button>
+            </div>
+            <div class="form-group">
+                <label>Confirmar cierre del sorteo</label>
+                <input type="text" placeholder="Escribí 'CERRAR' para confirmar" id="confirmar-cierre">
+            </div>
+            <button class="btn btn-primary" onclick="confirmarCierre()">Confirmar Cierre</button>
+        </div>
+    </div>
 
-        // 📝 COPIA AQUÍ TUS CREDENCIALES DE admin_comercios.html
+    <script type="module">
+        /* =========================================================
+           1. IMPORTACIONES DE FIREBASE
+        ========================================================== */
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, doc, addDoc, serverTimestamp, getDocs, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+        /* =========================================================
+           2. CONFIGURACIÓN DE FIREBASE (MISMA QUE admin_comercios.html)
+        ========================================================== */
         const firebaseConfig = {
-            apiKey: "TU_API_KEY",
-            authDomain: "TU_AUTH_DOMAIN",
-            projectId: "TU_PROJECT_ID",
-            storageBucket: "TU_STORAGE_BUCKET",
-            messagingSenderId: "TU_MESSAGING_SENDER_ID",
-            appId: "TU_APP_ID"
+            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+            authDomain: "habitatcar-pro.firebaseapp.com",
+            projectId: "habitatcar-pro",
+            storageBucket: "habitatcar-pro.firebasestorage.app",
+            messagingSenderId: "311691258694",
+            appId: "1:311691258694:web:17a09051dcea7707af9347"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        
+        // ✅ URL DE APPS SCRIPT (limpia, sin espacios)
         const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
 
         /* =========================================================
-           🛠️ LÓGICA DE WHATSAPP Y MAIL (SACADAS A WINDOW)
+           3. VARIABLES GLOBALES
         ========================================================== */
-        window.normalizarTelefonoAR = (numero) => {
+        let comerciosActivos = [];
+        let vistaActual = 'activos'; // 'activos' | 'historial'
+
+        /* =========================================================
+           📱 WHATSAPP — NORMALIZADOR ARGENTINO
+        ========================================================== */
+        function normalizarTelefonoAR(numero) {
             if (!numero) return null;
             let num = numero.toString().replace(/\D/g, '');
             if (num.length === 10) return '549' + num;
             if (num.startsWith('54') && !num.startsWith('549')) return '549' + num.substring(2);
-            return num.startsWith('549') ? num : '549' + num;
-        };
+            if (num.startsWith('549')) return num;
+            return '549' + num;
+        }
 
         window.abrirWA = (cel, nom, pre) => {
-            const num = window.normalizarTelefonoAR(cel);
+            if (!cel) return mostrarToast("⚠️ El participante no tiene celular.", "error");
+            const num = normalizarTelefonoAR(cel);
             const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`);
             window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
         };
 
+        /* =========================================================
+           🎨 GENERADOR DE PDF (ESTILO DIPLOMA)
+        ========================================================== */
+        window.generarPDFDiploma = (nombre, premio, comercio) => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF('l', 'mm', 'a5');
+            doc.setFillColor(255, 255, 255); doc.rect(0, 0, 210, 148, 'F');
+            doc.setDrawColor(230, 57, 70); doc.setLineWidth(2); doc.rect(5, 5, 200, 138);
+            doc.setDrawColor(255, 193, 7); doc.setLineWidth(0.5); doc.rect(7, 7, 196, 134);
+            doc.setTextColor(0, 74, 153); doc.setFontSize(30); doc.text("¡FELICITACIONES!", 105, 35, { align: "center" });
+            doc.setTextColor(60, 60, 60); doc.setFontSize(16); doc.text("Certificado otorgado a:", 105, 55, { align: "center" });
+            doc.setTextColor(230, 57, 70); doc.setFontSize(26); doc.text(nombre.toUpperCase(), 105, 75, { align: "center" });
+            doc.setTextColor(40, 40, 40); doc.setFontSize(16); doc.text(`Ganador de: ${premio}`, 105, 100, { align: "center" });
+            doc.setFontSize(10); doc.text(`${comercio} & Hábitat-Car`, 105, 130, { align: "center" });
+            return doc;
+        };
+
+        /* =========================================================
+           📬 EMAIL — CON PDF ADJUNTO
+        ========================================================== */
         window.enviarMail = async (btn, mailG, nombre, premio, comercio, mailC) => {
+            if (!mailG) return mostrarToast("⚠️ El participante no tiene email.", "error");
             const original = btn.innerHTML;
             btn.disabled = true; btn.innerHTML = "⏳";
             
-            const { jsPDF } = window.jspdf;
-            const doc = new jsPDF('l', 'mm', 'a5');
-            doc.setDrawColor(230, 57, 70); doc.setLineWidth(2); doc.rect(5, 5, 200, 138);
-            doc.text("¡FELICITACIONES!", 105, 35, { align: "center" });
-            doc.text(nombre.toUpperCase(), 105, 75, { align: "center" });
-            const pdfBase64 = doc.output('datauristring').split(',')[1];
+            const docPDF = window.generarPDFDiploma(nombre, premio, comercio);
+            const pdfBase64 = docPDF.output('datauristring').split(',')[1];
+            
+            const payload = {
+                email: mailG.trim(),
+                nombreGanador: nombre,
+                premio: premio,
+                comercio: comercio,
+                pdfB64: pdfBase64,
+                asunto: `🏆 ¡FELICITACIONES! Ganaste en el sorteo de Hábitat-Car`,
+                cc: `habitatcar@gmail.com, ${mailC}`
+            };
 
             try {
                 await fetch(URL_SCRIPT, {
                     method: 'POST',
                     mode: 'no-cors',
-                    body: JSON.stringify({ email: mailG, nombreGanador: nombre, premio, comercio, pdfB64: pdfBase64, cc: `habitatcar@gmail.com, ${mailC}` })
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
                 });
-                mostrarToast("✅ Mail enviado correctamente");
-            } catch (e) { mostrarToast("❌ Error en envío", "error"); }
-            btn.disabled = false; btn.innerHTML = original;
+                mostrarToast("✅ ¡Enviado! El sistema Hábitat-Car está despachando el mail.", "success");
+            } catch (err) {
+                console.error(err);
+                mostrarToast("❌ Error al conectar con el servidor de correo.", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = original;
+            }
         };
 
         /* =========================================================
-           📊 CARGA DE DATOS REALES
+           📊 CARGA DINÁMICA: SORTEOS ACTIVOS DESDE FIREBASE
         ========================================================== */
-        const cargarActivos = () => {
+        function cargarSorteosActivos() {
+            vistaActual = 'activos';
+            const tabla = document.getElementById('tabla-sorteos');
+            tabla.innerHTML = `<tr><td colspan="4" class="loading">🔄 Cargando comercios con sorteos activos...</td></tr>`;
+            
             onSnapshot(collection(db, "comercios"), (snap) => {
-                const tabla = document.getElementById('tabla-sorteos');
+                comerciosActivos = [];
                 tabla.innerHTML = "";
-                snap.forEach(docCom => {
-                    const c = docCom.data();
-                    if (c.titulo_sorteo) {
-                        const fila = `<tr>
-                            <td>${c.fecha_inicio_sorteo || 'Vigente'}</td>
-                            <td><span class="badge badge-comercio">${c.nombre}</span><br><span class="badge badge-premio">🎁 ${c.titulo_sorteo}</span></td>
-                            <td><button class="btn btn-primary" id="btn-${docCom.id}">🎲 SORTEAR (${c.cantidad_ganadores || 1})</button></td>
-                            <td id="count-${docCom.id}">Calculando...</td>
-                        </tr>`;
+                let haySorteos = false;
+                
+                snap.forEach(docSnap => {
+                    const c = docSnap.data();
+                    // Solo mostramos comercios con título de sorteo activo
+                    if (c.titulo_sorteo && c.titulo_sorteo.trim() !== "" && c.estado !== "inactivo") {
+                        haySorteos = true;
+                        comerciosActivos.push({ id: docSnap.id, ...c });
+                        
+                        const cant = c.cantidad_ganadores || 1;
+                        const fecha = c.fecha_inicio_sorteo ? new Date(c.fecha_inicio_sorteo).toLocaleDateString('es-AR') : 'Vigente';
+                        
+                        const fila = `
+                            <tr data-tipo="activo" data-id="${docSnap.id}">
+                                <td>${fecha}</td>
+                                <td>
+                                    <span class="badge badge-comercio">${c.nombre}</span><br>
+                                    <span class="badge badge-premio">🎁 ${c.titulo_sorteo}</span>
+                                </td>
+                                <td>
+                                    <button class="btn btn-primary" id="btn-sorteo-${docSnap.id}" 
+                                        onclick="ejecutarSorteo('${docSnap.id}', '${c.nombre}', '${c.titulo_sorteo}', ${cant}, '${c.email || 'habitatcar@gmail.com'}')">
+                                        🎲 SORTEAR (${cant})
+                                    </button>
+                                </td>
+                                <td>
+                                    <small>${cant} ganador/es</small>
+                                </td>
+                            </tr>`;
                         tabla.innerHTML += fila;
-                        // Delegar evento después de insertar
-                        setTimeout(() => {
-                            const b = document.getElementById(`btn-${docCom.id}`);
-                            if(b) b.onclick = () => ejecutarSorteo(c.nombre, c.titulo_sorteo, c.cantidad_ganadores || 1, c.email);
-                        }, 100);
                     }
                 });
+                
+                if (!haySorteos) {
+                    tabla.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#666">No hay sorteos activos en este momento</td></tr>`;
+                }
             });
-        };
+        }
 
-        const ejecutarSorteo = async (nomCom, premio, cant, mailC) => {
-            mostrarToast("Sorteando...");
-            const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
-            const snap = await getDocs(q);
-            let p = []; snap.forEach(d => p.push(d.data()));
+        /* =========================================================
+           🎯 LÓGICA DE SORTEO: SELECCIONA GANADORES Y GUARDA EN FIREBASE
+        ========================================================== */
+        window.ejecutarSorteo = async (idComercio, nombreComercio, premio, cantidad, mailComercio) => {
+            mostrarToast(`🎲 Sorteando ${cantidad} premio/s para ${nombreComercio}...`, "warning");
             
-            if(p.length === 0) return mostrarToast("Sin participantes", "error");
-            
-            let gans = [];
-            for(let i=0; i<cant; i++) {
-                if(p.length===0) break;
-                gans.push(p.splice(Math.floor(Math.random()*p.length), 1)[0]);
+            try {
+                // 1. Obtener participantes de este comercio desde admin_participantes_sorteos
+                const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nombreComercio));
+                const snap = await getDocs(q);
+                
+                let participantes = [];
+                snap.forEach(d => participantes.push({ id: d.id, ...d.data() }));
+                
+                if (participantes.length === 0) {
+                    return mostrarToast("⚠️ No hay participantes registrados para este comercio.", "error");
+                }
+                
+                // 2. Seleccionar ganadores aleatorios (sin repetir)
+                let bolsa = [...participantes];
+                let ganadores = [];
+                
+                for (let i = 0; i < Math.min(cantidad, bolsa.length); i++) {
+                    const idx = Math.floor(Math.random() * bolsa.length);
+                    ganadores.push(bolsa.splice(idx, 1)[0]);
+                }
+                
+                // 3. Guardar resultado en historial_sorteos
+                await addDoc(collection(db, "historial_sorteos"), {
+                    comercio: nombreComercio,
+                    premio: premio,
+                    ganadores: ganadores,
+                    mailComercio: mailComercio,
+                    fecha: serverTimestamp(),
+                    cantidad_ganadores: cantidad
+                });
+                
+                mostrarToast(`✅ ¡Sorteo realizado! ${ganadores.length} ganador/es guardado/s.`, "success");
+                
+                // 4. Recargar vista de activos para actualizar
+                if (vistaActual === 'activos') {
+                    cargarSorteosActivos();
+                }
+                
+            } catch (e) {
+                console.error("Error en sorteo:", e);
+                mostrarToast("❌ Error al realizar el sorteo: " + e.message, "error");
             }
-
-            await addDoc(collection(db, "historial_sorteos"), { comercio: nomCom, premio, ganadores: gans, fecha: serverTimestamp(), mailComercio: mailC });
-            mostrarToast("✅ Sorteo guardado. Revisa el historial.");
         };
 
-        window.mostrarHistorial = () => {
+        /* =========================================================
+           📜 CARGA DEL HISTORIAL DE SORTEOS
+        ========================================================== */
+        window.cargarHistorial = () => {
+            vistaActual = 'historial';
+            const tabla = document.getElementById('tabla-sorteos');
+            tabla.innerHTML = `<tr><td colspan="4" class="loading">📜 Cargando historial de éxitos...</td></tr>`;
+            
             onSnapshot(collection(db, "historial_sorteos"), (snap) => {
-                const tabla = document.getElementById('tabla-sorteos');
                 tabla.innerHTML = "";
-                snap.forEach(doc => {
-                    const h = doc.data();
-                    h.ganadores.forEach(g => {
-                        tabla.innerHTML += `<tr>
-                            <td>${h.fecha ? new Date(h.fecha.seconds*1000).toLocaleDateString() : '-'}</td>
-                            <td><span class="badge badge-comercio">${h.comercio}</span></td>
-                            <td><strong>${g.nombre}</strong><br>
-                                <button class="btn-accion btn-wa" onclick="abrirWA('${g.celular || g.telefono}','${g.nombre}','${h.premio}')">💬</button>
-                                <button class="btn-accion btn-mail" onclick="enviarMail(this,'${g.email}','${g.nombre}','${h.premio}','${h.comercio}','${h.mailComercio}')">📧</button>
-                            </td>
-                            <td><button class="btn-accion btn-copy" onclick="navigator.clipboard.writeText('${g.nombre}')">📋</button></td>
-                        </tr>`;
+                
+                if (snap.empty) {
+                    tabla.innerHTML = `<tr><td colspan="4" style="text-align:center;color:#666">Aún no hay sorteos registrados</td></tr>`;
+                    return;
+                }
+                
+                // Ordenar por fecha descendente
+                const sorteos = [];
+                snap.forEach(docSnap => {
+                    const data = docSnap.data();
+                    sorteos.push({ id: docSnap.id, ...data });
+                });
+                sorteos.sort((a, b) => (b.fecha?.toDate?.() || 0) - (a.fecha?.toDate?.() || 0));
+                
+                sorteos.forEach(s => {
+                    const fecha = s.fecha?.toDate ? s.fecha.toDate().toLocaleDateString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '---';
+                    
+                    s.ganadores?.forEach((g, idx) => {
+                        const cel = g.celular || g.cel || '';
+                        const email = g.email || '';
+                        const nombre = g.nombre || 'Sin nombre';
+                        
+                        const fila = `
+                            <tr style="background: ${idx === 0 ? '#fff9e6' : 'white'}">
+                                <td>${idx === 0 ? fecha : ''}</td>
+                                <td>
+                                    ${idx === 0 ? `<span class="badge badge-comercio">${s.comercio}</span><br>` : ''}
+                                    <span class="badge badge-premio">🏆 ${s.premio}</span>
+                                </td>
+                                <td>
+                                    <strong>${nombre}</strong><br>
+                                    <small>${cel || '---'}</small><br>
+                                    <div style="margin-top:5px;">
+                                        <button class="btn-accion btn-wa" onclick="abrirWA('${cel}','${nombre}','${s.premio}')">💬 WA</button>
+                                        <button class="btn-accion btn-mail" onclick="enviarMail(this,'${email}','${nombre}','${s.premio}','${s.comercio}','${s.mailComercio || ''}')">📧 Mail</button>
+                                    </div>
+                                </td>
+                                <td>
+                                    <button class="btn-accion btn-copy" onclick="navigator.clipboard.writeText('${nombre} | ${email}')">📋 Copiar</button>
+                                </td>
+                            </tr>`;
+                        tabla.innerHTML += fila;
                     });
                 });
             });
+            
+            mostrarToast("📜 Historial cargado", "success");
         };
 
-        function mostrarToast(m, t="success") {
-            const div = document.createElement('div'); div.className = `toast ${t}`;
-            div.innerText = m; document.body.appendChild(div);
-            setTimeout(() => div.remove(), 3000);
+        /* =========================================================
+           🧪 CARGAR DATOS DE PRUEBA (TUS MAILS Y NÚMEROS)
+        ========================================================== */
+        window.cargarPrueba = async () => {
+            const pruebaData = [
+                { nombre: "Maxi Test", celular: "+543884618228", email: "lormaxi@hotmail.com", tipo: "VIP", comercio: "Hábitat-Car Central", comercioId: "test-001" },
+                { nombre: "Admin Test", celular: "3884618156", email: "habitatcar@gmail.com", tipo: "LEAD", comercio: "Hábitat-Car Norte", comercioId: "test-002" }
+            ];
+            
+            for (let p of pruebaData) {
+                await addDoc(collection(db, "admin_participantes_sorteos"), p);
+            }
+            mostrarToast("✅ Datos de prueba cargados: Maxi y Admin", "success");
+        };
+
+        /* =========================================================
+           📋 FUNCIONES AUXILIARES
+        ========================================================== */
+        function mostrarToast(mensaje, tipo = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${tipo}`;
+            toast.textContent = mensaje;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         }
 
-        // Asignar botones
-        document.getElementById('btn-activos').onclick = cargarActivos;
-        document.getElementById('btn-historial').onclick = window.mostrarHistorial;
-        document.getElementById('btn-prueba').onclick = () => mostrarToast("Modo prueba listo", "warning");
+        function cerrarModal() {
+            document.getElementById('modal-cerrar').classList.remove('active');
+        }
 
-        // Carga inicial
-        cargarActivos();
+        function confirmarCierre() {
+            const confirmacion = document.getElementById('confirmar-cierre').value.trim();
+            if (confirmacion === 'CERRAR') {
+                mostrarToast("✅ Sorteo cerrado exitosamente", "success");
+                cerrarModal();
+            } else {
+                mostrarToast("⚠️ Escribí 'CERRAR' para confirmar", "warning");
+            }
+        }
+
+        /* =========================================================
+           🚀 INICIALIZACIÓN
+        ========================================================== */
+        document.addEventListener('DOMContentLoaded', () => {
+            // Vincular botones de controles
+            document.getElementById('btn-activos').onclick = cargarSorteosActivos;
+            document.getElementById('btn-historial').onclick = cargarHistorial;
+            document.getElementById('btn-prueba').onclick = cargarPrueba;
+            
+            // Cargar sorteos activos por defecto
+            cargarSorteosActivos();
+            
+            console.log("🚀 Panel de Sorteos Elite conectado a Firebase");
+        });
+
+        /* =========================================================
+           🌍 EXPOSICIÓN GLOBAL DE FUNCIONES (para onclick en HTML)
+        ========================================================== */
+        window.abrirWA = abrirWA;
+        window.enviarMail = enviarMail;
+        window.generarPDFDiploma = generarPDFDiploma;
+        window.ejecutarSorteo = ejecutarSorteo;
+        window.cargarHistorial = cargarHistorial;
+        window.cargarPrueba = cargarPrueba;
+        window.cerrarModal = cerrarModal;
+        window.confirmarCierre = confirmarCierre;
+        window.mostrarToast = mostrarToast;
     </script>
 </body>
 </html>
