@@ -147,7 +147,7 @@
         window.cerrarModalSorteo = () => document.getElementById('popup-confirmacion').style.display = 'none';
         window.irAlHistorial = () => { window.cerrarModalSorteo(); window.mostrarHistorial(); };
 
-        // ✅ CARGA DE DATOS OPTIMIZADA: Conteo robusto de participantes
+        // ✅ CARGA DE DATOS OPTIMIZADA: Conteo real cruzado con colección Leads
         const cargarActivos = async () => {
             onSnapshot(collection(db, "comercios"), async (snap) => {
                 const tabla = document.getElementById('tabla-sorteos');
@@ -162,19 +162,39 @@
                         
                         let cLead = 0, cVip = 0;
                         
-                        // Traemos TODOS los participantes de este comercio
+                        // 1️⃣ Traemos participantes de este comercio
                         const qP = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
                         const snapP = await getDocs(qP);
                         
-                        snapP.forEach(p => {
+                        // 2️⃣ Procesamos cada participante para validar su estado ACTUAL
+                        const promesasParticipantes = snapP.docs.map(async (p) => {
                             const dataP = p.data();
-                            // LÓGICA DE CONTEO CORREGIDA:
-                            // Si el tipo es VIP, suma a VIP. Si es LEAD o no tiene tipo, suma a LEAD.
-                            if (dataP.tipo === "VIP") {
-                                cVip++;
-                            } else {
-                                cLead++; // Aquí es donde antes se perdían si el campo estaba vacío
+                            
+                            // Si tiene usuarioId, verificamos su estado actual en la colección LEADS
+                            if (dataP.usuarioId && !dataP.usuarioId.startsWith('temp_')) {
+                                try {
+                                    const leadDoc = await getDoc(doc(db, "leads", dataP.usuarioId));
+                                    if (leadDoc.exists()) {
+                                        const ld = leadDoc.data();
+                                        // 🔥 PRIORIDAD: Si convertidoVIP es true, ES VIP.
+                                        if (ld.convertidoVIP === true || ld.tipo === "VIP") {
+                                            return "VIP";
+                                        }
+                                    }
+                                } catch (e) {
+                                    console.error("Error validando usuario:", dataP.usuarioId);
+                                }
                             }
+                            
+                            // Fallback: Si no hay usuarioId o no es VIP en la colección, usamos lo que diga el registro
+                            return dataP.tipo === "VIP" ? "VIP" : "LEAD";
+                        });
+
+                        const resultados = await Promise.all(promesasParticipantes);
+                        
+                        resultados.forEach(tipo => {
+                            if (tipo === "VIP") cVip++;
+                            else cLead++;
                         });
 
                         const totalP = cLead + cVip;
