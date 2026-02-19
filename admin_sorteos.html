@@ -143,7 +143,32 @@
         window.enviarMail = async (btn, mailG, nombre, premio, comercio, mailC) => { if (!mailG) return mostrarToast("⚠️ El participante no tiene email.", "error"); const original = btn.innerHTML; btn.disabled = true; btn.innerHTML = "⏳"; const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', 'a5'); doc.setFillColor(255, 255, 255); doc.rect(0, 0, 210, 148, 'F'); doc.setDrawColor(230, 57, 70); doc.setLineWidth(2); doc.rect(5, 5, 200, 138); doc.setDrawColor(255, 193, 7); doc.setLineWidth(0.5); doc.rect(7, 7, 196, 134); doc.setTextColor(0, 74, 153); doc.setFontSize(30); doc.text("¡FELICITACIONES!", 105, 35, { align: "center" }); doc.setTextColor(60, 60, 60); doc.setFontSize(16); doc.text("Certificado otorgado a:", 105, 55, { align: "center" }); doc.setTextColor(230, 57, 70); doc.setFontSize(26); doc.text(nombre.toUpperCase(), 105, 75, { align: "center" }); doc.setTextColor(40, 40, 40); doc.setFontSize(16); doc.text(`Ganador de: ${premio}`, 105, 100, { align: "center" }); doc.setFontSize(10); doc.text(`${comercio} & Hábitat-Car`, 105, 130, { align: "center" }); const pdfBase64 = doc.output('datauristring').split(',')[1]; try { await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: mailG.trim(), nombreGanador: nombre, premio, comercio, pdfB64: pdfBase64, asunto: `🏆 ¡Felicidades ${nombre}!`, cc: `habitatcar@gmail.com, ${mailC}` }) }); mostrarToast("✅ Mail enviado correctamente", "success"); } catch (e) { console.error(e); mostrarToast("❌ Error en envío", "error"); } finally { btn.disabled = false; btn.innerHTML = original; } };
         function formatearFechaHora(fechaISO) { if (!fechaISO) return null; try { const [fechaParte, horaParte] = fechaISO.split('T'); if (!fechaParte || !horaParte) return null; const [anio, mes, dia] = fechaParte.split('-'); const [hora, minutos] = horaParte.split(':'); return { fecha: `${dia}/${mes}/${anio}`, hora: `${hora}:${minutos} Hs.` }; } catch (e) { return null; } }
 
-        window.mostrarConfirmacionSorteo = (total, ganadores) => { const listaGanadores = document.getElementById('lista-ganadores-popup'); listaGanadores.innerHTML = ganadores.map(g => `<div class="ganador-item"><i class="fas fa-trophy" style="color:var(--oro)"></i><b>${g.nombreMostrar}</b><br><small>${g.celular || 'Sin teléfono'}</small></div>`).join(''); document.getElementById('popup-confirmacion').style.display = 'flex'; };
+        // ✅ MODAL DE CONFIRMACIÓN ACTUALIZADO: Badges VIP/LEAD con iconos
+        window.mostrarConfirmacionSorteo = (total, ganadores) => {
+            const listaGanadores = document.getElementById('lista-ganadores-popup');
+            listaGanadores.innerHTML = ganadores.map(g => {
+                // Determinamos el badge según el tipo
+                const esVIP = g.tipo === "VIP";
+                const badgeTipo = esVIP 
+                    ? `<span class="badge badge-vip" style="font-size:0.7rem; margin-left:5px;"><i class="fas fa-crown"></i> VIP</span>` 
+                    : `<span class="badge badge-lead" style="font-size:0.7rem; margin-left:5px;"><i class="fas fa-user"></i> LEAD</span>`;
+
+                return `
+                    <div class="ganador-item">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <span style="font-weight: bold;"><i class="fas fa-trophy" style="color:var(--oro); margin-right:5px;"></i>${g.nombreMostrar}</span>
+                            ${badgeTipo}
+                        </div>
+                        <small style="color: #666; display: block; margin-top: 5px;">
+                            <i class="fab fa-whatsapp"></i> ${g.celular || 'Sin teléfono'}
+                        </small>
+                    </div>`;
+            }).join('');
+            
+            document.getElementById('texto-sorteo').innerText = `Se han seleccionado ${ganadores.length} ganador(es) entre ${total} participantes.`;
+            document.getElementById('popup-confirmacion').style.display = 'flex';
+        };
+
         window.cerrarModalSorteo = () => document.getElementById('popup-confirmacion').style.display = 'none';
         window.irAlHistorial = () => { window.cerrarModalSorteo(); window.mostrarHistorial(); };
 
