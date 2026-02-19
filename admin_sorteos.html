@@ -406,32 +406,29 @@
         }
 
         /* =========================================================
-           🎉 MODAL DE CONFIRMACIÓN DE SORTEO (✅ CORREGIDO: NOMBRE COMPLETO + TIPO)
+           🎉 MODAL DE CONFIRMACIÓN DE SORTEO (✅ CORREGIDO: NOMBRE REAL + TIPO)
         ========================================================== */
         window.mostrarConfirmacionSorteo = (totalParticipantes, ganadores) => {
             const modal = document.getElementById('modal-sorteo-confirm');
             const texto = document.getElementById('texto-sorteo');
             
-            // Construir lista de ganadores con nombre completo y tipo
-            const listaGanadores = ganadores.map(g => {
-                // Unir nombre y apellido si existen por separado
-                const nombreCompleto = g.nombre && g.apellido 
-                    ? `${g.nombre} ${g.apellido}` 
-                    : (g.nombre || g.apellido || 'Sin nombre');
-                
-                // Obtener tipo (VIP/LEAD) con badge de color
-                const tipo = g.tipo?.toUpperCase() || 'LEAD';
-                const badgeClass = tipo === 'VIP' ? 'valor-vip' : 'valor-lead';
-                const badgeIcon = tipo === 'VIP' ? '👑' : '🎫';
-                
-                return `<span style="background:#fff8e1; color:#f57f17; padding:2px 8px; border-radius:4px; font-weight:600; margin:2px 0; display:inline-block;">${badgeIcon} ${nombreCompleto} <small style="color:#666">(${tipo})</small></span>`;
-            }).join('<br>');
-            
             const pluralPersona = ganadores.length > 1 ? 'personas' : 'persona';
             const pluralSalió = ganadores.length > 1 ? 'salieron' : 'salió';
             const pluralSorteado = ganadores.length > 1 ? 'sorteados' : 'sorteado';
+
+            // ✅ CORRECCIÓN PUNTO 2: Muestra Nombre y Tipo (VIP/LEAD)
+            const nombres = ganadores.map(g => {
+                const nombreReal = g.nombreMostrar || "Sin Nombre";
+                const tipo = g.tipo ? `(${g.tipo})` : "";
+                return `${nombreReal} ${tipo}`;
+            }).join(', ');
             
-            texto.innerHTML = `De <b>${totalParticipantes}</b> participantes, ${pluralSalió} ${pluralSorteado}:<br><div style="margin-top:10px; line-height:1.8;">${listaGanadores}</div>`;
+            texto.innerHTML = `
+                De <b>${totalParticipantes}</b> participantes, ${pluralSalió} ${pluralSorteado}:<br>
+                <b style="color: var(--rojo-cupon); font-size: 1.3rem; display: block; margin-top: 10px;">
+                    ${nombres}
+                </b>
+            `;
             
             modal.classList.add('active');
         };
@@ -517,9 +514,10 @@
         });
 
         /* =========================================================
-           🎲 LÓGICA DE SORTEO MEJORADA (✅ CORREGIDO: TOAST EN LUGAR DE ALERT)
+           🎲 LÓGICA DE SORTEO MEJORADA (✅ CORREGIDO: TOAST + nombreMostrar)
         ========================================================== */
         const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC) => {
+            // 1. Mensaje inicial de proceso
             mostrarToast(`🎲 Verificando participantes para ${nomCom}...`, "warning");
             
             try {
@@ -527,15 +525,20 @@
                 const snap = await getDocs(q);
                 
                 let participantes = [];
-                snap.forEach(d => participantes.push(d.data()));
+                snap.forEach(d => {
+                    let data = d.data();
+                    // ✅ Aseguramos que tenga un nombre legible antes de meterlo a la bolsa
+                    data.nombreMostrar = data.nombre || data.usuario || "Participante sin nombre";
+                    participantes.push(data);
+                });
                 
-                // ✅ CORRECCIÓN 1: Toast en lugar de alert (desaparece a los 3s)
+                // ✅ CORRECCIÓN PUNTO 1: Sin alert con URL, ahora usa Toast de 3 seg
                 if (participantes.length === 0) {
-                    mostrarToast(`⚠️ El comercio "${nomCom}" no tiene participantes anotados.`, "warning");
+                    mostrarToast(`⚠️ El comercio "${nomCom}" no tiene participantes registrados.`, "error");
                     return; 
                 }
 
-                // Selección Aleatoria con bolsa
+                // Selección Aleatoria
                 let bolsa = [...participantes];
                 let ganadores = [];
                 const limite = Math.min(cant, bolsa.length);
@@ -555,6 +558,8 @@
                 });
                 
                 mostrarToast(`✅ ¡Sorteo realizado!`, "success");
+                
+                // Llamamos a la confirmación pasando los datos limpios
                 window.mostrarConfirmacionSorteo(participantes.length, ganadores);
                 
             } catch (e) {
@@ -579,7 +584,7 @@
                     h.ganadores?.forEach(g => {
                         const cel = g.celular || g.telefono || '';
                         const email = g.email || '';
-                        const nombre = g.nombre || 'Sin nombre';
+                        const nombre = g.nombreMostrar || g.nombre || 'Sin nombre';
                         tabla.innerHTML += `<tr style="background:#fff9e6">
                             <td>${fecha}</td>
                             <td>-</td>
