@@ -101,7 +101,6 @@
             margin-bottom: 20px;
             white-space: pre-wrap;
         }
-        /* ✅ NUEVO: Badge de cantidad de premios */
         .badge-premios {
             display: inline-block;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -114,10 +113,7 @@
             box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
             animation: pulse 2s infinite;
         }
-        @keyframes pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
-        }
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
         .vigencia-texto {
             color: var(--naranja);
             font-weight: bold;
@@ -256,8 +252,6 @@
             transform: translateY(-2px);
             box-shadow: 0 4px 12px rgba(66, 133, 244, 0.4);
         }
-        
-        /* Responsive para móvil */
         @media (max-width: 768px) {
             body { padding-top: 0; }
             .promo-card { padding: 20px; }
@@ -268,8 +262,6 @@
     </style>
 </head>
 <body>
-
-    <!-- ✅ HEADER CON LOGO GRANDE (INICIO DE LA PÁGINA) -->
     <header class="header">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo" alt="Hábitat-Car">
     </header>
@@ -290,7 +282,6 @@
             <h2 id="tit-sorteo" class="promo-titulo"></h2>
             <p id="desc-sorteo" class="promo-detalle"></p>
             
-            <!-- ✅ NUEVO: Badge de cantidad de premios -->
             <div id="badge-premios" class="badge-premios" style="display:none;">
                 🎁 <span id="cant-premios">1</span> premio<span id="plural-premios"></span> disponible<span id="plural-disp"></span>
             </div>
@@ -338,7 +329,6 @@
         </div>
     </div>
 
-    <!-- ✅ SCRIPT: Campos REALES + EMAIL + CANTIDAD DE PREMIOS -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, query, where, onSnapshot, getDoc, getDocs, doc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -373,16 +363,13 @@
         async function verificarParticipacion() {
             let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
             if(!idFinal) return;
-            
             const participacionKey = `participo_sorteo_${nombreComercio}_${idFinal}`;
             if (localStorage.getItem(participacionKey) === 'true') {
                 mostrarSoloCartelVerde();
                 return;
             }
             try {
-                const q = query(collection(db, "admin_participantes_sorteos"), 
-                            where("comercio", "==", nombreComercio), 
-                            where("usuarioId", "==", idFinal));
+                const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nombreComercio), where("usuarioId", "==", idFinal));
                 const snap = await getDocs(q);
                 if (!snap.empty) {
                     localStorage.setItem(participacionKey, 'true');
@@ -398,77 +385,55 @@
             if (info) info.classList.add('visible');
         }
 
-        // ✅ FUNCIÓN CORREGIDA: Campos REALES + EMAIL + CANTIDAD DE PREMIOS
+        // ✅ FUNCIÓN CORREGIDA: Detecta LEAD y VIP por igual
         window.abrirPopupExito = async () => {
-            let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
+            // 1️⃣ Buscamos el ID en TODAS las posibles llaves (Corregido)
+            let idFinal = localStorage.getItem('leadId_habitat') || 
+                          localStorage.getItem('leadId_v16') || 
+                          localStorage.getItem('userId_vip');
             
             if (!idFinal) {
+                // Si no tiene ID, es un usuario nuevo o no registrado
                 idFinal = "temp_" + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('leadId_v16', idFinal);
-                console.log("Generado ID temporal:", idFinal);
+                localStorage.setItem('leadId_habitat', idFinal);
             }
 
             if (!datosComercioGlobal) {
-                alert("⚠️ Los datos del comercio aún no cargaron. Verificá que el nombre en la URL coincida con el del Panel.");
+                alert("⚠️ Los datos del comercio aún no cargaron.");
                 return;
             }
 
             try {
-                // 🔎 BUSCAR USUARIO EN LEADS Y VIPS (USANDO TUS CAMPOS REALES)
                 let u = null;
                 let tipoUsuario = "LEAD";
 
-                // 1️⃣ Buscar en LEADS
+                // 2️⃣ Intentamos buscar en la colección 'leads' (donde están la mayoría)
                 const leadSnap = await getDoc(doc(db, "leads", idFinal));
-
                 if (leadSnap.exists()) {
                     u = leadSnap.data();
-                    tipoUsuario = "LEAD";
-                    
-                    console.log("✅ Lead encontrado:", u);
-                    console.log("→ email:", u.email);
-                    
+                    tipoUsuario = u.convertidoVIP ? "VIP" : "LEAD";
                 } else {
-                    // 2️⃣ Si no existe, buscar en VIPS
+                    // 3️⃣ Si no está en leads, buscamos en la colección 'vips'
                     const vipSnap = await getDoc(doc(db, "vips", idFinal));
                     if (vipSnap.exists()) {
                         u = vipSnap.data();
                         tipoUsuario = "VIP";
-                        
-                        console.log("✅ VIP encontrado:", u);
-                        console.log("→ email:", u.email);
                     }
                 }
 
-                // 3️⃣ Datos de respaldo si no se encontró
-                if (!u) {
-                    console.warn("⚠️ No se encontró usuario en leads ni vips");
-                    u = {
-                        nombres: "Invitado",
-                        apellido: "",
-                        whatsapp: "S/D",
-                        email: "S/D"
-                    };
-                }
+                // 4️⃣ Construcción de datos con Fallbacks robustos
+                const nombreReal = u ? (u.nombres || u.nombre || "") : "";
+                const apellidoReal = u ? (u.apellido || "") : "";
+                const nombreFinal = (nombreReal + " " + apellidoReal).trim() || "Usuario Sorteo";
+                const whatsappFinal = u ? (u.whatsapp || u.celular || "S/D") : "S/D";
+                const emailFinal = u ? (u.email || "S/D") : "S/D";
 
-                // 4️⃣ Construir datos completos
-                const nombreCompleto = `${u.nombres || ""} ${u.apellido || ""}`.trim();
-                const nombreFinal = nombreCompleto || u.nombre || "Usuario Nuevo";
-                const whatsappFinal = u.whatsapp || u.celular || "S/D";
-                const emailFinal = u.email || "S/D";
-
-                console.log("📝 Datos a guardar:");
-                console.log("→ nombre:", nombreFinal);
-                console.log("→ email:", emailFinal);
-                console.log("→ whatsapp:", whatsappFinal);
-                console.log("→ tipo:", tipoUsuario);
-
-                // 5️⃣ Guardar participación CON EMAIL
+                // 5️⃣ Guardar en la base de participación
                 await addDoc(collection(db, "admin_participantes_sorteos"), {
                     usuarioId: idFinal,
                     nombre: nombreFinal,
-                    nombres: u.nombres || "",
-                    apellido: u.apellido || "",
+                    nombres: nombreReal,
+                    apellido: apellidoReal,
                     email: emailFinal,
                     celular: whatsappFinal,
                     whatsapp: whatsappFinal,
@@ -482,14 +447,13 @@
 
                 localStorage.setItem(`participo_sorteo_${nombreComercio}_${idFinal}`, 'true');
                 
-                const primerNombre = nombreCompleto.split(' ')[0] || "Usuario";
-                document.getElementById('txt-exito-dinamico').innerText = `¡Listo ${primerNombre}! Ya estás participando.`;
-                
+                const saludo = nombreReal.split(' ')[0] || "¡Listo!";
+                document.getElementById('txt-exito-dinamico').innerText = `¡Excelente ${saludo}! Ya estás participando.`;
                 document.getElementById('overlay').style.display = 'flex';
                 mostrarSoloCartelVerde();
 
             } catch (e) {
-                console.error("❌ Error al registrar participación:", e);
+                console.error("❌ Error al participar:", e);
                 alert("Error de conexión: " + e.message);
             }
         };
@@ -506,7 +470,6 @@
                         document.getElementById('tit-sorteo').innerText = datosComercioGlobal.titulo_sorteo;
                         document.getElementById('desc-sorteo').innerText = datosComercioGlobal.descripcion_sorteo || "";
                         
-                        // ✅ MOSTRAR CANTIDAD DE PREMIOS
                         const cantPremios = parseInt(datosComercioGlobal.cantidad_premios) || 1;
                         const badge = document.getElementById('badge-premios');
                         const spanCant = document.getElementById('cant-premios');
@@ -567,7 +530,6 @@
             }
         };
 
-        // Exponer funciones globalmente
         window.abrirPopupExito = abrirPopupExito;
         window.cerrarPopup = cerrarPopup;
         window.notificarGoogleCalendar = notificarGoogleCalendar;
