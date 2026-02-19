@@ -135,6 +135,8 @@
         .badge-premio { background: #fff3cd; color: #856404; }
         .badge-comercio { background: #d1ecf1; color: #0c5460; }
         .badge-premios { background: #e3f2fd; color: #1976d2; font-weight: bold; }
+        .badge-vip { background: #fff8e1; color: #f57f17; font-weight: bold; }
+        .badge-lead { background: #e3f2fd; color: #1976d2; font-weight: bold; }
         .toast { position: fixed; top: 20px; right: 20px; padding: 14px 20px; border-radius: 10px; color: white; z-index: 9999; animation: slideIn 0.3s ease; }
         .success { background: #28a745; } .error { background: #dc3545; } .warning { background: #ffc107; color: #333; }
         @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
@@ -410,7 +412,7 @@
         }
 
         /* =========================================================
-           🎉 MODAL DE CONFIRMACIÓN DE SORTEO (✅ MEJORADO: CON CANTIDAD DE PREMIOS)
+           🎉 MODAL DE CONFIRMACIÓN DE SORTEO (✅ CORREGIDO: TIPO POR CONVERTIDOVIP)
         ========================================================== */
         window.mostrarConfirmacionSorteo = (totalParticipantes, ganadores, cantidadPremios) => {
             const modal = document.getElementById('modal-sorteo-confirm');
@@ -420,18 +422,19 @@
                 const nombre = g.nombreMostrar || "Invitado";
                 const tipo = g.tipo || "LEAD";
                 const cel = g.celular || "—";
+                const badgeClass = tipo === "VIP" ? "badge-vip" : "badge-lead";
 
                 return `
                     <div style="
                         background:#f8f9fa;
-                        border-left:4px solid #d4af37;
+                        border-left:4px solid ${tipo === "VIP" ? "#f57f17" : "#1976d2"};
                         padding:10px;
                         margin:8px 0;
                         border-radius:8px;
                         text-align:left;
                     ">
                         <b>👤 ${nombre}</b> 
-                        <span style="color:#999;">(${tipo})</span><br>
+                        <span class="${badgeClass}" style="padding:2px 8px;border-radius:12px;font-size:0.75rem;margin-left:8px;">${tipo}</span><br>
                         <small style="color:#666;">
                             <i class="fab fa-whatsapp"></i> ${cel}
                         </small>
@@ -471,7 +474,6 @@
                         const idCom = docCom.id;
                         const nomCom = c.nombre;
                         const premio = c.titulo_sorteo;
-                        // ✅ Usar cantidad_premios si existe, sino fallback a 1
                         const cant = parseInt(c.cantidad_premios) || 1;
                         const mailC = c.email || "";
 
@@ -509,7 +511,6 @@
                                     🎲 SORTEAR (${cant})
                                 </button>
                             </td>
-                            <!-- ✅ COLUMNA ACTUALIZADA: Cantidad de Premios -->
                             <td style="text-align:center">
                                 <span class="badge badge-premios">
                                     🎁 ${cant} premio${cant > 1 ? 's' : ''}
@@ -533,7 +534,7 @@
         });
 
         /* =========================================================
-           🎲 LÓGICA DE SORTEO DEFINITIVA (✅ CON CANTIDAD DE PREMIOS)
+           🎲 LÓGICA DE SORTEO DEFINITIVA (✅ CORREGIDO: TIPO POR CONVERTIDOVIP)
         ========================================================== */
         const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC) => {
             mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
@@ -562,37 +563,51 @@
 
                 let participantes = [];
 
-                snap.forEach(d => {
-                    const data = d.data();
+                for (const d of snap.docs) {
+                    const partData = d.data();
+                    const usuarioId = partData.usuarioId;
 
-                    // 🧠 nombre robusto (SIN importar VIP/LEAD)
-                    let nombreFinal = "Invitado";
+                    // 🔎 BUSCAR DATOS COMPLETOS EN LEADS (ÚNICA COLECCIÓN)
+                    let u = null;
+                    let tipoUsuario = "LEAD";
 
-                    if (data.nombres && data.apellido) {
-                        nombreFinal = `${data.nombres} ${data.apellido}`;
-                    } else if (data.nombres) {
-                        nombreFinal = data.nombres;
-                    } else if (data.nombreCompleto) {
-                        nombreFinal = data.nombreCompleto;
-                    } else if (data.nombre) {
-                        nombreFinal = data.nombre;
+                    if (usuarioId) {
+                        const leadSnap = await getDoc(doc(db, "leads", usuarioId));
+                        
+                        if (leadSnap.exists()) {
+                            u = leadSnap.data();
+                            
+                            // ✅ LÓGICA CORRECTA: convertidoVIP determina el tipo
+                            tipoUsuario = (u.convertidoVIP === true) ? "VIP" : "LEAD";
+                            
+                            console.log(`✅ Usuario encontrado: ${u.nombres} ${u.apellido || ''} | convertidoVIP: ${u.convertidoVIP} | tipo: ${tipoUsuario}`);
+                        } else {
+                            console.warn(`⚠️ No se encontró usuario con ID: ${usuarioId}`);
+                        }
                     }
 
-                    // 📱 teléfono robusto Argentina
-                    const telRaw = data.whatsapp || data.celular || data.telefono || "";
-                    let tel = telRaw.toString().replace(/\D/g, "");
+                    // 🧠 Construir nombre completo con campos reales
+                    const nombreFinal = u && u.nombres 
+                        ? `${u.nombres} ${u.apellido || ''}`.trim() 
+                        : (partData.nombre || partData.nombreMostrar || "Invitado");
 
+                    // 📱 Obtener WhatsApp normalizado
+                    const telRaw = u ? (u.whatsapp || u.celular || u.telefono) : (partData.celular || "");
+                    let tel = telRaw ? telRaw.toString().replace(/\D/g, "") : "";
+                    
                     if (tel.length === 10) tel = "549" + tel;
                     else if (tel.startsWith("54") && !tel.startsWith("549")) {
                         tel = "549" + tel.substring(2);
                     }
 
                     participantes.push({
-                        ...data,
+                        ...partData,
                         nombreMostrar: nombreFinal,
-                        celular: tel
+                        celular: tel || "S/D",
+                        tipo: tipoUsuario,
+                        email: u?.email || partData.email || ""
                     });
-                });
+                }
 
                 if (participantes.length === 0) {
                     mostrarToast("⚠️ No hay participantes anotados.", "error");
@@ -612,30 +627,29 @@
                 }
 
                 // ===============================
-                // 💾 Guardar historial limpio CON CANTIDAD DE PREMIOS
+                // 💾 Guardar historial limpio
                 // ===============================
                 await addDoc(collection(db, "historial_sorteos"), {
                     comercio: nomCom,
                     logoUrl: logoComercio,
                     premio: premio,
-                    cantidadPremios: cant,  // ✅ NUEVO: Guardamos cuántos premios se sortearon
+                    cantidadPremios: cant,
                     ganadores: ganadores,
                     fecha: serverTimestamp(),
                     mailComercio: mailC || "habitatcar@gmail.com"
                 });
 
                 mostrarToast("✅ ¡Sorteo finalizado con éxito!", "success");
-                // ✅ Pasamos cantidadPremios al modal
                 window.mostrarConfirmacionSorteo(participantes.length, ganadores, cant);
 
             } catch (e) {
-                console.error(e);
+                console.error("❌ Error al ejecutar sorteo:", e);
                 mostrarToast("❌ Error al ejecutar sorteo.", "error");
             }
         };
 
         /* =========================================================
-           📜 HISTORIAL DE ÉXITOS (✅ CON CANTIDAD DE PREMIOS)
+           📜 HISTORIAL DE ÉXITOS (✅ CORREGIDO: TIPO POR CONVERTIDOVIP)
         ========================================================== */
         window.mostrarHistorial = () => {
             const tabla = document.getElementById('tabla-sorteos');
@@ -654,7 +668,6 @@
                     const h = doc.data();
                     const fechaObj = h.fecha?.toDate ? h.fecha.toDate() : new Date();
                     const fSimple = fechaObj.toLocaleDateString() + " " + fechaObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                    // ✅ Cantidad de premios del sorteo
                     const cantPremios = h.cantidadPremios || h.ganadores?.length || 1;
 
                     h.ganadores?.forEach(g => {
@@ -662,9 +675,11 @@
                         const celG = g.celular || "";
                         const tipoG = g.tipo || "LEAD";
                         const mailG = g.email || "";
+                        const badgeClass = tipoG === "VIP" ? "badge-vip" : "badge-lead";
+                        const borderColor = tipoG === "VIP" ? "#f57f17" : "#1976d2";
 
                         tabla.innerHTML += `
-                        <tr style="background: #fff; border-left: 5px solid #d4af37;">
+                        <tr style="background: #fff; border-left: 5px solid ${borderColor};">
                             <td><small>${fSimple}</small></td>
                             <td><img src="${h.logoUrl || LOGO_DEFAULT}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
                             <td>
@@ -677,7 +692,7 @@
                             <td>
                                 <div style="font-weight:bold; color:#333;">
                                     ${nombreG} 
-                                    <span style="font-size:0.75rem; color:#999;">(${tipoG})</span>
+                                    <span class="${badgeClass}" style="padding:2px 8px;border-radius:12px;font-size:0.7rem;margin-left:6px;">${tipoG}</span>
                                 </div>
                                 <div style="font-size:0.8rem; color:#666;">
                                     <i class="fab fa-whatsapp"></i> ${celG}
