@@ -226,6 +226,14 @@
             text-align: center;
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
+        .ganador-item {
+            background: #f8f9fa;
+            border-left: 4px solid var(--oro);
+            padding: 10px;
+            margin: 8px 0;
+            border-radius: 8px;
+            text-align: left;
+        }
         
         /* Responsive para móvil */
         @media (max-width: 768px) {
@@ -295,10 +303,11 @@
     </div>
 
     <!-- ✅ MODAL DE CONFIRMACIÓN DE SORTEO -->
-    <div id="modal-sorteo-confirm" class="modal">
+    <div id="popup-confirmacion" class="modal">
         <div class="modal-content">
             <h3 style="color: var(--azul-habitat); margin-bottom: 15px;">🎉 ¡SORTEO REALIZADO!</h3>
             <p id="texto-sorteo" style="font-size: 1.1rem; margin-bottom: 20px; line-height: 1.5;"></p>
+            <div id="lista-ganadores-popup" style="text-align: left; margin-bottom: 20px;"></div>
             <button class="btn btn-primary" onclick="irAlHistorial()">IR AL HISTORIAL DE ÉXITOS</button>
             <button class="btn btn-warning" onclick="cerrarModalSorteo()" style="margin-top: 10px;">SEGUIR AQUÍ</button>
         </div>
@@ -399,32 +408,22 @@
         }
 
         /* =========================================================
-           🎉 MODAL DE CONFIRMACIÓN
+           🎉 MODAL DE CONFIRMACIÓN (✅ ACTUALIZADO)
         ========================================================== */
-        window.mostrarConfirmacionSorteo = (totalParticipantes, ganadores, cantidadPremios) => {
-            const modal = document.getElementById('modal-sorteo-confirm');
-            const texto = document.getElementById('texto-sorteo');
-
-            const detalle = ganadores.map(g => {
-                const nombre = g.nombreMostrar || "Invitado";
-                const tipo = g.tipo || "LEAD";
-                const cel = g.celular || "—";
-                const badgeClass = tipo === "VIP" ? "badge-vip" : "badge-lead";
-
-                return `
-                    <div style="background:#f8f9fa; border-left:4px solid ${tipo === "VIP" ? "#f57f17" : "#1976d2"}; padding:10px; margin:8px 0; border-radius:8px; text-align:left;">
-                        <b>👤 ${nombre}</b> 
-                        <span class="${badgeClass}" style="padding:2px 8px;border-radius:12px;font-size:0.75rem;margin-left:8px;">${tipo}</span><br>
-                        <small style="color:#666;"><i class="fab fa-whatsapp"></i> ${cel}</small>
-                    </div>
-                `;
-            }).join("");
-
-            texto.innerHTML = `De <b>${totalParticipantes}</b> participantes, se sortearon <b style="color:var(--naranja)">${cantidadPremios} premio${cantidadPremios > 1 ? 's' : ''}</b>:<br><div style="margin-top:12px;">${detalle}</div>`;
-            modal.classList.add('active');
+        window.mostrarConfirmacionSorteo = (total, ganadores) => {
+            const listaGanadores = document.getElementById('lista-ganadores-popup');
+            listaGanadores.innerHTML = ganadores.map(g => `
+                <div class="ganador-item">
+                    <i class="fas fa-trophy" style="color:var(--oro)"></i>
+                    <b>${g.nombreMostrar}</b><br>
+                    <small>${g.celular || 'Sin teléfono'}</small>
+                </div>
+            `).join('');
+            
+            document.getElementById('popup-confirmacion').style.display = 'flex';
         };
 
-        window.cerrarModalSorteo = () => document.getElementById('modal-sorteo-confirm').classList.remove('active');
+        window.cerrarModalSorteo = () => document.getElementById('popup-confirmacion').style.display = 'none';
         window.irAlHistorial = () => { window.cerrarModalSorteo(); window.mostrarHistorial(); };
 
         /* =========================================================
@@ -478,191 +477,115 @@
         });
 
         /* =========================================================
-           🎲 LÓGICA DE SORTEO - VERSIÓN FINAL CON LOGGING DETALLADO
+           🎲 LÓGICA DE SORTEO (✅ ACTUALIZADA - DATOS EMBEBIDOS)
         ========================================================== */
         const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC) => {
             mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
-            console.log(`🚀 INICIANDO SORTEO: ${nomCom} | premios: ${cant}`);
-
+            
             try {
-                // 🏪 Logo
-                const qC = query(collection(db, "comercios"), where("nombre", "==", nomCom));
-                const snapC = await getDocs(qC);
-                let logoComercio = LOGO_DEFAULT;
-                snapC.forEach(d => { if (d.data().logoUrl) logoComercio = d.data().logoUrl; });
-
-                // 👥 Participantes
                 const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
                 const snap = await getDocs(q);
+                
                 let participantes = [];
-
                 for (const d of snap.docs) {
-                    const partData = d.data();
-                    const usuarioId = partData.usuarioId;
-                    
-                    console.log(`\n🔍 Procesando participación docId: ${d.id}`);
-                    console.log(`   → usuarioId: ${usuarioId}`);
-                    console.log(`   → Campos disponibles:`, Object.keys(partData));
-                    console.log(`   → partData.nombre: "${partData.nombre}"`);
-                    console.log(`   → partData.nombres: "${partData.nombres}"`);
-                    console.log(`   → partData.tipo: "${partData.tipo}"`);
-                    console.log(`   → partData.celular: "${partData.celular}"`);
-                    console.log(`   → partData.whatsapp: "${partData.whatsapp}"`);
+                    const data = d.data();
+                    let nombreReal = "Invitado";
+                    let celReal = "";
+                    let emailReal = data.email || "";
 
-                    let u = null;
-                    let tipoUsuario = "LEAD";
-
-                    // 🔎 Buscar en leads SOLO si hay usuarioId válido
-                    if (usuarioId && usuarioId !== "null" && usuarioId !== "undefined") {
-                        try {
-                            const leadSnap = await getDoc(doc(db, "leads", usuarioId));
-                            if (leadSnap.exists()) {
-                                u = leadSnap.data();
-                                console.log(`   ✅ ENCONTRADO en leads:`, {
-                                    nombres: u.nombres,
-                                    apellido: u.apellido,
-                                    convertidoVIP: u.convertidoVIP,
-                                    email: u.email,
-                                    whatsapp: u.whatsapp
-                                });
-                                // ✅ Lógica CORRECTA: convertidoVIP === true → VIP
-                                tipoUsuario = (u.convertidoVIP === true) ? "VIP" : "LEAD";
-                            } else {
-                                console.warn(`   ⚠️ NO encontrado en leads con ID: ${usuarioId}`);
-                            }
-                        } catch (err) {
-                            console.error(`   ❌ Error buscando en leads:`, err);
+                    // 🔍 INTENTO DE RESCATE DE DATOS (Mapeo redundante)
+                    if (data.usuarioId) {
+                        const uDoc = await getDoc(doc(db, "leads", data.usuarioId));
+                        if (uDoc.exists()) {
+                            const u = uDoc.data();
+                            nombreReal = (u.nombres && u.apellido) ? `${u.nombres} ${u.apellido}` : (u.nombres || u.nombre || "Invitado");
+                            celReal = u.whatsapp || u.celular || u.telefono || "";
+                            emailReal = u.email || emailReal;
                         }
-                    } else {
-                        console.log(`   ⚠️ Sin usuarioId válido, usando fallback`);
                     }
-
-                    // 🧠 Construir nombre: PRIORIDAD ABSOLUTA a datos de participación si no hay leads
-                    // 🧠 Construir nombre (VERSIÓN ROBUSTA PRO)
-let nombreFinal = "Invitado";
-
-// 1️⃣ PRIORIDAD: datos vivos de leads
-if (u && (u.nombres || u.nombre)) {
-    nombreFinal = `${u.nombres || u.nombre || ""} ${u.apellido || ""}`.trim();
-}
-
-// 2️⃣ SEGUNDA PRIORIDAD: snapshot de participación (MUY IMPORTANTE)
-else if (partData.nombre) {
-    nombreFinal = partData.nombre;
-}
-else if (partData.nombres || partData.apellido) {
-    nombreFinal = `${partData.nombres || ""} ${partData.apellido || ""}`.trim();
-}
-else if (partData.nombreCompleto) {
-    nombreFinal = partData.nombreCompleto;
-}
-else if (partData.nombreMostrar) {
-    nombreFinal = partData.nombreMostrar;
-}
-
-// 🧼 seguridad final
-if (!nombreFinal || nombreFinal.trim() === "") {
-    nombreFinal = "Invitado";
-}
-
-
-                    // 📱 WhatsApp
-                   const telRaw = 
-    (u && (u.whatsapp || u.celular || u.telefono)) ? (u.whatsapp || u.celular || u.telefono) :
-    (partData.whatsapp || partData.celular || partData.telefono) ? (partData.whatsapp || partData.celular || partData.telefono) :
-    "";
-                    let tel = telRaw ? telRaw.toString().replace(/\D/g, "") : "";
-                    if (tel.length === 10) tel = "549" + tel;
-                    else if (tel.startsWith("54") && !tel.startsWith("549")) tel = "549" + tel.substring(2);
-
-                    // 📧 Email
-                    const emailFinal = (u && u.email) ? u.email : (partData.email) ? partData.email : "";
-
-                    // 🎯 Tipo: si no hay leads, usar el tipo guardado en participación
-                    if (!u && partData.tipo) {
-                        tipoUsuario = partData.tipo.toUpperCase();
-                        console.log(`   📋 Usando tipo de participación: ${tipoUsuario}`);
-                    }
-                    if (u && u.convertidoVIP === false) tipoUsuario = "LEAD";
-
-                    console.log(`   📝 RESULTADO: nombre="${nombreFinal}" | tipo="${tipoUsuario}" | tel="${tel || 'S/D'}"`);
+                    
+                    // Si el rescate falló, usamos lo que haya en la inscripción
+                    if (nombreReal === "Invitado") nombreReal = data.nombre || data.nombreCompleto || "Invitado";
+                    if (!celReal) celReal = data.celular || data.whatsapp || "";
 
                     participantes.push({
-                        ...partData,
-                        nombreMostrar: nombreFinal,
-                        celular: tel || "S/D",
-                        tipo: tipoUsuario,
-                        email: emailFinal
+                        ...data,
+                        nombreMostrar: nombreReal,
+                        celular: celReal,
+                        email: emailReal
                     });
                 }
-
+                
                 if (participantes.length === 0) {
-                    mostrarToast("⚠️ No hay participantes anotados.", "error");
-                    return;
+                    mostrarToast(`⚠️ No hay participantes registrados.`, "error");
+                    return; 
                 }
 
-                // 🎲 Sorteo
-                let bolsa = [...participantes];
                 let ganadores = [];
+                let bolsa = [...participantes];
                 const limite = Math.min(cant, bolsa.length);
                 for (let i = 0; i < limite; i++) {
                     const idx = Math.floor(Math.random() * bolsa.length);
                     ganadores.push(bolsa.splice(idx, 1)[0]);
                 }
 
-                // 💾 Guardar historial
-                await addDoc(collection(db, "historial_sorteos"), {
-                    comercio: nomCom,
-                    logoUrl: logoComercio,
-                    premio: premio,
-                    cantidadPremios: cant,
-                    ganadores: ganadores,
+                // 💾 GUARDAR EN HISTORIAL (Ahora con datos embebidos)
+                await addDoc(collection(db, "historial_sorteos"), { 
+                    comercio: nomCom, 
+                    premio: premio, 
+                    ganadores: ganadores, // Guardamos el objeto completo con nombreMostrar
                     fecha: serverTimestamp(),
-                    mailComercio: mailC || "habitatcar@gmail.com"
+                    mailComercio: mailC || 'habitatcar@gmail.com'
                 });
-
-                mostrarToast("✅ ¡Sorteo finalizado con éxito!", "success");
-                window.mostrarConfirmacionSorteo(participantes.length, ganadores, cant);
-
+                
+                mostrarToast(`✅ Sorteo exitoso`, "success");
+                window.mostrarConfirmacionSorteo(participantes.length, ganadores);
+                
             } catch (e) {
-                console.error("❌ Error al ejecutar sorteo:", e);
-                mostrarToast("❌ Error al ejecutar sorteo.", "error");
+                console.error(e);
+                mostrarToast("❌ Error en el sorteo", "error");
             }
         };
 
         /* =========================================================
-           📜 HISTORIAL
+           📜 HISTORIAL (✅ ACTUALIZADO - CON WHATSAPP Y NOMBRE)
         ========================================================== */
         window.mostrarHistorial = () => {
             const tabla = document.getElementById('tabla-sorteos');
-            tabla.innerHTML = "<tr><td colspan='6' style='text-align:center'>Cargando historial...</td></tr>";
-            
             onSnapshot(collection(db, "historial_sorteos"), (snap) => {
                 tabla.innerHTML = "";
-                if (snap.empty) {
-                    tabla.innerHTML = "<tr><td colspan='6' style='text-align:center;padding:40px;'>No hay registros.</td></tr>";
-                    return;
-                }
                 const docs = snap.docs.sort((a, b) => (b.data().fecha?.seconds || 0) - (a.data().fecha?.seconds || 0));
+
                 docs.forEach(doc => {
                     const h = doc.data();
-                    const fechaObj = h.fecha?.toDate ? h.fecha.toDate() : new Date();
-                    const fSimple = fechaObj.toLocaleDateString() + " " + fechaObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
-                    const cantPremios = h.cantidadPremios || h.ganadores?.length || 1;
+                    const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
+
                     h.ganadores?.forEach(g => {
                         const nombreG = g.nombreMostrar || "Invitado";
                         const celG = g.celular || "";
-                        const tipoG = g.tipo || "LEAD";
-                        const mailG = g.email || "";
-                        const badgeClass = tipoG === "VIP" ? "badge-vip" : "badge-lead";
-                        const borderColor = tipoG === "VIP" ? "#f57f17" : "#1976d2";
-                        tabla.innerHTML += `<tr style="background: #fff; border-left: 5px solid ${borderColor};">
-                            <td><small>${fSimple}</small></td>
-                            <td><img src="${h.logoUrl || LOGO_DEFAULT}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-                            <td><b style="color:var(--azul-habitat)">${h.comercio}</b><br><span class="badge badge-premio">🎁 ${h.premio}</span><br><small style="color:var(--naranja);font-weight:bold">${cantPremios} premio${cantPremios > 1 ? 's' : ''} sorteados</small></td>
-                            <td><div style="font-weight:bold; color:#333;">${nombreG} <span class="${badgeClass}" style="padding:2px 8px;border-radius:12px;font-size:0.7rem;margin-left:6px;">${tipoG}</span></div><div style="font-size:0.8rem; color:#666;"><i class="fab fa-whatsapp"></i> ${celG}</div></td>
-                            <td><div style="display:flex; gap:5px;"><button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')"><i class="fab fa-whatsapp"></i> AVISAR</button><button class="btn-accion btn-mail" onclick="enviarMail(this,'${mailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}')"><i class="fas fa-envelope"></i> CERTIFICADO</button></div></td>
-                            <td><button class="btn-accion btn-copy" title="Copiar Datos" onclick="navigator.clipboard.writeText('${nombreG} - WA: ${celG}'); mostrarToast('Datos copiados','warning')"><i class="fas fa-copy"></i></button></td>
+                        
+                        tabla.innerHTML += `
+                        <tr>
+                            <td><small>${fecha}</small></td>
+                            <td><b>${h.comercio}</b></td>
+                            <td><span class="badge" style="background:var(--oro); color:#000">${h.premio}</span></td>
+                            <td>
+                                <div style="font-weight:bold">${nombreG}</div>
+                                <div style="font-size:0.85em; color:var(--verde)"><i class="fab fa-whatsapp"></i> ${celG}</div>
+                            </td>
+                            <td>
+                                <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')">
+                                    <i class="fab fa-whatsapp"></i>
+                                </button>
+                                <button class="btn-accion btn-mail" onclick="enviarMail(this,'${g.email}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}')">
+                                    <i class="fas fa-certificate"></i>
+                                </button>
+                            </td>
+                            <td>
+                                <button class="btn-accion" style="background:#666" onclick="navigator.clipboard.writeText('${nombreG} - WA: ${celG}'); mostrarToast('Copiado','warning')">
+                                    <i class="fas fa-copy"></i>
+                                </button>
+                            </td>
                         </tr>`;
                     });
                 });
@@ -692,4 +615,3 @@ if (!nombreFinal || nombreFinal.trim() === "") {
     </script>
 </body>
 </html>
-
