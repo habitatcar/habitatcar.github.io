@@ -31,7 +31,6 @@
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            /* ✅ SIN padding-top: la página comienza desde el logo grande */
         }
         .header {
             width: 100%;
@@ -101,6 +100,23 @@
             line-height: 1.6;
             margin-bottom: 20px;
             white-space: pre-wrap;
+        }
+        /* ✅ NUEVO: Badge de cantidad de premios */
+        .badge-premios {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 6px 16px;
+            border-radius: 25px;
+            font-weight: bold;
+            font-size: 1rem;
+            margin: 10px 0;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+            animation: pulse 2s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.05); }
         }
         .vigencia-texto {
             color: var(--naranja);
@@ -247,6 +263,7 @@
             .promo-card { padding: 20px; }
             .promo-titulo { font-size: 1.3em; }
             .btn-participar { font-size: 1em; padding: 14px; }
+            .badge-premios { font-size: 0.9rem; padding: 5px 12px; }
         }
     </style>
 </head>
@@ -272,6 +289,11 @@
             <h3 class="card-seccion-titulo"><i class="fas fa-gift"></i> SORTEO</h3>
             <h2 id="tit-sorteo" class="promo-titulo"></h2>
             <p id="desc-sorteo" class="promo-detalle"></p>
+            
+            <!-- ✅ NUEVO: Badge de cantidad de premios -->
+            <div id="badge-premios" class="badge-premios" style="display:none;">
+                🎁 <span id="cant-premios">1</span> premio<span id="plural-premios"></span> disponible<span id="plural-disp"></span>
+            </div>
             
             <div class="fecha-hora-container" id="fecha-sorteo-container" style="display: none;">
                 <div class="fecha-item"><i class="fas fa-calendar-day"></i><span id="fecha-sorteo"></span></div>
@@ -316,7 +338,7 @@
         </div>
     </div>
 
-    <!-- ✅ SCRIPT: Campos REALES + EMAIL incluido + SIN FAJA ADMIN -->
+    <!-- ✅ SCRIPT: Campos REALES + EMAIL + CANTIDAD DE PREMIOS -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, query, where, onSnapshot, getDoc, getDocs, doc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -376,7 +398,7 @@
             if (info) info.classList.add('visible');
         }
 
-        // ✅ FUNCIÓN CORREGIDA: Campos REALES + EMAIL incluido
+        // ✅ FUNCIÓN CORREGIDA: Campos REALES + EMAIL + CANTIDAD DE PREMIOS
         window.abrirPopupExito = async () => {
             let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
             
@@ -483,6 +505,19 @@
                         document.getElementById('card-sorteo').style.display = 'flex';
                         document.getElementById('tit-sorteo').innerText = datosComercioGlobal.titulo_sorteo;
                         document.getElementById('desc-sorteo').innerText = datosComercioGlobal.descripcion_sorteo || "";
+                        
+                        // ✅ MOSTRAR CANTIDAD DE PREMIOS
+                        const cantPremios = parseInt(datosComercioGlobal.cantidad_premios) || 1;
+                        const badge = document.getElementById('badge-premios');
+                        const spanCant = document.getElementById('cant-premios');
+                        const spanPlural = document.getElementById('plural-premios');
+                        const spanDisp = document.getElementById('plural-disp');
+                        
+                        spanCant.innerText = cantPremios;
+                        spanPlural.innerText = cantPremios > 1 ? 's' : '';
+                        spanDisp.innerText = cantPremios > 1 ? 's' : '';
+                        badge.style.display = 'inline-block';
+                        
                         const f = formatearFechaHoraArgentina(datosComercioGlobal.fecha_sorteo);
                         if (f) {
                             document.getElementById('fecha-sorteo').innerText = f.fecha;
