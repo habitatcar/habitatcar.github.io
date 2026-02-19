@@ -526,49 +526,31 @@
         });
 
         /* =========================================================
-           🎲 LÓGICA DE SORTEO PROFESIONAL (✅ ELÁSTICA + ANTI-REPETIDOS + PESO VIP)
+           🎲 LÓGICA DE SORTEO DEFINITIVA (✅ SIMPLE + JUSTA + ROBUSTA)
         ========================================================== */
         const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC) => {
             mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
 
             try {
                 // ===============================
-                // ⚙️ CONFIGURACIÓN ELÁSTICA
-                // ===============================
-                const CONFIG = {
-                    pesoVIP: 3,                // 🔥 configurable (VIP pesa más)
-                    evitarRepetidos: true      // 🔥 evita que gane dos veces
-                };
-
-                // ===============================
                 // 🏪 Obtener logo comercio
                 // ===============================
                 const qC = query(collection(db, "comercios"), where("nombre", "==", nomCom));
                 const snapC = await getDocs(qC);
+
                 let logoComercio = LOGO_DEFAULT;
-                snapC.forEach(d => { if (d.data().logoUrl) logoComercio = d.data().logoUrl; });
-
-                // ===============================
-                // 📜 Historial previo (anti repetidos)
-                // ===============================
-                let ganadoresPrevios = new Set();
-
-                if (CONFIG.evitarRepetidos) {
-                    const snapHist = await getDocs(collection(db, "historial_sorteos"));
-                    snapHist.forEach(docH => {
-                        const h = docH.data();
-                        if (h.comercio === nomCom && h.ganadores) {
-                            h.ganadores.forEach(g => {
-                                if (g.celular) ganadoresPrevios.add(g.celular);
-                            });
-                        }
-                    });
-                }
+                snapC.forEach(d => {
+                    if (d.data().logoUrl) logoComercio = d.data().logoUrl;
+                });
 
                 // ===============================
                 // 👥 Obtener participantes
                 // ===============================
-                const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
+                const q = query(
+                    collection(db, "admin_participantes_sorteos"),
+                    where("comercio", "==", nomCom)
+                );
+
                 const snap = await getDocs(q);
 
                 let participantes = [];
@@ -576,16 +558,20 @@
                 snap.forEach(d => {
                     const data = d.data();
 
-                    // 🧠 nombre robusto
-                    const nombreFinal =
-                        data.nombreCompleto ||
-                        (data.nombres && data.apellido ? `${data.nombres} ${data.apellido}` : null) ||
-                        data.nombre ||
-                        data.nombres ||
-                        data.codigoIdentidad ||
-                        "Invitado";
+                    // 🧠 nombre robusto (SIN importar VIP/LEAD)
+                    let nombreFinal = "Invitado";
 
-                    // 📱 teléfono robusto
+                    if (data.nombres && data.apellido) {
+                        nombreFinal = `${data.nombres} ${data.apellido}`;
+                    } else if (data.nombres) {
+                        nombreFinal = data.nombres;
+                    } else if (data.nombreCompleto) {
+                        nombreFinal = data.nombreCompleto;
+                    } else if (data.nombre) {
+                        nombreFinal = data.nombre;
+                    }
+
+                    // 📱 teléfono robusto Argentina
                     const telRaw = data.whatsapp || data.celular || data.telefono || "";
                     let tel = telRaw.toString().replace(/\D/g, "");
 
@@ -594,33 +580,20 @@
                         tel = "549" + tel.substring(2);
                     }
 
-                    // 🚫 evitar repetidos históricos
-                    if (CONFIG.evitarRepetidos && ganadoresPrevios.has(tel)) {
-                        return;
-                    }
-
-                    const tipo = (data.tipo || "LEAD").toUpperCase();
-
-                    // 🎯 peso por tipo
-                    const peso = tipo === "VIP" ? CONFIG.pesoVIP : 1;
-
-                    for (let i = 0; i < peso; i++) {
-                        participantes.push({
-                            ...data,
-                            nombreMostrar: nombreFinal,
-                            celular: tel,
-                            tipo: tipo
-                        });
-                    }
+                    participantes.push({
+                        ...data,
+                        nombreMostrar: nombreFinal,
+                        celular: tel
+                    });
                 });
 
                 if (participantes.length === 0) {
-                    mostrarToast("⚠️ No hay participantes válidos.", "error");
+                    mostrarToast("⚠️ No hay participantes anotados.", "error");
                     return;
                 }
 
                 // ===============================
-                // 🎲 Selección aleatoria profesional
+                // 🎲 Selección aleatoria SIMPLE
                 // ===============================
                 let bolsa = [...participantes];
                 let ganadores = [];
@@ -628,16 +601,11 @@
 
                 for (let i = 0; i < limite; i++) {
                     const idx = Math.floor(Math.random() * bolsa.length);
-                    const elegido = bolsa.splice(idx, 1)[0];
-
-                    // evitar duplicados por peso
-                    if (!ganadores.find(g => g.celular === elegido.celular)) {
-                        ganadores.push(elegido);
-                    }
+                    ganadores.push(bolsa.splice(idx, 1)[0]);
                 }
 
                 // ===============================
-                // 💾 Guardar historial
+                // 💾 Guardar historial limpio
                 // ===============================
                 await addDoc(collection(db, "historial_sorteos"), {
                     comercio: nomCom,
