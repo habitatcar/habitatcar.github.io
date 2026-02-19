@@ -538,20 +538,39 @@
                     }
 
                     // 🧠 Construir nombre: PRIORIDAD ABSOLUTA a datos de participación si no hay leads
-                    const nombreFinal = 
-                        (u && u.nombres) ? `${u.nombres} ${u.apellido || ''}`.trim() :
-                        (u && u.nombre) ? u.nombre :
-                        (partData.nombres && partData.apellido) ? `${partData.nombres} ${partData.apellido}`.trim() :
-                        (partData.nombre) ? partData.nombre :  // <-- ESTE ES EL CAMPO DE LOS LEAD
-                        (partData.nombreCompleto) ? partData.nombreCompleto :
-                        (partData.nombreMostrar) ? partData.nombreMostrar :
-                        "Invitado";
+                    // 🧠 Construir nombre (VERSIÓN ROBUSTA PRO)
+let nombreFinal = "Invitado";
+
+// 1️⃣ PRIORIDAD: datos vivos de leads
+if (u && (u.nombres || u.nombre)) {
+    nombreFinal = `${u.nombres || u.nombre || ""} ${u.apellido || ""}`.trim();
+}
+
+// 2️⃣ SEGUNDA PRIORIDAD: snapshot de participación (MUY IMPORTANTE)
+else if (partData.nombre) {
+    nombreFinal = partData.nombre;
+}
+else if (partData.nombres || partData.apellido) {
+    nombreFinal = `${partData.nombres || ""} ${partData.apellido || ""}`.trim();
+}
+else if (partData.nombreCompleto) {
+    nombreFinal = partData.nombreCompleto;
+}
+else if (partData.nombreMostrar) {
+    nombreFinal = partData.nombreMostrar;
+}
+
+// 🧼 seguridad final
+if (!nombreFinal || nombreFinal.trim() === "") {
+    nombreFinal = "Invitado";
+}
+
 
                     // 📱 WhatsApp
-                    const telRaw = 
-                        (u && (u.whatsapp || u.celular || u.telefono)) ? (u.whatsapp || u.celular || u.telefono) :
-                        (partData.whatsapp || partData.celular || partData.telefono) ? (partData.whatsapp || partData.celular || partData.telefono) :
-                        "";
+                   const telRaw = 
+    (u && (u.whatsapp || u.celular || u.telefono)) ? (u.whatsapp || u.celular || u.telefono) :
+    (partData.whatsapp || partData.celular || partData.telefono) ? (partData.whatsapp || partData.celular || partData.telefono) :
+    "";
                     let tel = telRaw ? telRaw.toString().replace(/\D/g, "") : "";
                     if (tel.length === 10) tel = "549" + tel;
                     else if (tel.startsWith("54") && !tel.startsWith("549")) tel = "549" + tel.substring(2);
@@ -673,3 +692,4 @@
     </script>
 </body>
 </html>
+
