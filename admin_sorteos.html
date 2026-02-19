@@ -322,6 +322,7 @@
         
         // ✅ URL corregida (sin espacios al final)
         const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
+        const LOGO_DEFAULT = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
 
         /* =========================================================
            🛠️ LÓGICA DE WHATSAPP Y MAIL (SACADAS A WINDOW)
@@ -419,9 +420,9 @@
             const pluralSorteado = ganadores.length > 1 ? 'sorteados' : 'sorteado';
 
             const nombres = ganadores.map(g => {
-                const nombreReal = g.nombreCompleto || g.nombreMostrar || g.nombre || "Sin Nombre";
-                const tipo = g.tipo ? `(${g.tipo.toUpperCase()})` : "(LEAD)";
-                return `<span style="background:#fff8e1; color:#f57f17; padding:3px 10px; border-radius:6px; font-weight:600; margin:3px 0; display:inline-block;">🎫 ${nombreReal} <small style="color:#666">${tipo}</small></span>`;
+                const nombreReal = g.nombreMostrar || g.nombreCompleto || g.nombre || "Invitado";
+                const tipo = g.tipo ? `(${g.tipo.toUpperCase()})` : "";
+                return `<span style="background:#fff8e1; color:#f57f17; padding:3px 10px; border-radius:6px; font-weight:600; margin:3px 0; display:inline-block;">🎫 ${nombreReal} ${tipo}</span>`;
             }).join('<br>');
             
             texto.innerHTML = `
@@ -474,7 +475,7 @@
                         const fila = `
                         <tr>
                             <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span></div></td>
-                            <td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true'"></td>
+                            <td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
                             <td><span class="badge badge-comercio">${nomCom}</span><br><span class="badge badge-premio">🎁 ${premio}</span></td>
                             <td>
                                 <div class="participantes-cell">
@@ -515,137 +516,120 @@
            🎲 LÓGICA DE SORTEO MEJORADA (✅ CORREGIDO: CAPTURA ROBUSTA DE NOMBRES)
         ========================================================== */
         const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC) => {
-            mostrarToast(`🎲 Verificando participantes para ${nomCom}...`, "warning");
+            mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
             
             try {
-                // ✅ Obtenemos primero el logo del comercio actual
+                // 1. Obtener el logo actual del comercio
                 const qC = query(collection(db, "comercios"), where("nombre", "==", nomCom));
                 const snapC = await getDocs(qC);
-                let logoComercio = "";
-                snapC.forEach(d => logoComercio = d.data().logoUrl || "");
+                let logoComercio = LOGO_DEFAULT;
+                snapC.forEach(d => { if(d.data().logoUrl) logoComercio = d.data().logoUrl; });
 
+                // 2. Obtener participantes
                 const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
                 const snap = await getDocs(q);
                 
                 let participantes = [];
                 snap.forEach(d => {
                     let data = d.data();
-                    
-                    // ✅ Log para depuración (Presiona F12 en el navegador para ver qué llega de Firebase)
-                    console.log("Datos del participante:", data);
+                    // ✅ LÓGICA ROBUSTA DE NOMBRES:
+                    const nombreFinal = data.nombreCompleto || 
+                                       (data.nombres && data.apellido ? `${data.nombres} ${data.apellido}` : null) ||
+                                       data.nombre || 
+                                       data.nombres ||
+                                       data.codigoIdentidad || 
+                                       "Invitado";
 
-                    // ✅ Intentamos capturar el nombre de cualquier campo posible
-                    const nombre = data.nombre || data.nombreCompleto || data.usuario || data.user || "Participante";
-                    const apellido = data.apellido || "";
-                    
-                    // ✅ Si no hay nombre ni apellido, quizás el dato está en 'codigoIdentidad' (Caso VIP)
-                    const identificador = (nombre === "Participante") ? (data.codigoIdentidad || "Sin Identificar") : nombre;
-
-                    data.nombreCompleto = `${identificador} ${apellido}`.trim();
-                    data.nombreMostrar = data.nombreCompleto; 
-                    
-                    participantes.push(data);
+                    participantes.push({
+                        ...data,
+                        nombreMostrar: nombreFinal,
+                        celular: data.whatsapp || data.celular || data.telefono || ""
+                    });
                 });
                 
                 if (participantes.length === 0) {
-                    mostrarToast(`⚠️ Sin participantes en "${nomCom}".`, "error");
+                    mostrarToast(`⚠️ No hay participantes anotados.`, "error");
                     return; 
                 }
 
+                // 3. Selección aleatoria
                 let bolsa = [...participantes];
                 let ganadores = [];
                 const limite = Math.min(cant, bolsa.length);
-                
                 for (let i = 0; i < limite; i++) {
                     const idx = Math.floor(Math.random() * bolsa.length);
                     ganadores.push(bolsa.splice(idx, 1)[0]);
                 }
 
-                // ✅ GUARDAMOS LOGO Y NOMBRE COMPLETO EN EL HISTORIAL
+                // 4. Guardar en Historial con datos completos
                 await addDoc(collection(db, "historial_sorteos"), { 
                     comercio: nomCom, 
-                    logoUrl: logoComercio, // Guardamos el logo aquí para el historial
+                    logoUrl: logoComercio,
                     premio: premio, 
-                    ganadores: ganadores, 
+                    ganadores: ganadores, // Aquí ya van con nombreMostrar y celular
                     fecha: serverTimestamp(),
                     mailComercio: mailC || 'habitatcar@gmail.com'
                 });
                 
-                mostrarToast(`✅ ¡Sorteo realizado!`, "success");
+                mostrarToast(`✅ ¡Sorteo finalizado con éxito!`, "success");
                 window.mostrarConfirmacionSorteo(participantes.length, ganadores);
                 
             } catch (e) {
                 console.error(e);
-                mostrarToast("❌ Error al conectar.", "error");
+                mostrarToast("❌ Error al ejecutar sorteo.", "error");
             }
         };
 
         /* =========================================================
-           📜 HISTORIAL DE ÉXITOS (✅ CORREGIDO: LOGO + NOMBRES + TIEMPO REAL)
+           📜 HISTORIAL DE ÉXITOS (✅ CORREGIDO: NOMBRE + WHATSAPP VISIBLE)
         ========================================================== */
         window.mostrarHistorial = () => {
             const tabla = document.getElementById('tabla-sorteos');
             tabla.innerHTML = "<tr><td colspan='6' style='text-align:center'>Cargando historial...</td></tr>";
             
-            // Cambiamos el color de fondo de la tabla para diferenciar que es historial
-            tabla.style.opacity = "0";
-
             onSnapshot(collection(db, "historial_sorteos"), (snap) => {
                 tabla.innerHTML = "";
-                tabla.style.opacity = "1";
-
                 if (snap.empty) {
-                    tabla.innerHTML = "<tr><td colspan='6' style='text-align:center;padding:40px;color:#666;'>No hay sorteos en el historial.</td></tr>";
+                    tabla.innerHTML = "<tr><td colspan='6' style='text-align:center;padding:40px;'>No hay registros.</td></tr>";
                     return;
                 }
 
-                // Ordenar por fecha (los más nuevos primero si es posible localmente o por query)
                 const docs = snap.docs.sort((a, b) => (b.data().fecha?.seconds || 0) - (a.data().fecha?.seconds || 0));
 
                 docs.forEach(doc => {
                     const h = doc.data();
                     const fechaObj = h.fecha?.toDate ? h.fecha.toDate() : new Date();
-                    const fecha = fechaObj.toLocaleDateString('es-AR');
-                    const hora = fechaObj.toLocaleTimeString('es-AR', {hour: '2-digit', minute:'2-digit'});
+                    const fSimple = fechaObj.toLocaleDateString() + " " + fechaObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
                     h.ganadores?.forEach(g => {
-                        const cel = g.celular || g.telefono || '';
-                        const email = g.email || '';
-                        // ✅ Usamos el nombre completo procesado o el que encuentre
-                        const nombreGanador = g.nombreCompleto || g.nombreMostrar || g.nombre || "Sin Nombre";
-                        const tipoParticipante = g.tipo || "LEAD";
+                        const nombreG = g.nombreMostrar || "Invitado";
+                        const celG = g.celular || "";
+                        const mailG = g.email || "";
 
                         tabla.innerHTML += `
-                        <tr style="border-left: 5px solid var(--oro); background: #fff;">
+                        <tr style="background: #fff; border-left: 5px solid #d4af37;">
+                            <td><small>${fSimple}</small></td>
+                            <td><img src="${h.logoUrl || LOGO_DEFAULT}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
                             <td>
-                                <div class="fecha-cell">
-                                    <span class="fecha-principal">${fecha}</span>
-                                    <span class="hora-secundaria">${hora} Hs</span>
-                                </div>
+                                <b style="color:var(--azul-habitat)">${h.comercio}</b><br>
+                                <span class="badge badge-premio">🎁 ${h.premio}</span>
                             </td>
                             <td>
-                                <img src="${h.logoUrl || 'https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true'}" 
-                                     class="logo-mini" alt="Logo" onerror="this.src='https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true'">
+                                <div style="font-weight:bold; color:#333;">${nombreG}</div>
+                                <div style="font-size:0.8rem; color:#666;"><i class="fab fa-whatsapp"></i> ${celG}</div>
                             </td>
                             <td>
-                                <span class="badge badge-comercio">${h.comercio}</span><br>
-                                <b style="color:var(--azul-habitat)">${nombreGanador}</b> 
-                                <small>(${tipoParticipante})</small><br>
-                                <span class="badge badge-premio" style="margin-top:5px">🎁 ${h.premio}</span>
-                            </td>
-                            <td style="text-align:center">-</td>
-                            <td>
-                                <div style="display:flex; gap:4px; flex-wrap:wrap">
-                                    <button class="btn-accion btn-wa" onclick="abrirWA('${cel}','${nombreGanador}','${h.premio}')">
-                                        <i class="fab fa-whatsapp"></i> WA
+                                <div style="display:flex; gap:5px;">
+                                    <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')">
+                                        <i class="fab fa-whatsapp"></i> AVISAR
                                     </button>
-                                    <button class="btn-accion btn-mail" onclick="enviarMail(this,'${email}','${nombreGanador}','${h.premio}','${h.comercio}','${h.mailComercio || ''}')">
-                                        <i class="fas fa-envelope"></i> MAIL
+                                    <button class="btn-accion btn-mail" onclick="enviarMail(this,'${mailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}')">
+                                        <i class="fas fa-envelope"></i> CERTIFICADO
                                     </button>
                                 </div>
                             </td>
                             <td>
-                                <button class="btn-accion btn-copy" onclick="navigator.clipboard.writeText('${nombreGanador} - ${email} - ${cel}'); mostrarToast('Copiado','warning')">
+                                <button class="btn-accion btn-copy" title="Copiar Datos" onclick="navigator.clipboard.writeText('${nombreG} - WA: ${celG}'); mostrarToast('Datos copiados','warning')">
                                     <i class="fas fa-copy"></i>
                                 </button>
                             </td>
@@ -653,7 +637,6 @@
                     });
                 });
             });
-            mostrarToast("📜 Historial de Éxitos actualizado", "success");
         };
 
         function mostrarToast(mensaje, tipo = "success") {
