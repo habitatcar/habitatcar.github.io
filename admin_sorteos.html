@@ -412,7 +412,7 @@
         }
 
         /* =========================================================
-           🎉 MODAL DE CONFIRMACIÓN DE SORTEO (✅ CORREGIDO: TIPO POR CONVERTIDOVIP)
+           🎉 MODAL DE CONFIRMACIÓN DE SORTEO (✅ CORREGIDO: FALLBACK ROBUSTO)
         ========================================================== */
         window.mostrarConfirmacionSorteo = (totalParticipantes, ganadores, cantidadPremios) => {
             const modal = document.getElementById('modal-sorteo-confirm');
@@ -534,7 +534,7 @@
         });
 
         /* =========================================================
-           🎲 LÓGICA DE SORTEO DEFINITIVA (✅ CORREGIDO: TIPO POR CONVERTIDOVIP)
+           🎲 LÓGICA DE SORTEO DEFINITIVA (✅ FALLBACK ROBUSTO + CONVERTIDOVIP)
         ========================================================== */
         const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC) => {
             mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
@@ -552,7 +552,7 @@
                 });
 
                 // ===============================
-                // 👥 Obtener participantes
+                // 👥 Obtener participantes CON FALLBACK ROBUSTO
                 // ===============================
                 const q = query(
                     collection(db, "admin_participantes_sorteos"),
@@ -560,52 +560,73 @@
                 );
 
                 const snap = await getDocs(q);
-
                 let participantes = [];
 
                 for (const d of snap.docs) {
                     const partData = d.data();
                     const usuarioId = partData.usuarioId;
 
-                    // 🔎 BUSCAR DATOS COMPLETOS EN LEADS (ÚNICA COLECCIÓN)
+                    // 🔎 INTENTAR BUSCAR DATOS COMPLETOS EN LEADS
                     let u = null;
                     let tipoUsuario = "LEAD";
 
                     if (usuarioId) {
-                        const leadSnap = await getDoc(doc(db, "leads", usuarioId));
-                        
-                        if (leadSnap.exists()) {
-                            u = leadSnap.data();
+                        try {
+                            const leadSnap = await getDoc(doc(db, "leads", usuarioId));
                             
-                            // ✅ LÓGICA CORRECTA: convertidoVIP determina el tipo
-                            tipoUsuario = (u.convertidoVIP === true) ? "VIP" : "LEAD";
-                            
-                            console.log(`✅ Usuario encontrado: ${u.nombres} ${u.apellido || ''} | convertidoVIP: ${u.convertidoVIP} | tipo: ${tipoUsuario}`);
-                        } else {
-                            console.warn(`⚠️ No se encontró usuario con ID: ${usuarioId}`);
+                            if (leadSnap.exists()) {
+                                u = leadSnap.data();
+                                // ✅ LÓGICA CORRECTA: convertidoVIP determina el tipo
+                                tipoUsuario = (u.convertidoVIP === true) ? "VIP" : "LEAD";
+                                console.log(`✅ Usuario encontrado en leads: ${u.nombres} ${u.apellido || ''} | convertidoVIP: ${u.convertidoVIP} | tipo: ${tipoUsuario}`);
+                            } else {
+                                console.warn(`⚠️ No se encontró usuario con ID en leads: ${usuarioId}`);
+                            }
+                        } catch (err) {
+                            console.warn(`⚠️ Error buscando usuario ${usuarioId} en leads:`, err);
                         }
                     }
 
-                    // 🧠 Construir nombre completo con campos reales
-                    const nombreFinal = u && u.nombres 
-                        ? `${u.nombres} ${u.apellido || ''}`.trim() 
-                        : (partData.nombre || partData.nombreMostrar || "Invitado");
+                    // 🧠 Construir nombre completo: priorizar leads, fallback a participación
+                    const nombreFinal = 
+                        (u && u.nombres) ? `${u.nombres} ${u.apellido || ''}`.trim() :
+                        (partData.nombres && partData.apellido) ? `${partData.nombres} ${partData.apellido}`.trim() :
+                        (partData.nombreCompleto) ? partData.nombreCompleto :
+                        (partData.nombre) ? partData.nombre :
+                        (partData.nombreMostrar) ? partData.nombreMostrar :
+                        "Invitado";
 
-                    // 📱 Obtener WhatsApp normalizado
-                    const telRaw = u ? (u.whatsapp || u.celular || u.telefono) : (partData.celular || "");
-                    let tel = telRaw ? telRaw.toString().replace(/\D/g, "") : "";
+                    // 📱 Obtener WhatsApp: priorizar leads, fallback a participación
+                    const telRaw = 
+                        (u && (u.whatsapp || u.celular || u.telefono)) ? (u.whatsapp || u.celular || u.telefono) :
+                        (partData.whatsapp || partData.celular || partData.telefono) ? (partData.whatsapp || partData.celular || partData.telefono) :
+                        "";
                     
+                    let tel = telRaw ? telRaw.toString().replace(/\D/g, "") : "";
                     if (tel.length === 10) tel = "549" + tel;
                     else if (tel.startsWith("54") && !tel.startsWith("549")) {
                         tel = "549" + tel.substring(2);
                     }
+
+                    // 📧 Email: mismo patrón
+                    const emailFinal = 
+                        (u && u.email) ? u.email :
+                        (partData.email) ? partData.email :
+                        "";
+
+                    // 🎯 Determinar tipo si no se pudo leer de leads
+                    if (!u && partData.tipo) {
+                        tipoUsuario = partData.tipo.toUpperCase();
+                    }
+
+                    console.log(`📝 Participante procesado: "${nombreFinal}" | tipo: ${tipoUsuario} | tel: ${tel || 'S/D'}`);
 
                     participantes.push({
                         ...partData,
                         nombreMostrar: nombreFinal,
                         celular: tel || "S/D",
                         tipo: tipoUsuario,
-                        email: u?.email || partData.email || ""
+                        email: emailFinal
                     });
                 }
 
@@ -649,7 +670,7 @@
         };
 
         /* =========================================================
-           📜 HISTORIAL DE ÉXITOS (✅ CORREGIDO: TIPO POR CONVERTIDOVIP)
+           📜 HISTORIAL DE ÉXITOS (✅ CORREGIDO: FALLBACK ROBUSTO)
         ========================================================== */
         window.mostrarHistorial = () => {
             const tabla = document.getElementById('tabla-sorteos');
