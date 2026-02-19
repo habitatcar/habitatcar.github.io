@@ -385,7 +385,7 @@
             if (info) info.classList.add('visible');
         }
 
-        // ✅ FUNCIÓN CORREGIDA: Detección estricta de ID + Tipo normalizado
+        // ✅ FUNCIÓN CORREGIDA: Detección de usuario basada en convertidoVIP
         window.abrirPopupExito = async () => {
             // 1️⃣ Prioridad absoluta a los IDs reales
             let idFinal = localStorage.getItem('leadId_habitat') || 
@@ -395,7 +395,7 @@
             // Si no hay ID, debemos mandarlo a registrarse o avisarle
             if (!idFinal || idFinal.startsWith('temp_')) {
                 alert("⚠️ Para participar debes estar registrado. Por favor, completa tus datos primero.");
-                window.location.href = "usuarios_registro_lead.html"; // O la página que corresponda
+                window.location.href = "usuarios_registro_lead.html";
                 return;
             }
 
@@ -406,23 +406,33 @@
 
             try {
                 let u = null;
-                // ✅ TIPO NORMALIZADO: Siempre "LEAD" o "VIP" en mayúsculas
-                let tipoUsuario = "LEAD";
+                let tipoUsuario = "LEAD"; // Por defecto
 
-                // 2️⃣ Intentamos buscar en la colección 'leads' (donde están la mayoría)
+                // 1️⃣ Primero intentamos buscar en la colección de LEADS
                 const leadSnap = await getDoc(doc(db, "leads", idFinal));
+                
                 if (leadSnap.exists()) {
-                    const dataU = leadSnap.data();
-                    u = dataU;
-                    // ✅ Verificamos si es VIP por campo convertidoVIP o por campo tipo
-                    tipoUsuario = (dataU.convertidoVIP === true || dataU.tipo === "VIP") ? "VIP" : "LEAD";
+                    u = leadSnap.data();
+                    // 🔥 ESTA ES LA CLAVE: Si convertidoVIP es true, ES VIP.
+                    if (u.convertidoVIP === true || u.tipo === "VIP") {
+                        tipoUsuario = "VIP";
+                    } else {
+                        tipoUsuario = "LEAD";
+                    }
+                    console.log("Detectado en leads como:", tipoUsuario);
                 } else {
-                    // 3️⃣ Si no está en leads, buscamos en la colección 'vips'
+                    // 2️⃣ Si no existe en leads, buscamos en la colección de vips
                     const vipSnap = await getDoc(doc(db, "vips", idFinal));
                     if (vipSnap.exists()) {
                         u = vipSnap.data();
-                        tipoUsuario = "VIP"; // En colección vips, siempre es VIP
+                        tipoUsuario = "VIP";
+                        console.log("Detectado en vips como: VIP");
                     }
+                }
+                
+                // Si después de ambas búsquedas no hay usuario, idFinal es temporal
+                if (!u) {
+                    tipoUsuario = "LEAD"; // O manejar como usuario no registrado
                 }
 
                 // 4️⃣ Construcción de datos con Fallbacks robustos
@@ -441,7 +451,7 @@
                     email: emailFinal,
                     celular: whatsappFinal,
                     whatsapp: whatsappFinal,
-                    tipo: tipoUsuario.toUpperCase(), // ✅ FORZAR MAYÚSCULAS
+                    tipo: tipoUsuario, // ✅ Aquí se guardará "VIP" si convertidoVIP era true
                     comercio: nombreComercio,
                     comercioId: datosComercioGlobal.id || "",
                     premio: datosComercioGlobal.titulo_sorteo || "Sorteo",
