@@ -385,17 +385,18 @@
             if (info) info.classList.add('visible');
         }
 
-        // ✅ FUNCIÓN CORREGIDA: Detecta LEAD y VIP por igual
+        // ✅ FUNCIÓN CORREGIDA: Detección estricta de ID + Tipo normalizado
         window.abrirPopupExito = async () => {
-            // 1️⃣ Buscamos el ID en TODAS las posibles llaves (Corregido)
+            // 1️⃣ Prioridad absoluta a los IDs reales
             let idFinal = localStorage.getItem('leadId_habitat') || 
                           localStorage.getItem('leadId_v16') || 
                           localStorage.getItem('userId_vip');
             
-            if (!idFinal) {
-                // Si no tiene ID, es un usuario nuevo o no registrado
-                idFinal = "temp_" + Math.random().toString(36).substr(2, 9);
-                localStorage.setItem('leadId_habitat', idFinal);
+            // Si no hay ID, debemos mandarlo a registrarse o avisarle
+            if (!idFinal || idFinal.startsWith('temp_')) {
+                alert("⚠️ Para participar debes estar registrado. Por favor, completa tus datos primero.");
+                window.location.href = "usuarios_registro_lead.html"; // O la página que corresponda
+                return;
             }
 
             if (!datosComercioGlobal) {
@@ -405,19 +406,22 @@
 
             try {
                 let u = null;
+                // ✅ TIPO NORMALIZADO: Siempre "LEAD" o "VIP" en mayúsculas
                 let tipoUsuario = "LEAD";
 
                 // 2️⃣ Intentamos buscar en la colección 'leads' (donde están la mayoría)
                 const leadSnap = await getDoc(doc(db, "leads", idFinal));
                 if (leadSnap.exists()) {
-                    u = leadSnap.data();
-                    tipoUsuario = u.convertidoVIP ? "VIP" : "LEAD";
+                    const dataU = leadSnap.data();
+                    u = dataU;
+                    // ✅ Verificamos si es VIP por campo convertidoVIP o por campo tipo
+                    tipoUsuario = (dataU.convertidoVIP === true || dataU.tipo === "VIP") ? "VIP" : "LEAD";
                 } else {
                     // 3️⃣ Si no está en leads, buscamos en la colección 'vips'
                     const vipSnap = await getDoc(doc(db, "vips", idFinal));
                     if (vipSnap.exists()) {
                         u = vipSnap.data();
-                        tipoUsuario = "VIP";
+                        tipoUsuario = "VIP"; // En colección vips, siempre es VIP
                     }
                 }
 
@@ -428,7 +432,7 @@
                 const whatsappFinal = u ? (u.whatsapp || u.celular || "S/D") : "S/D";
                 const emailFinal = u ? (u.email || "S/D") : "S/D";
 
-                // 5️⃣ Guardar en la base de participación
+                // 5️⃣ Guardar en la base de participación con tipo normalizado
                 await addDoc(collection(db, "admin_participantes_sorteos"), {
                     usuarioId: idFinal,
                     nombre: nombreFinal,
@@ -437,7 +441,7 @@
                     email: emailFinal,
                     celular: whatsappFinal,
                     whatsapp: whatsappFinal,
-                    tipo: tipoUsuario,
+                    tipo: tipoUsuario.toUpperCase(), // ✅ FORZAR MAYÚSCULAS
                     comercio: nombreComercio,
                     comercioId: datosComercioGlobal.id || "",
                     premio: datosComercioGlobal.titulo_sorteo || "Sorteo",
