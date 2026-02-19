@@ -409,25 +409,41 @@
         }
 
         /* =========================================================
-           🎉 MODAL DE CONFIRMACIÓN DE SORTEO
+           🎉 MODAL DE CONFIRMACIÓN DE SORTEO (✅ MEJORADO: TARJETAS CON DATOS)
         ========================================================== */
         window.mostrarConfirmacionSorteo = (totalParticipantes, ganadores) => {
             const modal = document.getElementById('modal-sorteo-confirm');
             const texto = document.getElementById('texto-sorteo');
             
-            const pluralPersona = ganadores.length > 1 ? 'personas' : 'persona';
-            const pluralSalió = ganadores.length > 1 ? 'salieron' : 'salió';
-            const pluralSorteado = ganadores.length > 1 ? 'sorteados' : 'sorteado';
+            const pluralSalio = ganadores.length > 1 ? 'salieron sorteados' : 'salió sorteado';
 
-            const nombres = ganadores.map(g => {
-                const nombreReal = g.nombreMostrar || g.nombreCompleto || g.nombre || "Invitado";
+            const detalleGanadores = ganadores.map(g => {
+                const nombreReal = g.nombreMostrar || "Invitado";
                 const tipo = g.tipo ? `(${g.tipo.toUpperCase()})` : "";
-                return `<span style="background:#fff8e1; color:#f57f17; padding:3px 10px; border-radius:6px; font-weight:600; margin:3px 0; display:inline-block;">🎫 ${nombreReal} ${tipo}</span>`;
-            }).join('<br>');
-            
+                const cel = g.celular || "Sin WhatsApp";
+
+                return `
+                    <div style="
+                        background:#f8f9fa;
+                        border-left:4px solid #d4af37;
+                        padding:8px 12px;
+                        margin:6px 0;
+                        border-radius:6px;
+                        font-size:0.95rem;
+                    ">
+                        <b>👤 ${nombreReal}</b> ${tipo}<br>
+                        <span style="color:#666;">
+                            <i class="fab fa-whatsapp"></i> ${cel}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+
             texto.innerHTML = `
-                De <b>${totalParticipantes}</b> participantes, ${pluralSalió} ${pluralSorteado}:<br>
-                <div style="margin-top:12px; line-height:1.9;">${nombres}</div>
+                De <b>${totalParticipantes}</b> participantes, ${pluralSalio}:<br>
+                <div style="margin-top:12px;">
+                    ${detalleGanadores}
+                </div>
             `;
             
             modal.classList.add('active');
@@ -513,7 +529,7 @@
         });
 
         /* =========================================================
-           🎲 LÓGICA DE SORTEO MEJORADA (✅ CORREGIDO: CAPTURA ROBUSTA DE NOMBRES)
+           🎲 LÓGICA DE SORTEO MEJORADA (✅ TELÉFONO AR + TIPO GUARDADO)
         ========================================================== */
         const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC) => {
             mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
@@ -540,10 +556,19 @@
                                        data.codigoIdentidad || 
                                        "Invitado";
 
+                    // ✅ Normalizar teléfono argentino
+                    const telRaw = data.whatsapp || data.celular || data.telefono || "";
+                    let telLimpio = telRaw ? telRaw.toString().replace(/\D/g, '') : "";
+
+                    if (telLimpio.length === 10) telLimpio = '549' + telLimpio;
+                    else if (telLimpio.startsWith('54') && !telLimpio.startsWith('549'))
+                        telLimpio = '549' + telLimpio.substring(2);
+
                     participantes.push({
                         ...data,
                         nombreMostrar: nombreFinal,
-                        celular: data.whatsapp || data.celular || data.telefono || ""
+                        celular: telLimpio,
+                        tipo: data.tipo || "LEAD"
                     });
                 });
                 
@@ -566,7 +591,7 @@
                     comercio: nomCom, 
                     logoUrl: logoComercio,
                     premio: premio, 
-                    ganadores: ganadores, // Aquí ya van con nombreMostrar y celular
+                    ganadores: ganadores,
                     fecha: serverTimestamp(),
                     mailComercio: mailC || 'habitatcar@gmail.com'
                 });
@@ -581,7 +606,7 @@
         };
 
         /* =========================================================
-           📜 HISTORIAL DE ÉXITOS (✅ CORREGIDO: NOMBRE + WHATSAPP VISIBLE)
+           📜 HISTORIAL DE ÉXITOS (✅ MEJORADO: NOMBRE + TIPO + WA)
         ========================================================== */
         window.mostrarHistorial = () => {
             const tabla = document.getElementById('tabla-sorteos');
@@ -604,6 +629,7 @@
                     h.ganadores?.forEach(g => {
                         const nombreG = g.nombreMostrar || "Invitado";
                         const celG = g.celular || "";
+                        const tipoG = g.tipo || "LEAD";
                         const mailG = g.email || "";
 
                         tabla.innerHTML += `
@@ -615,8 +641,13 @@
                                 <span class="badge badge-premio">🎁 ${h.premio}</span>
                             </td>
                             <td>
-                                <div style="font-weight:bold; color:#333;">${nombreG}</div>
-                                <div style="font-size:0.8rem; color:#666;"><i class="fab fa-whatsapp"></i> ${celG}</div>
+                                <div style="font-weight:bold; color:#333;">
+                                    ${nombreG} 
+                                    <span style="font-size:0.75rem; color:#999;">(${tipoG})</span>
+                                </div>
+                                <div style="font-size:0.8rem; color:#666;">
+                                    <i class="fab fa-whatsapp"></i> ${celG}
+                                </div>
                             </td>
                             <td>
                                 <div style="display:flex; gap:5px;">
