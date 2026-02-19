@@ -406,18 +406,32 @@
         }
 
         /* =========================================================
-           🎉 MODAL DE CONFIRMACIÓN DE SORTEO
+           🎉 MODAL DE CONFIRMACIÓN DE SORTEO (✅ CORREGIDO: NOMBRE COMPLETO + TIPO)
         ========================================================== */
         window.mostrarConfirmacionSorteo = (totalParticipantes, ganadores) => {
             const modal = document.getElementById('modal-sorteo-confirm');
             const texto = document.getElementById('texto-sorteo');
             
+            // Construir lista de ganadores con nombre completo y tipo
+            const listaGanadores = ganadores.map(g => {
+                // Unir nombre y apellido si existen por separado
+                const nombreCompleto = g.nombre && g.apellido 
+                    ? `${g.nombre} ${g.apellido}` 
+                    : (g.nombre || g.apellido || 'Sin nombre');
+                
+                // Obtener tipo (VIP/LEAD) con badge de color
+                const tipo = g.tipo?.toUpperCase() || 'LEAD';
+                const badgeClass = tipo === 'VIP' ? 'valor-vip' : 'valor-lead';
+                const badgeIcon = tipo === 'VIP' ? '👑' : '🎫';
+                
+                return `<span style="background:#fff8e1; color:#f57f17; padding:2px 8px; border-radius:4px; font-weight:600; margin:2px 0; display:inline-block;">${badgeIcon} ${nombreCompleto} <small style="color:#666">(${tipo})</small></span>`;
+            }).join('<br>');
+            
             const pluralPersona = ganadores.length > 1 ? 'personas' : 'persona';
             const pluralSalió = ganadores.length > 1 ? 'salieron' : 'salió';
             const pluralSorteado = ganadores.length > 1 ? 'sorteados' : 'sorteado';
-            const nombres = ganadores.map(g => g.nombre).join(', ');
             
-            texto.innerHTML = `De <b>${totalParticipantes}</b> participantes, ${pluralSalió} ${pluralSorteado}:<br><b style="color: var(--rojo-cupon); font-size: 1.2rem;">${nombres}</b> ${pluralPersona}.`;
+            texto.innerHTML = `De <b>${totalParticipantes}</b> participantes, ${pluralSalió} ${pluralSorteado}:<br><div style="margin-top:10px; line-height:1.8;">${listaGanadores}</div>`;
             
             modal.classList.add('active');
         };
@@ -503,7 +517,7 @@
         });
 
         /* =========================================================
-           🎲 LÓGICA DE SORTEO MEJORADA
+           🎲 LÓGICA DE SORTEO MEJORADA (✅ CORREGIDO: TOAST EN LUGAR DE ALERT)
         ========================================================== */
         const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC) => {
             mostrarToast(`🎲 Verificando participantes para ${nomCom}...`, "warning");
@@ -515,8 +529,9 @@
                 let participantes = [];
                 snap.forEach(d => participantes.push(d.data()));
                 
+                // ✅ CORRECCIÓN 1: Toast en lugar de alert (desaparece a los 3s)
                 if (participantes.length === 0) {
-                    alert(`⚠️ El comercio "${nomCom}" no tiene participantes anotados. Nadie puede ganar todavía.`);
+                    mostrarToast(`⚠️ El comercio "${nomCom}" no tiene participantes anotados.`, "warning");
                     return; 
                 }
 
