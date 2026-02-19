@@ -512,7 +512,7 @@
         });
 
         /* =========================================================
-           🎲 LÓGICA DE SORTEO MEJORADA (✅ CORREGIDO: LOGO + NOMBRE COMPLETO)
+           🎲 LÓGICA DE SORTEO MEJORADA (✅ CORREGIDO: CAPTURA ROBUSTA DE NOMBRES)
         ========================================================== */
         const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC) => {
             mostrarToast(`🎲 Verificando participantes para ${nomCom}...`, "warning");
@@ -530,12 +530,20 @@
                 let participantes = [];
                 snap.forEach(d => {
                     let data = d.data();
-                    // ✅ PRIORIDAD DE NOMBRE: Si es LEAD suele ser 'nombre' y 'apellido'
-                    // Si es VIP suele ser 'usuario' o 'nombre'
-                    const nombreReal = data.nombre || data.usuario || "Participante";
-                    const apellidoReal = data.apellido || "";
-                    data.nombreCompleto = `${nombreReal} ${apellidoReal}`.trim();
+                    
+                    // ✅ Log para depuración (Presiona F12 en el navegador para ver qué llega de Firebase)
+                    console.log("Datos del participante:", data);
+
+                    // ✅ Intentamos capturar el nombre de cualquier campo posible
+                    const nombre = data.nombre || data.nombreCompleto || data.usuario || data.user || "Participante";
+                    const apellido = data.apellido || "";
+                    
+                    // ✅ Si no hay nombre ni apellido, quizás el dato está en 'codigoIdentidad' (Caso VIP)
+                    const identificador = (nombre === "Participante") ? (data.codigoIdentidad || "Sin Identificar") : nombre;
+
+                    data.nombreCompleto = `${identificador} ${apellido}`.trim();
                     data.nombreMostrar = data.nombreCompleto; 
+                    
                     participantes.push(data);
                 });
                 
