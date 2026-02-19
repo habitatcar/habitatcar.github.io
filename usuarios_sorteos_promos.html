@@ -413,9 +413,8 @@
         </div>
     </div>
 
-    <!-- ✅ SCRIPT CORREGIDO: Búsqueda unificada LEADS + VIPS + URLs limpias -->
+    <!-- ✅ SCRIPT CORREGIDO: Campos REALES de tu Firebase -->
     <script type="module">
-        // ✅ CORREGIDO: URLs limpias (sin espacios al final)
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, query, where, onSnapshot, getDoc, getDocs, doc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
@@ -474,9 +473,8 @@
             if (info) info.classList.add('visible');
         }
 
-        // ✅ FUNCIÓN ACTUALIZADA: Búsqueda unificada LEADS + VIPS + campos reales
+        // ✅ FUNCIÓN CORREGIDA CON TUS CAMPOS REALES DE FIREBASE
         window.abrirPopupExito = async () => {
-            // 1. Intentamos detectar ID. Si no existe, creamos uno temporal 'invitado'
             let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
             
             if (!idFinal) {
@@ -491,7 +489,7 @@
             }
 
             try {
-                // 🔎 BUSCAR USUARIO EN LEADS Y VIPS (UNIFICADO)
+                // 🔎 BUSCAR USUARIO EN LEADS Y VIPS (USANDO TUS CAMPOS REALES)
                 let u = null;
                 let tipoUsuario = "LEAD";
 
@@ -501,17 +499,31 @@
                 if (leadSnap.exists()) {
                     u = leadSnap.data();
                     tipoUsuario = "LEAD";
+                    
+                    // 🔍 Debug: Ver qué datos tiene el lead
+                    console.log("✅ Lead encontrado:", u);
+                    console.log("→ nombres:", u.nombres);
+                    console.log("→ apellido:", u.apellido);
+                    console.log("→ whatsapp:", u.whatsapp);
+                    
                 } else {
                     // 2️⃣ Si no existe, buscar en VIPS
                     const vipSnap = await getDoc(doc(db, "vips", idFinal));
                     if (vipSnap.exists()) {
                         u = vipSnap.data();
                         tipoUsuario = "VIP";
+                        
+                        // 🔍 Debug: Ver qué datos tiene el VIP
+                        console.log("✅ VIP encontrado:", u);
+                        console.log("→ nombres:", u.nombres);
+                        console.log("→ apellido:", u.apellido);
+                        console.log("→ whatsapp:", u.whatsapp);
                     }
                 }
 
-                // 3️⃣ Datos de respaldo si no se encontró en ninguna colección
+                // 3️⃣ Datos de respaldo si no se encontró
                 if (!u) {
+                    console.warn("⚠️ No se encontró usuario en leads ni vips");
                     u = {
                         nombres: "Invitado",
                         apellido: "",
@@ -519,12 +531,28 @@
                     };
                 }
 
-                // 4️⃣ Guardar participación en sorteos con campos reales
+                // 4️⃣ Construir nombre completo (TUS CAMPOS: nombres + apellido)
+                const nombreCompleto = `${u.nombres || ""} ${u.apellido || ""}`.trim();
+                const nombreFinal = nombreCompleto || u.nombre || "Usuario Nuevo";
+                
+                // 5️⃣ Obtener WhatsApp (TU CAMPO: whatsapp)
+                const whatsappFinal = u.whatsapp || u.celular || "S/D";
+
+                console.log("📝 Datos a guardar:");
+                console.log("→ nombreCompleto:", nombreCompleto);
+                console.log("→ nombreFinal:", nombreFinal);
+                console.log("→ whatsappFinal:", whatsappFinal);
+                console.log("→ tipoUsuario:", tipoUsuario);
+
+                // 6️⃣ Guardar participación con TUS CAMPOS REALES
                 await addDoc(collection(db, "admin_participantes_sorteos"), {
                     usuarioId: idFinal,
-                    nombre: `${u.nombres || ""} ${u.apellido || ""}`.trim() || u.nombre || "Usuario Nuevo",
-                    celular: u.whatsapp || u.celular || "S/D",
-                    tipo: tipoUsuario,
+                    nombre: nombreFinal,                    // ✅ "Lorenzo Maximiliano Guerrero"
+                    nombres: u.nombres || "",                // ✅ "Lorenzo Maximiliano"
+                    apellido: u.apellido || "",              // ✅ "Guerrero"
+                    celular: whatsappFinal,                  // ✅ "3884618228"
+                    whatsapp: whatsappFinal,                 // ✅ Duplicado para compatibilidad
+                    tipo: tipoUsuario,                       // ✅ "LEAD" o "VIP"
                     comercio: nombreComercio,
                     comercioId: datosComercioGlobal.id || "",
                     premio: datosComercioGlobal.titulo_sorteo || "Sorteo",
@@ -533,12 +561,12 @@
                 });
 
                 localStorage.setItem(`participo_sorteo_${nombreComercio}_${idFinal}`, 'true');
-                document.getElementById('txt-exito-dinamico').innerText = `¡Listo! Ya estás participando.`;
+                document.getElementById('txt-exito-dinamico').innerText = `¡Listo ${nombreCompleto.split(' ')[0]}! Ya estás participando.`;
                 document.getElementById('overlay').style.display = 'flex';
                 mostrarSoloCartelVerde();
 
             } catch (e) {
-                console.error("Error al registrar participación:", e);
+                console.error("❌ Error al registrar participación:", e);
                 alert("Error de conexión: " + e.message);
             }
         };
