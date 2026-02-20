@@ -280,67 +280,127 @@ window.abrirWA = (cel, nom, pre) => {
     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
 };
 
-// --- ✅ NUEVA FUNCIÓN DE ENVÍO CON PDF Y PARÁMETROS CODIFICADOS ---
-window.prepararEnvioCorrecto = async (btn, email, nombreEnc, premioEnc, comercioEnc, mailCC, logo) => {
-    // 1. Decodificar datos
-    const nombre = decodeURIComponent(nombreEnc);
-    const premio = decodeURIComponent(premioEnc);
-    const comercio = decodeURIComponent(comercioEnc);
+// --- 📧 ENVÍO DE MAIL CON PDF (versión original para sorteos activos) ---
+window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, logoComercio) => {
+    if (!emailDestino) return mostrarToast("Sin email", "error");
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = "⏳";
+    let asuntoPlantilla = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
+    let cuerpoPlantilla = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
+    const inyectar = (texto) => texto.replace(/{{NOMBRE}}/g, nombre).replace(/{{PREMIO}}/g, premio).replace(/{{COMERCIO}}/g, comercio);
+    const asuntoFinal = inyectar(asuntoPlantilla);
+    const cuerpoFinal = inyectar(cuerpoPlantilla);
+    const { jsPDF } = window.jspdf;
+    const pdf = new jsPDF('l', 'mm', 'a5');
+    const ancho = 210, alto = 148;
+    pdf.setFillColor(0, 61, 128);
+    pdf.triangle(0, 0, 80, 0, 0, 80, 'F');
+    pdf.setDrawColor(0, 61, 128);
+    pdf.setLineWidth(1);
+    pdf.rect(5, 5, ancho - 10, alto - 10);
+    pdf.setDrawColor(212, 175, 55);
+    pdf.setLineWidth(0.5);
+    pdf.rect(7, 7, ancho - 14, alto - 14);
+    if (logoComercio) { try { pdf.addImage(logoComercio, 'PNG', ancho - 55, 15, 40, 40, '', 'FAST'); } catch (e) {} }
+    const logoHC = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
+    try { pdf.addImage(logoHC, 'PNG', 15, alto - 45, 45, 30, '', 'FAST'); } catch (e) {}
+    pdf.setTextColor(0, 61, 128);
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(26);
+    pdf.text("CERTIFICADO DE GANADOR", ancho / 2, 45, { align: "center" });
+    pdf.setTextColor(40, 40, 40);
+    pdf.setFontSize(14);
+    pdf.setFont("helvetica", "normal");
+    pdf.text("Por el presente se certifica que:", ancho / 2, 60, { align: "center" });
+    pdf.setFontSize(22);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(nombre.toUpperCase(), ancho / 2, 75, { align: "center" });
+    pdf.setFontSize(12);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(`Fuiste favorecido con el sorteo:`, ancho / 2, 90, { align: "center" });
+    pdf.setFontSize(14);
+    pdf.setFont("helvetica", "bold");
+    pdf.text(`"${premio.toUpperCase()}"`, ancho / 2, 100, { align: "center" });
+    pdf.setFontSize(10);
+    pdf.setFont("helvetica", "italic");
+    pdf.text(`Habitat-Car y ${comercio} se complacen por tu participación.`, ancho / 2, 120, { align: "center" });
+    const hoy = new Date().toLocaleDateString();
+    pdf.setFontSize(9);
+    pdf.setFont("helvetica", "normal");
+    pdf.text(`Emitido el: ${hoy}`, ancho - 20, alto - 15, { align: "right" });
+    const pdfB64 = pdf.output('datauristring').split(',')[1];
+    try {
+        const payload = { email: emailDestino.trim(), asunto: asuntoFinal, cuerpoHtml: cuerpoFinal, nombreGanador: nombre, cc: `habitatcar@gmail.com, ${mailCC}`, pdfB64: pdfB64 };
+        await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', cache: 'no-cache', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
+        mostrarToast("✅ Certificado Premium enviado!");
+    } catch (e) { console.error(e); mostrarToast("❌ Error al enviar", "error"); }
+    finally { btn.disabled = false; btn.innerHTML = originalText; }
+};
 
-    if (!email || email === "undefined") return mostrarToast("❌ Email no válido", "error");
+// --- ✅ NUEVA FUNCIÓN CORREGIDA PARA HISTORIAL ---
+window.enviarMailCorregido = async (btn, email, nombre, premio, comercio, mailCC, logo) => {
+    if (!email || email === "undefined") return mostrarToast("❌ Sin email válido", "error");
 
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
     try {
-        // 2. GENERAR PDF (versión simplificada para el mail)
-        const pdfBase64 = await generarPDF_Simple(nombre, premio, comercio, logo);
+        // 1. Inyectar datos en las plantillas manualmente aquí mismo
+        let asuntoTpl = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}, ganaste!";
+        let cuerpoTpl = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
 
-        // 3. OBTENER Y LIMPIAR PLANTILLAS
-        const inyectar = (t) => t.replace(/{{NOMBRE}}/gi, nombre).replace(/{{PREMIO}}/gi, premio).replace(/{{COMERCIO}}/gi, comercio);
-        
-        const asunto = inyectar(localStorage.getItem('hc_asunto') || "🏆 Ganaste {{PREMIO}}");
-        const cuerpo = inyectar(localStorage.getItem('hc_cuerpo') || "Felicidades {{NOMBRE}}");
+        const asuntoFinal = asuntoTpl
+            .replace(/{{NOMBRE}}/gi, nombre)
+            .replace(/{{PREMIO}}/gi, premio)
+            .replace(/{{COMERCIO}}/gi, comercio);
 
-        // 4. ENVÍO AL SERVIDOR
-        const payload = {
+        const cuerpoFinal = cuerpoTpl
+            .replace(/{{NOMBRE}}/gi, nombre)
+            .replace(/{{PREMIO}}/gi, premio)
+            .replace(/{{COMERCIO}}/gi, comercio);
+
+        // 2. Generar el PDF (versión simplificada para historial)
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF();
+        doc.setFontSize(22);
+        doc.text("CERTIFICADO DE PREMIO", 105, 40, { align: "center" });
+        doc.setFontSize(16);
+        doc.text(`Ganador: ${nombre}`, 20, 60);
+        doc.text(`Premio: ${premio}`, 20, 70);
+        doc.text(`Comercio: ${comercio}`, 20, 80);
+        const pdfBase64 = doc.output('datauristring').split(',')[1];
+
+        // 3. El paquete de datos (Payload)
+        const datos = {
             email: email.trim(),
-            asunto: asunto,
-            cuerpoHtml: cuerpo,
+            asunto: asuntoFinal,
+            cuerpoHtml: cuerpoFinal,
             nombreGanador: nombre,
             cc: `habitatcar@gmail.com, ${mailCC}`,
             pdfB64: pdfBase64
         };
 
+        // 4. El envío al Script de Google
         await fetch(URL_SCRIPT, {
             method: 'POST',
             mode: 'no-cors',
-            body: JSON.stringify(payload)
+            cache: 'no-cache',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(datos)
         });
 
-        mostrarToast("✅ Enviado con PDF a " + email);
+        mostrarToast("✅ Mail y PDF enviados a " + email);
+
     } catch (e) {
-        console.error(e);
-        mostrarToast("❌ Error al procesar envío", "error");
+        console.error("Error en envío:", e);
+        mostrarToast("❌ Error al enviar", "error");
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
     }
 };
-
-// Función auxiliar para crear el PDF rápido para el mail
-async function generarPDF_Simple(nombre, premio, comercio, logo) {
-    const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.setFontSize(22);
-    doc.text("CERTIFICADO DE PREMIO", 105, 40, { align: "center" });
-    doc.setFontSize(16);
-    doc.text(`Ganador: ${nombre}`, 20, 60);
-    doc.text(`Premio: ${premio}`, 20, 70);
-    doc.text(`Comercio: ${comercio}`, 20, 80);
-    return doc.output('datauristring').split(',')[1]; // Retorna solo el base64
-}
 
 function formatearFechaHora(fechaISO) { 
     if (!fechaISO) return null; 
@@ -593,7 +653,7 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
     } catch(e) { console.error(e); mostrarToast("❌ Error en sorteo", "error"); }
 };
 
-// --- 📜 HISTORIAL CON CHECKBOXES ---
+// --- 📜 HISTORIAL CON CHECKBOXES (BOTÓN CORREGIDO) ---
 window.mostrarHistorial = () => {
     window.vistaActual = 'historial';
     window.itemsSeleccionados.clear();
@@ -613,14 +673,14 @@ window.mostrarHistorial = () => {
                 const esVIP = g.tipo === "VIP";
                 const badgeTipo = esVIP ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>` : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
                 const textoCopiar = `${nombreG} - WA: ${celG} - Email: ${emailG}`.trim();
-                // ✅ BOTÓN DE MAIL REPARADO CON encodeURIComponent
+                // ✅ BOTÓN DE MAIL CORREGIDO - usa enviarMailCorregido con parámetros seguros
                 tabla.innerHTML += `<tr>
                 <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}', this)"></td>
                 <td><small>${fecha}</small></td>
                 <td><img src="${h.logoUrl||''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
                 <td><span class="badge badge-comercio">${h.comercio}</span><br><span class="badge badge-premio">🎁 ${h.premio}</span>${h.descripcion_sorteo?`<div class="premio-desc">${h.descripcion_sorteo}</div>`:''}</td>
                 <td><div style="font-weight:bold">${nombreG}</div><div style="margin-top:4px">${badgeTipo}</div></td>
-                <td><div style="font-size:0.85em;color:var(--verde);margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>${emailG?`<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>`:''}<div style="margin-top:8px;display:flex;gap:5px;"><button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')"><i class="fab fa-whatsapp"></i></button><button class="btn-accion btn-mail" onclick="prepararEnvioCorrecto(this, '${emailG}', '${encodeURIComponent(nombreG)}', '${encodeURIComponent(h.premio)}', '${encodeURIComponent(h.comercio)}', '${h.mailComercio}', '${h.logoUrl || ''}')"><i class="fas fa-envelope"></i></button></div></td>
+                <td><div style="font-size:0.85em;color:var(--verde);margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>${emailG?`<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>`:''}<div style="margin-top:8px;display:flex;gap:5px;"><button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')"><i class="fab fa-whatsapp"></i></button><button class="btn-accion btn-mail" onclick="enviarMailCorregido(this, '${emailG}', '${nombreG}', '${h.premio}', '${h.comercio}', '${h.mailComercio}', '${h.logoUrl || ''}')"><i class="fas fa-envelope"></i></button></div></td>
                 <td><button class="btn-accion" style="background:#666" onclick="navigator.clipboard.writeText('${textoCopiar}');mostrarToast('📋 Copiado','warning')"><i class="fas fa-copy"></i></button><button class="btn-accion btn-delete" onclick="eliminarIndividual('${docSnap.id}',this)"><i class="fas fa-trash"></i></button></td>
                 </tr>`;
             });
@@ -645,14 +705,23 @@ document.addEventListener('DOMContentLoaded', () => {
     window.iniciarRelojes();
 });
 
-// Exportar funciones globales
-window.abrirWA = abrirWA; window.prepararEnvioCorrecto = prepararEnvioCorrecto; window.mostrarHistorial = mostrarHistorial; 
-window.mostrarToast = mostrarToast; window.mostrarConfirmacionSorteo = mostrarConfirmacionSorteo; 
-window.cerrarModalSorteo = cerrarModalSorteo; window.irAlHistorial = irAlHistorial;
-window.toggleSeleccion = toggleSeleccion; window.toggleSelectAll = toggleSelectAll; 
-window.eliminarSeleccionados = eliminarSeleccionados; window.desmarcarTodos = desmarcarTodos; 
-window.eliminarIndividual = eliminarIndividual; window.actualizarBulkActions = actualizarBulkActions;
-window.intentarSorteo = intentarSorteo; window.intentarEliminarSorteo = intentarEliminarSorteo;
+// Exportar funciones globales (incluyendo la nueva función corregida)
+window.abrirWA = abrirWA; 
+window.enviarMail = enviarMail; 
+window.enviarMailCorregido = enviarMailCorregido; 
+window.mostrarHistorial = mostrarHistorial; 
+window.mostrarToast = mostrarToast; 
+window.mostrarConfirmacionSorteo = mostrarConfirmacionSorteo; 
+window.cerrarModalSorteo = cerrarModalSorteo; 
+window.irAlHistorial = irAlHistorial;
+window.toggleSeleccion = toggleSeleccion; 
+window.toggleSelectAll = toggleSelectAll; 
+window.eliminarSeleccionados = eliminarSeleccionados; 
+window.desmarcarTodos = desmarcarTodos; 
+window.eliminarIndividual = eliminarIndividual; 
+window.actualizarBulkActions = actualizarBulkActions;
+window.intentarSorteo = intentarSorteo; 
+window.intentarEliminarSorteo = intentarEliminarSorteo;
 window.validarAccionSegura = validarAccionSegura;
 </script>
 </body></html>
