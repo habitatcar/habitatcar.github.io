@@ -43,6 +43,7 @@ header p { opacity: 0.9; font-size: 0.95rem; }
 .btn-danger { background: #dc3545; color: white; }
 .btn-danger:hover { background: #c82333; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.btn-sm { padding: 4px 8px; font-size: 0.8rem; }
 
 /* ✅ ENCABEZADOS FIJOS (STICKY) */
 .table-container { overflow-x: auto; max-height: calc(100vh - 280px); }
@@ -149,7 +150,7 @@ body { padding-top: 120px; }
 </div>
 </div>
 
-<!-- ✅ MODALES (se mantienen igual) -->
+<!-- ✅ MODAL EDITAR EMAIL -->
 <div id="modal-email" class="modal">
 <div class="modal-content">
 <h3 style="color:var(--azul-habitat); margin-bottom:15px;">✉️ Editar Plantilla de Email</h3>
@@ -173,6 +174,7 @@ El sistema reemplazará automáticamente:<br>
 </div>
 </div>
 
+<!-- ✅ MODAL DISEÑAR PDF -->
 <div id="modal-pdf" class="modal">
 <div class="modal-content">
 <h3 style="color:var(--azul-habitat); margin-bottom:15px;">📄 Diseñar Certificado PDF</h3>
@@ -189,6 +191,7 @@ El sistema reemplazará automáticamente:<br>
 </div>
 </div>
 
+<!-- ✅ MODAL CONFIRMACIÓN SORTEO -->
 <div id="popup-confirmacion" class="modal" style="display: none;">
 <div class="modal-content">
 <h3 style="color: var(--azul-habitat); margin-bottom: 15px;">🎉 ¡SORTEO REALIZADO!</h3>
@@ -205,6 +208,21 @@ import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimes
 
 // --- 🔐 CONFIGURACIÓN DE SEGURIDAD ---
 const CLAVE_MAESTRA = "HABITAT_MASTER_2026";
+
+// ✅ FUNCIÓN DE VALIDACIÓN INFALIBLE (usa campo 'password' real de Firebase)
+window.validarAccionSegura = async (idComercio, claveIngresada) => {
+    if (claveIngresada === CLAVE_MAESTRA) return true;
+    try {
+        const comercioRef = doc(db, "comercios", idComercio);
+        const snap = await getDoc(comercioRef);
+        if (snap.exists()) {
+            const datosComercio = snap.data();
+            const claveReal = datosComercio.password;
+            if (claveIngresada === claveReal) return true;
+        }
+    } catch (error) { console.error("Error al validar clave:", error); }
+    return false;
+};
 
 const firebaseConfig = { 
     apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM", 
@@ -268,13 +286,11 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, 
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = "⏳";
-    
     let asuntoPlantilla = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
     let cuerpoPlantilla = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
     const inyectar = (texto) => texto.replace(/{{NOMBRE}}/g, nombre).replace(/{{PREMIO}}/g, premio).replace(/{{COMERCIO}}/g, comercio);
     const asuntoFinal = inyectar(asuntoPlantilla);
     const cuerpoFinal = inyectar(cuerpoPlantilla);
-    
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('l', 'mm', 'a5');
     const ancho = 210, alto = 148;
@@ -314,7 +330,6 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, 
     pdf.setFont("helvetica", "normal");
     pdf.text(`Emitido el: ${hoy}`, ancho - 20, alto - 15, { align: "right" });
     const pdfB64 = pdf.output('datauristring').split(',')[1];
-    
     try {
         const payload = { email: emailDestino.trim(), asunto: asuntoFinal, cuerpoHtml: cuerpoFinal, nombreGanador: nombre, cc: `habitatcar@gmail.com, ${mailCC}`, pdfB64: pdfB64 };
         await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', cache: 'no-cache', headers: { 'Content-Type': 'text/plain' }, body: JSON.stringify(payload) });
@@ -433,17 +448,6 @@ window.iniciarRelojes = () => {
     }, 1000);
 };
 
-// --- 🔐 VALIDACIÓN DE SEGURIDAD ---
-window.validarAccionSegura = async (idSorteo, claveIngresada, tipoAccion) => {
-    try {
-        const snap = await getDoc(doc(db, "comercios", idSorteo));
-        const datos = snap.data();
-        if (claveIngresada === CLAVE_MAESTRA || claveIngresada === datos?.clave_comercio) return true;
-        mostrarToast("❌ Contraseña incorrecta", "error");
-        return false;
-    } catch(e) { console.error(e); return false; }
-};
-
 // --- 🎲 INTENTAR SORTEO (CON BYPASS) ---
 window.intentarSorteo = async (btn) => {
     const ts = parseInt(btn.dataset.timestamp);
@@ -451,48 +455,52 @@ window.intentarSorteo = async (btn) => {
     if (ahora < ts) {
         const clave = prompt(`⏰ Sorteo programado para ${new Date(ts).toLocaleString()}\nIngrese CLAVE DE COMERCIO o MAESTRA para adelantar:`);
         if (!clave) return;
-        if (!await validarAccionSegura(btn.dataset.id, clave, "BYPASS")) return;
+        if (!await validarAccionSegura(btn.dataset.id, clave)) {
+            mostrarToast("❌ Contraseña incorrecta", "error");
+            return;
+        }
         mostrarToast("🔓 Acceso autorizado - Sorteo adelantado", "warning");
     }
     ejecutarSorteo(btn.dataset.id, btn.dataset.nombre, btn.dataset.premio, parseInt(btn.dataset.cant), btn.dataset.mail, btn.dataset.logo, btn.dataset.desc, btn.dataset.claveComercio);
 };
 
 // --- 🗑️ ELIMINAR CON ZONA CRÍTICA ---
-window.intentarEliminarSorteo = async (idSorteo, timestamp) => {
+window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
+    const timestampSorteo = new Date(fechaSorteoISO).getTime();
     const ahora = Date.now();
-    const horasFaltantes = (timestamp - ahora) / 3600000;
-    let mensaje, requiereMaestra = false;
-    if (horasFaltantes < 24 && horasFaltantes > 0) {
-        mensaje = "⚠️ ZONA CRÍTICA: Faltan menos de 24hs.\nSolo CLAVE MAESTRA permite eliminar ahora:";
-        requiereMaestra = true;
-    } else if (horasFaltantes > 0) {
-        mensaje = "Ingrese CLAVE DE COMERCIO para cancelar el sorteo:";
+    const diferenciaHoras = (timestampSorteo - ahora) / (1000 * 60 * 60);
+    let mensajePrompt = "";
+    if (diferenciaHoras < 24 && diferenciaHoras > 0) {
+        mensajePrompt = "⚠️ ZONA CRÍTICA: Faltan menos de 24hs. Solo CLAVE MAESTRA:";
     } else {
-        mensaje = "¿Confirmar eliminación del sorteo finalizado?";
+        mensajePrompt = "Ingrese CLAVE DE COMERCIO para eliminar:";
     }
-    const clave = prompt(mensaje);
+    const clave = prompt(mensajePrompt);
     if (!clave) return;
-    if (requiereMaestra && clave !== CLAVE_MAESTRA) {
-        mostrarToast("❌ Se requiere CLAVE MAESTRA en zona crítica", "error");
-        return;
+    const autorizado = await window.validarAccionSegura(idComercio, clave);
+    if (autorizado) {
+        if (diferenciaHoras < 24 && diferenciaHoras > 0 && clave !== CLAVE_MAESTRA) {
+            mostrarToast("❌ Solo Admin General puede cancelar sorteos inminentes", "error");
+            return;
+        }
+        try {
+            await updateDoc(doc(db, "comercios", idComercio), {
+                titulo_sorteo: null, descripcion_sorteo: null, fecha_sorteo: null, cantidad_premios: null, logoUrl: null
+            });
+            mostrarToast("🗑️ Sorteo cancelado exitosamente", "success");
+            cargarActivos();
+        } catch(e) { console.error(e); mostrarToast("❌ Error al eliminar", "error"); }
+    } else {
+        mostrarToast("❌ Contraseña incorrecta", "error");
     }
-    if (!await validarAccionSegura(idSorteo, clave, "DELETE")) return;
-    try {
-        await updateDoc(doc(db, "comercios", idSorteo), {
-            titulo_sorteo: null, descripcion_sorteo: null, fecha_sorteo: null, cantidad_premios: null, logoUrl: null
-        });
-        mostrarToast("🗑️ Sorteo cancelado exitosamente", "success");
-        cargarActivos();
-    } catch(e) { console.error(e); mostrarToast("❌ Error al eliminar", "error"); }
 };
 
-// --- 📋 CARGAR SORTEOS ACTIVOS (CON TIMESTAMP Y CLAVE) ---
+// --- 📋 CARGAR SORTEOS ACTIVOS ---
 const cargarActivos = async () => {
     window.vistaActual = 'activos';
     window.itemsSeleccionados.clear();
     actualizarBulkActions();
     document.getElementById('header-checkbox').style.display = 'none';
-    
     onSnapshot(collection(db, "comercios"), async (snap) => {
         const tabla = document.getElementById('tabla-sorteos');
         tabla.innerHTML = "";
@@ -505,9 +513,7 @@ const cargarActivos = async () => {
                 const cant = parseInt(c.cantidad_premios) || 1;
                 const fechaSorteo = c.fecha_sorteo ? new Date(c.fecha_sorteo) : null;
                 const timestamp = fechaSorteo ? fechaSorteo.getTime() : Date.now();
-                const claveComercio = c.clave_comercio || "";
-                
-                // Contar participantes
+                const fechaISO = c.fecha_sorteo || "";
                 let cLead = 0, cVip = 0;
                 const qP = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
                 const snapP = await getDocs(qP);
@@ -524,10 +530,7 @@ const cargarActivos = async () => {
                 resultados.forEach(t => t === "VIP" ? cVip++ : cLead++);
                 const totalP = cLead + cVip;
                 const f = formatearFechaHora(c.fecha_sorteo) || {fecha: 'A definir', hora: ''};
-                
-                // Badge de estado
                 const estadoBadge = timestamp > Date.now() ? `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>` : `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
-                
                 tabla.innerHTML += `
                 <tr>
                 <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${estadoBadge}</div></td>
@@ -535,8 +538,8 @@ const cargarActivos = async () => {
                 <td><span class="badge badge-comercio">${nomCom}</span><br><span class="badge badge-premio">🎁 ${premio}</span>${descPremio?`<div class="premio-desc">${descPremio}</div>`:''}</td>
                 <td><div class="participantes-cell"><div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cLead}</span></div><div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cVip}</span></div><div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${totalP}</span></div></div></td>
                 <td>
-                    <button class="btn btn-sortear-accion" data-id="${docCom.id}" data-nombre="${nomCom}" data-premio="${premio}" data-cant="${cant}" data-mail="${c.email||''}" data-logo="${c.logoUrl||''}" data-desc="${descPremio}" data-timestamp="${timestamp}" data-clave-comercio="${claveComercio}" onclick="intentarSorteo(this)">Calculando...</button>
-                    <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docCom.id}', ${timestamp})">🗑️ Cancelar</button>
+                    <button class="btn btn-sortear-accion" data-id="${docCom.id}" data-nombre="${nomCom}" data-premio="${premio}" data-cant="${cant}" data-mail="${c.email||''}" data-logo="${c.logoUrl||''}" data-desc="${descPremio}" data-timestamp="${timestamp}" data-clave-comercio="${c.password||''}" onclick="intentarSorteo(this)">Calculando...</button>
+                    <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docCom.id}', '${fechaISO}')">🗑️ Cancelar</button>
                 </td>
                 <td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant>1?'s':''}</span></td>
                 </tr>`;
@@ -579,8 +582,7 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
         await addDoc(collection(db, "historial_sorteos"), {
             comercio: nomCom, premio: premio, descripcion_sorteo: desc||"", logoUrl: logoUrl||"",
             ganadores: ganadores, fecha: serverTimestamp(), mailComercio: mailC||'habitatcar@gmail.com',
-            claveComercio: claveComercio, // ✅ Mapeo de datos para validación local
-            timestampProgramado: Date.now()
+            claveComercio: claveComercio, timestampProgramado: Date.now()
         });
         mostrarToast(`✅ Sorteo exitoso`, "success");
         window.mostrarConfirmacionSorteo(participantes.length, ganadores, nomCom);
@@ -635,7 +637,7 @@ document.getElementById('btn-activos').onclick = cargarActivos;
 document.getElementById('btn-historial').onclick = window.mostrarHistorial;
 document.addEventListener('DOMContentLoaded', () => { 
     cargarActivos(); 
-    window.iniciarRelojes(); // ✅ Iniciar contadores en vivo
+    window.iniciarRelojes();
 });
 
 // Exportar funciones globales
