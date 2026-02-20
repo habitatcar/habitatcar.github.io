@@ -39,11 +39,8 @@
         .btn-success:hover { background: #218838; }
         .btn-warning { background: #ffc107; color: #333; }
         .btn-warning:hover { background: #e0a800; }
-        
-        /* BOTONES NUEVOS */
         .btn-info { background: #17a2b8; color: white; }
         .btn-dark { background: #343a40; color: white; }
-
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: opacity 0.3s ease; }
         th { background: #667eea; color: white; padding: 14px 12px; text-align: left; }
@@ -72,18 +69,14 @@
         .fecha-principal { font-weight: bold; color: #333; }
         .hora-secundaria { color: #666; font-size: 0.8rem; }
         .logo-mini { height: 80px; width: auto; max-width: 120px; object-fit: contain; display: block; margin: 0 auto; }
-        
-        /* MODALES */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; }
         .modal-content { background: white; padding: 25px; border-radius: 16px; max-width: 450px; width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        
-        /* ESTILOS EDITORES */
         .form-group { text-align: left; margin-bottom: 15px; }
         .form-group label { display: block; font-weight: bold; margin-bottom: 5px; }
         .form-group textarea { width: 100%; height: 150px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit; }
         .form-group input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
-
         .ganador-item { background: #f8f9fa; border-left: 4px solid var(--oro); padding: 12px; margin: 10px 0; border-radius: 8px; text-align: left; }
+        .email-display { font-size: 0.8em; color: #666; margin-top: 3px; word-break: break-all; }
         @media (max-width: 768px) {
             .faja-nav { gap: 3px; }
             .faja-nav a { font-size: 9px; padding: 4px 6px; }
@@ -119,38 +112,46 @@
         </table>
     </div>
 
+    <!-- ✅ MODAL EDITAR EMAIL -->
     <div id="modal-email" class="modal">
         <div class="modal-content">
-            <h3>✉️ Editar Plantilla de Email</h3>
+            <h3 style="color:var(--azul-habitat); margin-bottom:15px;">✉️ Editar Plantilla de Email</h3>
+            <p style="font-size:0.9em; color:#666; margin-bottom:15px;">
+                <b>Instrucciones:</b><br>
+                • Texto en <span style="color:#666">minúsculas</span> = lo que vos editás<br>
+                • Texto en <span style="color:#dc3545; font-weight:bold">***MAYÚSCULAS***</span> = datos del sistema (NO CAMBIAR)
+            </p>
             <div class="form-group">
                 <label>Asunto:</label>
-                <input type="text" id="inp-asunto" placeholder="Ej: ¡Felicidades {nombre}!">
+                <input type="text" id="inp-asunto" placeholder="Ej: Felicidades ***NOMBRE***">
             </div>
             <div class="form-group">
                 <label>Mensaje (HTML permitido):</label>
-                <textarea id="inp-cuerpo" placeholder="Hola {nombre}, ganaste {premio}..."></textarea>
+                <textarea id="inp-cuerpo" placeholder="Resultaste ganador de un ***KIT DE LIMPIEZA*** del comercio ***VIRULANA***..."></textarea>
             </div>
-            <button class="btn btn-primary" onclick="guardarConfig('email')">GUARDAR EMAIL</button>
-            <button class="btn btn-warning" onclick="cerrarEditores()">CANCELAR</button>
+            <button class="btn btn-primary" onclick="guardarConfig('email')">💾 GUARDAR EMAIL</button>
+            <button class="btn btn-warning" onclick="cerrarEditores()">❌ CANCELAR</button>
         </div>
     </div>
 
+    <!-- ✅ MODAL DISEÑAR PDF -->
     <div id="modal-pdf" class="modal">
         <div class="modal-content">
-            <h3>📄 Diseñar Fondo del PDF</h3>
+            <h3 style="color:var(--azul-habitat); margin-bottom:15px;">📄 Diseñar Certificado PDF</h3>
             <div class="form-group">
                 <label>URL Imagen de Fondo (210x148mm):</label>
-                <input type="text" id="inp-pdf-bg" placeholder="https://url-de-tu-imagen.jpg">
+                <input type="text" id="inp-pdf-bg" placeholder="https://tu-servidor.com/fondo.jpg">
             </div>
             <div class="form-group">
-                <label>Color de Texto (Hex):</label>
+                <label>Color de Texto Principal (Hex):</label>
                 <input type="color" id="inp-pdf-color" value="#e60000">
             </div>
-            <button class="btn btn-primary" onclick="guardarConfig('pdf')">GUARDAR DISEÑO</button>
-            <button class="btn btn-warning" onclick="cerrarEditores()">CANCELAR</button>
+            <button class="btn btn-primary" onclick="guardarConfig('pdf')">💾 GUARDAR DISEÑO</button>
+            <button class="btn btn-warning" onclick="cerrarEditores()">❌ CANCELAR</button>
         </div>
     </div>
 
+    <!-- ✅ MODAL CONFIRMACIÓN SORTEO -->
     <div id="popup-confirmacion" class="modal">
         <div class="modal-content">
             <h3 style="color: var(--azul-habitat); margin-bottom: 15px;">🎉 ¡SORTEO REALIZADO!</h3>
@@ -171,21 +172,25 @@
         const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
         const LOGO_DEFAULT = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
 
-        // --- LÓGICA DE CONFIGURACIÓN PERSISTENTE ---
+        // --- 📧 CONFIGURACIÓN EMAIL PERSISTENTE ---
         window.abrirEditorEmail = () => {
-            document.getElementById('inp-asunto').value = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {nombre}!";
-            document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Hola {nombre}, ganaste un/a {premio} en {comercio}.";
+            document.getElementById('inp-asunto').value = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades ***NOMBRE***!";
+            document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Resultaste ganador de un ***PREMIO*** del comercio ***COMERCIO***. Tenes 30 días para pasar a retirar el premio por ***UBICACIÓN***. El equipo de Habitat-Car espera que hayas tenido una grata experiencia.";
             document.getElementById('modal-email').style.display = 'flex';
         };
+        
+        // --- 🎨 CONFIGURACIÓN PDF PERSISTENTE ---
         window.abrirEditorPDF = () => {
             document.getElementById('inp-pdf-bg').value = localStorage.getItem('hc_pdf_bg') || "";
             document.getElementById('inp-pdf-color').value = localStorage.getItem('hc_pdf_color') || "#e60000";
             document.getElementById('modal-pdf').style.display = 'flex';
         };
+        
         window.cerrarEditores = () => {
             document.getElementById('modal-email').style.display = 'none';
             document.getElementById('modal-pdf').style.display = 'none';
         };
+        
         window.guardarConfig = (tipo) => {
             if(tipo === 'email') {
                 localStorage.setItem('hc_asunto', document.getElementById('inp-asunto').value);
@@ -194,27 +199,44 @@
                 localStorage.setItem('hc_pdf_bg', document.getElementById('inp-pdf-bg').value);
                 localStorage.setItem('hc_pdf_color', document.getElementById('inp-pdf-color').value);
             }
-            mostrarToast("✅ Guardado correctamente");
+            mostrarToast("✅ Configuración guardada", "success");
             cerrarEditores();
         };
 
         window.normalizarTelefonoAR = (numero) => { if (!numero) return null; let num = numero.toString().replace(/\D/g, ''); if (num.length === 10) return '549' + num; if (num.startsWith('54') && !num.startsWith('549')) return '549' + num.substring(2); return num.startsWith('549') ? num : '549' + num; };
-        window.abrirWA = (cel, nom, pre) => { if (!cel) return mostrarToast("⚠️ El participante no tiene celular.", "error"); const num = window.normalizarTelefonoAR(cel); const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`); window.open(`https://wa.me/${num}?text=${msg}`, '_blank'); };
+        
+        window.abrirWA = (cel, nom, pre) => { 
+            if (!cel) return mostrarToast("⚠️ El participante no tiene celular.", "error"); 
+            const num = window.normalizarTelefonoAR(cel); 
+            const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`); 
+            window.open(`https://wa.me/${num}?text=${msg}`, '_blank'); 
+        };
         
         window.enviarMail = async (btn, mailG, nombre, premio, comercio, mailC) => { 
             if (!mailG) return mostrarToast("⚠️ El participante no tiene email.", "error"); 
             const original = btn.innerHTML; 
             btn.disabled = true; btn.innerHTML = "⏳"; 
 
-            // Recuperar diseño PDF
+            // Recuperar configuración personalizada
             const pdfBg = localStorage.getItem('hc_pdf_bg');
             const pdfColor = localStorage.getItem('hc_pdf_color') || "#e60000";
+            let mailAsunto = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades ***NOMBRE***!";
+            let mailCuerpo = localStorage.getItem('hc_cuerpo') || "Resultaste ganador de un ***PREMIO*** del comercio ***COMERCIO***.";
+
+            // Reemplazar marcadores ***MAYÚSCULAS*** por datos reales
+            mailAsunto = mailAsunto.replace(/\*\*\*NOMBRE\*\*\*/g, nombre)
+                                  .replace(/\*\*\*PREMIO\*\*\*/g, premio)
+                                  .replace(/\*\*\*COMERCIO\*\*\*/g, comercio);
+            mailCuerpo = mailCuerpo.replace(/\*\*\*NOMBRE\*\*\*/g, nombre)
+                                  .replace(/\*\*\*PREMIO\*\*\*/g, premio)
+                                  .replace(/\*\*\*COMERCIO\*\*\*/g, comercio)
+                                  .replace(/\*\*\*UBICACIÓN\*\*\*/g, "Consultar con el comercio");
 
             const { jsPDF } = window.jspdf; 
             const doc = new jsPDF('l', 'mm', 'a5'); 
             
             if(pdfBg) {
-                try { doc.addImage(pdfBg, 'JPEG', 0, 0, 210, 148); } catch(e) { console.error("Error cargando fondo"); }
+                try { doc.addImage(pdfBg, 'JPEG', 0, 0, 210, 148); } catch(e) { console.error("Error cargando fondo PDF"); }
             } else {
                 doc.setFillColor(255, 255, 255); doc.rect(0, 0, 210, 148, 'F'); 
                 doc.setDrawColor(230, 57, 70); doc.setLineWidth(2); doc.rect(5, 5, 200, 138); 
@@ -228,13 +250,6 @@
 
             const pdfBase64 = doc.output('datauristring').split(',')[1]; 
 
-            // Procesar etiquetas del Email
-            let mailAsunto = localStorage.getItem('hc_asunto') || `🏆 ¡Felicidades {nombre}!`;
-            let mailCuerpo = localStorage.getItem('hc_cuerpo') || `Hola {nombre}, ganaste {premio} en {comercio}.`;
-
-            mailAsunto = mailAsunto.replace(/{nombre}/g, nombre).replace(/{premio}/g, premio).replace(/{comercio}/g, comercio);
-            mailCuerpo = mailCuerpo.replace(/{nombre}/g, nombre).replace(/{premio}/g, premio).replace(/{comercio}/g, comercio);
-
             try { 
                 await fetch(URL_SCRIPT, { 
                     method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, 
@@ -242,6 +257,7 @@
                 }); 
                 mostrarToast("✅ Mail enviado con éxito", "success"); 
             } catch (e) { 
+                console.error(e);
                 mostrarToast("❌ Error en envío", "error"); 
             } finally { 
                 btn.disabled = false; btn.innerHTML = original; 
@@ -379,6 +395,7 @@
             } catch (e) { console.error(e); mostrarToast("❌ Error en el sorteo", "error"); }
         };
 
+        // ✅ HISTORIAL: Email visible en columna ACCIONES
         window.mostrarHistorial = () => {
             const tabla = document.getElementById('tabla-sorteos');
             onSnapshot(collection(db, "historial_sorteos"), (snap) => {
@@ -405,9 +422,12 @@
                             </td>
                             <td><div style="font-weight:bold">${nombreG}</div><div style="margin-top:4px">${badgeTipo}</div></td>
                             <td>
-                                <div style="font-size:0.85em; color:var(--verde); margin-bottom:5px;"><i class="fab fa-whatsapp"></i> ${celG}</div>
-                                <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')"><i class="fab fa-whatsapp"></i></button>
-                                <button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}')"><i class="fas fa-envelope"></i></button>
+                                <div style="font-size:0.85em; color:var(--verde); margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>
+                                ${emailG ? `<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
+                                <div style="margin-top:8px; display:flex; gap:5px;">
+                                    <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')"><i class="fab fa-whatsapp"></i></button>
+                                    <button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}')"><i class="fas fa-envelope"></i></button>
+                                </div>
                             </td>
                             <td><button class="btn-accion" style="background:#666" onclick="navigator.clipboard.writeText('${textoParaCopiar}'); mostrarToast('📋 Datos copiados','warning')"><i class="fas fa-copy"></i></button></td>
                         </tr>`;
@@ -423,266 +443,4 @@
         window.abrirWA = abrirWA; window.enviarMail = enviarMail; window.mostrarHistorial = mostrarHistorial; window.mostrarToast = mostrarToast; window.mostrarConfirmacionSorteo = mostrarConfirmacionSorteo; window.cerrarModalSorteo = cerrarModalSorteo; window.irAlHistorial = irAlHistorial;
     </script>
 </body>
-</html><!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel de Sorteos Elite | Hábitat-Car</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --azul-habitat: #003d80;
-            --rojo-cupon: #e60000;
-            --naranja: #ff8c00;
-            --celeste: #0288d1;
-            --verde: #2e7d32;
-            --blanco: #ffffff;
-            --gris-texto: #666666;
-            --oro: #d4af37;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8f9fa; color: #333; line-height: 1.6; padding-top: 140px; }
-        .faja-superior { position: fixed; top: 0; left: 0; width: 100%; background: var(--azul-habitat); border-bottom: 4px solid var(--rojo-cupon); z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
-        .faja-contenido { max-width: 1200px; margin: 0 auto; padding: 10px 20px; display: flex; flex-direction: column; gap: 10px; }
-        .faja-logo { text-align: center; padding: 5px 0; }
-        .faja-logo img { height: 50px; width: auto; max-width: 200px; }
-        .faja-nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 5px; padding: 5px 0; }
-        .faja-nav a { padding: 6px 10px; border-radius: 4px; text-decoration: none; color: white; font-weight: 600; font-size: 11px; background: rgba(255,255,255,0.15); transition: all 0.2s; text-transform: uppercase; }
-        .faja-nav a:hover, .faja-nav a.active { background: var(--rojo-cupon); transform: translateY(-1px); }
-        .faja-nav a.active { box-shadow: 0 2px 5px rgba(0,0,0,0.3); }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
-        header h1 { font-size: 1.8rem; margin-bottom: 8px; }
-        header p { opacity: 0.9; font-size: 0.95rem; }
-        .controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
-        .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
-        .btn-primary { background: #667eea; color: white; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-warning { background: #ffc107; color: #333; }
-        .btn-info { background: #17a2b8; color: white; }
-        .btn-dark { background: #343a40; color: white; }
-        .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-        table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); }
-        th { background: #667eea; color: white; padding: 14px 12px; text-align: left; }
-        td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
-        .btn-accion { padding: 6px 12px; margin: 2px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.9rem; color: white; display: inline-flex; align-items: center; gap: 4px; }
-        .btn-wa { background: #25D366; }
-        .btn-mail { background: #ea4335; }
-        .badge { display: inline-block; padding: 4px 10px; border-radius: 20px; font-size: 0.8rem; font-weight: 600; }
-        .badge-premio { background: #fff3cd; color: #856404; }
-        .badge-comercio { background: #d1ecf1; color: #0c5460; }
-        .badge-vip { background: #fff8e1; color: #f57f17; }
-        .badge-lead { background: #e3f2fd; color: #1976d2; }
-        .toast { position: fixed; top: 20px; right: 20px; padding: 14px 20px; border-radius: 10px; color: white; z-index: 9999; animation: slideIn 0.3s ease; }
-        .success { background: #28a745; } .error { background: #dc3545; } .warning { background: #ffc107; color: #333; }
-        @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; }
-        .modal-content { background: white; padding: 25px; border-radius: 16px; max-width: 450px; width: 90%; text-align: center; }
-        .form-group { text-align: left; margin-bottom: 15px; }
-        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; }
-        .form-group textarea { width: 100%; height: 100px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; resize: none; }
-        .form-group input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
-        .logo-mini { height: 80px; width: auto; max-width: 120px; object-fit: contain; display: block; margin: 0 auto; }
-    </style>
-</head>
-<body>
-    <div class="faja-superior">
-        <div class="faja-contenido">
-            <div class="faja-logo"><a href="index.html"><img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" alt="Hábitat-Car"></a></div>
-            <nav class="faja-nav">
-                <a href="admin_comercios.html">COMERCIOS</a><a href="admin_leads.html">LEADS</a><a href="admin_vips.html">VIPS</a>
-                <a href="admin_tokens_vip.html">TOKENS VIP</a><a href="admin_curioso.html">CURIOSO</a><a href="admin_estadisticas.html">ESTADÍSTICAS</a>
-                <a href="admin_logs.html">LOG</a><a href="admin_tutoriales.html">TUTORIALES</a><a href="index.html">PANEL</a>
-                <a href="admin_legales.html">LEGALES</a><a href="admin_sorteos.html" class="active">SORTEOS</a>
-            </nav>
-        </div>
-    </div>
-
-    <div class="container">
-        <header><h1>🏆 SORTEOS PREMIUM</h1><p>Panel de Sorteos Elite | Hábitat-Car</p></header>
-        <div class="controls">
-            <button class="btn btn-success" id="btn-activos">SORTEOS ACTIVOS</button>
-            <button class="btn btn-warning" id="btn-historial">HISTORIAL DE ÉXITOS</button>
-            <button class="btn btn-info" onclick="abrirEditorEmail()">EDITAR MAIL</button>
-            <button class="btn btn-dark" onclick="abrirEditorPDF()">DISEÑO PDF</button>
-        </div>
-        <table>
-            <thead><tr><th>FECHA</th><th>LOGO</th><th>COMERCIO / PREMIO</th><th>PARTICIPANTES</th><th>ACCIONES</th><th>PREMIOS</th></tr></thead>
-            <tbody id="tabla-sorteos"></tbody>
-        </table>
-    </div>
-
-    <div id="modal-email" class="modal">
-        <div class="modal-content">
-            <h3>✉️ Plantilla de Email</h3>
-            <div class="form-group"><label>Asunto:</label><input type="text" id="inp-asunto"></div>
-            <div class="form-group"><label>Mensaje:</label><textarea id="inp-cuerpo"></textarea></div>
-            <button class="btn btn-primary" onclick="guardarConfig('email')">GUARDAR</button>
-            <button class="btn btn-warning" onclick="cerrarEditores()">CERRAR</button>
-        </div>
-    </div>
-
-    <div id="modal-pdf" class="modal">
-        <div class="modal-content">
-            <h3>📄 Diseño del PDF</h3>
-            <div class="form-group"><label>URL Fondo (Opcional):</label><input type="text" id="inp-pdf-bg"></div>
-            <div class="form-group"><label>Color de Título:</label><input type="color" id="inp-pdf-color" style="height:40px"></div>
-            <button class="btn btn-primary" onclick="guardarConfig('pdf')">GUARDAR</button>
-            <button class="btn btn-warning" onclick="cerrarEditores()">CERRAR</button>
-        </div>
-    </div>
-
-    <div id="popup-confirmacion" class="modal"><div class="modal-content"><h3 style="color:var(--azul-habitat)">🎉 ¡SORTEO REALIZADO!</h3><div id="lista-ganadores-popup"></div><button class="btn btn-primary" onclick="irAlHistorial()">VER HISTORIAL</button></div></div>
-
-    <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, doc, getDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
-
-        const firebaseConfig = { apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM", authDomain: "habitatcar-pro.firebaseapp.com", projectId: "habitatcar-pro", storageBucket: "habitatcar-pro.firebasestorage.app", messagingSenderId: "311691258694", appId: "1:311691258694:web:17a09051dcea7707af9347" };
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
-        const LOGO_DEFAULT = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
-
-        // --- EDITORES ---
-        window.abrirEditorEmail = () => {
-            document.getElementById('inp-asunto').value = localStorage.getItem('hc_asunto') || "¡Felicidades {nombre}!";
-            document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Ganaste {premio} en {comercio}.";
-            document.getElementById('modal-email').style.display = 'flex';
-        };
-        window.abrirEditorPDF = () => {
-            document.getElementById('inp-pdf-bg').value = localStorage.getItem('hc_pdf_bg') || "";
-            document.getElementById('inp-pdf-color').value = localStorage.getItem('hc_pdf_color') || "#e60000";
-            document.getElementById('modal-pdf').style.display = 'flex';
-        };
-        window.cerrarEditores = () => { document.querySelectorAll('.modal').forEach(m => m.style.display = 'none'); };
-        window.guardarConfig = (t) => {
-            if(t==='email'){ localStorage.setItem('hc_asunto', document.getElementById('inp-asunto').value); localStorage.setItem('hc_cuerpo', document.getElementById('inp-cuerpo').value); }
-            else { localStorage.setItem('hc_pdf_bg', document.getElementById('inp-pdf-bg').value); localStorage.setItem('hc_pdf_color', document.getElementById('inp-pdf-color').value); }
-            mostrarToast("Guardado"); cerrarEditores();
-        };
-
-        // --- FUNCIONES CORE ---
-        window.normalizarTelefonoAR = (n) => { if(!n) return null; let num = n.toString().replace(/\D/g,''); return num.length===10 ? '549'+num : num; };
-        
-        window.enviarMail = async (btn, mailG, nombre, premio, comercio, mailC) => {
-            if (!mailG) return mostrarToast("Sin email", "error");
-            const original = btn.innerHTML; btn.disabled = true; btn.innerHTML = "⏳";
-
-            // 1. Reemplazar llaves en el momento
-            let asunto = (localStorage.getItem('hc_asunto') || "¡Felicidades {nombre}!").replace(/{nombre}/g, nombre).replace(/{premio}/g, premio).replace(/{comercio}/g, comercio);
-            let cuerpo = (localStorage.getItem('hc_cuerpo') || "Ganaste {premio} en {comercio}.").replace(/{nombre}/g, nombre).replace(/{premio}/g, premio).replace(/{comercio}/g, comercio);
-
-            // 2. Generar PDF
-            const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF('l', 'mm', 'a5');
-            const pBg = localStorage.getItem('hc_pdf_bg');
-            const pCol = localStorage.getItem('hc_pdf_color') || "#e60000";
-            
-            if(pBg) { try{ pdf.addImage(pBg, 'JPEG', 0, 0, 210, 148); }catch(e){} }
-            else { pdf.setDrawColor(200,0,0); pdf.rect(5,5,200,138); }
-            
-            pdf.setTextColor(pCol); pdf.setFontSize(28); pdf.text("¡GANADOR!", 105, 40, {align:"center"});
-            pdf.setTextColor(40); pdf.setFontSize(22); pdf.text(nombre.toUpperCase(), 105, 75, {align:"center"});
-            pdf.setFontSize(14); pdf.text(`Premio: ${premio}`, 105, 100, {align:"center"});
-            const pdfB64 = pdf.output('datauristring').split(',')[1];
-
-            // 3. Envío al Script (Corregido el formato de datos)
-            try {
-                await fetch(URL_SCRIPT, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    body: JSON.stringify({
-                        email: mailG.trim(),
-                        asunto: asunto,
-                        cuerpoHtml: cuerpo,
-                        pdfB64: pdfB64,
-                        nombreGanador: nombre,
-                        premio: premio,
-                        comercio: comercio,
-                        cc: `habitatcar@gmail.com, ${mailC}`
-                    })
-                });
-                mostrarToast("✅ Mail en proceso...");
-            } catch (e) { mostrarToast("❌ Error", "error"); }
-            finally { btn.disabled = false; btn.innerHTML = original; }
-        };
-
-        // --- CARGA DE DATOS ---
-        const cargarActivos = () => {
-            onSnapshot(collection(db, "comercios"), async (snap) => {
-                const t = document.getElementById('tabla-sorteos'); t.innerHTML = "";
-                for (const docCom of snap.docs) {
-                    const c = docCom.data();
-                    if (c.titulo_sorteo) {
-                        const qP = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", c.nombre));
-                        const snapP = await getDocs(qP);
-                        t.innerHTML += `<tr>
-                            <td>${c.fecha_sorteo || 'Pendiente'}</td>
-                            <td><img src="${c.logoUrl || LOGO_DEFAULT}" class="logo-mini"></td>
-                            <td><span class="badge badge-comercio">${c.nombre}</span><br><span class="badge badge-premio">${c.titulo_sorteo}</span></td>
-                            <td>Total: ${snapP.size}</td>
-                            <td><button class="btn btn-primary btn-sortear-accion" data-id="${docCom.id}" data-nombre="${c.nombre}" data-premio="${c.titulo_sorteo}" data-cant="${c.cantidad_premios || 1}" data-mail="${c.email || ''}" data-logo="${c.logoUrl || ''}">SORTEAR</button></td>
-                            <td>${c.cantidad_premios || 1}</td>
-                        </tr>`;
-                    }
-                }
-            });
-        };
-
-        document.addEventListener('click', (e) => { if (e.target.classList.contains('btn-sortear-accion')) { const b = e.target.dataset; ejecutarSorteo(b.id, b.nombre, b.premio, parseInt(b.cant), b.mail, b.logo); } });
-
-        const ejecutarSorteo = async (id, nomCom, premio, cant, mailC, logo) => {
-            try {
-                const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
-                const snap = await getDocs(q);
-                let lista = snap.docs.map(d => ({...d.data()}));
-                if (lista.length === 0) return mostrarToast("Sin participantes", "error");
-                
-                let ganadores = [];
-                for(let i=0; i<Math.min(cant, lista.length); i++){
-                    let idx = Math.floor(Math.random()*lista.length);
-                    ganadores.push(lista.splice(idx,1)[0]);
-                }
-                
-                await addDoc(collection(db, "historial_sorteos"), { comercio: nomCom, premio, ganadores, fecha: serverTimestamp(), mailComercio: mailC, logoUrl: logo });
-                mostrarToast("Sorteo realizado");
-                window.mostrarHistorial();
-            } catch (e) { mostrarToast("Error", "error"); }
-        };
-
-        window.mostrarHistorial = () => {
-            onSnapshot(collection(db, "historial_sorteos"), (snap) => {
-                const t = document.getElementById('tabla-sorteos'); t.innerHTML = "";
-                snap.docs.forEach(doc => {
-                    const h = doc.data();
-                    h.ganadores?.forEach(g => {
-                        const nom = g.nombre || "Ganador";
-                        t.innerHTML += `<tr>
-                            <td>${h.fecha?.toDate().toLocaleDateString() || 'Hoy'}</td>
-                            <td><img src="${h.logoUrl || LOGO_DEFAULT}" class="logo-mini"></td>
-                            <td><span class="badge badge-comercio">${h.comercio}</span><br>${h.premio}</td>
-                            <td>${nom}</td>
-                            <td>
-                                <button class="btn-accion btn-wa" onclick="abrirWA('${g.celular}','${nom}','${h.premio}')">WA</button>
-                                <button class="btn-accion btn-mail" onclick="enviarMail(this,'${g.email}','${nom}','${h.premio}','${h.comercio}','${h.mailComercio}')">MAIL</button>
-                            </td>
-                            <td><button onclick="navigator.clipboard.writeText('${nom} - ${g.email}')">COPY</button></td>
-                        </tr>`;
-                    });
-                });
-            });
-        };
-
-        function mostrarToast(m, t="success") { const d = document.createElement('div'); d.className=`toast ${t}`; d.innerText=m; document.body.appendChild(d); setTimeout(()=>d.remove(),3000); }
-        window.abrirWA = (c,n,p) => { const msg = encodeURIComponent(`¡Hola ${n}! Ganaste ${p}.`); window.open(`https://wa.me/${window.normalizarTelefonoAR(c)}?text=${msg}`); };
-        
-        document.getElementById('btn-activos').onclick = cargarActivos;
-        document.getElementById('btn-historial').onclick = window.mostrarHistorial;
-        cargarActivos();
-    </script>
-</body>
 </html>
-
