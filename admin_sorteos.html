@@ -280,44 +280,43 @@ window.abrirWA = (cel, nom, pre) => {
     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
 };
 
-// --- 📧 ENVÍO DE MAIL CORREGIDO (BLINDADO + UX MEJORADA) ---
+// --- 📧 ENVÍO DE MAIL CON DEBUG Y VALIDACIÓN ROBUSTA ---
 window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, logoComercio) => {
-    if (!emailDestino) return mostrarToast("Sin email", "error");
-    
-    // Evitar múltiples clics mientras procesa (Lentitud)
+    // 🔍 ALERTA DE DIAGNÓSTICO
+    alert(`DEBUG DATOS:\nDestino: ${emailDestino}\nNombre: ${nombre}\nPremio: ${premio}\nComercio: ${comercio}`);
+
+    if (!emailDestino || emailDestino === "undefined") {
+        return mostrarToast("❌ Error: Email del ganador no definido", "error");
+    }
+
     const originalText = btn.innerHTML;
-    btn.disabled = true; 
-    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; 
+    btn.disabled = true;
+    btn.innerHTML = "⏳";
 
-    // 1. Obtener plantillas (Si no existen, usamos fallback para que no falle)
-    let asuntoP = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}, ganaste!";
-    let cuerpoP = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
-
-    // 2. FUNCIÓN DE INYECCIÓN "BLINDADA" (Corrige el punto 2 de tu queja)
     const inyectar = (texto) => {
         if (!texto) return "";
         return texto
-            .replace(/{{NOMBRE}}/gi, nombre)
-            .replace(/{{PREMIO}}/gi, premio)
-            .replace(/{{COMERCIO}}/gi, comercio);
+            .replace(/{{NOMBRE}}/gi, nombre || "Ganador")
+            .replace(/{{PREMIO}}/gi, premio || "Premio")
+            .replace(/{{COMERCIO}}/gi, comercio || "Comercio");
     };
+
+    const asuntoP = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}, ganaste!";
+    const cuerpoP = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
 
     const asuntoFinal = inyectar(asuntoP);
     const cuerpoFinal = inyectar(cuerpoP);
 
     try {
-        // Preparamos los datos para el Apps Script
         const payload = {
             email: emailDestino.trim(),
             asunto: asuntoFinal,
             cuerpoHtml: cuerpoFinal,
             nombreGanador: nombre,
-            // Copia de control: Tu mail + mail del comercio
             cc: `habitatcar@gmail.com${mailCC ? ', ' + mailCC : ''}`,
-            pdfB64: "" // Aquí se adjuntará el PDF si corresponde
+            pdfB64: ""
         };
 
-        // 3. ENVÍO AL SERVIDOR (Mejorado para velocidad)
         await fetch(URL_SCRIPT, {
             method: 'POST',
             mode: 'no-cors', 
@@ -331,7 +330,6 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, 
         console.error("Error crítico en envío:", e);
         mostrarToast("❌ Error al conectar con el servidor", "error");
     } finally {
-        // Restaurar botón (Punto 3: UX fluida)
         btn.disabled = false;
         btn.innerHTML = originalText;
     }
@@ -538,7 +536,7 @@ const cargarActivos = async () => {
                 
                 sorteosActivos.push({
                     docId: docCom.id,
-                    data: c,
+                     c,
                     nomCom, premio, descPremio, cant,
                     fechaSorteo, timestamp, fechaISO, claveComercio,
                     cLead, cVip, totalP, f
