@@ -212,56 +212,71 @@
             window.open(`https://wa.me/${num}?text=${msg}`, '_blank'); 
         };
         
-        window.enviarMail = async (btn, mailG, nombre, premio, comercio, mailC) => { 
-            if (!mailG) return mostrarToast("⚠️ El participante no tiene email.", "error"); 
-            const original = btn.innerHTML; 
-            btn.disabled = true; btn.innerHTML = "⏳"; 
+        // --- ✅ ENVÍO DE MAIL CORREGIDO ---
+        window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC) => {
+            if (!emailDestino) return mostrarToast("Sin email", "error");
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = "⏳";
 
-            // Recuperar configuración personalizada
-            const pdfBg = localStorage.getItem('hc_pdf_bg');
-            const pdfColor = localStorage.getItem('hc_pdf_color') || "#e60000";
-            let mailAsunto = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades ***NOMBRE***!";
-            let mailCuerpo = localStorage.getItem('hc_cuerpo') || "Resultaste ganador de un ***PREMIO*** del comercio ***COMERCIO***.";
+            // 1. Obtener plantillas y REEMPLAZAR marcadores
+            let asuntoFinal = (localStorage.getItem('hc_asunto') || "¡Felicidades ***NOMBRE***!")
+                .replace(/\*\*\*NOMBRE\*\*\*/g, nombre)
+                .replace(/\*\*\*PREMIO\*\*\*/g, premio)
+                .replace(/\*\*\*COMERCIO\*\*\*/g, comercio);
 
-            // Reemplazar marcadores ***MAYÚSCULAS*** por datos reales
-            mailAsunto = mailAsunto.replace(/\*\*\*NOMBRE\*\*\*/g, nombre)
-                                  .replace(/\*\*\*PREMIO\*\*\*/g, premio)
-                                  .replace(/\*\*\*COMERCIO\*\*\*/g, comercio);
-            mailCuerpo = mailCuerpo.replace(/\*\*\*NOMBRE\*\*\*/g, nombre)
-                                  .replace(/\*\*\*PREMIO\*\*\*/g, premio)
-                                  .replace(/\*\*\*COMERCIO\*\*\*/g, comercio)
-                                  .replace(/\*\*\*UBICACIÓN\*\*\*/g, "Consultar con el comercio");
+            let cuerpoFinal = (localStorage.getItem('hc_cuerpo') || "Ganaste ***PREMIO*** en ***COMERCIO***.")
+                .replace(/\*\*\*NOMBRE\*\*\*/g, nombre)
+                .replace(/\*\*\*PREMIO\*\*\*/g, premio)
+                .replace(/\*\*\*COMERCIO\*\*\*/g, comercio);
 
-            const { jsPDF } = window.jspdf; 
-            const doc = new jsPDF('l', 'mm', 'a5'); 
+            // 2. Generar PDF
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('l', 'mm', 'a5');
+            const pBg = localStorage.getItem('hc_pdf_bg');
+            const pCol = localStorage.getItem('hc_pdf_color') || "#e60000";
             
-            if(pdfBg) {
-                try { doc.addImage(pdfBg, 'JPEG', 0, 0, 210, 148); } catch(e) { console.error("Error cargando fondo PDF"); }
-            } else {
-                doc.setFillColor(255, 255, 255); doc.rect(0, 0, 210, 148, 'F'); 
-                doc.setDrawColor(230, 57, 70); doc.setLineWidth(2); doc.rect(5, 5, 200, 138); 
+            if(pBg) { 
+                try { pdf.addImage(pBg, 'JPEG', 0, 0, 210, 148); } catch(e) { console.error("Error fondo PDF", e); } 
+            } else { 
+                pdf.setDrawColor(200,0,0); pdf.rect(5,5,200,138); 
             }
+            
+            pdf.setTextColor(pCol); pdf.setFontSize(28); pdf.text("¡GANADOR!", 105, 40, {align:"center"});
+            pdf.setTextColor(40); pdf.setFontSize(22); pdf.text(nombre.toUpperCase(), 105, 75, {align:"center"});
+            pdf.setFontSize(14); pdf.text(`Premio: ${premio}`, 105, 100, {align:"center"});
+            
+            // Extraer solo el Base64 puro
+            const pdfB64 = pdf.output('datauristring').split(',')[1];
 
-            doc.setTextColor(pdfColor); doc.setFontSize(30); doc.text("¡FELICITACIONES!", 105, 35, { align: "center" }); 
-            doc.setTextColor(60, 60, 60); doc.setFontSize(16); doc.text("Certificado otorgado a:", 105, 55, { align: "center" }); 
-            doc.setTextColor(pdfColor); doc.setFontSize(26); doc.text(nombre.toUpperCase(), 105, 75, { align: "center" }); 
-            doc.setTextColor(40, 40, 40); doc.setFontSize(16); doc.text(`Ganador de: ${premio}`, 105, 100, { align: "center" }); 
-            doc.setFontSize(10); doc.text(`${comercio} & Hábitat-Car`, 105, 130, { align: "center" }); 
+            // 3. Petición al Servidor (Optimizado para evitar bloqueos)
+            try {
+                const payload = {
+                    email: emailDestino.trim(),
+                    asunto: asuntoFinal,
+                    cuerpoHtml: cuerpoFinal,
+                    nombreGanador: nombre,
+                    cc: `habitatcar@gmail.com, ${mailCC}`,
+                    pdfB64: pdfB64
+                };
 
-            const pdfBase64 = doc.output('datauristring').split(',')[1]; 
+                // Enviamos como POST simple para evitar problemas de pre-flight CORS
+                await fetch(URL_SCRIPT, {
+                    method: 'POST',
+                    mode: 'no-cors', 
+                    cache: 'no-cache',
+                    headers: { 'Content-Type': 'text/plain' }, // Evita el pre-flight request
+                    body: JSON.stringify(payload)
+                });
 
-            try { 
-                await fetch(URL_SCRIPT, { 
-                    method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, 
-                    body: JSON.stringify({ email: mailG.trim(), nombreGanador: nombre, pdfB64: pdfBase64, asunto: mailAsunto, cuerpoHtml: mailCuerpo, cc: `habitatcar@gmail.com, ${mailC}` }) 
-                }); 
-                mostrarToast("✅ Mail enviado con éxito", "success"); 
-            } catch (e) { 
+                mostrarToast("✅ Solicitud enviada");
+            } catch (e) {
                 console.error(e);
-                mostrarToast("❌ Error en envío", "error"); 
-            } finally { 
-                btn.disabled = false; btn.innerHTML = original; 
-            } 
+                mostrarToast("❌ Error de red", "error");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
         };
 
         function formatearFechaHora(fechaISO) { if (!fechaISO) return null; try { const [fechaParte, horaParte] = fechaISO.split('T'); if (!fechaParte || !horaParte) return null; const [anio, mes, dia] = fechaParte.split('-'); const [hora, minutos] = horaParte.split(':'); return { fecha: `${dia}/${mes}/${anio}`, hora: `${hora}:${minutos} Hs.` }; } catch (e) { return null; } }
