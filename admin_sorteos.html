@@ -1,10 +1,3 @@
-<!-- ========================================
-     ARCHIVO: admin_sorteos.html
-     PANEL DE SORTEOS ELITE | HÁBITAT-CAR
-     Funciones: Sorteos, WhatsApp, Email con PDF, Firebase
-     Última actualización: 2026
-     ======================================== -->
-
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -65,7 +58,6 @@
         @keyframes slideIn { from { transform: translateX(120%); } to { transform: translateX(0); } }
         .participantes-cell { display: flex; flex-direction: column; gap: 4px; font-size: 0.85rem; }
         .participantes-row { display: flex; justify-content: space-between; align-items: center; }
-        .participantes-label { font-weight: 600; color: #666; min-width: 40px; }
         .participantes-value { font-weight: bold; padding: 2px 8px; border-radius: 4px; min-width: 30px; text-align: center; }
         .valor-lead { background: #e3f2fd; color: #1976d2; }
         .valor-vip { background: #fff8e1; color: #f57f17; }
@@ -76,19 +68,13 @@
         .hora-secundaria { color: #666; font-size: 0.8rem; }
         .logo-mini { height: 80px; width: auto; max-width: 120px; object-fit: contain; display: block; margin: 0 auto; }
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; }
-        .modal.active { display: flex; }
         .modal-content { background: white; padding: 25px; border-radius: 16px; max-width: 450px; width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        .ganador-item { background: #f8f9fa; border-left: 4px solid var(--oro); padding: 10px; margin: 8px 0; border-radius: 8px; text-align: left; }
+        .ganador-item { background: #f8f9fa; border-left: 4px solid var(--oro); padding: 12px; margin: 10px 0; border-radius: 8px; text-align: left; }
         @media (max-width: 768px) {
             .faja-nav { gap: 3px; }
             .faja-nav a { font-size: 9px; padding: 4px 6px; }
-            .faja-logo img { height: 40px; }
             body { padding-top: 120px; }
-            .participantes-row { font-size: 0.8rem; }
-            .premio-desc { max-width: 150px; font-size: 0.8rem; }
-            .fecha-cell { min-width: 80px; }
-            .logo-mini { height: 70px; max-width: 100px; }
-            .btn-accion { font-size: 0.8rem; padding: 4px 8px; }
+            .logo-mini { height: 70px; }
         }
     </style>
 </head>
@@ -173,7 +159,6 @@
             onSnapshot(collection(db, "comercios"), async (snap) => {
                 const tabla = document.getElementById('tabla-sorteos');
                 tabla.innerHTML = "";
-                
                 for (const docCom of snap.docs) {
                     const c = docCom.data();
                     if (c.titulo_sorteo) {
@@ -181,35 +166,28 @@
                         const premio = c.titulo_sorteo;
                         const descPremio = c.descripcion_sorteo || "";
                         const cant = parseInt(c.cantidad_premios) || 1;
-                        
                         let cLead = 0, cVip = 0;
-                        
                         const qP = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
                         const snapP = await getDocs(qP);
-                        
-                        const promesasParticipantes = snapP.docs.map(async (p) => {
+                        const promesas = snapP.docs.map(async (p) => {
                             const dataP = p.data();
                             if (dataP.usuarioId && !dataP.usuarioId.startsWith('temp_')) {
                                 try {
                                     const leadDoc = await getDoc(doc(db, "leads", dataP.usuarioId));
                                     if (leadDoc.exists()) {
                                         const ld = leadDoc.data();
-                                        if (ld.convertidoVIP === true || ld.tipo === "VIP") {
-                                            return "VIP";
-                                        }
+                                        if (ld.convertidoVIP === true || ld.tipo === "VIP") return "VIP";
                                     }
-                                } catch (e) { console.error("Error validando usuario:", dataP.usuarioId); }
+                                } catch (e) {}
                             }
                             return dataP.tipo === "VIP" ? "VIP" : "LEAD";
                         });
-
-                        const resultados = await Promise.all(promesasParticipantes);
+                        const resultados = await Promise.all(promesas);
                         resultados.forEach(tipo => { if (tipo === "VIP") cVip++; else cLead++; });
-
                         const totalP = cLead + cVip;
                         const f = formatearFechaHora(c.fecha_sorteo) || {fecha: 'A definir', hora: ''};
                         
-                        const fila = `
+                        tabla.innerHTML += `
                         <tr>
                             <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span></div></td>
                             <td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
@@ -225,18 +203,17 @@
                                     <div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${totalP}</span></div>
                                 </div>
                             </td>
-                            <td><button class="btn btn-primary btn-sortear-accion" data-id="${docCom.id}" data-nombre="${nomCom}" data-premio="${premio}" data-cant="${cant}" data-mail="${c.email || ''}">🎲 SORTEAR (${cant})</button></td>
+                            <td><button class="btn btn-primary btn-sortear-accion" data-id="${docCom.id}" data-nombre="${nomCom}" data-premio="${premio}" data-cant="${cant}" data-mail="${c.email || ''}" data-logo="${c.logoUrl || ''}" data-desc="${descPremio}">🎲 SORTEAR (${cant})</button></td>
                             <td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant > 1 ? 's' : ''}</span></td>
                         </tr>`;
-                        tabla.innerHTML += fila;
                     }
                 }
             });
         };
 
-        document.addEventListener('click', (e) => { if (e.target && e.target.classList.contains('btn-sortear-accion')) { const b = e.target.dataset; ejecutarSorteo(b.id, b.nombre, b.premio, parseInt(b.cant), b.mail); } });
+        document.addEventListener('click', (e) => { if (e.target && e.target.classList.contains('btn-sortear-accion')) { const b = e.target.dataset; ejecutarSorteo(b.id, b.nombre, b.premio, parseInt(b.cant), b.mail, b.logo, b.desc); } });
 
-        const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC) => {
+        const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc) => {
             mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
             try {
                 const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
@@ -247,27 +224,30 @@
                     let nombreFinal = partData.nombre || "Participante"; 
                     let celFinal = partData.celular || partData.whatsapp || "S/D";
                     let tipoFinal = partData.tipo || "LEAD";
+                    let emailFinal = partData.email || "";
                     if (partData.usuarioId && !partData.usuarioId.startsWith('temp_')) {
                         const leadDoc = await getDoc(doc(db, "leads", partData.usuarioId));
                         if (leadDoc.exists()) {
                             const ld = leadDoc.data();
                             nombreFinal = `${ld.nombres || ''} ${ld.apellido || ''}`.trim() || nombreFinal;
                             celFinal = ld.whatsapp || ld.celular || celFinal;
-                            tipoFinal = ld.convertidoVIP ? "VIP" : "LEAD";
+                            tipoFinal = (ld.convertidoVIP || ld.tipo === "VIP") ? "VIP" : "LEAD";
+                            emailFinal = ld.email || emailFinal;
                         }
                     }
-                    participantes.push({ ...partData, nombreMostrar: nombreFinal, celular: celFinal, tipo: tipoFinal });
+                    participantes.push({ ...partData, nombreMostrar: nombreFinal, celular: celFinal, tipo: tipoFinal, email: emailFinal });
                 }
                 if (participantes.length === 0) { mostrarToast(`⚠️ No hay participantes registrados.`, "error"); return; }
                 let ganadores = [];
                 let bolsa = [...participantes];
                 const limite = Math.min(cant, bolsa.length);
                 for (let i = 0; i < limite; i++) { const idx = Math.floor(Math.random() * bolsa.length); ganadores.push(bolsa.splice(idx, 1)[0]); }
+                
                 await addDoc(collection(db, "historial_sorteos"), { 
                     comercio: nomCom, 
-                    premio: premio,
-                    descripcion_sorteo: c.descripcion_sorteo || "",
-                    logoUrl: c.logoUrl || LOGO_DEFAULT,
+                    premio: premio, 
+                    descripcion_sorteo: desc || "",
+                    logoUrl: logoUrl || "",
                     ganadores: ganadores, 
                     fecha: serverTimestamp(), 
                     mailComercio: mailC || 'habitatcar@gmail.com' 
@@ -277,7 +257,6 @@
             } catch (e) { console.error(e); mostrarToast("❌ Error en el sorteo", "error"); }
         };
 
-        // ✅ HISTORIAL: Columnas LOGO y COMERCIO/PREMIO IDÉNTICAS a SORTEOS ACTIVOS
         window.mostrarHistorial = () => {
             const tabla = document.getElementById('tabla-sorteos');
             onSnapshot(collection(db, "historial_sorteos"), (snap) => {
@@ -292,24 +271,23 @@
                         const emailG = g.email || "";
                         const esVIP = g.tipo === "VIP";
                         const badgeTipo = esVIP ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>` : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
-                        
-                        // Información repetida de Sorteos Activos
-                        const logoHtml = `<td><img src="${h.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>`;
-                        const comercioPremioHtml = `<td>
-                            <span class="badge badge-comercio">${h.comercio}</span><br>
-                            <span class="badge badge-premio">🎁 ${h.premio}</span>
-                            ${h.descripcion_sorteo ? `<div class="premio-desc">${h.descripcion_sorteo}</div>` : ''}
-                        </td>`;
-
                         const textoParaCopiar = `${nombreG} - WA: ${celG} - Email: ${emailG}`.trim();
                         
                         tabla.innerHTML += `<tr>
                             <td><small>${fecha}</small></td>
-                            ${logoHtml}
-                            ${comercioPremioHtml}
+                            <td><img src="${h.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+                            <td>
+                                <span class="badge badge-comercio">${h.comercio}</span><br>
+                                <span class="badge badge-premio">🎁 ${h.premio}</span>
+                                ${h.descripcion_sorteo ? `<div class="premio-desc">${h.descripcion_sorteo}</div>` : ''}
+                            </td>
                             <td><div style="font-weight:bold">${nombreG}</div><div style="margin-top:4px">${badgeTipo}</div></td>
-                            <td><div style="font-size:0.85em; color:var(--verde); margin-bottom:5px;"><i class="fab fa-whatsapp"></i> ${celG}</div><button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')"><i class="fab fa-whatsapp"></i></button><button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}')"><i class="fas fa-envelope"></i></button></td>
-                            <td><button class="btn-accion" style="background:#666" onclick="navigator.clipboard.writeText('${textoParaCopiar}'); mostrarToast('📋 Datos copiados: nombre, WhatsApp y email','warning')"><i class="fas fa-copy"></i></button></td>
+                            <td>
+                                <div style="font-size:0.85em; color:var(--verde); margin-bottom:5px;"><i class="fab fa-whatsapp"></i> ${celG}</div>
+                                <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')"><i class="fab fa-whatsapp"></i></button>
+                                <button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}')"><i class="fas fa-envelope"></i></button>
+                            </td>
+                            <td><button class="btn-accion" style="background:#666" onclick="navigator.clipboard.writeText('${textoParaCopiar}'); mostrarToast('📋 Datos copiados','warning')"><i class="fas fa-copy"></i></button></td>
                         </tr>`;
                     });
                 });
