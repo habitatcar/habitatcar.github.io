@@ -495,15 +495,18 @@ window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
     }
 };
 
-// --- 📋 CARGAR SORTEOS ACTIVOS ---
+// --- 📋 CARGAR SORTEOS ACTIVOS (CON ORDENAMIENTO POR PROXIMIDAD) ---
 const cargarActivos = async () => {
     window.vistaActual = 'activos';
     window.itemsSeleccionados.clear();
     actualizarBulkActions();
     document.getElementById('header-checkbox').style.display = 'none';
+    
     onSnapshot(collection(db, "comercios"), async (snap) => {
         const tabla = document.getElementById('tabla-sorteos');
-        tabla.innerHTML = "";
+        const sorteosActivos = [];
+        
+        // 1. Recolectar todos los sorteos activos
         for (const docCom of snap.docs) {
             const c = docCom.data();
             if (c.titulo_sorteo) {
@@ -512,8 +515,11 @@ const cargarActivos = async () => {
                 const descPremio = c.descripcion_sorteo || "";
                 const cant = parseInt(c.cantidad_premios) || 1;
                 const fechaSorteo = c.fecha_sorteo ? new Date(c.fecha_sorteo) : null;
-                const timestamp = fechaSorteo ? fechaSorteo.getTime() : Date.now();
+                const timestamp = fechaSorteo ? fechaSorteo.getTime() : null;
                 const fechaISO = c.fecha_sorteo || "";
+                const claveComercio = c.password || "";
+                
+                // Contar participantes
                 let cLead = 0, cVip = 0;
                 const qP = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
                 const snapP = await getDocs(qP);
@@ -530,20 +536,50 @@ const cargarActivos = async () => {
                 resultados.forEach(t => t === "VIP" ? cVip++ : cLead++);
                 const totalP = cLead + cVip;
                 const f = formatearFechaHora(c.fecha_sorteo) || {fecha: 'A definir', hora: ''};
-                const estadoBadge = timestamp > Date.now() ? `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>` : `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
-                tabla.innerHTML += `
-                <tr>
-                <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${estadoBadge}</div></td>
-                <td><img src="${c.logoUrl||''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-                <td><span class="badge badge-comercio">${nomCom}</span><br><span class="badge badge-premio">🎁 ${premio}</span>${descPremio?`<div class="premio-desc">${descPremio}</div>`:''}</td>
-                <td><div class="participantes-cell"><div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cLead}</span></div><div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cVip}</span></div><div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${totalP}</span></div></div></td>
-                <td>
-                    <button class="btn btn-sortear-accion" data-id="${docCom.id}" data-nombre="${nomCom}" data-premio="${premio}" data-cant="${cant}" data-mail="${c.email||''}" data-logo="${c.logoUrl||''}" data-desc="${descPremio}" data-timestamp="${timestamp}" data-clave-comercio="${c.password||''}" onclick="intentarSorteo(this)">Calculando...</button>
-                    <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docCom.id}', '${fechaISO}')">🗑️ Cancelar</button>
-                </td>
-                <td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant>1?'s':''}</span></td>
-                </tr>`;
+                
+                sorteosActivos.push({
+                    docId: docCom.id,
+                    data: c,
+                    nomCom, premio, descPremio, cant,
+                    fechaSorteo, timestamp, fechaISO, claveComercio,
+                    cLead, cVip, totalP, f
+                });
             }
+        }
+        
+        // 2. ORDENAR: Más próximos primero, luego sin fecha al final
+        sorteosActivos.sort((a, b) => {
+            // Si ambos tienen fecha, ordenar por proximidad (ascendente)
+            if (a.timestamp && b.timestamp) {
+                return a.timestamp - b.timestamp;
+            }
+            // Si solo A tiene fecha, va primero
+            if (a.timestamp && !b.timestamp) return -1;
+            // Si solo B tiene fecha, va primero
+            if (!a.timestamp && b.timestamp) return 1;
+            // Si ninguno tiene fecha, mantener orden original
+            return 0;
+        });
+        
+        // 3. Renderizar en orden
+        tabla.innerHTML = "";
+        for (const s of sorteosActivos) {
+            const estadoBadge = s.timestamp && s.timestamp > Date.now() 
+                ? `<span class="timestamp-badge">🕐 Programado: ${s.f.fecha} ${s.f.hora}</span>` 
+                : `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
+            
+            tabla.innerHTML += `
+            <tr>
+            <td><div class="fecha-cell"><span class="fecha-principal">${s.f.fecha}</span><span class="hora-secundaria">${s.f.hora}</span>${estadoBadge}</div></td>
+            <td><img src="${s.data.logoUrl||''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+            <td><span class="badge badge-comercio">${s.nomCom}</span><br><span class="badge badge-premio">🎁 ${s.premio}</span>${s.descPremio?`<div class="premio-desc">${s.descPremio}</div>`:''}</td>
+            <td><div class="participantes-cell"><div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${s.cLead}</span></div><div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${s.cVip}</span></div><div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${s.totalP}</span></div></div></td>
+            <td>
+                <button class="btn btn-sortear-accion" data-id="${s.docId}" data-nombre="${s.nomCom}" data-premio="${s.premio}" data-cant="${s.cant}" data-mail="${s.data.email||''}" data-logo="${s.data.logoUrl||''}" data-desc="${s.descPremio}" data-timestamp="${s.timestamp||Date.now()}" data-clave-comercio="${s.claveComercio}" onclick="intentarSorteo(this)">${s.timestamp && s.timestamp > Date.now() ? 'Calculando...' : '🎲 SORTEAR AHORA'}</button>
+                <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${s.docId}', '${s.fechaISO}')">🗑️ Cancelar</button>
+            </td>
+            <td style="text-align:center"><span class="badge badge-premios">🎁 ${s.cant} premio${s.cant>1?'s':''}</span></td>
+            </tr>`;
         }
     });
 };
@@ -589,16 +625,23 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
     } catch(e) { console.error(e); mostrarToast("❌ Error en sorteo", "error"); }
 };
 
-// --- 📜 HISTORIAL CON CHECKBOXES ---
+// --- 📜 HISTORIAL CON CHECKBOXES (ORDENADO POR FECHA DESCENDENTE) ---
 window.mostrarHistorial = () => {
     window.vistaActual = 'historial';
     window.itemsSeleccionados.clear();
     actualizarBulkActions();
     document.getElementById('header-checkbox').style.display = 'table-cell';
     const tabla = document.getElementById('tabla-sorteos');
+    
     onSnapshot(collection(db, "historial_sorteos"), (snap) => {
         tabla.innerHTML = "";
-        const docs = snap.docs.sort((a,b) => (b.data().fecha?.seconds||0) - (a.data().fecha?.seconds||0));
+        // Ordenar: más recientes primero
+        const docs = snap.docs.sort((a, b) => {
+            const timeA = a.data().fecha?.seconds || 0;
+            const timeB = b.data().fecha?.seconds || 0;
+            return timeB - timeA; // Descendente
+        });
+        
         docs.forEach(docSnap => {
             const h = docSnap.data();
             const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
