@@ -39,6 +39,11 @@
         .btn-success:hover { background: #218838; }
         .btn-warning { background: #ffc107; color: #333; }
         .btn-warning:hover { background: #e0a800; }
+        
+        /* BOTONES NUEVOS */
+        .btn-info { background: #17a2b8; color: white; }
+        .btn-dark { background: #343a40; color: white; }
+
         .btn:disabled { opacity: 0.6; cursor: not-allowed; }
         table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: opacity 0.3s ease; }
         th { background: #667eea; color: white; padding: 14px 12px; text-align: left; }
@@ -67,8 +72,17 @@
         .fecha-principal { font-weight: bold; color: #333; }
         .hora-secundaria { color: #666; font-size: 0.8rem; }
         .logo-mini { height: 80px; width: auto; max-width: 120px; object-fit: contain; display: block; margin: 0 auto; }
+        
+        /* MODALES */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; }
         .modal-content { background: white; padding: 25px; border-radius: 16px; max-width: 450px; width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        
+        /* ESTILOS EDITORES */
+        .form-group { text-align: left; margin-bottom: 15px; }
+        .form-group label { display: block; font-weight: bold; margin-bottom: 5px; }
+        .form-group textarea { width: 100%; height: 150px; padding: 10px; border-radius: 8px; border: 1px solid #ccc; font-family: inherit; }
+        .form-group input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
+
         .ganador-item { background: #f8f9fa; border-left: 4px solid var(--oro); padding: 12px; margin: 10px 0; border-radius: 8px; text-align: left; }
         @media (max-width: 768px) {
             .faja-nav { gap: 3px; }
@@ -96,11 +110,45 @@
         <div class="controls">
             <button class="btn btn-success" id="btn-activos">SORTEOS ACTIVOS</button>
             <button class="btn btn-warning" id="btn-historial">HISTORIAL DE ÉXITOS</button>
+            <button class="btn btn-info" onclick="abrirEditorEmail()"><i class="fas fa-edit"></i> EDITAR EMAIL</button>
+            <button class="btn btn-dark" onclick="abrirEditorPDF()"><i class="fas fa-palette"></i> DISEÑAR PDF</button>
         </div>
         <table>
             <thead><tr><th>FECHA</th><th>LOGO</th><th>COMERCIO / PREMIO</th><th>PARTICIPANTES</th><th>ACCIONES</th><th>PREMIOS</th></tr></thead>
             <tbody id="tabla-sorteos"></tbody>
         </table>
+    </div>
+
+    <div id="modal-email" class="modal">
+        <div class="modal-content">
+            <h3>✉️ Editar Plantilla de Email</h3>
+            <div class="form-group">
+                <label>Asunto:</label>
+                <input type="text" id="inp-asunto" placeholder="Ej: ¡Felicidades {nombre}!">
+            </div>
+            <div class="form-group">
+                <label>Mensaje (HTML permitido):</label>
+                <textarea id="inp-cuerpo" placeholder="Hola {nombre}, ganaste {premio}..."></textarea>
+            </div>
+            <button class="btn btn-primary" onclick="guardarConfig('email')">GUARDAR EMAIL</button>
+            <button class="btn btn-warning" onclick="cerrarEditores()">CANCELAR</button>
+        </div>
+    </div>
+
+    <div id="modal-pdf" class="modal">
+        <div class="modal-content">
+            <h3>📄 Diseñar Fondo del PDF</h3>
+            <div class="form-group">
+                <label>URL Imagen de Fondo (210x148mm):</label>
+                <input type="text" id="inp-pdf-bg" placeholder="https://url-de-tu-imagen.jpg">
+            </div>
+            <div class="form-group">
+                <label>Color de Texto (Hex):</label>
+                <input type="color" id="inp-pdf-color" value="#e60000">
+            </div>
+            <button class="btn btn-primary" onclick="guardarConfig('pdf')">GUARDAR DISEÑO</button>
+            <button class="btn btn-warning" onclick="cerrarEditores()">CANCELAR</button>
+        </div>
     </div>
 
     <div id="popup-confirmacion" class="modal">
@@ -123,9 +171,83 @@
         const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
         const LOGO_DEFAULT = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
 
+        // --- LÓGICA DE CONFIGURACIÓN PERSISTENTE ---
+        window.abrirEditorEmail = () => {
+            document.getElementById('inp-asunto').value = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {nombre}!";
+            document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Hola {nombre}, ganaste un/a {premio} en {comercio}.";
+            document.getElementById('modal-email').style.display = 'flex';
+        };
+        window.abrirEditorPDF = () => {
+            document.getElementById('inp-pdf-bg').value = localStorage.getItem('hc_pdf_bg') || "";
+            document.getElementById('inp-pdf-color').value = localStorage.getItem('hc_pdf_color') || "#e60000";
+            document.getElementById('modal-pdf').style.display = 'flex';
+        };
+        window.cerrarEditores = () => {
+            document.getElementById('modal-email').style.display = 'none';
+            document.getElementById('modal-pdf').style.display = 'none';
+        };
+        window.guardarConfig = (tipo) => {
+            if(tipo === 'email') {
+                localStorage.setItem('hc_asunto', document.getElementById('inp-asunto').value);
+                localStorage.setItem('hc_cuerpo', document.getElementById('inp-cuerpo').value);
+            } else {
+                localStorage.setItem('hc_pdf_bg', document.getElementById('inp-pdf-bg').value);
+                localStorage.setItem('hc_pdf_color', document.getElementById('inp-pdf-color').value);
+            }
+            mostrarToast("✅ Guardado correctamente");
+            cerrarEditores();
+        };
+
         window.normalizarTelefonoAR = (numero) => { if (!numero) return null; let num = numero.toString().replace(/\D/g, ''); if (num.length === 10) return '549' + num; if (num.startsWith('54') && !num.startsWith('549')) return '549' + num.substring(2); return num.startsWith('549') ? num : '549' + num; };
         window.abrirWA = (cel, nom, pre) => { if (!cel) return mostrarToast("⚠️ El participante no tiene celular.", "error"); const num = window.normalizarTelefonoAR(cel); const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`); window.open(`https://wa.me/${num}?text=${msg}`, '_blank'); };
-        window.enviarMail = async (btn, mailG, nombre, premio, comercio, mailC) => { if (!mailG) return mostrarToast("⚠️ El participante no tiene email.", "error"); const original = btn.innerHTML; btn.disabled = true; btn.innerHTML = "⏳"; const { jsPDF } = window.jspdf; const doc = new jsPDF('l', 'mm', 'a5'); doc.setFillColor(255, 255, 255); doc.rect(0, 0, 210, 148, 'F'); doc.setDrawColor(230, 57, 70); doc.setLineWidth(2); doc.rect(5, 5, 200, 138); doc.setDrawColor(255, 193, 7); doc.setLineWidth(0.5); doc.rect(7, 7, 196, 134); doc.setTextColor(0, 74, 153); doc.setFontSize(30); doc.text("¡FELICITACIONES!", 105, 35, { align: "center" }); doc.setTextColor(60, 60, 60); doc.setFontSize(16); doc.text("Certificado otorgado a:", 105, 55, { align: "center" }); doc.setTextColor(230, 57, 70); doc.setFontSize(26); doc.text(nombre.toUpperCase(), 105, 75, { align: "center" }); doc.setTextColor(40, 40, 40); doc.setFontSize(16); doc.text(`Ganador de: ${premio}`, 105, 100, { align: "center" }); doc.setFontSize(10); doc.text(`${comercio} & Hábitat-Car`, 105, 130, { align: "center" }); const pdfBase64 = doc.output('datauristring').split(',')[1]; try { await fetch(URL_SCRIPT, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: mailG.trim(), nombreGanador: nombre, premio, comercio, pdfB64: pdfBase64, asunto: `🏆 ¡Felicidades ${nombre}!`, cc: `habitatcar@gmail.com, ${mailC}` }) }); mostrarToast("✅ Mail enviado correctamente", "success"); } catch (e) { console.error(e); mostrarToast("❌ Error en envío", "error"); } finally { btn.disabled = false; btn.innerHTML = original; } };
+        
+        window.enviarMail = async (btn, mailG, nombre, premio, comercio, mailC) => { 
+            if (!mailG) return mostrarToast("⚠️ El participante no tiene email.", "error"); 
+            const original = btn.innerHTML; 
+            btn.disabled = true; btn.innerHTML = "⏳"; 
+
+            // Recuperar diseño PDF
+            const pdfBg = localStorage.getItem('hc_pdf_bg');
+            const pdfColor = localStorage.getItem('hc_pdf_color') || "#e60000";
+
+            const { jsPDF } = window.jspdf; 
+            const doc = new jsPDF('l', 'mm', 'a5'); 
+            
+            if(pdfBg) {
+                try { doc.addImage(pdfBg, 'JPEG', 0, 0, 210, 148); } catch(e) { console.error("Error cargando fondo"); }
+            } else {
+                doc.setFillColor(255, 255, 255); doc.rect(0, 0, 210, 148, 'F'); 
+                doc.setDrawColor(230, 57, 70); doc.setLineWidth(2); doc.rect(5, 5, 200, 138); 
+            }
+
+            doc.setTextColor(pdfColor); doc.setFontSize(30); doc.text("¡FELICITACIONES!", 105, 35, { align: "center" }); 
+            doc.setTextColor(60, 60, 60); doc.setFontSize(16); doc.text("Certificado otorgado a:", 105, 55, { align: "center" }); 
+            doc.setTextColor(pdfColor); doc.setFontSize(26); doc.text(nombre.toUpperCase(), 105, 75, { align: "center" }); 
+            doc.setTextColor(40, 40, 40); doc.setFontSize(16); doc.text(`Ganador de: ${premio}`, 105, 100, { align: "center" }); 
+            doc.setFontSize(10); doc.text(`${comercio} & Hábitat-Car`, 105, 130, { align: "center" }); 
+
+            const pdfBase64 = doc.output('datauristring').split(',')[1]; 
+
+            // Procesar etiquetas del Email
+            let mailAsunto = localStorage.getItem('hc_asunto') || `🏆 ¡Felicidades {nombre}!`;
+            let mailCuerpo = localStorage.getItem('hc_cuerpo') || `Hola {nombre}, ganaste {premio} en {comercio}.`;
+
+            mailAsunto = mailAsunto.replace(/{nombre}/g, nombre).replace(/{premio}/g, premio).replace(/{comercio}/g, comercio);
+            mailCuerpo = mailCuerpo.replace(/{nombre}/g, nombre).replace(/{premio}/g, premio).replace(/{comercio}/g, comercio);
+
+            try { 
+                await fetch(URL_SCRIPT, { 
+                    method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, 
+                    body: JSON.stringify({ email: mailG.trim(), nombreGanador: nombre, pdfB64: pdfBase64, asunto: mailAsunto, cuerpoHtml: mailCuerpo, cc: `habitatcar@gmail.com, ${mailC}` }) 
+                }); 
+                mostrarToast("✅ Mail enviado con éxito", "success"); 
+            } catch (e) { 
+                mostrarToast("❌ Error en envío", "error"); 
+            } finally { 
+                btn.disabled = false; btn.innerHTML = original; 
+            } 
+        };
+
         function formatearFechaHora(fechaISO) { if (!fechaISO) return null; try { const [fechaParte, horaParte] = fechaISO.split('T'); if (!fechaParte || !horaParte) return null; const [anio, mes, dia] = fechaParte.split('-'); const [hora, minutos] = horaParte.split(':'); return { fecha: `${dia}/${mes}/${anio}`, hora: `${hora}:${minutos} Hs.` }; } catch (e) { return null; } }
 
         window.mostrarConfirmacionSorteo = (total, ganadores) => {
