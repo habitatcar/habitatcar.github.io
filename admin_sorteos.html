@@ -112,7 +112,6 @@
         </table>
     </div>
 
-    <!-- ✅ MODAL EDITAR EMAIL -->
     <div id="modal-email" class="modal">
         <div class="modal-content">
             <h3 style="color:var(--azul-habitat); margin-bottom:15px;">✉️ Editar Plantilla de Email</h3>
@@ -136,7 +135,6 @@
         </div>
     </div>
 
-    <!-- ✅ MODAL DISEÑAR PDF -->
     <div id="modal-pdf" class="modal">
         <div class="modal-content">
             <h3 style="color:var(--azul-habitat); margin-bottom:15px;">📄 Diseñar Certificado PDF</h3>
@@ -153,7 +151,6 @@
         </div>
     </div>
 
-    <!-- ✅ MODAL CONFIRMACIÓN SORTEO -->
     <div id="popup-confirmacion" class="modal">
         <div class="modal-content">
             <h3 style="color: var(--azul-habitat); margin-bottom: 15px;">🎉 ¡SORTEO REALIZADO!</h3>
@@ -177,7 +174,7 @@
         // --- 📧 CONFIGURACIÓN EMAIL PERSISTENTE ---
         window.abrirEditorEmail = () => {
             document.getElementById('inp-asunto').value = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
-            document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, adjuntamos tu certificado.";
+            document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
             document.getElementById('modal-email').style.display = 'flex';
         };
         
@@ -213,113 +210,67 @@
             window.open(`https://wa.me/${num}?text=${msg}`, '_blank'); 
         };
         
-        // --- ✅ ENVÍO DE MAIL CON PDF PREMIUM Y LOGO COMERCIO ---
-        window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, logoComercio) => {
+        // --- ✅ LÓGICA DE INYECCIÓN AUTOMÁTICA CORREGIDA ---
+        window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC) => {
             if (!emailDestino) return mostrarToast("Sin email", "error");
             const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = "⏳";
 
-            // 1. Preparación de textos
-            let asuntoPlantilla = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
-            let cuerpoPlantilla = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, adjuntamos tu certificado.";
-            const inyectar = (t) => t.replace(/{{NOMBRE}}/g, nombre).replace(/{{PREMIO}}/g, premio).replace(/{{COMERCIO}}/g, comercio);
-            
+            // 1. Obtener lo que está guardado en el editor
+            let asuntoPlantilla = localStorage.getItem('hc_asunto') || "¡Felicidades {{NOMBRE}}!";
+            let cuerpoPlantilla = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
+
+            // 2. INYECCIÓN AUTOMÁTICA: Reemplaza las llaves por los datos reales
+            const inyectar = (texto) => {
+                if(!texto) return "";
+                return texto
+                    .replace(/{{NOMBRE}}/g, nombre)
+                    .replace(/{{PREMIO}}/g, premio)
+                    .replace(/{{COMERCIO}}/g, comercio);
+            };
+
             const asuntoFinal = inyectar(asuntoPlantilla);
             const cuerpoFinal = inyectar(cuerpoPlantilla);
 
-            // 2. GENERACIÓN DEL PDF (REPLICANDO DISEÑO ELEGANTE)
+            // 3. Generación de PDF
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('l', 'mm', 'a5');
-            const ancho = 210;
-            const alto = 148;
-
-            // --- FONDO CON DEGRADADO SIMULADO ---
-            // Dibujamos franjas sutiles para emular el degradado azul a blanco de la imagen
-            for (let i = 0; i < ancho; i++) {
-                let ratio = i / ancho;
-                let r = Math.floor(0 + (255 - 0) * ratio); 
-                let g = Math.floor(61 + (255 - 61) * ratio);
-                let b = Math.floor(128 + (255 - 128) * ratio);
-                pdf.setDrawColor(r, g, b);
-                pdf.line(i, 0, i, alto);
-            }
-
-            // --- MARCO DORADO DOBLE ---
-            pdf.setDrawColor(184, 134, 11); // Dorado oscuro
-            pdf.setLineWidth(1);
-            pdf.rect(5, 5, ancho - 10, alto - 10); // Externo
-            pdf.rect(6.5, 6.5, ancho - 13, alto - 13); // Interno fino
-
-            // --- LOGOS ---
-            // Comercio (Arriba Derecha - sobre fondo blanco)
-            if (logoComercio) {
-                try { pdf.addImage(logoComercio, 'PNG', ancho - 55, 12, 40, 40, '', 'FAST'); } catch(e){}
-            }
-            // Habitat-Car (Abajo Izquierda - sobre fondo azul)
-            const logoHC = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
-            try { pdf.addImage(logoHC, 'PNG', 12, alto - 45, 45, 30, '', 'FAST'); } catch(e){}
-
-            // --- TEXTOS ---
-            pdf.setTextColor(10, 40, 80); // Azul muy oscuro
-            pdf.setFont("helvetica", "bold");
-            pdf.setFontSize(26);
-            pdf.text("CERTIFICADO DE GANADOR", ancho / 2, 40, { align: "center" });
-
-            pdf.setFontSize(22);
-            pdf.text(nombre.toUpperCase(), ancho / 2, 58, { align: "center" });
-
-            pdf.setTextColor(60, 60, 60);
-            pdf.setFontSize(12);
-            pdf.setFont("helvetica", "normal");
-            pdf.text("Fuiste favorecido en el sorteo", ancho / 2, 75, { align: "center" });
-
-            pdf.setTextColor(10, 40, 80);
-            pdf.setFontSize(16);
-            pdf.setFont("helvetica", "bold");
-            pdf.text(premio.toUpperCase(), ancho / 2, 85, { align: "center" });
-
-            pdf.setTextColor(60, 60, 60);
-            pdf.setFontSize(12);
-            pdf.setFont("helvetica", "normal");
-            pdf.text("consistente en:", ancho / 2, 95, { align: "center" });
+            const pBg = localStorage.getItem('hc_pdf_bg');
+            const pCol = localStorage.getItem('hc_pdf_color') || "#e60000";
             
-            // Descripción o detalle (usamos el mismo premio resaltado)
-            pdf.setFontSize(14);
-            pdf.setFont("helvetica", "bold");
-            const descSplit = pdf.splitTextToSize(`"${premio}"`, 140);
-            pdf.text(descSplit, ancho / 2, 105, { align: "center" });
-
-            // Pie de página (Cursiva)
-            pdf.setTextColor(80, 80, 80);
-            pdf.setFontSize(11);
-            pdf.setFont("helvetica", "italic");
-            pdf.text(`Habitat-Car y ${comercio} se complacen por`, ancho / 2, 125, { align: "center" });
-            pdf.text(`tu participación y te felicitan por este premio.`, ancho / 2, 131, { align: "center" });
-
-            // Fecha
-            const hoy = new Date().toLocaleDateString();
-            pdf.setFontSize(9);
-            pdf.setFont("helvetica", "normal");
-            pdf.text(`Emitido el: ${hoy}`, ancho - 15, alto - 12, { align: "right" });
-
-            // 3. ENVÍO
+            if(pBg) { 
+                try { pdf.addImage(pBg, 'JPEG', 0, 0, 210, 148); } catch(e) { console.error("Error fondo PDF", e); } 
+            } else { 
+                pdf.setDrawColor(200,0,0); pdf.rect(5,5,200,138); 
+            }
+            
+            pdf.setTextColor(pCol); pdf.setFontSize(28); pdf.text("¡GANADOR!", 105, 40, {align:"center"});
+            pdf.setTextColor(40); pdf.setFontSize(22); pdf.text(nombre.toUpperCase(), 105, 75, {align:"center"});
+            pdf.setFontSize(14); pdf.text(`Premio: ${premio}`, 105, 100, {align:"center"});
+            
             const pdfB64 = pdf.output('datauristring').split(',')[1];
+
+            // 4. Envío al servidor (Google Apps Script)
             try {
+                const payload = {
+                    email: emailDestino.trim(),
+                    asunto: asuntoFinal,
+                    cuerpoHtml: cuerpoFinal,
+                    nombreGanador: nombre,
+                    cc: `habitatcar@gmail.com, ${mailCC}`,
+                    pdfB64: pdfB64
+                };
+
                 await fetch(URL_SCRIPT, {
                     method: 'POST',
-                    mode: 'no-cors',
+                    mode: 'no-cors', 
+                    cache: 'no-cache',
                     headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify({
-                        email: emailDestino.trim(),
-                        asunto: asuntoFinal,
-                        cuerpoHtml: cuerpoFinal,
-                        nombreGanador: nombre,
-                        cc: `habitatcar@gmail.com, ${mailCC}`,
-                        pdfB64: pdfB64
-                    })
+                    body: JSON.stringify(payload)
                 });
-                mostrarToast("✅ ¡Certificado enviado!");
+
+                mostrarToast("✅ Datos inyectados y email enviado");
             } catch (e) {
                 console.error(e);
                 mostrarToast("❌ Error al enviar", "error");
@@ -460,7 +411,6 @@
             } catch (e) { console.error(e); mostrarToast("❌ Error en el sorteo", "error"); }
         };
 
-        // ✅ HISTORIAL: Email visible en columna ACCIONES + logoComercio en enviarMail
         window.mostrarHistorial = () => {
             const tabla = document.getElementById('tabla-sorteos');
             onSnapshot(collection(db, "historial_sorteos"), (snap) => {
@@ -491,7 +441,7 @@
                                 ${emailG ? `<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
                                 <div style="margin-top:8px; display:flex; gap:5px;">
                                     <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')"><i class="fab fa-whatsapp"></i></button>
-                                    <button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}', '${h.logoUrl || ''}')"><i class="fas fa-envelope"></i></button>
+                                    <button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}')"><i class="fas fa-envelope"></i></button>
                                 </div>
                             </td>
                             <td><button class="btn-accion" style="background:#666" onclick="navigator.clipboard.writeText('${textoParaCopiar}'); mostrarToast('📋 Datos copiados','warning')"><i class="fas fa-copy"></i></button></td>
