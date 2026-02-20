@@ -112,17 +112,15 @@
         </table>
     </div>
 
-    <!-- ✅ MODAL EDITAR EMAIL -->
     <div id="modal-email" class="modal">
         <div class="modal-content">
             <h3 style="color:var(--azul-habitat); margin-bottom:15px;">✉️ Editar Plantilla de Email</h3>
             <p style="font-size:0.9em; color:#666; margin-bottom:15px;">
                 <b>Instrucciones:</b><br>
-                • Lo que escribas normalmente es el cuerpo del mail.<br>
-                • No borres ni modifiques lo que está entre llaves:<br>
-                <span style="color:#e60000; font-weight:bold">{{NOMBRE}}</span>, 
-                <span style="color:#e60000; font-weight:bold">{{PREMIO}}</span>, 
-                <span style="color:#e60000; font-weight:bold">{{COMERCIO}}</span>
+                El sistema reemplazará automáticamente:<br>
+                <span style="color:#e60000; font-weight:bold">{{NOMBRE}}</span> -> Nombre del Ganador<br>
+                <span style="color:#e60000; font-weight:bold">{{PREMIO}}</span> -> El Regalo<br>
+                <span style="color:#e60000; font-weight:bold">{{COMERCIO}}</span> -> Local del Sorteo
             </p>
             <div class="form-group">
                 <label>Asunto:</label>
@@ -137,7 +135,6 @@
         </div>
     </div>
 
-    <!-- ✅ MODAL DISEÑAR PDF -->
     <div id="modal-pdf" class="modal">
         <div class="modal-content">
             <h3 style="color:var(--azul-habitat); margin-bottom:15px;">📄 Diseñar Certificado PDF</h3>
@@ -154,7 +151,6 @@
         </div>
     </div>
 
-    <!-- ✅ MODAL CONFIRMACIÓN SORTEO -->
     <div id="popup-confirmacion" class="modal">
         <div class="modal-content">
             <h3 style="color: var(--azul-habitat); margin-bottom: 15px;">🎉 ¡SORTEO REALIZADO!</h3>
@@ -178,11 +174,10 @@
         // --- 📧 CONFIGURACIÓN EMAIL PERSISTENTE ---
         window.abrirEditorEmail = () => {
             document.getElementById('inp-asunto').value = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
-            document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Resultaste ganador de un {{PREMIO}} del comercio {{COMERCIO}}. Tenes 30 días para pasar a retirar el premio por {{UBICACIÓN}}. El equipo de Habitat-Car espera que hayas tenido una grata experiencia.";
+            document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
             document.getElementById('modal-email').style.display = 'flex';
         };
         
-        // --- 🎨 CONFIGURACIÓN PDF PERSISTENTE ---
         window.abrirEditorPDF = () => {
             document.getElementById('inp-pdf-bg').value = localStorage.getItem('hc_pdf_bg') || "";
             document.getElementById('inp-pdf-color').value = localStorage.getItem('hc_pdf_color') || "#e60000";
@@ -215,29 +210,30 @@
             window.open(`https://wa.me/${num}?text=${msg}`, '_blank'); 
         };
         
-        // --- ✅ ENVÍO DE MAIL CORREGIDO CON MARCADORES {{}} ---
+        // --- ✅ LÓGICA DE INYECCIÓN AUTOMÁTICA CORREGIDA ---
         window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC) => {
             if (!emailDestino) return mostrarToast("Sin email", "error");
             const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = "⏳";
 
-            // 1. Obtener plantillas (Si están vacías, usamos una base por defecto)
-            let asuntoBase = localStorage.getItem('hc_asunto') || "¡Felicidades {{NOMBRE}}!";
-            let cuerpoBase = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
+            // 1. Obtener lo que está guardado en el editor
+            let asuntoPlantilla = localStorage.getItem('hc_asunto') || "¡Felicidades {{NOMBRE}}!";
+            let cuerpoPlantilla = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
 
-            // 2. LÓGICA DE REEMPLAZO (Busca lo que está en "rojo"/llaves y pone el dato real)
-            const procesarTexto = (texto) => {
+            // 2. INYECCIÓN AUTOMÁTICA: Reemplaza las llaves por los datos reales
+            const inyectar = (texto) => {
+                if(!texto) return "";
                 return texto
                     .replace(/{{NOMBRE}}/g, nombre)
                     .replace(/{{PREMIO}}/g, premio)
                     .replace(/{{COMERCIO}}/g, comercio);
             };
 
-            const asuntoFinal = procesarTexto(asuntoBase);
-            const cuerpoFinal = procesarTexto(cuerpoBase);
+            const asuntoFinal = inyectar(asuntoPlantilla);
+            const cuerpoFinal = inyectar(cuerpoPlantilla);
 
-            // 3. Generación de PDF (Mantiene tu lógica actual)
+            // 3. Generación de PDF
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('l', 'mm', 'a5');
             const pBg = localStorage.getItem('hc_pdf_bg');
@@ -255,7 +251,7 @@
             
             const pdfB64 = pdf.output('datauristring').split(',')[1];
 
-            // 4. Envío al servidor
+            // 4. Envío al servidor (Google Apps Script)
             try {
                 const payload = {
                     email: emailDestino.trim(),
@@ -274,10 +270,10 @@
                     body: JSON.stringify(payload)
                 });
 
-                mostrarToast("✅ Email enviado correctamente");
+                mostrarToast("✅ Datos inyectados y email enviado");
             } catch (e) {
                 console.error(e);
-                mostrarToast("❌ Error de conexión", "error");
+                mostrarToast("❌ Error al enviar", "error");
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
@@ -415,7 +411,6 @@
             } catch (e) { console.error(e); mostrarToast("❌ Error en el sorteo", "error"); }
         };
 
-        // ✅ HISTORIAL: Email visible en columna ACCIONES
         window.mostrarHistorial = () => {
             const tabla = document.getElementById('tabla-sorteos');
             onSnapshot(collection(db, "historial_sorteos"), (snap) => {
