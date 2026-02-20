@@ -266,8 +266,8 @@
                 await addDoc(collection(db, "historial_sorteos"), { 
                     comercio: nomCom, 
                     premio: premio,
-                    descripcion_sorteo: c.descripcion_sorteo || "",
-                    logoUrl: c.logoUrl || LOGO_DEFAULT,
+                    descripcion_sorteo: c.descripcion_sorteo || "", // ✅ Guardamos descripción para historial
+                    logoUrl: c.logoUrl || LOGO_DEFAULT, // ✅ Guardamos logo para historial
                     ganadores: ganadores, 
                     fecha: serverTimestamp(), 
                     mailComercio: mailC || 'habitatcar@gmail.com' 
@@ -277,7 +277,7 @@
             } catch (e) { console.error(e); mostrarToast("❌ Error en el sorteo", "error"); }
         };
 
-        // ✅ HISTORIAL ACTUALIZADO: Columnas LOGO y COMERCIO/PREMIO idénticas a SORTEOS ACTIVOS
+        // ✅ HISTORIAL ACTUALIZADO: Logo + Estructura mejorada + Icono email elegante + Copiar con email
         window.mostrarHistorial = () => {
             const tabla = document.getElementById('tabla-sorteos');
             onSnapshot(collection(db, "historial_sorteos"), (snap) => {
@@ -286,6 +286,8 @@
                 docs.forEach(doc => {
                     const h = doc.data();
                     const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
+                    // ✅ LOGO CORREGIDO: Usa h.logoUrl con fallback
+                    const logoUrl = h.logoUrl || LOGO_DEFAULT;
                     
                     h.ganadores?.forEach(g => {
                         const nombreG = g.nombreMostrar || "Invitado";
@@ -294,17 +296,15 @@
                         const esVIP = g.tipo === "VIP";
                         const badgeTipo = esVIP ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>` : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
                         const descPremio = h.descripcion_sorteo || "";
+                        
+                        // ✅ TEXTO PARA COPIAR: Incluye email
                         const textoParaCopiar = `${nombreG} - WA: ${celG} - Email: ${emailG}`.trim();
                         
-                        // ✅ FILA ACTUALIZADA: Columnas LOGO y COMERCIO/PREMIO IDÉNTICAS a SORTEOS ACTIVOS
-                        tabla.innerHTML += `
-                        <tr>
+                        tabla.innerHTML += `<tr>
                             <td><small>${fecha}</small></td>
-                            <!-- ✅ COLUMNA LOGO: Igual que en SORTEOS ACTIVOS -->
-                            <td><img src="${h.logoUrl || LOGO_DEFAULT}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-                            <!-- ✅ COLUMNA COMERCIO/PREMIO: Igual que en SORTEOS ACTIVOS -->
+                            <td><img src="${logoUrl}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
                             <td>
-                                <span class="badge badge-comercio">${h.comercio}</span><br>
+                                <b style="color:var(--azul-habitat)">${h.comercio}</b><br>
                                 <span class="badge badge-premio">🎁 ${h.premio}</span>
                                 ${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}
                             </td>
@@ -319,11 +319,13 @@
                                 <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')">
                                     <i class="fab fa-whatsapp"></i>
                                 </button>
+                                <!-- ✅ ICONO EMAIL ELEGANTE: Sobre refinado -->
                                 <button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}')" title="Enviar certificado por email" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
                                     <i class="fas fa-envelope"></i>
                                 </button>
                             </td>
                             <td>
+                                <!-- ✅ BOTÓN COPIAR: Incluye email -->
                                 <button class="btn-accion btn-copy" title="Copiar datos completos" onclick="navigator.clipboard.writeText('${textoParaCopiar}'); mostrarToast('📋 Datos copiados: nombre, WhatsApp y email','warning')">
                                     <i class="fas fa-copy"></i>
                                 </button>
