@@ -118,16 +118,19 @@
             <h3 style="color:var(--azul-habitat); margin-bottom:15px;">✉️ Editar Plantilla de Email</h3>
             <p style="font-size:0.9em; color:#666; margin-bottom:15px;">
                 <b>Instrucciones:</b><br>
-                • Texto en <span style="color:#666">minúsculas</span> = lo que vos editás<br>
-                • Texto en <span style="color:#dc3545; font-weight:bold">***MAYÚSCULAS***</span> = datos del sistema (NO CAMBIAR)
+                • Lo que escribas normalmente es el cuerpo del mail.<br>
+                • No borres ni modifiques lo que está entre llaves:<br>
+                <span style="color:#e60000; font-weight:bold">{{NOMBRE}}</span>, 
+                <span style="color:#e60000; font-weight:bold">{{PREMIO}}</span>, 
+                <span style="color:#e60000; font-weight:bold">{{COMERCIO}}</span>
             </p>
             <div class="form-group">
                 <label>Asunto:</label>
-                <input type="text" id="inp-asunto" placeholder="Ej: Felicidades ***NOMBRE***">
+                <input type="text" id="inp-asunto" placeholder="Ej: Felicidades {{NOMBRE}}">
             </div>
             <div class="form-group">
                 <label>Mensaje (HTML permitido):</label>
-                <textarea id="inp-cuerpo" placeholder="Resultaste ganador de un ***KIT DE LIMPIEZA*** del comercio ***VIRULANA***..."></textarea>
+                <textarea id="inp-cuerpo" placeholder="Resultaste ganador de un {{PREMIO}} del comercio {{COMERCIO}}..."></textarea>
             </div>
             <button class="btn btn-primary" onclick="guardarConfig('email')">💾 GUARDAR EMAIL</button>
             <button class="btn btn-warning" onclick="cerrarEditores()">❌ CANCELAR</button>
@@ -174,8 +177,8 @@
 
         // --- 📧 CONFIGURACIÓN EMAIL PERSISTENTE ---
         window.abrirEditorEmail = () => {
-            document.getElementById('inp-asunto').value = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades ***NOMBRE***!";
-            document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Resultaste ganador de un ***PREMIO*** del comercio ***COMERCIO***. Tenes 30 días para pasar a retirar el premio por ***UBICACIÓN***. El equipo de Habitat-Car espera que hayas tenido una grata experiencia.";
+            document.getElementById('inp-asunto').value = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
+            document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Resultaste ganador de un {{PREMIO}} del comercio {{COMERCIO}}. Tenes 30 días para pasar a retirar el premio por {{UBICACIÓN}}. El equipo de Habitat-Car espera que hayas tenido una grata experiencia.";
             document.getElementById('modal-email').style.display = 'flex';
         };
         
@@ -212,25 +215,29 @@
             window.open(`https://wa.me/${num}?text=${msg}`, '_blank'); 
         };
         
-        // --- ✅ ENVÍO DE MAIL CORREGIDO ---
+        // --- ✅ ENVÍO DE MAIL CORREGIDO CON MARCADORES {{}} ---
         window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC) => {
             if (!emailDestino) return mostrarToast("Sin email", "error");
             const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = "⏳";
 
-            // 1. Obtener plantillas y REEMPLAZAR marcadores
-            let asuntoFinal = (localStorage.getItem('hc_asunto') || "¡Felicidades ***NOMBRE***!")
-                .replace(/\*\*\*NOMBRE\*\*\*/g, nombre)
-                .replace(/\*\*\*PREMIO\*\*\*/g, premio)
-                .replace(/\*\*\*COMERCIO\*\*\*/g, comercio);
+            // 1. Obtener plantillas (Si están vacías, usamos una base por defecto)
+            let asuntoBase = localStorage.getItem('hc_asunto') || "¡Felicidades {{NOMBRE}}!";
+            let cuerpoBase = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
 
-            let cuerpoFinal = (localStorage.getItem('hc_cuerpo') || "Ganaste ***PREMIO*** en ***COMERCIO***.")
-                .replace(/\*\*\*NOMBRE\*\*\*/g, nombre)
-                .replace(/\*\*\*PREMIO\*\*\*/g, premio)
-                .replace(/\*\*\*COMERCIO\*\*\*/g, comercio);
+            // 2. LÓGICA DE REEMPLAZO (Busca lo que está en "rojo"/llaves y pone el dato real)
+            const procesarTexto = (texto) => {
+                return texto
+                    .replace(/{{NOMBRE}}/g, nombre)
+                    .replace(/{{PREMIO}}/g, premio)
+                    .replace(/{{COMERCIO}}/g, comercio);
+            };
 
-            // 2. Generar PDF
+            const asuntoFinal = procesarTexto(asuntoBase);
+            const cuerpoFinal = procesarTexto(cuerpoBase);
+
+            // 3. Generación de PDF (Mantiene tu lógica actual)
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('l', 'mm', 'a5');
             const pBg = localStorage.getItem('hc_pdf_bg');
@@ -246,10 +253,9 @@
             pdf.setTextColor(40); pdf.setFontSize(22); pdf.text(nombre.toUpperCase(), 105, 75, {align:"center"});
             pdf.setFontSize(14); pdf.text(`Premio: ${premio}`, 105, 100, {align:"center"});
             
-            // Extraer solo el Base64 puro
             const pdfB64 = pdf.output('datauristring').split(',')[1];
 
-            // 3. Petición al Servidor (Optimizado para evitar bloqueos)
+            // 4. Envío al servidor
             try {
                 const payload = {
                     email: emailDestino.trim(),
@@ -260,19 +266,18 @@
                     pdfB64: pdfB64
                 };
 
-                // Enviamos como POST simple para evitar problemas de pre-flight CORS
                 await fetch(URL_SCRIPT, {
                     method: 'POST',
                     mode: 'no-cors', 
                     cache: 'no-cache',
-                    headers: { 'Content-Type': 'text/plain' }, // Evita el pre-flight request
+                    headers: { 'Content-Type': 'text/plain' },
                     body: JSON.stringify(payload)
                 });
 
-                mostrarToast("✅ Solicitud enviada");
+                mostrarToast("✅ Email enviado correctamente");
             } catch (e) {
                 console.error(e);
-                mostrarToast("❌ Error de red", "error");
+                mostrarToast("❌ Error de conexión", "error");
             } finally {
                 btn.disabled = false;
                 btn.innerHTML = originalText;
