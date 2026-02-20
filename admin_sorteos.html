@@ -112,6 +112,7 @@
         </table>
     </div>
 
+    <!-- ✅ MODAL EDITAR EMAIL -->
     <div id="modal-email" class="modal">
         <div class="modal-content">
             <h3 style="color:var(--azul-habitat); margin-bottom:15px;">✉️ Editar Plantilla de Email</h3>
@@ -135,6 +136,7 @@
         </div>
     </div>
 
+    <!-- ✅ MODAL DISEÑAR PDF -->
     <div id="modal-pdf" class="modal">
         <div class="modal-content">
             <h3 style="color:var(--azul-habitat); margin-bottom:15px;">📄 Diseñar Certificado PDF</h3>
@@ -151,6 +153,7 @@
         </div>
     </div>
 
+    <!-- ✅ MODAL CONFIRMACIÓN SORTEO -->
     <div id="popup-confirmacion" class="modal">
         <div class="modal-content">
             <h3 style="color: var(--azul-habitat); margin-bottom: 15px;">🎉 ¡SORTEO REALIZADO!</h3>
@@ -210,67 +213,105 @@
             window.open(`https://wa.me/${num}?text=${msg}`, '_blank'); 
         };
         
-        // --- ✅ LÓGICA DE INYECCIÓN AUTOMÁTICA CORREGIDA ---
-        window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC) => {
+        // --- ✅ ENVÍO DE MAIL CON PDF PREMIUM "ESTILO 11" ---
+        window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, logoComercio) => {
             if (!emailDestino) return mostrarToast("Sin email", "error");
+            
             const originalText = btn.innerHTML;
             btn.disabled = true;
             btn.innerHTML = "⏳";
 
-            // 1. Obtener lo que está guardado en el editor
-            let asuntoPlantilla = localStorage.getItem('hc_asunto') || "¡Felicidades {{NOMBRE}}!";
+            // 1. CORRECCIÓN DE INYECCIÓN DE DATOS (Ultra segura con split/join)
+            let asuntoPlantilla = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
             let cuerpoPlantilla = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
 
-            // 2. INYECCIÓN AUTOMÁTICA: Reemplaza las llaves por los datos reales
             const inyectar = (texto) => {
-                if(!texto) return "";
+                if (!texto) return "";
                 return texto
-                    .replace(/{{NOMBRE}}/g, nombre)
-                    .replace(/{{PREMIO}}/g, premio)
-                    .replace(/{{COMERCIO}}/g, comercio);
+                    .split('{{NOMBRE}}').join(nombre || "")
+                    .split('{{PREMIO}}').join(premio || "")
+                    .split('{{COMERCIO}}').join(comercio || "");
             };
 
             const asuntoFinal = inyectar(asuntoPlantilla);
             const cuerpoFinal = inyectar(cuerpoPlantilla);
 
-            // 3. Generación de PDF
+            // 2. GENERACIÓN DEL PDF (DISEÑO IDÉNTICO AL APROBADO "ESTILO 11")
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('l', 'mm', 'a5');
-            const pBg = localStorage.getItem('hc_pdf_bg');
-            const pCol = localStorage.getItem('hc_pdf_color') || "#e60000";
+            const ancho = 210;
+            const alto = 148;
+
+            // Fondo: Gris muy tenue casi blanco
+            pdf.setFillColor(245, 247, 250);
+            pdf.rect(0, 0, ancho, alto, 'F');
             
-            if(pBg) { 
-                try { pdf.addImage(pBg, 'JPEG', 0, 0, 210, 148); } catch(e) { console.error("Error fondo PDF", e); } 
-            } else { 
-                pdf.setDrawColor(200,0,0); pdf.rect(5,5,200,138); 
+            // El "Toque Azul" de la izquierda (triángulo corporativo)
+            pdf.setFillColor(0, 61, 128); 
+            pdf.triangle(0, 0, 110, 0, 0, 110, 'F'); 
+
+            // MARCO DORADO DOBLE (Elegancia pura)
+            pdf.setDrawColor(184, 134, 11); // Dorado
+            pdf.setLineWidth(0.8);
+            pdf.rect(6, 6, ancho - 12, alto - 12);
+            pdf.setLineWidth(0.3);
+            pdf.rect(8, 8, ancho - 16, alto - 16);
+
+            // LOGOS - Coordenadas exactas
+            if (logoComercio) {
+                try { pdf.addImage(logoComercio, 'PNG', ancho - 50, 15, 35, 35); } catch(e){}
             }
+            const logoHC = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
+            try { pdf.addImage(logoHC, 'PNG', 15, alto - 40, 40, 25); } catch(e){}
+
+            // TEXTOS - Centrados con desplazamiento +10 para compensar triángulo azul
+            pdf.setTextColor(10, 45, 90);
+            pdf.setFont("helvetica", "bold");
             
-            pdf.setTextColor(pCol); pdf.setFontSize(28); pdf.text("¡GANADOR!", 105, 40, {align:"center"});
-            pdf.setTextColor(40); pdf.setFontSize(22); pdf.text(nombre.toUpperCase(), 105, 75, {align:"center"});
-            pdf.setFontSize(14); pdf.text(`Premio: ${premio}`, 105, 100, {align:"center"});
-            
+            pdf.setFontSize(28);
+            pdf.text("CERTIFICADO DE GANADOR", ancho / 2 + 10, 45, { align: "center" });
+
+            pdf.setTextColor(0, 0, 0);
+            pdf.setFontSize(24);
+            pdf.text(nombre.toUpperCase(), ancho / 2 + 10, 65, { align: "center" });
+
+            pdf.setTextColor(80, 80, 80);
+            pdf.setFontSize(12);
+            pdf.setFont("helvetica", "normal");
+            pdf.text("Fuiste favorecido en el sorteo:", ancho / 2 + 10, 80, { align: "center" });
+
+            pdf.setTextColor(10, 45, 90);
+            pdf.setFontSize(16);
+            pdf.setFont("helvetica", "bold");
+            pdf.text(`"${premio.toUpperCase()}"`, ancho / 2 + 10, 92, { align: "center" });
+
+            pdf.setTextColor(100, 100, 100);
+            pdf.setFontSize(11);
+            pdf.setFont("helvetica", "italic");
+            pdf.text(`Habitat-Car y ${comercio} se complacen por tu participación`, ancho / 2 + 10, 115, { align: "center" });
+            pdf.text(`y te felicitan por este premio.`, ancho / 2 + 10, 122, { align: "center" });
+
+            const hoy = new Date().toLocaleDateString();
+            pdf.setFontSize(9);
+            pdf.setFont("helvetica", "normal");
+            pdf.text(`Emitido el: ${hoy}`, ancho - 20, alto - 15, { align: "right" });
+
+            // 3. ENVÍO
             const pdfB64 = pdf.output('datauristring').split(',')[1];
 
-            // 4. Envío al servidor (Google Apps Script)
             try {
-                const payload = {
-                    email: emailDestino.trim(),
-                    asunto: asuntoFinal,
-                    cuerpoHtml: cuerpoFinal,
-                    nombreGanador: nombre,
-                    cc: `habitatcar@gmail.com, ${mailCC}`,
-                    pdfB64: pdfB64
-                };
-
                 await fetch(URL_SCRIPT, {
                     method: 'POST',
-                    mode: 'no-cors', 
-                    cache: 'no-cache',
+                    mode: 'no-cors',
                     headers: { 'Content-Type': 'text/plain' },
-                    body: JSON.stringify(payload)
+                    body: JSON.stringify({
+                        email: emailDestino.trim(),
+                        asunto: asuntoFinal,
+                        cuerpoHtml: cuerpoFinal,
+                        pdfB64: pdfB64
+                    })
                 });
-
-                mostrarToast("✅ Datos inyectados y email enviado");
+                mostrarToast("✅ Certificado enviado con éxito");
             } catch (e) {
                 console.error(e);
                 mostrarToast("❌ Error al enviar", "error");
@@ -411,6 +452,7 @@
             } catch (e) { console.error(e); mostrarToast("❌ Error en el sorteo", "error"); }
         };
 
+        // ✅ HISTORIAL: LogoComercio pasado a enviarMail
         window.mostrarHistorial = () => {
             const tabla = document.getElementById('tabla-sorteos');
             onSnapshot(collection(db, "historial_sorteos"), (snap) => {
@@ -441,7 +483,7 @@
                                 ${emailG ? `<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
                                 <div style="margin-top:8px; display:flex; gap:5px;">
                                     <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')"><i class="fab fa-whatsapp"></i></button>
-                                    <button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}')"><i class="fas fa-envelope"></i></button>
+                                    <button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}', '${h.logoUrl || ''}')"><i class="fas fa-envelope"></i></button>
                                 </div>
                             </td>
                             <td><button class="btn-accion" style="background:#666" onclick="navigator.clipboard.writeText('${textoParaCopiar}'); mostrarToast('📋 Datos copiados','warning')"><i class="fas fa-copy"></i></button></td>
