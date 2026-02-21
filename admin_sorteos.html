@@ -5,60 +5,65 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
-:root {
---azul-habitat: #003d80;
---rojo-cupon: #e60000;
---naranja: #ff8c00;
---celeste: #0288d1;
---verde: #2e7d32;
---blanco: #ffffff;
---gris-texto: #666666;
---oro: #d4af37;
-}
+/* ... (Se mantienen todos tus estilos originales intactos) ... */
+:root { --azul-habitat: #003d80; --rojo-cupon: #e60000; --naranja: #ff8c00; --celeste: #0288d1; --verde: #2e7d32; --blanco: #ffffff; --gris-texto: #666666; --oro: #d4af37; --zona-critica: #dc3545; }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8f9fa; color: #333; line-height: 1.6; padding-top: 140px; }
-/* ... (Se mantienen todos tus estilos originales) ... */
+.faja-superior { position: fixed; top: 0; left: 0; width: 100%; background: var(--azul-habitat); border-bottom: 4px solid var(--naranja); z-index: 1000; padding: 10px 0; }
+/* ... (He omitido el resto del CSS aquí por brevedad, pero en tu archivo DEBES mantenerlo todo) ... */
 </style>
 </head>
 <body>
 
 <script type="module">
+// --- CONFIGURACIÓN DE FIREBASE ---
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getFirestore, collection, getDocs, doc, getDoc, updateDoc, deleteDoc, query, where, orderBy, limit } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
 const firebaseConfig = {
-    // TUS CREDENCIALES (Cópialas de tu archivo original aquí)
+    // COPIA AQUÍ TUS CREDENCIALES DE FIREBASE
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
-const URL_SCRIPT = "TU_URL_DE_GOOGLE_SCRIPT_AQUI"; // Asegúrate de poner tu URL /exec
 
-// --- FUNCIÓN DE ENVÍO (Extraída de la copia que funciona) ---
-window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, logoComercio) => {
-    if (!emailDestino) return mostrarToast("Sin email", "error");
+// URL DE TU SCRIPT DE GOOGLE (Asegúrate de que sea la última versión implementada)
+const URL_SCRIPT = "TU_URL_AQUI_TERMINADA_EN_EXEC";
+
+// --- MOTOR DE ENVÍO CORREGIDO (Extraído de la versión funcional) ---
+window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC) => {
+    if (!emailDestino || emailDestino === 'undefined') return mostrarToast("❌ Email inválido", "error");
     
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = "⏳";
 
+    // 1. Obtención de plantillas
     let asuntoP = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}, ganaste!";
     let cuerpoP = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
 
-    // Inyección exacta
-    let asuntoFinal = asuntoP.replace(/{{NOMBRE}}/g, nombre).replace(/{{PREMIO}}/g, premio).replace(/{{COMERCIO}}/g, comercio);
-    let cuerpoFinal = cuerpoP.replace(/{{NOMBRE}}/g, nombre).replace(/{{PREMIO}}/g, premio).replace(/{{COMERCIO}}/g, comercio);
+    // 2. Inyección de datos (Lógica blindada)
+    const inyectar = (texto) => {
+        return texto.split('{{NOMBRE}}').join(nombre)
+                    .split('{{PREMIO}}').join(premio)
+                    .split('{{COMERCIO}}').join(comercio);
+    };
+
+    const asuntoFinal = inyectar(asuntoP);
+    const cuerpoFinal = inyectar(cuerpoP);
 
     try {
+        // 3. Empaquetado de datos para el servidor
         const datos = {
             email: emailDestino.trim(),
             asunto: asuntoFinal,
-            cuerpoHtml: cuerpoFinal,
+            cuerpoHtml: cuerpoFinal.replace(/\n/g, '<br>'),
             nombreGanador: nombre,
             cc: `habitatcar@gmail.com${mailCC ? ', ' + mailCC : ''}`,
-            pdfB64: "" 
+            pdfB64: "" // Aquí puedes añadir el base64 si generas el PDF
         };
 
+        // 4. Envío al Script de Google
         await fetch(URL_SCRIPT, {
             method: 'POST',
             mode: 'no-cors', 
@@ -66,58 +71,43 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, 
             body: JSON.stringify(datos)
         });
 
-        mostrarToast("✅ Mail enviado correctamente");
+        mostrarToast("✅ Mail enviado correctamente a " + nombre);
+
     } catch (e) {
         console.error("Error envío:", e);
-        mostrarToast("❌ Error de conexión", "error");
+        mostrarToast("❌ Error de conexión con el servidor", "error");
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
     }
 };
 
-// --- FUNCIÓN MOSTRAR HISTORIAL (Corregida para pasar datos bien) ---
+// --- RECONSTRUCCIÓN DE LA TABLA (HISTORIAL) ---
 window.mostrarHistorial = async () => {
     const cont = document.getElementById('sorteos-activos');
-    cont.innerHTML = '<div class="loading">Cargando historial...</div>';
+    cont.innerHTML = '<div class="loading">Cargando historial de éxitos...</div>';
     
-    const querySnapshot = await getDocs(collection(db, "comercios"));
-    let html = `
-        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
-            <h2 style="color:var(--azul-habitat)"><i class="fas fa-history"></i> Historial de Ganadores</h2>
-            <button class="btn-sortear" onclick="cargarActivos()" style="background:var(--gris-texto)">Volver</button>
-        </div>
-        <table class="tabla-sorteos">
-            <thead>
-                <tr>
-                    <th>Fecha</th>
-                    <th>Comercio</th>
-                    <th>Premio</th>
-                    <th>Ganador/es</th>
-                    <th>Acciones</th>
-                </tr>
-            </thead>
-            <tbody>`;
+    const snap = await getDocs(collection(db, "comercios"));
+    let html = `<h2 style="margin-bottom:20px; color:var(--azul-habitat)"><i class="fas fa-history"></i> Historial de Ganadores</h2>
+                <table class="tabla-sorteos">
+                <thead><tr><th>Fecha</th><th>Comercio</th><th>Premio</th><th>Ganador</th><th>Acciones</th></tr></thead><tbody>`;
 
-    querySnapshot.forEach((docCom) => {
+    snap.forEach(docCom => {
         const c = docCom.data();
         if (c.historial_sorteos) {
-            c.historial_sorteos.forEach((h) => {
-                h.ganadores.forEach(gan => {
-                    const nombreG = gan.nombre;
-                    const emailG = gan.email;
-                    // AQUÍ ESTÁ EL CAMBIO: Usamos comillas simples para proteger los datos con espacios
-                    html += `
-                    <tr>
+            c.historial_sorteos.forEach(h => {
+                h.ganadores.forEach(g => {
+                    // USO DE COMILLAS SIMPLES PARA PROTEGER DATOS CON ESPACIOS
+                    html += `<tr>
                         <td>${h.fecha}</td>
                         <td><strong>${h.comercio}</strong></td>
                         <td>${h.premio}</td>
-                        <td>${nombreG}<br><small>${emailG}</small></td>
+                        <td>${g.nombre}<br><small>${g.email}</small></td>
                         <td>
-                            <button class="btn-accion btn-mail" onclick="enviarMail(this, '${emailG}', '${nombreG}', '${h.premio}', '${h.comercio}', '${c.mail_comercio || ''}')">
+                            <button class="btn-accion btn-mail" onclick="enviarMail(this, '${g.email}', '${g.nombre}', '${h.premio}', '${h.comercio}', '${c.mail_comercio || ''}')">
                                 <i class="fas fa-envelope"></i>
                             </button>
-                            <button class="btn-accion btn-wa" onclick="abrirWA('${gan.telefono}', '${nombreG}', '${h.premio}', '${h.comercio}')">
+                            <button class="btn-accion btn-wa" onclick="abrirWA('${g.telefono}', '${g.nombre}', '${h.premio}', '${h.comercio}')">
                                 <i class="fab fa-whatsapp"></i>
                             </button>
                         </td>
@@ -126,11 +116,11 @@ window.mostrarHistorial = async () => {
             });
         }
     });
-    html += `</tbody></table>`;
+    html += "</tbody></table>";
     cont.innerHTML = html;
 };
 
-// ... (El resto de tus funciones cargarActivos, ejecutarSorteo, etc. se mantienen igual) ...
+// ... (Aquí mantienes tus funciones ejecutarSorteo, cargarActivos, eliminarIndividual, etc. tal cual las tenías) ...
 
 function mostrarToast(mensaje, tipo = "success") { 
     const div = document.createElement('div'); 
@@ -140,13 +130,14 @@ function mostrarToast(mensaje, tipo = "success") {
     setTimeout(() => div.remove(), 3000); 
 }
 
+// Inicialización
 document.getElementById('btn-activos').onclick = cargarActivos;
 document.getElementById('btn-historial').onclick = window.mostrarHistorial;
-document.addEventListener('DOMContentLoaded', () => { cargarActivos(); });
+document.addEventListener('DOMContentLoaded', cargarActivos);
 
+// Exportación global
 window.enviarMail = enviarMail;
 window.mostrarHistorial = mostrarHistorial;
 window.mostrarToast = mostrarToast;
-// ... (Tus otras exportaciones de window)
 </script>
 </body></html>
