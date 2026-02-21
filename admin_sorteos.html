@@ -142,7 +142,7 @@ body { padding-top: 120px; }
 </div>
 </div>
 
-<!-- MODAL EDITAR EMAIL -->
+<!-- ✅ MODAL EDITAR EMAIL -->
 <div id="modal-email" class="modal">
 <div class="modal-content">
 <h3 style="color:var(--azul-habitat); margin-bottom:15px;">✉️ Editar Plantilla de Email</h3>
@@ -151,9 +151,7 @@ body { padding-top: 120px; }
 El sistema reemplazará automáticamente:<br>
 <span style="color:#e60000; font-weight:bold">{{NOMBRE}}</span> → Nombre del Ganador<br>
 <span style="color:#e60000; font-weight:bold">{{PREMIO}}</span> → El Regalo<br>
-<span style="color:#e60000; font-weight:bold">{{COMERCIO}}</span> → Local del Sorteo<br>
-<span style="color:#e60000; font-weight:bold">{{WHATSAPP_COMERCIO}}</span> → WhatsApp del Comercio<br>
-<span style="color:#e60000; font-weight:bold">{{DIRECCION_COMERCIO}}</span> → Dirección del Comercio
+<span style="color:#e60000; font-weight:bold">{{COMERCIO}}</span> → Local del Sorteo
 </p>
 <div class="form-group">
 <label>Asunto:</label>
@@ -168,7 +166,7 @@ El sistema reemplazará automáticamente:<br>
 </div>
 </div>
 
-<!-- MODAL DISEÑAR PDF -->
+<!-- ✅ MODAL DISEÑAR PDF -->
 <div id="modal-pdf" class="modal">
 <div class="modal-content">
 <h3 style="color:var(--azul-habitat); margin-bottom:15px;">📄 Diseñar Certificado PDF</h3>
@@ -185,7 +183,7 @@ El sistema reemplazará automáticamente:<br>
 </div>
 </div>
 
-<!-- MODAL CONFIRMACIÓN SORTEO -->
+<!-- ✅ MODAL CONFIRMACIÓN SORTEO -->
 <div id="popup-confirmacion" class="modal" style="display: none;">
 <div class="modal-content">
 <h3 style="color: var(--azul-habitat); margin-bottom: 15px;">🎉 ¡SORTEO REALIZADO!</h3>
@@ -198,27 +196,7 @@ El sistema reemplazará automáticamente:<br>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, doc, getDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
-
-const CLAVE_MAESTRA = "HABITAT_MASTER_2026";
-
-// ✅ OBJETO GLOBAL DE DATOS - NUNCA SE BORRA, SOLO SE ACTUALIZA
-// Esta es la clave del fix: los datos siempre están disponibles
-// sin importar cuántas veces se apriete el botón de email
-window._ganadorData = {};
-
-window.validarAccionSegura = async (idComercio, claveIngresada) => {
-    if (claveIngresada === CLAVE_MAESTRA) return true;
-    try {
-        const comercioRef = doc(db, "comercios", idComercio);
-        const snap = await getDoc(comercioRef);
-        if (snap.exists()) {
-            const datosComercio = snap.data();
-            if (claveIngresada === datosComercio.password) return true;
-        }
-    } catch (error) { console.error("Error al validar clave:", error); }
-    return false;
-};
+import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, doc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
 const firebaseConfig = {
     apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -234,9 +212,10 @@ const db = getFirestore(app);
 const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
 const LOGO_DEFAULT = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
 
+// --- 📧 CONFIGURACIÓN EMAIL PERSISTENTE ---
 window.abrirEditorEmail = () => {
     document.getElementById('inp-asunto').value = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
-    document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste un/a {{PREMIO}} en {{COMERCIO}}.";
+    document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
     document.getElementById('modal-email').style.display = 'flex';
 };
 window.abrirEditorPDF = () => {
@@ -249,7 +228,7 @@ window.cerrarEditores = () => {
     document.getElementById('modal-pdf').style.display = 'none';
 };
 window.guardarConfig = (tipo) => {
-    if (tipo === 'email') {
+    if(tipo === 'email') {
         localStorage.setItem('hc_asunto', document.getElementById('inp-asunto').value);
         localStorage.setItem('hc_cuerpo', document.getElementById('inp-cuerpo').value);
     } else {
@@ -260,6 +239,7 @@ window.guardarConfig = (tipo) => {
     cerrarEditores();
 };
 
+// --- 📞 UTILIDADES ---
 window.normalizarTelefonoAR = (numero) => {
     if (!numero) return null;
     let num = numero.toString().replace(/\D/g, '');
@@ -267,7 +247,6 @@ window.normalizarTelefonoAR = (numero) => {
     if (num.startsWith('54') && !num.startsWith('549')) return '549' + num.substring(2);
     return num.startsWith('549') ? num : '549' + num;
 };
-
 window.abrirWA = (cel, nom, pre) => {
     if (!cel) return mostrarToast("⚠️ El participante no tiene celular.", "error");
     const num = window.normalizarTelefonoAR(cel);
@@ -275,94 +254,23 @@ window.abrirWA = (cel, nom, pre) => {
     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
 };
 
-// ✅ WHATSAPP POR KEY - SIN CARACTERES ESPECIALES EN EL HTML
-window.abrirWAPorKey = (key) => {
-    const d = window._ganadorData[key];
-    if (!d) return mostrarToast("❌ Error: datos no encontrados", "error");
-    window.abrirWA(d.celular, d.nombre, d.premio);
-};
-
-// ✅ COPIAR POR KEY
-window.copiarGanador = (key) => {
-    const d = window._ganadorData[key];
-    if (!d) return mostrarToast("❌ Error: datos no encontrados", "error");
-    const texto = `${d.nombre} - WA: ${d.celular || 'sin tel'} - Email: ${d.email || 'sin email'}`;
-    navigator.clipboard.writeText(texto);
-    mostrarToast('📋 Copiado', 'warning');
-};
-
-// ✅ EMAIL POR KEY - SIEMPRE ENCUENTRA LOS DATOS, PRIMER O DÉCIMO CLICK
-window.enviarMailPorKey = (btn, key) => {
-    const d = window._ganadorData[key];
-    if (!d) return mostrarToast("❌ Error: datos no encontrados", "error");
-    window.enviarMail(
-        btn,
-        d.email,
-        d.nombre,
-        d.premio,
-        d.comercio,
-        d.mailComercio,
-        d.logoUrl,
-        d.whatsappComercio,
-        d.direccionComercio
-    );
-};
-
-// ✅ FUNCIÓN PRINCIPAL: ENVÍA EL MAIL CON TODOS LOS DATOS INYECTADOS
-window.enviarMail = async (
-    btn,
-    emailDestino,
-    nombre,
-    premio,
-    comercio,
-    mailCC,
-    logoComercio,
-    whatsappComercio,
-    direccionComercio
-) => {
-    nombre = (nombre || "Ganador/a").trim();
-    premio = (premio || "el premio").trim();
-    comercio = (comercio || "el comercio").trim();
-    whatsappComercio = (whatsappComercio || "").trim();
-    direccionComercio = (direccionComercio || "").trim();
-
-    if (!emailDestino) return mostrarToast("Sin email registrado", "error");
-
+// --- ✅ ENVÍO DE MAIL CON PDF PREMIUM Y LOGO COMERCIO (FUNCIÓN COPIADA EXACTAMENTE) ---
+window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, logoComercio) => {
+    if (!emailDestino) return mostrarToast("Sin email", "error");
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = "⏳";
-
-    let asuntoPlantilla = localStorage.getItem('hc_asunto') ||
-        "🏆 ¡Felicidades {{NOMBRE}}! Ganaste en {{COMERCIO}}";
-
-    let cuerpoPlantilla = localStorage.getItem('hc_cuerpo') ||
-`Hola {{NOMBRE}}, ganaste un/a {{PREMIO}} en {{COMERCIO}}.
-
-Es un gran placer saber que fuiste beneficiado con un importante premio que vas a poder disfrutar al máximo.
-
-Saludos CON LA ESPERANZA DE VOLVERLO A CONTACTAR.
-
-Tenés 30 días para ir por {{DIRECCION_COMERCIO}} a buscar tu premio o contactarte con {{WHATSAPP_COMERCIO}}.`;
-
-    // ✅ REEMPLAZA TODAS LAS VARIABLES EN EL ASUNTO Y CUERPO
+    let asuntoPlantilla = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
+    let cuerpoPlantilla = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
     const inyectar = (texto) => {
-        return texto
-            .replace(/\{\{NOMBRE\}\}/g, nombre)
-            .replace(/\{\{PREMIO\}\}/g, premio)
-            .replace(/\{\{COMERCIO\}\}/g, comercio)
-            .replace(/\{\{WHATSAPP_COMERCIO\}\}/g, whatsappComercio || "el comercio")
-            .replace(/\{\{DIRECCION_COMERCIO\}\}/g, direccionComercio || "el comercio");
+        return texto.replace(/{{NOMBRE}}/g, nombre).replace(/{{PREMIO}}/g, premio).replace(/{{COMERCIO}}/g, comercio);
     };
-
     const asuntoFinal = inyectar(asuntoPlantilla);
     const cuerpoFinal = inyectar(cuerpoPlantilla);
-
-    // ✅ GENERA EL PDF CON NOMBRE, COMERCIO Y PREMIO CORRECTOS
     const { jsPDF } = window.jspdf;
     const pdf = new jsPDF('l', 'mm', 'a5');
     const ancho = 210;
     const alto = 148;
-
     pdf.setFillColor(0, 61, 128);
     pdf.triangle(0, 0, 80, 0, 0, 80, 'F');
     pdf.setDrawColor(0, 61, 128);
@@ -371,50 +279,46 @@ Tenés 30 días para ir por {{DIRECCION_COMERCIO}} a buscar tu premio o contacta
     pdf.setDrawColor(212, 175, 55);
     pdf.setLineWidth(0.5);
     pdf.rect(7, 7, ancho - 14, alto - 14);
-
     if (logoComercio) {
-        try { pdf.addImage(logoComercio, 'PNG', ancho - 55, 15, 40, 40, '', 'FAST'); } catch (e) {}
+        try { pdf.addImage(logoComercio, 'PNG', ancho - 55, 15, 40, 40, '', 'FAST'); } catch (e) { console.log("Sin logo comercio"); }
     }
-    try { pdf.addImage(LOGO_DEFAULT, 'PNG', 15, alto - 45, 45, 30, '', 'FAST'); } catch (e) {}
-
+    const logoHC = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
+    try { pdf.addImage(logoHC, 'PNG', 15, alto - 45, 45, 30, '', 'FAST'); } catch (e) { console.log("Error logo HC"); }
     pdf.setTextColor(0, 61, 128);
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(26);
     pdf.text("CERTIFICADO DE GANADOR", ancho / 2, 45, { align: "center" });
-
     pdf.setTextColor(40, 40, 40);
     pdf.setFontSize(14);
     pdf.setFont("helvetica", "normal");
     pdf.text("Por el presente se certifica que:", ancho / 2, 60, { align: "center" });
-
     pdf.setFontSize(22);
     pdf.setFont("helvetica", "bold");
     pdf.text(nombre.toUpperCase(), ancho / 2, 75, { align: "center" });
-
     pdf.setFontSize(12);
     pdf.setFont("helvetica", "normal");
-    pdf.text(`Fuiste favorecido con el sorteo de ${comercio}:`, ancho / 2, 90, { align: "center" });
-
+    pdf.text(`Fuiste favorecido con el sorteo:`, ancho / 2, 90, { align: "center" });
     pdf.setFontSize(14);
     pdf.setFont("helvetica", "bold");
     pdf.text(`"${premio.toUpperCase()}"`, ancho / 2, 100, { align: "center" });
-
+    pdf.setFontSize(10);
+    pdf.setFont("helvetica", "italic");
+    const textoCierre = `Habitat-Car y ${comercio} se complacen por tu participación.`;
+    pdf.text(textoCierre, ancho / 2, 120, { align: "center" });
+    const hoy = new Date().toLocaleDateString();
     pdf.setFontSize(9);
     pdf.setFont("helvetica", "normal");
-    pdf.text(`Emitido el: ${new Date().toLocaleDateString()}`, ancho - 20, alto - 15, { align: "right" });
-
+    pdf.text(`Emitido el: ${hoy}`, ancho - 20, alto - 15, { align: "right" });
     const pdfB64 = pdf.output('datauristring').split(',')[1];
-
     try {
         const payload = {
             email: emailDestino.trim(),
             asunto: asuntoFinal,
             cuerpoHtml: cuerpoFinal,
             nombreGanador: nombre,
-            cc: `habitatcar@gmail.com, ${mailCC || ''}`,
+            cc: `habitatcar@gmail.com, ${mailCC}`,
             pdfB64: pdfB64
         };
-
         await fetch(URL_SCRIPT, {
             method: 'POST',
             mode: 'no-cors',
@@ -422,9 +326,7 @@ Tenés 30 días para ir por {{DIRECCION_COMERCIO}} a buscar tu premio o contacta
             headers: { 'Content-Type': 'text/plain' },
             body: JSON.stringify(payload)
         });
-
-        mostrarToast(`✅ Certificado enviado a ${nombre}!`);
-
+        mostrarToast("✅ Certificado Premium enviado!");
     } catch (e) {
         console.error(e);
         mostrarToast("❌ Error al enviar", "error");
@@ -445,74 +347,97 @@ function formatearFechaHora(fechaISO) {
     } catch (e) { return null; }
 }
 
-window.mostrarConfirmacionSorteo = (total, ganadores, comercio) => {
+window.mostrarConfirmacionSorteo = (total, ganadores) => {
     const listaGanadores = document.getElementById('lista-ganadores-popup');
     listaGanadores.innerHTML = ganadores.map(g => {
         const esVIP = g.tipo === "VIP";
         const badgeTipo = esVIP
-            ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>`
-            : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
-        return `<div class="ganador-item">
-            <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-weight:bold;"><i class="fas fa-trophy" style="color:var(--oro);margin-right:5px;"></i>${g.nombreMostrar}</span>
+            ? `<span class="badge badge-vip" style="font-size:0.7rem; margin-left:5px;"><i class="fas fa-crown"></i> VIP</span>`
+            : `<span class="badge badge-lead" style="font-size:0.7rem; margin-left:5px;"><i class="fas fa-user"></i> LEAD</span>`;
+        return `
+        <div class="ganador-item">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: bold;"><i class="fas fa-trophy" style="color:var(--oro); margin-right:5px;"></i>${g.nombreMostrar}</span>
                 ${badgeTipo}
             </div>
-            <small style="color:#666;display:block;margin-top:5px;"><i class="fab fa-whatsapp"></i> ${g.celular || 'Sin teléfono'}</small>
+            <small style="color: #666; display: block; margin-top: 5px;">
+                <i class="fab fa-whatsapp"></i> ${g.celular || 'Sin teléfono'}
+            </small>
         </div>`;
     }).join('');
-    document.getElementById('texto-sorteo').innerText = `Sorteo de ${comercio}: ${ganadores.length} ganador(es) entre ${total} participantes.`;
+    document.getElementById('texto-sorteo').innerText = `Se han seleccionado ${ganadores.length} ganador(es) entre ${total} participantes.`;
     document.getElementById('popup-confirmacion').style.display = 'flex';
 };
-
 window.cerrarModalSorteo = () => document.getElementById('popup-confirmacion').style.display = 'none';
 window.irAlHistorial = () => { window.cerrarModalSorteo(); window.mostrarHistorial(); };
 
+// ✅ VARIABLE GLOBAL PARA SEGUIMIENTO DE SELECCIONES
 window.itemsSeleccionados = new Set();
 window.vistaActual = 'activos';
 
+// ✅ TOGGLE SELECT ALL
 window.toggleSelectAll = () => {
     const selectAll = document.getElementById('select-all');
-    document.querySelectorAll('.row-checkbox').forEach(cb => {
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(cb => {
         cb.checked = selectAll.checked;
-        if (selectAll.checked) window.itemsSeleccionados.add(cb.dataset.id);
-        else window.itemsSeleccionados.delete(cb.dataset.id);
+        if(selectAll.checked) {
+            window.itemsSeleccionados.add(cb.dataset.id);
+        } else {
+            window.itemsSeleccionados.delete(cb.dataset.id);
+        }
     });
     actualizarBulkActions();
 };
 
+// ✅ ACTUALIZAR BARRA DE ACCIONES MASIVAS
 window.actualizarBulkActions = () => {
-    const bulk = document.getElementById('bulk-actions');
-    const count = document.getElementById('selected-count');
-    const headerCb = document.getElementById('select-all');
-    if (window.itemsSeleccionados.size > 0) {
-        bulk.classList.add('active');
-        count.textContent = window.itemsSeleccionados.size;
-        headerCb.checked = window.itemsSeleccionados.size === document.querySelectorAll('.row-checkbox').length;
+    const bulkActions = document.getElementById('bulk-actions');
+    const selectedCount = document.getElementById('selected-count');
+    const headerCheckbox = document.getElementById('select-all');
+    if(window.itemsSeleccionados.size > 0) {
+        bulkActions.classList.add('active');
+        selectedCount.textContent = window.itemsSeleccionados.size;
+        headerCheckbox.checked = window.itemsSeleccionados.size === document.querySelectorAll('.row-checkbox').length;
     } else {
-        bulk.classList.remove('active');
-        headerCb.checked = false;
+        bulkActions.classList.remove('active');
+        headerCheckbox.checked = false;
     }
 };
 
+// ✅ TOGGLE SELECCIÓN INDIVIDUAL
 window.toggleSeleccion = (id, checkbox) => {
-    if (checkbox.checked) window.itemsSeleccionados.add(id);
-    else window.itemsSeleccionados.delete(id);
+    if(checkbox.checked) {
+        window.itemsSeleccionados.add(id);
+    } else {
+        window.itemsSeleccionados.delete(id);
+    }
     actualizarBulkActions();
 };
 
+// ✅ ELIMINAR SELECCIONADOS
 window.eliminarSeleccionados = async () => {
-    if (window.itemsSeleccionados.size === 0) return mostrarToast("⚠️ No hay items seleccionados", "warning");
-    if (!confirm(`¿Eliminar ${window.itemsSeleccionados.size} registro(s) del historial?`)) return;
-    mostrarToast("🗑️ Eliminando...", "warning");
+    if(window.itemsSeleccionados.size === 0) {
+        return mostrarToast("⚠️ No hay items seleccionados", "warning");
+    }
+    if(!confirm(`¿Estás seguro de eliminar ${window.itemsSeleccionados.size} registro(s) del historial?`)) {
+        return;
+    }
+    mostrarToast("🗑️ Eliminando registros...", "warning");
     try {
-        await Promise.all(Array.from(window.itemsSeleccionados).map(id => deleteDoc(doc(db, "historial_sorteos", id))));
-        mostrarToast(`✅ ${window.itemsSeleccionados.size} eliminado(s)`, "success");
+        const promesas = Array.from(window.itemsSeleccionados).map(id => deleteDoc(doc(db, "historial_sorteos", id)));
+        await Promise.all(promesas);
+        mostrarToast(`✅ ${window.itemsSeleccionados.size} registro(s) eliminado(s)`, "success");
         window.itemsSeleccionados.clear();
         actualizarBulkActions();
         window.mostrarHistorial();
-    } catch (e) { console.error(e); mostrarToast("❌ Error", "error"); }
+    } catch (e) {
+        console.error(e);
+        mostrarToast("❌ Error al eliminar", "error");
+    }
 };
 
+// ✅ DESMARCAR TODOS
 window.desmarcarTodos = () => {
     window.itemsSeleccionados.clear();
     document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
@@ -520,79 +445,23 @@ window.desmarcarTodos = () => {
     actualizarBulkActions();
 };
 
+// ✅ ELIMINAR INDIVIDUAL
 window.eliminarIndividual = async (id, btn) => {
-    if (!confirm('¿Eliminar este registro?')) return;
-    const original = btn.innerHTML;
-    btn.disabled = true; btn.innerHTML = "⏳";
+    if(!confirm('¿Estás seguro de eliminar este registro?')) {
+        return;
+    }
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = "⏳";
     try {
         await deleteDoc(doc(db, "historial_sorteos", id));
-        mostrarToast("✅ Eliminado", "success");
+        mostrarToast("✅ Registro eliminado", "success");
         window.mostrarHistorial();
-    } catch (e) { console.error(e); mostrarToast("❌ Error", "error"); btn.disabled = false; btn.innerHTML = original; }
-};
-
-window.iniciarRelojes = () => {
-    setInterval(() => {
-        document.querySelectorAll('.btn-sortear-accion').forEach(btn => {
-            const ts = parseInt(btn.dataset.timestamp);
-            const ahora = Date.now();
-            const faltan = ts - ahora;
-            if (faltan > 0) {
-                const d = Math.floor(faltan / 86400000);
-                const h = Math.floor((faltan % 86400000) / 3600000);
-                const m = Math.floor((faltan % 3600000) / 60000);
-                const s = Math.floor((faltan % 60000) / 1000);
-                btn.innerHTML = `⏳ ${d}d ${h}h ${m}m ${s}s`;
-                btn.classList.add('btn-dark'); btn.classList.remove('btn-primary');
-                btn.dataset.estado = 'bloqueado';
-            } else {
-                btn.innerHTML = `🎲 SORTEAR AHORA`;
-                btn.classList.remove('btn-dark'); btn.classList.add('btn-primary');
-                btn.dataset.estado = 'listo';
-            }
-        });
-    }, 1000);
-};
-
-window.intentarSorteo = async (btn) => {
-    const ts = parseInt(btn.dataset.timestamp);
-    const ahora = Date.now();
-    if (ahora < ts) {
-        const clave = prompt(`⏰ Sorteo programado para ${new Date(ts).toLocaleString()}\nIngrese CLAVE DE COMERCIO o MAESTRA para adelantar:`);
-        if (!clave) return;
-        if (!await validarAccionSegura(btn.dataset.id, clave)) {
-            mostrarToast("❌ Contraseña incorrecta", "error");
-            return;
-        }
-        mostrarToast("🔓 Acceso autorizado - Sorteo adelantado", "warning");
-    }
-    ejecutarSorteo(btn.dataset.id, btn.dataset.nombre, btn.dataset.premio, parseInt(btn.dataset.cant), btn.dataset.mail, btn.dataset.logo, btn.dataset.desc, btn.dataset.claveComercio);
-};
-
-window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
-    const timestampSorteo = new Date(fechaSorteoISO).getTime();
-    const ahora = Date.now();
-    const diferenciaHoras = (timestampSorteo - ahora) / (1000 * 60 * 60);
-    const mensajePrompt = (diferenciaHoras < 24 && diferenciaHoras > 0)
-        ? "⚠️ ZONA CRÍTICA: Faltan menos de 24hs. Solo CLAVE MAESTRA:"
-        : "Ingrese CLAVE DE COMERCIO para eliminar:";
-    const clave = prompt(mensajePrompt);
-    if (!clave) return;
-    const autorizado = await window.validarAccionSegura(idComercio, clave);
-    if (autorizado) {
-        if (diferenciaHoras < 24 && diferenciaHoras > 0 && clave !== CLAVE_MAESTRA) {
-            mostrarToast("❌ Solo Admin General puede cancelar sorteos inminentes", "error");
-            return;
-        }
-        try {
-            await updateDoc(doc(db, "comercios", idComercio), {
-                titulo_sorteo: null, descripcion_sorteo: null, fecha_sorteo: null, cantidad_premios: null, logoUrl: null
-            });
-            mostrarToast("🗑️ Sorteo cancelado exitosamente", "success");
-            cargarActivos();
-        } catch (e) { console.error(e); mostrarToast("❌ Error al eliminar", "error"); }
-    } else {
-        mostrarToast("❌ Contraseña incorrecta", "error");
+    } catch (e) {
+        console.error(e);
+        mostrarToast("❌ Error al eliminar", "error");
+        btn.disabled = false;
+        btn.innerHTML = originalText;
     }
 };
 
@@ -611,52 +480,43 @@ const cargarActivos = async () => {
                 const premio = c.titulo_sorteo;
                 const descPremio = c.descripcion_sorteo || "";
                 const cant = parseInt(c.cantidad_premios) || 1;
-                const fechaSorteo = c.fecha_sorteo ? new Date(c.fecha_sorteo) : null;
-                const timestamp = fechaSorteo ? fechaSorteo.getTime() : Date.now();
-                const fechaISO = c.fecha_sorteo || "";
                 let cLead = 0, cVip = 0;
                 const qP = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
                 const snapP = await getDocs(qP);
-                const resultados = await Promise.all(snapP.docs.map(async (p) => {
+                const promesas = snapP.docs.map(async (p) => {
                     const dataP = p.data();
                     if (dataP.usuarioId && !dataP.usuarioId.startsWith('temp_')) {
                         try {
                             const leadDoc = await getDoc(doc(db, "leads", dataP.usuarioId));
-                            if (leadDoc.exists() && (leadDoc.data().convertidoVIP || leadDoc.data().tipo === "VIP")) return "VIP";
+                            if (leadDoc.exists()) {
+                                const ld = leadDoc.data();
+                                if (ld.convertidoVIP === true || ld.tipo === "VIP") return "VIP";
+                            }
                         } catch (e) {}
                     }
                     return dataP.tipo === "VIP" ? "VIP" : "LEAD";
-                }));
-                resultados.forEach(t => t === "VIP" ? cVip++ : cLead++);
+                });
+                const resultados = await Promise.all(promesas);
+                resultados.forEach(tipo => { if (tipo === "VIP") cVip++; else cLead++; });
                 const totalP = cLead + cVip;
-                const f = formatearFechaHora(c.fecha_sorteo) || { fecha: 'A definir', hora: '' };
-                const estadoBadge = timestamp > Date.now()
-                    ? `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`
-                    : `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
+                const f = formatearFechaHora(c.fecha_sorteo) || {fecha: 'A definir', hora: ''};
                 tabla.innerHTML += `
                 <tr>
-                <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${estadoBadge}</div></td>
+                <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span></div></td>
                 <td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-                <td><span class="badge badge-comercio">${nomCom}</span><br><span class="badge badge-premio">🎁 ${premio}</span>${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}</td>
-                <td><div class="participantes-cell">
-                    <div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cLead}</span></div>
-                    <div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cVip}</span></div>
-                    <div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${totalP}</span></div>
-                </div></td>
                 <td>
-                    <button class="btn btn-sortear-accion"
-                        data-id="${docCom.id}"
-                        data-nombre="${nomCom}"
-                        data-premio="${premio}"
-                        data-cant="${cant}"
-                        data-mail="${c.email || ''}"
-                        data-logo="${c.logoUrl || ''}"
-                        data-desc="${descPremio}"
-                        data-timestamp="${timestamp}"
-                        data-clave-comercio="${c.password || ''}"
-                        onclick="intentarSorteo(this)">Calculando...</button>
-                    <br><button class="btn btn-danger btn-sm" style="margin-top:5px;" onclick="intentarEliminarSorteo('${docCom.id}', '${fechaISO}')">🗑️ Cancelar</button>
+                    <span class="badge badge-comercio">${nomCom}</span><br>
+                    <span class="badge badge-premio">🎁 ${premio}</span>
+                    ${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}
                 </td>
+                <td>
+                    <div class="participantes-cell">
+                        <div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cLead}</span></div>
+                        <div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cVip}</span></div>
+                        <div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${totalP}</span></div>
+                    </div>
+                </td>
+                <td><button class="btn btn-primary btn-sortear-accion" data-id="${docCom.id}" data-nombre="${nomCom}" data-premio="${premio}" data-cant="${cant}" data-mail="${c.email || ''}" data-logo="${c.logoUrl || ''}" data-desc="${descPremio}">🎲 SORTEAR (${cant})</button></td>
                 <td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant > 1 ? 's' : ''}</span></td>
                 </tr>`;
             }
@@ -664,8 +524,15 @@ const cargarActivos = async () => {
     });
 };
 
-// ✅ EJECUTAR SORTEO - GUARDA WHATSAPP Y DIRECCIÓN DEL COMERCIO EN FIREBASE
-const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc, claveComercio) => {
+document.addEventListener('click', (e) => {
+    if (e.target && e.target.classList.contains('btn-sortear-accion')) {
+        const b = e.target.dataset;
+        ejecutarSorteo(b.id, b.nombre, b.premio, parseInt(b.cant), b.mail, b.logo, b.desc);
+    }
+});
+
+// --- ✅ EJECUTAR SORTEO - GUARDA DATOS DEL COMERCIO EN FIREBASE ---
+const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc) => {
     mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
     try {
         const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
@@ -678,30 +545,27 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
             let tipoFinal = partData.tipo || "LEAD";
             let emailFinal = partData.email || "";
             if (partData.usuarioId && !partData.usuarioId.startsWith('temp_')) {
-                try {
-                    const leadDoc = await getDoc(doc(db, "leads", partData.usuarioId));
-                    if (leadDoc.exists()) {
-                        const ld = leadDoc.data();
-                        nombreFinal = `${ld.nombres || ''} ${ld.apellido || ''}`.trim() || nombreFinal;
-                        celFinal = ld.whatsapp || ld.celular || celFinal;
-                        tipoFinal = (ld.convertidoVIP || ld.tipo === "VIP") ? "VIP" : "LEAD";
-                        emailFinal = ld.email || emailFinal;
-                    }
-                } catch (e) {}
+                const leadDoc = await getDoc(doc(db, "leads", partData.usuarioId));
+                if (leadDoc.exists()) {
+                    const ld = leadDoc.data();
+                    nombreFinal = `${ld.nombres || ''} ${ld.apellido || ''}`.trim() || nombreFinal;
+                    celFinal = ld.whatsapp || ld.celular || celFinal;
+                    tipoFinal = (ld.convertidoVIP || ld.tipo === "VIP") ? "VIP" : "LEAD";
+                    emailFinal = ld.email || emailFinal;
+                }
             }
             participantes.push({ ...partData, nombreMostrar: nombreFinal, celular: celFinal, tipo: tipoFinal, email: emailFinal });
         }
-        if (participantes.length === 0) { mostrarToast(`⚠️ Sin participantes`, "error"); return; }
-
-        let ganadores = [], bolsa = [...participantes];
-        for (let i = 0; i < Math.min(cant, bolsa.length); i++) {
-            const idx = Math.floor(Math.random() * bolsa.length);
-            ganadores.push(bolsa.splice(idx, 1)[0]);
-        }
-
+        if (participantes.length === 0) { mostrarToast(`⚠️ No hay participantes registrados.`, "error"); return; }
+        let ganadores = [];
+        let bolsa = [...participantes];
+        const limite = Math.min(cant, bolsa.length);
+        for (let i = 0; i < limite; i++) { const idx = Math.floor(Math.random() * bolsa.length); ganadores.push(bolsa.splice(idx, 1)[0]); }
+        
+        // ✅ OBTENER DATOS DEL COMERCIO PARA GUARDAR EN HISTORIAL
         const comercioDoc = await getDoc(doc(db, "comercios", idCom));
         const comercioData = comercioDoc.exists() ? comercioDoc.data() : {};
-
+        
         await addDoc(collection(db, "historial_sorteos"), {
             comercio: nomCom,
             premio: premio,
@@ -710,69 +574,37 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
             ganadores: ganadores,
             fecha: serverTimestamp(),
             mailComercio: mailC || 'habitatcar@gmail.com',
-            claveComercio: claveComercio,
-            timestampProgramado: Date.now(),
+            // ✅ GUARDAR WHATSAPP Y DIRECCIÓN DEL COMERCIO
             whatsappComercio: comercioData.whatsapp || "",
             direccionComercio: comercioData.direccion || ""
         });
-
         mostrarToast(`✅ Sorteo exitoso`, "success");
-        window.mostrarConfirmacionSorteo(participantes.length, ganadores, nomCom);
-    } catch (e) { console.error(e); mostrarToast("❌ Error en sorteo", "error"); }
+        window.mostrarConfirmacionSorteo(participantes.length, ganadores);
+    } catch (e) { console.error(e); mostrarToast("❌ Error en el sorteo", "error"); }
 };
 
-// =====================================================================
-// ✅ HISTORIAL - CLAVE DEL FIX COMPLETO
-// Los datos se guardan en window._ganadorData con una key única.
-// El objeto NUNCA se borra, solo se actualiza.
-// Así el botón de email funciona siempre: 1ra, 2da, 10ma vez.
-// =====================================================================
+// ✅ HISTORIAL: CON CHECKBOXES Y ELIMINACIÓN
 window.mostrarHistorial = () => {
     window.vistaActual = 'historial';
     window.itemsSeleccionados.clear();
     actualizarBulkActions();
     document.getElementById('header-checkbox').style.display = 'table-cell';
     const tabla = document.getElementById('tabla-sorteos');
-
     onSnapshot(collection(db, "historial_sorteos"), (snap) => {
         tabla.innerHTML = "";
-
         const docs = snap.docs.sort((a, b) => (b.data().fecha?.seconds || 0) - (a.data().fecha?.seconds || 0));
-
-        docs.forEach(docSnap => {
-            const h = docSnap.data();
+        docs.forEach(doc => {
+            const h = doc.data();
             const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
-
-            h.ganadores?.forEach((g, idx) => {
+            h.ganadores?.forEach(g => {
                 const nombreG = g.nombreMostrar || "Invitado";
                 const celG = g.celular || "";
                 const emailG = g.email || "";
                 const esVIP = g.tipo === "VIP";
-                const badgeTipo = esVIP
-                    ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>`
-                    : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
-
-                // ✅ KEY ÚNICA: ID del documento + índice del ganador
-                const ganadorKey = `${docSnap.id}_${idx}`;
-
-                // ✅ SE GUARDA EN EL OBJETO GLOBAL - NUNCA SE BORRA
-                window._ganadorData[ganadorKey] = {
-                    email: emailG,
-                    nombre: nombreG,
-                    celular: celG,
-                    premio: h.premio || "",
-                    comercio: h.comercio || "",
-                    mailComercio: h.mailComercio || 'habitatcar@gmail.com',
-                    logoUrl: h.logoUrl || '',
-                    whatsappComercio: h.whatsappComercio || '',
-                    direccionComercio: h.direccionComercio || ''
-                };
-
-                // ✅ LOS BOTONES SOLO USAN LA KEY - NINGUN CARACTER ESPECIAL EN EL HTML
+                const badgeTipo = esVIP ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>` : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
+                const textoParaCopiar = `${nombreG} - WA: ${celG} - Email: ${emailG}`.trim();
                 tabla.innerHTML += `<tr>
-                <td class="checkbox-cell">
-                    <input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}', this)">
-                </td>
+                <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${doc.id}" onchange="toggleSeleccion('${doc.id}', this)"></td>
                 <td><small>${fecha}</small></td>
                 <td><img src="${h.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
                 <td>
@@ -780,31 +612,18 @@ window.mostrarHistorial = () => {
                     <span class="badge badge-premio">🎁 ${h.premio}</span>
                     ${h.descripcion_sorteo ? `<div class="premio-desc">${h.descripcion_sorteo}</div>` : ''}
                 </td>
+                <td><div style="font-weight:bold">${nombreG}</div><div style="margin-top:4px">${badgeTipo}</div></td>
                 <td>
-                    <div style="font-weight:bold">${nombreG}</div>
-                    <div style="margin-top:4px">${badgeTipo}</div>
-                </td>
-                <td>
-                    <div style="font-size:0.85em;color:var(--verde);margin-bottom:3px;">
-                        <i class="fab fa-whatsapp"></i> ${celG}
-                    </div>
+                    <div style="font-size:0.85em; color:var(--verde); margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>
                     ${emailG ? `<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
-                    <div style="margin-top:8px;display:flex;gap:5px;">
-                        <button class="btn-accion btn-wa" onclick="abrirWAPorKey('${ganadorKey}')">
-                            <i class="fab fa-whatsapp"></i>
-                        </button>
-                        <button class="btn-accion btn-mail" onclick="enviarMailPorKey(this, '${ganadorKey}')">
-                            <i class="fas fa-envelope"></i>
-                        </button>
+                    <div style="margin-top:8px; display:flex; gap:5px;">
+                        <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')"><i class="fab fa-whatsapp"></i></button>
+                        <button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}', '${h.logoUrl || ''}')"><i class="fas fa-envelope"></i></button>
                     </div>
                 </td>
                 <td>
-                    <button class="btn-accion" style="background:#666" onclick="copiarGanador('${ganadorKey}')">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                    <button class="btn-accion btn-delete" onclick="eliminarIndividual('${docSnap.id}', this)">
-                        <i class="fas fa-trash"></i>
-                    </button>
+                    <button class="btn-accion" style="background:#666" onclick="navigator.clipboard.writeText('${textoParaCopiar}'); mostrarToast('📋 Datos copiados','warning')"><i class="fas fa-copy"></i></button>
+                    <button class="btn-accion btn-delete" onclick="eliminarIndividual('${doc.id}', this)"><i class="fas fa-trash"></i></button>
                 </td>
                 </tr>`;
             });
@@ -812,6 +631,7 @@ window.mostrarHistorial = () => {
     });
 };
 
+// --- 🔔 TOAST NOTIFICATIONS ---
 function mostrarToast(mensaje, tipo = "success") {
     const div = document.createElement('div');
     div.className = `toast ${tipo}`;
@@ -820,19 +640,14 @@ function mostrarToast(mensaje, tipo = "success") {
     setTimeout(() => div.remove(), 3000);
 }
 
+// --- 🚀 INICIALIZACIÓN ---
 document.getElementById('btn-activos').onclick = cargarActivos;
 document.getElementById('btn-historial').onclick = window.mostrarHistorial;
-document.addEventListener('DOMContentLoaded', () => {
-    cargarActivos();
-    window.iniciarRelojes();
-});
+document.addEventListener('DOMContentLoaded', () => { cargarActivos(); });
 
-// ✅ EXPONER TODAS LAS FUNCIONES AL SCOPE GLOBAL
+// --- 📦 EXPORTAR FUNCIONES GLOBALES ---
 window.abrirWA = abrirWA;
-window.abrirWAPorKey = abrirWAPorKey;
 window.enviarMail = enviarMail;
-window.enviarMailPorKey = enviarMailPorKey;
-window.copiarGanador = copiarGanador;
 window.mostrarHistorial = mostrarHistorial;
 window.mostrarToast = mostrarToast;
 window.mostrarConfirmacionSorteo = mostrarConfirmacionSorteo;
@@ -844,9 +659,5 @@ window.eliminarSeleccionados = eliminarSeleccionados;
 window.desmarcarTodos = desmarcarTodos;
 window.eliminarIndividual = eliminarIndividual;
 window.actualizarBulkActions = actualizarBulkActions;
-window.iniciarRelojes = iniciarRelojes;
-window.intentarSorteo = intentarSorteo;
-window.intentarEliminarSorteo = intentarEliminarSorteo;
-window.validarAccionSegura = validarAccionSegura;
 </script>
 </body></html>
