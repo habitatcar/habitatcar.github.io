@@ -611,6 +611,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
+// --- ✅ EJECUTAR SORTEO CON DATOS DEL COMERCIO GUARDADOS ---
 const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc, claveComercio) => {
     mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
     try {
@@ -641,10 +642,24 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
             const idx = Math.floor(Math.random() * bolsa.length);
             ganadores.push(bolsa.splice(idx, 1)[0]);
         }
+        
+        // ✅ 🔥 DATOS DEL COMERCIO (CLAVE PARA EL MAIL)
+        const comercioDoc = await getDoc(doc(db, "comercios", idCom));
+        const comercioData = comercioDoc.exists() ? comercioDoc.data() : {};
+        
         await addDoc(collection(db, "historial_sorteos"), {
-            comercio: nomCom, premio: premio, descripcion_sorteo: desc||"", logoUrl: logoUrl||"",
-            ganadores: ganadores, fecha: serverTimestamp(), mailComercio: mailC||'habitatcar@gmail.com',
-            claveComercio: claveComercio, timestampProgramado: Date.now()
+            comercio: nomCom,
+            premio: premio,
+            descripcion_sorteo: desc || "",
+            logoUrl: logoUrl || "",
+            ganadores: ganadores,
+            fecha: serverTimestamp(),
+            mailComercio: mailC || 'habitatcar@gmail.com',
+            claveComercio: claveComercio,
+            timestampProgramado: Date.now(),
+            // ✅ DATOS DEL COMERCIO GUARDADOS EN EL HISTORIAL
+            whatsappComercio: comercioData.whatsapp || "",
+            direccionComercio: comercioData.direccion || ""
         });
         mostrarToast(`✅ Sorteo exitoso`, "success");
         window.mostrarConfirmacionSorteo(participantes.length, ganadores, nomCom);
