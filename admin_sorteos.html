@@ -42,7 +42,6 @@ header p { opacity: 0.9; font-size: 0.95rem; }
 .btn-danger { background: #dc3545; color: white; }
 .btn-danger:hover { background: #c82333; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-/* ✅ ENCABEZADOS FIJOS (STICKY) */
 .table-container { overflow-x: auto; max-height: calc(100vh - 280px); }
 table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: opacity 0.3s ease; }
 thead { position: sticky; top: 0; z-index: 100; background: #667eea; }
@@ -82,7 +81,6 @@ td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
 .form-group input { width: 100%; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
 .ganador-item { background: #f8f9fa; border-left: 4px solid var(--oro); padding: 12px; margin: 10px 0; border-radius: 8px; text-align: left; }
 .email-display { font-size: 0.8em; color: #666; margin-top: 3px; word-break: break-all; }
-/* ✅ CHECKBOX STYLES */
 .checkbox-cell { text-align: center; width: 50px; }
 .checkbox-cell input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
 .bulk-actions { display: none; gap: 10px; margin-bottom: 15px; padding: 10px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107; }
@@ -116,7 +114,6 @@ body { padding-top: 120px; }
 <button class="btn btn-info" onclick="abrirEditorEmail()"><i class="fas fa-edit"></i> EDITAR EMAIL</button>
 <button class="btn btn-dark" onclick="abrirEditorPDF()"><i class="fas fa-palette"></i> DISEÑAR PDF</button>
 </div>
-<!-- ✅ ACCIONES MASIVAS (solo visible en historial con items seleccionados) -->
 <div id="bulk-actions" class="bulk-actions">
 <span class="selected-count"><i class="fas fa-check-circle"></i> <span id="selected-count">0</span> seleccionado(s)</span>
 <button class="btn btn-danger" onclick="eliminarSeleccionados()"><i class="fas fa-trash"></i> ELIMINAR SELECCIONADOS</button>
@@ -139,6 +136,7 @@ body { padding-top: 120px; }
 </table>
 </div>
 </div>
+
 <!-- ✅ MODAL EDITAR EMAIL -->
 <div id="modal-email" class="modal">
 <div class="modal-content">
@@ -162,6 +160,7 @@ El sistema reemplazará automáticamente:<br>
 <button class="btn btn-warning" onclick="cerrarEditores()">❌ CANCELAR</button>
 </div>
 </div>
+
 <!-- ✅ MODAL DISEÑAR PDF -->
 <div id="modal-pdf" class="modal">
 <div class="modal-content">
@@ -178,6 +177,7 @@ El sistema reemplazará automáticamente:<br>
 <button class="btn btn-warning" onclick="cerrarEditores()">❌ CANCELAR</button>
 </div>
 </div>
+
 <!-- ✅ MODAL CONFIRMACIÓN SORTEO -->
 <div id="popup-confirmacion" class="modal" style="display: none;">
 <div class="modal-content">
@@ -188,52 +188,67 @@ El sistema reemplazará automáticamente:<br>
 <button class="btn btn-warning" onclick="cerrarModalSorteo()" style="margin-top: 10px;">SEGUIR AQUÍ</button>
 </div>
 </div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, doc, getDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+
 const firebaseConfig = {
-apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
-authDomain: "habitatcar-pro.firebaseapp.com",
-projectId: "habitatcar-pro",
-storageBucket: "habitatcar-pro.firebasestorage.app",
-messagingSenderId: "311691258694",
-appId: "1:311691258694:web:17a09051dcea7707af9347"
+    apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+    authDomain: "habitatcar-pro.firebaseapp.com",
+    projectId: "habitatcar-pro",
+    storageBucket: "habitatcar-pro.firebasestorage.app",
+    messagingSenderId: "311691258694",
+    appId: "1:311691258694:web:17a09051dcea7707af9347"
 };
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const URL_SCRIPT = "https://script.google.com/macros/s/AKfycbz2xzSyQfL23SSFvvZ5jfKYYWvjMIy56XX33cSuq-DAQG64geSLsHdLnVzNmXDkzSXM5A/exec";
 const LOGO_DEFAULT = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
 
-// --- 📧 CONFIGURACIÓN EMAIL PERSISTENTE ---
-window.abrirEditorEmail = () => {
-document.getElementById('inp-asunto').value = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
-document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
-document.getElementById('modal-email').style.display = 'flex';
-};
-window.abrirEditorPDF = () => {
-document.getElementById('inp-pdf-bg').value = localStorage.getItem('hc_pdf_bg') || "";
-document.getElementById('inp-pdf-color').value = localStorage.getItem('hc_pdf_color') || "#e60000";
-document.getElementById('modal-pdf').style.display = 'flex';
-};
-window.cerrarEditores = () => {
-document.getElementById('modal-email').style.display = 'none';
-document.getElementById('modal-pdf').style.display = 'none';
-};
-window.guardarConfig = (tipo) => {
-if(tipo === 'email') {
-localStorage.setItem('hc_asunto', document.getElementById('inp-asunto').value);
-localStorage.setItem('hc_cuerpo', document.getElementById('inp-cuerpo').value);
-} else {
-localStorage.setItem('hc_pdf_bg', document.getElementById('inp-pdf-bg').value);
-localStorage.setItem('hc_pdf_color', document.getElementById('inp-pdf-color').value);
-}
-mostrarToast("✅ Configuración guardada", "success");
-cerrarEditores();
+// --- 🛡️ FUNCIÓN AUXILIAR: ESCAPAR CARACTERES PELIGROSOS EN HTML/JS ---
+const escapeHtml = (str) => {
+    if (!str) return "";
+    return str.toString()
+        .replace(/'/g, "\\u0027")
+        .replace(/"/g, "\\u0022")
+        .replace(/</g, "\\u003C")
+        .replace(/>/g, "\\u003E")
+        .replace(/&/g, "\\u0026")
+        .replace(/\n/g, "\\n")
+        .replace(/\r/g, "\\r");
 };
 
-// --- ✅ FUNCIÓN ENVIAR MAIL BLINDADA (CORREGIDA) ---
+// --- 📧 CONFIGURACIÓN EMAIL PERSISTENTE ---
+window.abrirEditorEmail = () => {
+    document.getElementById('inp-asunto').value = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
+    document.getElementById('inp-cuerpo').value = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
+    document.getElementById('modal-email').style.display = 'flex';
+};
+window.abrirEditorPDF = () => {
+    document.getElementById('inp-pdf-bg').value = localStorage.getItem('hc_pdf_bg') || "";
+    document.getElementById('inp-pdf-color').value = localStorage.getItem('hc_pdf_color') || "#e60000";
+    document.getElementById('modal-pdf').style.display = 'flex';
+};
+window.cerrarEditores = () => {
+    document.getElementById('modal-email').style.display = 'none';
+    document.getElementById('modal-pdf').style.display = 'none';
+};
+window.guardarConfig = (tipo) => {
+    if(tipo === 'email') {
+        localStorage.setItem('hc_asunto', document.getElementById('inp-asunto').value);
+        localStorage.setItem('hc_cuerpo', document.getElementById('inp-cuerpo').value);
+    } else {
+        localStorage.setItem('hc_pdf_bg', document.getElementById('inp-pdf-bg').value);
+        localStorage.setItem('hc_pdf_color', document.getElementById('inp-pdf-color').value);
+    }
+    mostrarToast("✅ Configuración guardada", "success");
+    cerrarEditores();
+};
+
+// --- ✅ FUNCIÓN ENVIAR MAIL BLINDADA (VERSIÓN FINAL) ---
 window.enviarMail = async (btn, email, nombre, premio, comercio, mailCC) => {
-    if (!email || email === "undefined") {
+    if (!email || email === "undefined" || email.trim() === "") {
         mostrarToast("❌ Email no válido", "error");
         return;
     }
@@ -243,363 +258,401 @@ window.enviarMail = async (btn, email, nombre, premio, comercio, mailCC) => {
     btn.innerHTML = "⏳";
 
     try {
-        // 1. Obtener plantillas del localStorage
+        // 1. Obtener plantillas del localStorage con fallback
         let asuntoTpl = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}, ganaste!";
         let cuerpoTpl = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
 
-        // 2. INYECCIÓN FORZADA: Reemplaza todas las etiquetas
-        const limpiarEInyectar = (texto) => {
+        // 2. INYECCIÓN SEGURA: replaceAll para evitar conflictos con regex
+        const inyectarVariables = (texto, nombre, premio, comercio) => {
             return texto
-                .replace(/{{NOMBRE}}/g, nombre || "Ganador/a")
-                .replace(/{{PREMIO}}/g, premio || "tu premio")
-                .replace(/{{COMERCIO}}/g, comercio || "Hábitat-Car");
+                .replaceAll('{{NOMBRE}}', nombre || "Ganador/a")
+                .replaceAll('{{PREMIO}}', premio || "un premio")
+                .replaceAll('{{COMERCIO}}', comercio || "Hábitat-Car");
         };
 
-        const asuntoFinal = limpiarEInyectar(asuntoTpl);
-        const cuerpoFinal = limpiarEInyectar(cuerpoTpl);
+        const asuntoFinal = inyectarVariables(asuntoTpl, nombre, premio, comercio);
+        const cuerpoFinal = inyectarVariables(cuerpoTpl, nombre, premio, comercio);
 
-        // 3. Preparar el objeto para el Script de Google
+        // 3. Preparar payload para Google Apps Script
         const datos = {
             email: email.trim(),
             asunto: asuntoFinal,
             cuerpoHtml: cuerpoFinal.replace(/\n/g, '<br>'),
-            nombreGanador: nombre,
-            cc: `habitatcar@gmail.com, ${mailCC || ""}`,
+            nombreGanador: nombre || "",
+            premioGanado: premio || "",
+            comercioNombre: comercio || "",
+            cc: `habitatcar@gmail.com, ${mailCC || ""}`.trim(),
             pdfB64: ""
         };
 
-        // 4. Envío al servidor
+        // 4. Envío al servidor (no-cors para Google Apps Script)
         await fetch(URL_SCRIPT, {
             method: 'POST',
             mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(datos)
         });
 
-        mostrarToast(`✅ Enviado con datos a: ${nombre}`);
+        mostrarToast(`✅ Email enviado a: ${nombre}`);
 
     } catch (e) {
-        console.error("Error inyección:", e);
-        mostrarToast("❌ Error al procesar datos", "error");
+        console.error("❌ Error en enviarMail:", e);
+        mostrarToast("❌ Error al procesar el envío", "error");
     } finally {
         btn.disabled = false;
         btn.innerHTML = originalText;
     }
 };
 
+// --- 📱 WHATSAPP: NORMALIZACIÓN Y APERTURA ---
 window.normalizarTelefonoAR = (numero) => {
-if (!numero) return null;
-let num = numero.toString().replace(/\D/g, '');
-if (num.length === 10) return '549' + num;
-if (num.startsWith('54') && !num.startsWith('549')) return '549' + num.substring(2);
-return num.startsWith('549') ? num : '549' + num;
+    if (!numero) return null;
+    let num = numero.toString().replace(/\D/g, '');
+    if (num.length === 10) return '549' + num;
+    if (num.startsWith('54') && !num.startsWith('549')) return '549' + num.substring(2);
+    return num.startsWith('549') ? num : '549' + num;
 };
 window.abrirWA = (cel, nom, pre) => {
-if (!cel) return mostrarToast("⚠️ El participante no tiene celular.", "error");
-const num = window.normalizarTelefonoAR(cel);
-const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`);
-window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+    if (!cel) return mostrarToast("⚠️ El participante no tiene celular.", "error");
+    const num = window.normalizarTelefonoAR(cel);
+    const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`);
+    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
 };
 
+// --- 📅 FORMATO DE FECHA ---
 function formatearFechaHora(fechaISO) {
-if (!fechaISO) return null;
-try {
-const [fechaParte, horaParte] = fechaISO.split('T');
-if (!fechaParte || !horaParte) return null;
-const [anio, mes, dia] = fechaParte.split('-');
-const [hora, minutos] = horaParte.split(':');
-return { fecha: `${dia}/${mes}/${anio}`, hora: `${hora}:${minutos} Hs.` };
-} catch (e) { return null; }
+    if (!fechaISO) return null;
+    try {
+        const [fechaParte, horaParte] = fechaISO.split('T');
+        if (!fechaParte || !horaParte) return null;
+        const [anio, mes, dia] = fechaParte.split('-');
+        const [hora, minutos] = horaParte.split(':');
+        return { fecha: `${dia}/${mes}/${anio}`, hora: `${hora}:${minutos} Hs.` };
+    } catch (e) { return null; }
 }
 
+// --- 🎉 MODAL DE CONFIRMACIÓN DE SORTEO ---
 window.mostrarConfirmacionSorteo = (total, ganadores) => {
-const listaGanadores = document.getElementById('lista-ganadores-popup');
-listaGanadores.innerHTML = ganadores.map(g => {
-const esVIP = g.tipo === "VIP";
-const badgeTipo = esVIP
-? `<span class="badge badge-vip" style="font-size:0.7rem; margin-left:5px;"><i class="fas fa-crown"></i> VIP</span>`
-: `<span class="badge badge-lead" style="font-size:0.7rem; margin-left:5px;"><i class="fas fa-user"></i> LEAD</span>`;
-return `
-<div class="ganador-item">
-<div style="display: flex; justify-content: space-between; align-items: center;">
-<span style="font-weight: bold;"><i class="fas fa-trophy" style="color:var(--oro); margin-right:5px;"></i>${g.nombreMostrar}</span>
-${badgeTipo}
-</div>
-<small style="color: #666; display: block; margin-top: 5px;">
-<i class="fab fa-whatsapp"></i> ${g.celular || 'Sin teléfono'}
-</small>
-</div>`;
-}).join('');
-document.getElementById('texto-sorteo').innerText = `Se han seleccionado ${ganadores.length} ganador(es) entre ${total} participantes.`;
-document.getElementById('popup-confirmacion').style.display = 'flex';
+    const listaGanadores = document.getElementById('lista-ganadores-popup');
+    listaGanadores.innerHTML = ganadores.map(g => {
+        const esVIP = g.tipo === "VIP";
+        const badgeTipo = esVIP
+            ? `<span class="badge badge-vip" style="font-size:0.7rem; margin-left:5px;"><i class="fas fa-crown"></i> VIP</span>`
+            : `<span class="badge badge-lead" style="font-size:0.7rem; margin-left:5px;"><i class="fas fa-user"></i> LEAD</span>`;
+        return `
+        <div class="ganador-item">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <span style="font-weight: bold;"><i class="fas fa-trophy" style="color:var(--oro); margin-right:5px;"></i>${g.nombreMostrar}</span>
+                ${badgeTipo}
+            </div>
+            <small style="color: #666; display: block; margin-top: 5px;">
+                <i class="fab fa-whatsapp"></i> ${g.celular || 'Sin teléfono'}
+            </small>
+        </div>`;
+    }).join('');
+    document.getElementById('texto-sorteo').innerText = `Se han seleccionado ${ganadores.length} ganador(es) entre ${total} participantes.`;
+    document.getElementById('popup-confirmacion').style.display = 'flex';
 };
 window.cerrarModalSorteo = () => document.getElementById('popup-confirmacion').style.display = 'none';
 window.irAlHistorial = () => { window.cerrarModalSorteo(); window.mostrarHistorial(); };
 
-// ✅ VARIABLE GLOBAL PARA SEGUIMIENTO DE SELECCIONES
+// --- ✅ GESTIÓN DE SELECCIONES MASIVAS ---
 window.itemsSeleccionados = new Set();
 window.vistaActual = 'activos';
 
-// ✅ TOGGLE SELECT ALL
 window.toggleSelectAll = () => {
-const selectAll = document.getElementById('select-all');
-const checkboxes = document.querySelectorAll('.row-checkbox');
-checkboxes.forEach(cb => {
-cb.checked = selectAll.checked;
-if(selectAll.checked) {
-window.itemsSeleccionados.add(cb.dataset.id);
-} else {
-window.itemsSeleccionados.delete(cb.dataset.id);
-}
-});
-actualizarBulkActions();
+    const selectAll = document.getElementById('select-all');
+    const checkboxes = document.querySelectorAll('.row-checkbox');
+    checkboxes.forEach(cb => {
+        cb.checked = selectAll.checked;
+        if(selectAll.checked) {
+            window.itemsSeleccionados.add(cb.dataset.id);
+        } else {
+            window.itemsSeleccionados.delete(cb.dataset.id);
+        }
+    });
+    actualizarBulkActions();
 };
 
-// ✅ ACTUALIZAR BARRA DE ACCIONES MASIVAS
 window.actualizarBulkActions = () => {
-const bulkActions = document.getElementById('bulk-actions');
-const selectedCount = document.getElementById('selected-count');
-const headerCheckbox = document.getElementById('select-all');
-if(window.itemsSeleccionados.size > 0) {
-bulkActions.classList.add('active');
-selectedCount.textContent = window.itemsSeleccionados.size;
-headerCheckbox.checked = window.itemsSeleccionados.size === document.querySelectorAll('.row-checkbox').length;
-} else {
-bulkActions.classList.remove('active');
-headerCheckbox.checked = false;
-}
+    const bulkActions = document.getElementById('bulk-actions');
+    const selectedCount = document.getElementById('selected-count');
+    const headerCheckbox = document.getElementById('select-all');
+    if(window.itemsSeleccionados.size > 0) {
+        bulkActions.classList.add('active');
+        selectedCount.textContent = window.itemsSeleccionados.size;
+        headerCheckbox.checked = window.itemsSeleccionados.size === document.querySelectorAll('.row-checkbox').length;
+    } else {
+        bulkActions.classList.remove('active');
+        headerCheckbox.checked = false;
+    }
 };
 
-// ✅ TOGGLE SELECCIÓN INDIVIDUAL
 window.toggleSeleccion = (id, checkbox) => {
-if(checkbox.checked) {
-window.itemsSeleccionados.add(id);
-} else {
-window.itemsSeleccionados.delete(id);
-}
-actualizarBulkActions();
+    if(checkbox.checked) {
+        window.itemsSeleccionados.add(id);
+    } else {
+        window.itemsSeleccionados.delete(id);
+    }
+    actualizarBulkActions();
 };
 
-// ✅ ELIMINAR SELECCIONADOS
 window.eliminarSeleccionados = async () => {
-if(window.itemsSeleccionados.size === 0) {
-return mostrarToast("⚠️ No hay items seleccionados", "warning");
-}
-if(!confirm(`¿Estás seguro de eliminar ${window.itemsSeleccionados.size} registro(s) del historial?`)) {
-return;
-}
-mostrarToast("🗑️ Eliminando registros...", "warning");
-try {
-const promesas = Array.from(window.itemsSeleccionados).map(id => deleteDoc(doc(db, "historial_sorteos", id)));
-await Promise.all(promesas);
-mostrarToast(`✅ ${window.itemsSeleccionados.size} registro(s) eliminado(s)`, "success");
-window.itemsSeleccionados.clear();
-actualizarBulkActions();
-window.mostrarHistorial();
-} catch (e) {
-console.error(e);
-mostrarToast("❌ Error al eliminar", "error");
-}
+    if(window.itemsSeleccionados.size === 0) {
+        return mostrarToast("⚠️ No hay items seleccionados", "warning");
+    }
+    if(!confirm(`¿Estás seguro de eliminar ${window.itemsSeleccionados.size} registro(s) del historial?`)) {
+        return;
+    }
+    mostrarToast("🗑️ Eliminando registros...", "warning");
+    try {
+        const promesas = Array.from(window.itemsSeleccionados).map(id => deleteDoc(doc(db, "historial_sorteos", id)));
+        await Promise.all(promesas);
+        mostrarToast(`✅ ${window.itemsSeleccionados.size} registro(s) eliminado(s)`, "success");
+        window.itemsSeleccionados.clear();
+        actualizarBulkActions();
+        window.mostrarHistorial();
+    } catch (e) {
+        console.error(e);
+        mostrarToast("❌ Error al eliminar", "error");
+    }
 };
 
-// ✅ DESMARCAR TODOS
 window.desmarcarTodos = () => {
-window.itemsSeleccionados.clear();
-document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
-document.getElementById('select-all').checked = false;
-actualizarBulkActions();
+    window.itemsSeleccionados.clear();
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('select-all').checked = false;
+    actualizarBulkActions();
 };
 
-// ✅ ELIMINAR INDIVIDUAL
 window.eliminarIndividual = async (id, btn) => {
-if(!confirm('¿Estás seguro de eliminar este registro?')) {
-return;
-}
-const originalText = btn.innerHTML;
-btn.disabled = true;
-btn.innerHTML = "⏳";
-try {
-await deleteDoc(doc(db, "historial_sorteos", id));
-mostrarToast("✅ Registro eliminado", "success");
-window.mostrarHistorial();
-} catch (e) {
-console.error(e);
-mostrarToast("❌ Error al eliminar", "error");
-btn.disabled = false;
-btn.innerHTML = originalText;
-}
+    if(!confirm('¿Estás seguro de eliminar este registro?')) {
+        return;
+    }
+    const originalText = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = "⏳";
+    try {
+        await deleteDoc(doc(db, "historial_sorteos", id));
+        mostrarToast("✅ Registro eliminado", "success");
+        window.mostrarHistorial();
+    } catch (e) {
+        console.error(e);
+        mostrarToast("❌ Error al eliminar", "error");
+        btn.disabled = false;
+        btn.innerHTML = originalText;
+    }
 };
 
+// --- 🎲 CARGAR SORTEOS ACTIVOS ---
 const cargarActivos = async () => {
-window.vistaActual = 'activos';
-window.itemsSeleccionados.clear();
-actualizarBulkActions();
-document.getElementById('header-checkbox').style.display = 'none';
-onSnapshot(collection(db, "comercios"), async (snap) => {
-const tabla = document.getElementById('tabla-sorteos');
-tabla.innerHTML = "";
-for (const docCom of snap.docs) {
-const c = docCom.data();
-if (c.titulo_sorteo) {
-const nomCom = c.nombre;
-const premio = c.titulo_sorteo;
-const descPremio = c.descripcion_sorteo || "";
-const cant = parseInt(c.cantidad_premios) || 1;
-let cLead = 0, cVip = 0;
-const qP = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
-const snapP = await getDocs(qP);
-const promesas = snapP.docs.map(async (p) => {
-const dataP = p.data();
-if (dataP.usuarioId && !dataP.usuarioId.startsWith('temp_')) {
-try {
-const leadDoc = await getDoc(doc(db, "leads", dataP.usuarioId));
-if (leadDoc.exists()) {
-const ld = leadDoc.data();
-if (ld.convertidoVIP === true || ld.tipo === "VIP") return "VIP";
-}
-} catch (e) {}
-}
-return dataP.tipo === "VIP" ? "VIP" : "LEAD";
-});
-const resultados = await Promise.all(promesas);
-resultados.forEach(tipo => { if (tipo === "VIP") cVip++; else cLead++; });
-const totalP = cLead + cVip;
-const f = formatearFechaHora(c.fecha_sorteo) || {fecha: 'A definir', hora: ''};
-tabla.innerHTML += `
-<tr>
-<td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span></div></td>
-<td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-<td>
-<span class="badge badge-comercio">${nomCom}</span><br>
-<span class="badge badge-premio">🎁 ${premio}</span>
-${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}
-</td>
-<td>
-<div class="participantes-cell">
-<div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cLead}</span></div>
-<div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cVip}</span></div>
-<div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${totalP}</span></div>
-</div>
-</td>
-<td><button class="btn btn-primary btn-sortear-accion" data-id="${docCom.id}" data-nombre="${nomCom}" data-premio="${premio}" data-cant="${cant}" data-mail="${c.email || ''}" data-logo="${c.logoUrl || ''}" data-desc="${descPremio}">🎲 SORTEAR (${cant})</button></td>
-<td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant > 1 ? 's' : ''}</span></td>
-</tr>`;
-}
-}
-});
+    window.vistaActual = 'activos';
+    window.itemsSeleccionados.clear();
+    actualizarBulkActions();
+    document.getElementById('header-checkbox').style.display = 'none';
+    
+    onSnapshot(collection(db, "comercios"), async (snap) => {
+        const tabla = document.getElementById('tabla-sorteos');
+        tabla.innerHTML = "";
+        for (const docCom of snap.docs) {
+            const c = docCom.data();
+            if (c.titulo_sorteo) {
+                const nomCom = c.nombre;
+                const premio = c.titulo_sorteo;
+                const descPremio = c.descripcion_sorteo || "";
+                const cant = parseInt(c.cantidad_premios) || 1;
+                let cLead = 0, cVip = 0;
+                
+                const qP = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
+                const snapP = await getDocs(qP);
+                const promesas = snapP.docs.map(async (p) => {
+                    const dataP = p.data();
+                    if (dataP.usuarioId && !dataP.usuarioId.startsWith('temp_')) {
+                        try {
+                            const leadDoc = await getDoc(doc(db, "leads", dataP.usuarioId));
+                            if (leadDoc.exists()) {
+                                const ld = leadDoc.data();
+                                if (ld.convertidoVIP === true || ld.tipo === "VIP") return "VIP";
+                            }
+                        } catch (e) {}
+                    }
+                    return dataP.tipo === "VIP" ? "VIP" : "LEAD";
+                });
+                const resultados = await Promise.all(promesas);
+                resultados.forEach(tipo => { if (tipo === "VIP") cVip++; else cLead++; });
+                const totalP = cLead + cVip;
+                const f = formatearFechaHora(c.fecha_sorteo) || {fecha: 'A definir', hora: ''};
+                
+                tabla.innerHTML += `
+                <tr>
+                    <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span></div></td>
+                    <td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+                    <td>
+                        <span class="badge badge-comercio">${escapeHtml(nomCom)}</span><br>
+                        <span class="badge badge-premio">🎁 ${escapeHtml(premio)}</span>
+                        ${descPremio ? `<div class="premio-desc">${escapeHtml(descPremio)}</div>` : ''}
+                    </td>
+                    <td>
+                        <div class="participantes-cell">
+                            <div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cLead}</span></div>
+                            <div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cVip}</span></div>
+                            <div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${totalP}</span></div>
+                        </div>
+                    </td>
+                    <td>
+                        <button class="btn btn-primary btn-sortear-accion" 
+                            data-id="${docCom.id}" 
+                            data-nombre="${escapeHtml(nomCom)}" 
+                            data-premio="${escapeHtml(premio)}" 
+                            data-cant="${cant}" 
+                            data-mail="${c.email || ''}" 
+                            data-logo="${c.logoUrl || ''}" 
+                            data-desc="${escapeHtml(descPremio)}">
+                            🎲 SORTEAR (${cant})
+                        </button>
+                    </td>
+                    <td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant > 1 ? 's' : ''}</span></td>
+                </tr>`;
+            }
+        }
+    });
 };
 
 document.addEventListener('click', (e) => {
-if (e.target && e.target.classList.contains('btn-sortear-accion')) {
-const b = e.target.dataset;
-ejecutarSorteo(b.id, b.nombre, b.premio, parseInt(b.cant), b.mail, b.logo, b.desc);
-}
+    if (e.target && e.target.classList.contains('btn-sortear-accion')) {
+        const b = e.target.dataset;
+        ejecutarSorteo(b.id, b.nombre, b.premio, parseInt(b.cant), b.mail, b.logo, b.desc);
+    }
 });
 
+// --- 🎲 EJECUTAR SORTEO ---
 const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc) => {
-mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
-try {
-const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
-const snap = await getDocs(q);
-let participantes = [];
-for (const d of snap.docs) {
-const partData = d.data();
-let nombreFinal = partData.nombre || "Participante";
-let celFinal = partData.celular || partData.whatsapp || "S/D";
-let tipoFinal = partData.tipo || "LEAD";
-let emailFinal = partData.email || "";
-if (partData.usuarioId && !partData.usuarioId.startsWith('temp_')) {
-const leadDoc = await getDoc(doc(db, "leads", partData.usuarioId));
-if (leadDoc.exists()) {
-const ld = leadDoc.data();
-nombreFinal = `${ld.nombres || ''} ${ld.apellido || ''}`.trim() || nombreFinal;
-celFinal = ld.whatsapp || ld.celular || celFinal;
-tipoFinal = (ld.convertidoVIP || ld.tipo === "VIP") ? "VIP" : "LEAD";
-emailFinal = ld.email || emailFinal;
-}
-}
-participantes.push({ ...partData, nombreMostrar: nombreFinal, celular: celFinal, tipo: tipoFinal, email: emailFinal });
-}
-if (participantes.length === 0) { mostrarToast(`⚠️ No hay participantes registrados.`, "error"); return; }
-let ganadores = [];
-let bolsa = [...participantes];
-const limite = Math.min(cant, bolsa.length);
-for (let i = 0; i < limite; i++) { const idx = Math.floor(Math.random() * bolsa.length); ganadores.push(bolsa.splice(idx, 1)[0]); }
-await addDoc(collection(db, "historial_sorteos"), {
-comercio: nomCom,
-premio: premio,
-descripcion_sorteo: desc || "",
-logoUrl: logoUrl || "",
-ganadores: ganadores,
-fecha: serverTimestamp(),
-mailComercio: mailC || 'habitatcar@gmail.com'
-});
-mostrarToast(`✅ Sorteo exitoso`, "success");
-window.mostrarConfirmacionSorteo(participantes.length, ganadores);
-} catch (e) { console.error(e); mostrarToast("❌ Error en el sorteo", "error"); }
+    mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
+    try {
+        const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom));
+        const snap = await getDocs(q);
+        let participantes = [];
+        
+        for (const d of snap.docs) {
+            const partData = d.data();
+            let nombreFinal = partData.nombre || "Participante";
+            let celFinal = partData.celular || partData.whatsapp || "S/D";
+            let tipoFinal = partData.tipo || "LEAD";
+            let emailFinal = partData.email || "";
+            
+            if (partData.usuarioId && !partData.usuarioId.startsWith('temp_')) {
+                const leadDoc = await getDoc(doc(db, "leads", partData.usuarioId));
+                if (leadDoc.exists()) {
+                    const ld = leadDoc.data();
+                    nombreFinal = `${ld.nombres || ''} ${ld.apellido || ''}`.trim() || nombreFinal;
+                    celFinal = ld.whatsapp || ld.celular || celFinal;
+                    tipoFinal = (ld.convertidoVIP || ld.tipo === "VIP") ? "VIP" : "LEAD";
+                    emailFinal = ld.email || emailFinal;
+                }
+            }
+            participantes.push({ ...partData, nombreMostrar: nombreFinal, celular: celFinal, tipo: tipoFinal, email: emailFinal });
+        }
+        
+        if (participantes.length === 0) { mostrarToast(`⚠️ No hay participantes registrados.`, "error"); return; }
+        
+        let ganadores = [];
+        let bolsa = [...participantes];
+        const limite = Math.min(cant, bolsa.length);
+        for (let i = 0; i < limite; i++) { const idx = Math.floor(Math.random() * bolsa.length); ganadores.push(bolsa.splice(idx, 1)[0]); }
+        
+        await addDoc(collection(db, "historial_sorteos"), {
+            comercio: nomCom,
+            premio: premio,
+            descripcion_sorteo: desc || "",
+            logoUrl: logoUrl || "",
+            ganadores: ganadores,
+            fecha: serverTimestamp(),
+            mailComercio: mailC || 'habitatcar@gmail.com'
+        });
+        
+        mostrarToast(`✅ Sorteo exitoso`, "success");
+        window.mostrarConfirmacionSorteo(participantes.length, ganadores);
+    } catch (e) { console.error(e); mostrarToast("❌ Error en el sorteo", "error"); }
 };
 
-// ✅ HISTORIAL: CON CHECKBOXES Y BOTÓN DE MAIL CORREGIDO (COMILLAS SIMPLES + SIN LOGO)
+// --- 📜 MOSTRAR HISTORIAL (CON BOTONES BLINDADOS) ---
 window.mostrarHistorial = () => {
-window.vistaActual = 'historial';
-window.itemsSeleccionados.clear();
-actualizarBulkActions();
-document.getElementById('header-checkbox').style.display = 'table-cell';
-const tabla = document.getElementById('tabla-sorteos');
-onSnapshot(collection(db, "historial_sorteos"), (snap) => {
-tabla.innerHTML = "";
-const docs = snap.docs.sort((a, b) => (b.data().fecha?.seconds || 0) - (a.data().fecha?.seconds || 0));
-docs.forEach(doc => {
-const h = doc.data();
-const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
-h.ganadores?.forEach(g => {
-const nombreG = g.nombreMostrar || "Invitado";
-const celG = g.celular || "";
-const emailG = g.email || "";
-const esVIP = g.tipo === "VIP";
-const badgeTipo = esVIP ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>` : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
-const textoParaCopiar = `${nombreG} - WA: ${celG} - Email: ${emailG}`.trim();
-// ✅ BOTÓN DE MAIL CON COMILLAS SIMPLES Y PARÁMETROS LIMPIOS
-tabla.innerHTML += `<tr>
-<td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${doc.id}" onchange="toggleSeleccion('${doc.id}', this)"></td>
-<td><small>${fecha}</small></td>
-<td><img src="${h.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-<td>
-<span class="badge badge-comercio">${h.comercio}</span><br>
-<span class="badge badge-premio">🎁 ${h.premio}</span>
-${h.descripcion_sorteo ? `<div class="premio-desc">${h.descripcion_sorteo}</div>` : ''}
-</td>
-<td><div style="font-weight:bold">${nombreG}</div><div style="margin-top:4px">${badgeTipo}</div></td>
-<td>
-<div style="font-size:0.85em; color:var(--verde); margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>
-${emailG ? `<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
-<div style="margin-top:8px; display:flex; gap:5px;">
-<button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')"><i class="fab fa-whatsapp"></i></button>
-<button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}')"><i class="fas fa-envelope"></i></button>
-</div>
-</td>
-<td>
-<button class="btn-accion" style="background:#666" onclick="navigator.clipboard.writeText('${textoParaCopiar}'); mostrarToast('📋 Datos copiados','warning')"><i class="fas fa-copy"></i></button>
-<button class="btn-accion btn-delete" onclick="eliminarIndividual('${doc.id}', this)"><i class="fas fa-trash"></i></button>
-</td>
-</tr>`;
-});
-});
-});
+    window.vistaActual = 'historial';
+    window.itemsSeleccionados.clear();
+    actualizarBulkActions();
+    document.getElementById('header-checkbox').style.display = 'table-cell';
+    
+    const tabla = document.getElementById('tabla-sorteos');
+    onSnapshot(collection(db, "historial_sorteos"), (snap) => {
+        tabla.innerHTML = "";
+        const docs = snap.docs.sort((a, b) => (b.data().fecha?.seconds || 0) - (a.data().fecha?.seconds || 0));
+        
+        docs.forEach(doc => {
+            const h = doc.data();
+            const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
+            
+            h.ganadores?.forEach(g => {
+                const nombreG = g.nombreMostrar || "Invitado";
+                const celG = g.celular || "";
+                const emailG = g.email || "";
+                const esVIP = g.tipo === "VIP";
+                const badgeTipo = esVIP 
+                    ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>` 
+                    : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
+                const textoParaCopiar = `${nombreG} - WA: ${celG} - Email: ${emailG}`.trim();
+                
+                // ✅ BOTONES CON escapeHtml() PARA PROTEGER DATOS DINÁMICOS
+                tabla.innerHTML += `<tr>
+                    <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${doc.id}" onchange="toggleSeleccion('${doc.id}', this)"></td>
+                    <td><small>${fecha}</small></td>
+                    <td><img src="${h.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+                    <td>
+                        <span class="badge badge-comercio">${escapeHtml(h.comercio)}</span><br>
+                        <span class="badge badge-premio">🎁 ${escapeHtml(h.premio)}</span>
+                        ${h.descripcion_sorteo ? `<div class="premio-desc">${escapeHtml(h.descripcion_sorteo)}</div>` : ''}
+                    </td>
+                    <td><div style="font-weight:bold">${escapeHtml(nombreG)}</div><div style="margin-top:4px">${badgeTipo}</div></td>
+                    <td>
+                        <div style="font-size:0.85em; color:var(--verde); margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>
+                        ${emailG ? `<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
+                        <div style="margin-top:8px; display:flex; gap:5px;">
+                            <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${escapeHtml(nombreG)}','${escapeHtml(h.premio)}')">
+                                <i class="fab fa-whatsapp"></i>
+                            </button>
+                            <button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${escapeHtml(nombreG)}','${escapeHtml(h.premio)}','${escapeHtml(h.comercio)}','${h.mailComercio || ''}')">
+                                <i class="fas fa-envelope"></i>
+                            </button>
+                        </div>
+                    </td>
+                    <td>
+                        <button class="btn-accion" style="background:#666" onclick="navigator.clipboard.writeText('${textoParaCopiar.replace(/'/g, "\\'")}'); mostrarToast('📋 Datos copiados','warning')">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="btn-accion btn-delete" onclick="eliminarIndividual('${doc.id}', this)">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                </tr>`;
+            });
+        });
+    });
 };
 
+// --- 🔔 TOAST NOTIFICATIONS ---
 function mostrarToast(mensaje, tipo = "success") {
-const div = document.createElement('div');
-div.className = `toast ${tipo}`;
-div.innerText = mensaje;
-document.body.appendChild(div);
-setTimeout(() => div.remove(), 3000);
+    const div = document.createElement('div');
+    div.className = `toast ${tipo}`;
+    div.innerText = mensaje;
+    document.body.appendChild(div);
+    setTimeout(() => div.remove(), 3000);
 }
 
+// --- 🚀 INICIALIZACIÓN ---
 document.getElementById('btn-activos').onclick = cargarActivos;
 document.getElementById('btn-historial').onclick = window.mostrarHistorial;
 document.addEventListener('DOMContentLoaded', () => { cargarActivos(); });
 
-// Exportar funciones globales
+// --- 📦 EXPORTAR FUNCIONES GLOBALES ---
 window.abrirWA = abrirWA;
 window.enviarMail = enviarMail;
 window.mostrarHistorial = mostrarHistorial;
@@ -613,5 +666,6 @@ window.eliminarSeleccionados = eliminarSeleccionados;
 window.desmarcarTodos = desmarcarTodos;
 window.eliminarIndividual = eliminarIndividual;
 window.actualizarBulkActions = actualizarBulkActions;
+window.escapeHtml = escapeHtml;
 </script>
 </body></html>
