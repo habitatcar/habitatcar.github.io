@@ -254,83 +254,58 @@ window.abrirWA = (cel, nom, pre) => {
     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
 };
 
-// --- ✅ ENVÍO DE MAIL CON PDF PREMIUM Y LOGO COMERCIO (FUNCIÓN COPIADA EXACTAMENTE) ---
-window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, logoComercio) => {
-    if (!emailDestino) return mostrarToast("Sin email", "error");
+// --- ✅ MOTOR DE ENVÍO OPTIMIZADO PARA GITHUB/SERVIDOR ---
+window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC) => {
+    if (!emailDestino || emailDestino === 'undefined') return mostrarToast("❌ Email inválido", "error");
+    
+    // Bloqueamos el botón para evitar envíos múltiples accidentales
     const originalText = btn.innerHTML;
     btn.disabled = true;
-    btn.innerHTML = "⏳";
-    let asuntoPlantilla = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
-    let cuerpoPlantilla = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
-    const inyectar = (texto) => {
-        return texto.replace(/{{NOMBRE}}/g, nombre).replace(/{{PREMIO}}/g, premio).replace(/{{COMERCIO}}/g, comercio);
-    };
-    const asuntoFinal = inyectar(asuntoPlantilla);
-    const cuerpoFinal = inyectar(cuerpoPlantilla);
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF('l', 'mm', 'a5');
-    const ancho = 210;
-    const alto = 148;
-    pdf.setFillColor(0, 61, 128);
-    pdf.triangle(0, 0, 80, 0, 0, 80, 'F');
-    pdf.setDrawColor(0, 61, 128);
-    pdf.setLineWidth(1);
-    pdf.rect(5, 5, ancho - 10, alto - 10);
-    pdf.setDrawColor(212, 175, 55);
-    pdf.setLineWidth(0.5);
-    pdf.rect(7, 7, ancho - 14, alto - 14);
-    if (logoComercio) {
-        try { pdf.addImage(logoComercio, 'PNG', ancho - 55, 15, 40, 40, '', 'FAST'); } catch (e) { console.log("Sin logo comercio"); }
-    }
-    const logoHC = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
-    try { pdf.addImage(logoHC, 'PNG', 15, alto - 45, 45, 30, '', 'FAST'); } catch (e) { console.log("Error logo HC"); }
-    pdf.setTextColor(0, 61, 128);
-    pdf.setFont("helvetica", "bold");
-    pdf.setFontSize(26);
-    pdf.text("CERTIFICADO DE GANADOR", ancho / 2, 45, { align: "center" });
-    pdf.setTextColor(40, 40, 40);
-    pdf.setFontSize(14);
-    pdf.setFont("helvetica", "normal");
-    pdf.text("Por el presente se certifica que:", ancho / 2, 60, { align: "center" });
-    pdf.setFontSize(22);
-    pdf.setFont("helvetica", "bold");
-    pdf.text(nombre.toUpperCase(), ancho / 2, 75, { align: "center" });
-    pdf.setFontSize(12);
-    pdf.setFont("helvetica", "normal");
-    pdf.text(`Fuiste favorecido con el sorteo:`, ancho / 2, 90, { align: "center" });
-    pdf.setFontSize(14);
-    pdf.setFont("helvetica", "bold");
-    pdf.text(`"${premio.toUpperCase()}"`, ancho / 2, 100, { align: "center" });
-    pdf.setFontSize(10);
-    pdf.setFont("helvetica", "italic");
-    const textoCierre = `Habitat-Car y ${comercio} se complacen por tu participación.`;
-    pdf.text(textoCierre, ancho / 2, 120, { align: "center" });
-    const hoy = new Date().toLocaleDateString();
-    pdf.setFontSize(9);
-    pdf.setFont("helvetica", "normal");
-    pdf.text(`Emitido el: ${hoy}`, ancho - 20, alto - 15, { align: "right" });
-    const pdfB64 = pdf.output('datauristring').split(',')[1];
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
     try {
-        const payload = {
+        // 1. OBTENEMOS PLANTILLAS FRESCAS EN CADA CLIC
+        const asuntoBase = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}, ganaste!";
+        const cuerpoBase = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
+
+        // 2. INYECCIÓN DE DATOS (Usamos split().join() para mayor estabilidad)
+        const inyectar = (texto) => {
+            if (!texto) return "";
+            return texto
+                .split('{{NOMBRE}}').join(nombre)
+                .split('{{PREMIO}}').join(premio)
+                .split('{{COMERCIO}}').join(comercio);
+        };
+
+        const asuntoFinal = inyectar(asuntoBase);
+        const cuerpoFinal = inyectar(cuerpoBase);
+
+        // 3. PREPARACIÓN DEL PAQUETE (Payload)
+        const datosEnvio = {
             email: emailDestino.trim(),
             asunto: asuntoFinal,
-            cuerpoHtml: cuerpoFinal,
+            cuerpoHtml: cuerpoFinal.replace(/\n/g, '<br>'),
             nombreGanador: nombre,
-            cc: `habitatcar@gmail.com, ${mailCC}`,
-            pdfB64: pdfB64
+            cc: `habitatcar@gmail.com${mailCC ? ', ' + mailCC : ''}`,
+            pdfB64: ""
         };
+
+        // 4. ENVÍO AL SCRIPT DE GOOGLE (cache: 'no-cache' para evitar caché en GitHub Pages)
         await fetch(URL_SCRIPT, {
             method: 'POST',
-            mode: 'no-cors',
+            mode: 'no-cors', 
             cache: 'no-cache',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify(payload)
+            headers: { 'Content-Type': 'text/plain' }, 
+            body: JSON.stringify(datosEnvio)
         });
-        mostrarToast("✅ Certificado Premium enviado!");
+
+        mostrarToast(`✅ Enviado correctamente a ${nombre}`);
+
     } catch (e) {
-        console.error(e);
-        mostrarToast("❌ Error al enviar", "error");
+        console.error("Error en el motor de envío:", e);
+        mostrarToast("❌ Error de conexión", "error");
     } finally {
+        // Restauramos el botón pase lo que pase
         btn.disabled = false;
         btn.innerHTML = originalText;
     }
@@ -583,7 +558,7 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc)
     } catch (e) { console.error(e); mostrarToast("❌ Error en el sorteo", "error"); }
 };
 
-// ✅ HISTORIAL: CON CHECKBOXES Y ELIMINACIÓN
+// ✅ HISTORIAL: CON CHECKBOXES Y ELIMINACIÓN (BOTONES CON COMILLAS SIMPLES)
 window.mostrarHistorial = () => {
     window.vistaActual = 'historial';
     window.itemsSeleccionados.clear();
@@ -618,7 +593,7 @@ window.mostrarHistorial = () => {
                     ${emailG ? `<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
                     <div style="margin-top:8px; display:flex; gap:5px;">
                         <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')"><i class="fab fa-whatsapp"></i></button>
-                        <button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}', '${h.logoUrl || ''}')"><i class="fas fa-envelope"></i></button>
+                        <button class="btn-accion btn-mail" onclick="enviarMail(this,'${emailG}','${nombreG}','${h.premio}','${h.comercio}','${h.mailComercio}')"><i class="fas fa-envelope"></i></button>
                     </div>
                 </td>
                 <td>
