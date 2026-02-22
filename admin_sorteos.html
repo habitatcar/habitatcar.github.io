@@ -287,7 +287,7 @@ window.abrirWA = (cel, nom, pre) => {
     window.open(`https://wa.me/${numFormateado}?text=${msg}`, '_blank');
 };
 
-// ✅ FUNCIÓN DE EMAIL CORREGIDA
+// ✅ FUNCIÓN DE EMAIL CORREGIDA CON TEMPLATE ID
 window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, logoComercio, whatsappComercio, direccionComercio) => {
     nombre = nombre || "Ganador/a";
     premio = premio || "el premio";
@@ -304,10 +304,27 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, 
     btn.disabled = true;
     btn.innerHTML = "⏳ Enviando...";
 
+    // Plantillas
+    let asuntoPlantilla = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}! Ganaste en {{COMERCIO}}";
+    let cuerpoPlantilla = localStorage.getItem('hc_cuerpo') || 
+        `Hola {{NOMBRE}}, ganaste un/a {{PREMIO}} en {{COMERCIO}}.\n\nTenés 30 días para ir por {{DIRECCION_COMERCIO}} a buscar tu premio o contactarte con {{WHATSAPP_COMERCIO}}.`;
+
+    // Reemplazar placeholders
+    const inyectar = (texto) => {
+        return texto
+            .replace(/\{\{NOMBRE\}\}/g, nombre)
+            .replace(/\{\{PREMIO\}\}/g, premio)
+            .replace(/\{\{COMERCIO\}\}/g, comercio)
+            .replace(/\{\{WHATSAPP_COMERCIO\}\}/g, whatsappComercio)
+            .replace(/\{\{DIRECCION_COMERCIO\}\}/g, direccionComercio);
+    };
+
+    const asuntoFinal = inyectar(asuntoPlantilla);
+    let cuerpoFinal = inyectar(cuerpoPlantilla);
+    cuerpoFinal = cuerpoFinal.replace(/\n/g, '<br>');
+
     try {
-        // ===========================================
-        // GENERAR PDF (se mantiene igual)
-        // ===========================================
+        // Generar PDF
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF('l', 'mm', 'a5');
         const ancho = 210;
@@ -374,9 +391,10 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, 
         
         console.log("Enviando con parámetros:", templateParams);
         
+        // ✅ TEMPLATE ID CORREGIDO
         const response = await emailjs.send(
             "service_vp6ubol",
-            "rr2rr8l",
+            "template_lzr55pd", // Template ID actualizado
             templateParams
         );
         
