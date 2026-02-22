@@ -90,20 +90,22 @@ td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
 
 /* ✅ ESTILOS PARA MODALES EDITORES */
 .modal-editor { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; overflow-y: auto; padding: 20px; }
-.modal-editor-content { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1000px; margin: auto; }
-.modal-panel { background: white; padding: 20px; border-radius: 15px; width: 320px; color: #333; }
+.modal-editor-content { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1200px; margin: auto; }
+.modal-panel { background: white; padding: 20px; border-radius: 15px; width: 350px; color: #333; max-height: 90vh; overflow-y: auto; }
 .modal-panel h3 { color: var(--azul-habitat); margin-bottom: 10px; }
-.modal-panel label { display: block; font-size: 12px; margin: 10px 0 5px; font-weight: 600; }
+.modal-panel h4 { color: var(--naranja); margin: 15px 0 8px; font-size: 13px; border-bottom: 1px solid #eee; padding-bottom: 5px; }
+.modal-panel label { display: block; font-size: 11px; margin: 8px 0 3px; font-weight: 600; color: #555; }
 .modal-panel input[type="text"], .modal-panel textarea { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 12px; box-sizing: border-box; }
 .modal-panel input[type="color"] { width: 100%; height: 35px; padding: 2px; border: none; cursor: pointer; }
 .modal-panel input[type="range"] { flex: 1; }
 .modal-panel .range-row { display: flex; gap: 5px; align-items: center; margin-bottom: 8px; }
+.modal-panel .range-row label { width: 60px; font-size: 11px; }
 .modal-panel .btn-save { width: 100%; background: var(--verde); color: white; padding: 12px; border: none; border-radius: 8px; margin-top: 15px; font-weight: bold; cursor: pointer; }
 .modal-panel .btn-cancel { width: 100%; background: none; border: none; color: red; margin-top: 5px; cursor: pointer; padding: 8px; }
 
 /* ✅ PREVISUALIZACIÓN DEL TICKET */
 #previa_ticket {
-    width: 260px; height: 520px;
+    width: 280px; height: 560px;
     background: #ddd; border-radius: 15px;
     border: 5px solid #222;
     position: relative; overflow: hidden;
@@ -111,28 +113,33 @@ td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
     box-shadow: 0 10px 30px rgba(0,0,0,0.3);
 }
 #prev_l1, #prev_l2 {
-    position: absolute; width: 45px; height: 45px;
+    position: absolute; width: 50px; height: 50px;
     border: 1px dashed #666; background: rgba(255,255,255,0.5);
     font-size: 9px; text-align: center;
     display: flex; align-items: center; justify-content: center;
     pointer-events: none;
 }
-#prev_txt {
-    position: absolute; width: 100%; top: 50%;
-    text-align: center; transform: translateY(-50%);
-    color: #000;
+#prev_nombre, #prev_premio, #prev_comercio {
+    position: absolute;
+    text-align: center;
+    font-weight: bold;
+    cursor: move;
+    padding: 5px;
+    background: rgba(255,255,255,0.7);
+    border-radius: 4px;
+    font-size: 11px;
 }
-#prev_txt b { font-size: 16px; }
-#prev_txt small { font-size: 12px; }
+#prev_nombre { color: #003d80; }
+#prev_premio { color: #e60000; }
+#prev_comercio { color: #333; }
 
 @media (max-width: 768px) {
 .faja-nav { gap: 3px; }
 .faja-nav a { font-size: 9px; padding: 4px 6px; }
 body { padding-top: 120px; }
 .logo-mini { height: 70px; }
-.modal-panel { width: 100%; max-width: 320px; }
-#previa_ticket { width: 100%; max-width: 260px; height: 520px; }
-.controls { flex-wrap: wrap; }
+.modal-panel { width: 100%; max-width: 350px; }
+#previa_ticket { width: 100%; max-width: 280px; height: 560px; }
 }
 </style>
 </head>
@@ -151,12 +158,12 @@ body { padding-top: 120px; }
 <div class="container">
 <header><h1>🏆 SORTEOS PREMIUM</h1><p>Panel de Sorteos Elite | Hábitat-Car</p></header>
 
-<!-- ✅ CONTROLES CON BOTONES DE EDITOR AL LADO DE HISTORIAL -->
+<!-- ✅ CONTROLES CON BOTONES DE EDITOR -->
 <div class="controls">
 <button class="btn btn-success" id="btn-activos">SORTEOS ACTIVOS</button>
 <button class="btn btn-warning" id="btn-historial">HISTORIAL DE ÉXITOS</button>
 
-<!-- Botones de editor integrados en controls -->
+<!-- Botones de editor -->
 <button class="btn btn-icon btn-primary" onclick="abrirEditorPDF()" title="Editar Ticket PDF" style="background:var(--azul-habitat);">
     <i class="fas fa-file-pdf"></i>
 </button>
@@ -207,30 +214,55 @@ body { padding-top: 120px; }
     <div class="modal-panel">
         <h3>🎨 Diseño del Ticket</h3>
         <hr><br>
+        
         <label>Imagen de Fondo (URL):</label>
         <input type="text" id="cfg_bg" oninput="actualizarPrevia()" placeholder="https://...">
         
-        <label>Color Texto:</label>
+        <label>Color de Texto:</label>
         <input type="color" id="cfg_color" oninput="actualizarPrevia()" value="#003d80">
         
-        <label>Logo 1 (Comercio) - Posición X/Y:</label>
+        <h4>🏪 Logo Comercio</h4>
         <div class="range-row">
+            <label>X:</label>
             <input type="range" id="cfg_l1x" min="0" max="60" oninput="actualizarPrevia()" value="5">
+        </div>
+        <div class="range-row">
+            <label>Y:</label>
             <input type="range" id="cfg_l1y" min="0" max="140" oninput="actualizarPrevia()" value="5">
         </div>
-        
-        <label>Logo 2 (Hábitat) - Posición X/Y:</label>
         <div class="range-row">
+            <label>Tamaño:</label>
+            <input type="range" id="cfg_logo_size" min="10" max="40" oninput="actualizarPrevia()" value="20">
+            <span id="logo_size_val" style="font-size:11px; min-width:35px;">20mm</span>
+        </div>
+        
+        <h4>🏢 Logo Hábitat-Car</h4>
+        <div class="range-row">
+            <label>X:</label>
             <input type="range" id="cfg_l2x" min="0" max="60" oninput="actualizarPrevia()" value="55">
+        </div>
+        <div class="range-row">
+            <label>Y:</label>
             <input type="range" id="cfg_l2y" min="0" max="140" oninput="actualizarPrevia()" value="5">
         </div>
         
-        <!-- ✅ NUEVO: Slider para tamaño de logos -->
-        <label>Tamaño de Logos (mm):</label>
+        <h4>📝 Posición Textos</h4>
         <div class="range-row">
-            <input type="range" id="cfg_logo_size" min="10" max="40" oninput="actualizarPrevia()" value="20" style="flex:1;">
-            <span id="logo_size_val" style="font-size:11px; min-width:30px;">20mm</span>
+            <label>Nombre Y:</label>
+            <input type="range" id="cfg_txt_nombre_y" min="50" max="120" oninput="actualizarPrevia()" value="90">
         </div>
+        <div class="range-row">
+            <label>Premio Y:</label>
+            <input type="range" id="cfg_txt_premio_y" min="70" max="140" oninput="actualizarPrevia()" value="110">
+        </div>
+        <div class="range-row">
+            <label>Comercio Y:</label>
+            <input type="range" id="cfg_txt_comercio_y" min="90" max="150" oninput="actualizarPrevia()" value="125">
+        </div>
+        
+        <h4>📄 Textos Fijos</h4>
+        <label>Footer del Ticket:</label>
+        <input type="text" id="cfg_footer_text" oninput="actualizarPrevia()" value="Hábitat-Car • " placeholder="Texto footer">
         
         <button class="btn-save" onclick="guardarConfigPDF()">💾 GUARDAR DISEÑO</button>
         <button class="btn-cancel" onclick="cerrarModales()">Cerrar</button>
@@ -238,23 +270,27 @@ body { padding-top: 120px; }
     
     <!-- Previsualización -->
     <div id="previa_ticket">
-        <div id="prev_l1">Logo 1</div>
-        <div id="prev_l2">Logo 2</div>
-        <div id="prev_txt">
-            <b>NOMBRE GANADOR</b><br><small>Premio - Comercio</small>
-        </div>
+        <div id="prev_l1">Logo Comercio</div>
+        <div id="prev_l2">Logo Hábitat</div>
+        <div id="prev_nombre" style="top:90px;">NOMBRE GANADOR</div>
+        <div id="prev_premio" style="top:110px;">Premio del Sorteo</div>
+        <div id="prev_comercio" style="top:125px;">Comercio</div>
     </div>
 </div>
 </div>
 
 <!-- ✅ MODAL EDITOR WHATSAPP -->
 <div id="modalWA" class="modal-editor" style="align-items:center; justify-content:center;">
-<div style="background:white; padding:25px; border-radius:15px; width:90%; max-width:400px; color:#333;">
+<div style="background:white; padding:25px; border-radius:15px; width:90%; max-width:500px; color:#333;">
     <h3 style="color:#25D366"><i class="fab fa-whatsapp"></i> Mensaje de WhatsApp</h3>
-    <p style="font-size:12px; margin-bottom:10px;">Configurá el saludo automático:</p>
-    <textarea id="cfg_wa_msg" style="width:100%; height:120px; padding:10px; font-family:sans-serif; border:1px solid #ccc; border-radius:6px;" placeholder="Ej: ¡Hola {{NOMBRE}}!"></textarea>
-    <div style="font-size:11px; color:#666; margin:10px 0;">
-        Tags: <b>{{NOMBRE}}</b>, <b>{{PREMIO}}</b>, <b>{{COMERCIO}}</b>
+    <p style="font-size:12px; margin-bottom:10px;">Configurá el mensaje automático:</p>
+    <textarea id="cfg_wa_msg" style="width:100%; height:180px; padding:10px; font-family:sans-serif; border:1px solid #ccc; border-radius:6px; font-size:12px; line-height:1.5;" placeholder="Ej: ¡Hola {{NOMBRE}}! Ganaste {{PREMIO}}..."></textarea>
+    <div style="font-size:11px; color:#666; margin:10px 0; background:#f8f9fa; padding:10px; border-radius:6px;">
+        <strong>Tags disponibles:</strong><br>
+        {{NOMBRE}} → Nombre del ganador<br>
+        {{PREMIO}} → Nombre del premio<br>
+        {{DESCRIPCION}} → Descripción del sorteo<br>
+        {{COMERCIO}} → Nombre del comercio
     </div>
     <button class="btn-save" style="background:#25D366;" onclick="guardarConfigWA()">💾 GUARDAR MENSAJE</button>
     <button class="btn-cancel" onclick="cerrarModales()">Cerrar</button>
@@ -265,7 +301,7 @@ body { padding-top: 120px; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, doc, getDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
-// --- 🔐 CONFIGURACIÓN DE SEGURIDAD ---
+// --- 🔐 CONFIGURACIÓN ---
 const CLAVE_MAESTRA = "HABITAT_MASTER_2026";
 const LOGO_DEFAULT = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
 const LOGO_HABITAT = "https://i.ibb.co/m5fdvTr/HABITAT-CAR-SF.png";
@@ -282,16 +318,24 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// --- 🎫 CONFIGURACIÓN DEFAULT ---
+const CONFIG_DEFAULT = {
+    pdf: { 
+        bg: '', color: '#003d80', 
+        l1x: 5, l1y: 5, l2x: 55, l2y: 5, logoSize: 20,
+        txtNombreY: 90, txtPremioY: 110, txtComercioY: 125,
+        footerText: 'Hábitat-Car • '
+    },
+    wa: `🎉 ¡Hola {{NOMBRE}}! Ganaste el sorteo {{PREMIO}}\n\n🎁 ***consistente en {{DESCRIPCION}}***\n\n🏪 ***realizado por*** {{COMERCIO}}\n\n📎 Adjunto tu ticket.\n\n⏰ Presentate antes de los 30 días para reclamar tu premio.\n\n⚠️ Si dejas pasar los 30 días, perdés el premio.\n\n🚨 ¡NO TE DUERMAS! 🚨`
+};
+
 // --- 🎫 FUNCIONES DE CONFIGURACIÓN ---
 const CARGAR_CONFIG = () => {
-    const pdf = JSON.parse(localStorage.getItem('hc_pdf_v3')) || { 
-        bg: '', color: '#000000', l1x: 5, l1y: 5, l2x: 55, l2y: 5, logoSize: 20 
-    };
+    const pdf = JSON.parse(localStorage.getItem('hc_pdf_v3')) || CONFIG_DEFAULT.pdf;
     const wa = localStorage.getItem('hc_wa_v3');
-    // ✅ Si no hay mensaje guardado, usar el default
     return { 
         pdf, 
-        wa: wa || "¡Hola {{NOMBRE}}! Ganaste {{PREMIO}} en {{COMERCIO}}. Adjunto tu ticket." 
+        wa: wa || CONFIG_DEFAULT.wa 
     };
 };
 
@@ -299,13 +343,17 @@ const CARGAR_CONFIG = () => {
 window.abrirEditorPDF = () => {
     const { pdf } = CARGAR_CONFIG();
     document.getElementById('cfg_bg').value = pdf.bg || '';
-    document.getElementById('cfg_color').value = pdf.color || '#000000';
+    document.getElementById('cfg_color').value = pdf.color || '#003d80';
     document.getElementById('cfg_l1x').value = pdf.l1x || 5;
     document.getElementById('cfg_l1y').value = pdf.l1y || 5;
     document.getElementById('cfg_l2x').value = pdf.l2x || 55;
     document.getElementById('cfg_l2y').value = pdf.l2y || 5;
     document.getElementById('cfg_logo_size').value = pdf.logoSize || 20;
     document.getElementById('logo_size_val').textContent = (pdf.logoSize || 20) + 'mm';
+    document.getElementById('cfg_txt_nombre_y').value = pdf.txtNombreY || 90;
+    document.getElementById('cfg_txt_premio_y').value = pdf.txtPremioY || 110;
+    document.getElementById('cfg_txt_comercio_y').value = pdf.txtComercioY || 125;
+    document.getElementById('cfg_footer_text').value = pdf.footerText || 'Hábitat-Car • ';
     document.getElementById('modalPDF').style.display = 'flex';
     actualizarPrevia();
 };
@@ -313,7 +361,6 @@ window.abrirEditorPDF = () => {
 // ✅ EDITOR WHATSAPP
 window.abrirEditorWA = () => {
     const { wa } = CARGAR_CONFIG();
-    // ✅ Asegurar que se cargue el mensaje guardado o el default
     document.getElementById('cfg_wa_msg').value = wa;
     document.getElementById('modalWA').style.display = 'flex';
 };
@@ -324,7 +371,6 @@ window.actualizarPrevia = () => {
     const color = document.getElementById('cfg_color').value;
     const logoSize = parseInt(document.getElementById('cfg_logo_size').value) || 20;
     
-    // Actualizar valor mostrado del tamaño
     document.getElementById('logo_size_val').textContent = logoSize + 'mm';
     
     const p = document.getElementById('previa_ticket');
@@ -335,12 +381,10 @@ window.actualizarPrevia = () => {
         p.style.background = '#ddd';
     }
     
-    document.getElementById('prev_txt').style.color = color;
-    
-    // Factor de escala: 260px / 80mm ≈ 3.25
-    const f = 3.25;
+    const f = 3.5;
     const sizePx = logoSize * f;
     
+    // Logos
     document.getElementById('prev_l1').style.left = (document.getElementById('cfg_l1x').value * f) + 'px';
     document.getElementById('prev_l1').style.top = (document.getElementById('cfg_l1y').value * f) + 'px';
     document.getElementById('prev_l1').style.width = sizePx + 'px';
@@ -350,6 +394,14 @@ window.actualizarPrevia = () => {
     document.getElementById('prev_l2').style.top = (document.getElementById('cfg_l2y').value * f) + 'px';
     document.getElementById('prev_l2').style.width = sizePx + 'px';
     document.getElementById('prev_l2').style.height = sizePx + 'px';
+    
+    // Textos
+    document.getElementById('prev_nombre').style.top = document.getElementById('cfg_txt_nombre_y').value + 'px';
+    document.getElementById('prev_premio').style.top = document.getElementById('cfg_txt_premio_y').value + 'px';
+    document.getElementById('prev_comercio').style.top = document.getElementById('cfg_txt_comercio_y').value + 'px';
+    document.getElementById('prev_nombre').style.color = color;
+    document.getElementById('prev_premio').style.color = color;
+    document.getElementById('prev_comercio').style.color = color;
 };
 
 // ✅ GUARDAR CONFIG PDF
@@ -361,7 +413,11 @@ window.guardarConfigPDF = () => {
         l1y: document.getElementById('cfg_l1y').value,
         l2x: document.getElementById('cfg_l2x').value,
         l2y: document.getElementById('cfg_l2y').value,
-        logoSize: document.getElementById('cfg_logo_size').value
+        logoSize: document.getElementById('cfg_logo_size').value,
+        txtNombreY: document.getElementById('cfg_txt_nombre_y').value,
+        txtPremioY: document.getElementById('cfg_txt_premio_y').value,
+        txtComercioY: document.getElementById('cfg_txt_comercio_y').value,
+        footerText: document.getElementById('cfg_footer_text').value
     };
     localStorage.setItem('hc_pdf_v3', JSON.stringify(data));
     mostrarToast("✅ Diseño de Ticket guardado", "success");
@@ -371,7 +427,6 @@ window.guardarConfigPDF = () => {
 // ✅ GUARDAR CONFIG WHATSAPP
 window.guardarConfigWA = () => {
     const msg = document.getElementById('cfg_wa_msg').value;
-    // ✅ Guardar explícitamente, incluso si está vacío
     localStorage.setItem('hc_wa_v3', msg);
     mostrarToast("✅ Mensaje de WhatsApp guardado", "success");
     cerrarModales();
@@ -382,15 +437,13 @@ window.cerrarModales = () => {
     document.getElementById('modalWA').style.display = 'none';
 };
 
-// --- 🎫 FUNCIÓN PRINCIPAL: GENERAR TICKET + WHATSAPP ---
-window.enviarTicketElite = async (nombre, premio, comercio, telefono, logoComercio) => {
+// --- 🎫 FUNCIÓN PRINCIPAL: ENVIAR WHATSAPP Y PDF ---
+window.enviarWhatsappYPDF = async (nombre, premio, comercio, descripcion, telefono, logoComercio) => {
     const { pdf, wa } = CARGAR_CONFIG();
     const { jsPDF } = window.jspdf;
     
-    // Crear PDF formato ticket móvil 80x160mm
     const doc = new jsPDF({ unit: "mm", format: [80, 160] });
 
-    // Función auxiliar para cargar imágenes con CORS
     const loadImage = (url) => {
         return new Promise((resolve, reject) => {
             if(!url) return resolve(null);
@@ -402,7 +455,7 @@ window.enviarTicketElite = async (nombre, premio, comercio, telefono, logoComerc
         });
     };
 
-    // 1. Imagen de Fondo (si existe)
+    // 1. Fondo
     if(pdf.bg) {
         try {
             const bgImg = await loadImage(pdf.bg);
@@ -410,7 +463,7 @@ window.enviarTicketElite = async (nombre, premio, comercio, telefono, logoComerc
         } catch(e) { console.log("Fondo no cargado:", e); }
     }
 
-    // 2. Logos posicionables con tamaño configurable
+    // 2. Logos
     const logoSize = parseInt(pdf.logoSize) || 20;
     const addLogo = async (url, x, y) => {
         if(!url) return;
@@ -423,43 +476,39 @@ window.enviarTicketElite = async (nombre, premio, comercio, telefono, logoComerc
     await addLogo(logoComercio || LOGO_DEFAULT, pdf.l1x, pdf.l1y);
     await addLogo(LOGO_HABITAT, pdf.l2x, pdf.l2y);
 
-    // 3. Textos
-    doc.setTextColor(pdf.color || '#000000');
+    // 3. Textos con posiciones configurables
+    doc.setTextColor(pdf.color || '#003d80');
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
-    doc.text((nombre || "Ganador").toUpperCase(), 40, 90, { align: "center" });
+    doc.text((nombre || "Ganador").toUpperCase(), 40, parseInt(pdf.txtNombreY), { align: "center" });
     
     doc.setFontSize(16);
     doc.setFont("helvetica", "normal");
-    doc.text(premio || "Premio", 40, 110, { align: "center" });
-    doc.text(comercio || "Comercio", 40, 125, { align: "center" });
+    doc.text(premio || "Premio", 40, parseInt(pdf.txtPremioY), { align: "center" });
+    doc.text(comercio || "Comercio", 40, parseInt(pdf.txtComercioY), { align: "center" });
     
     // Footer
     doc.setFontSize(8);
-    doc.text(`Hábitat-Car • ${new Date().toLocaleDateString()}`, 40, 155, { align: "center" });
+    const footerTexto = (pdf.footerText || 'Hábitat-Car • ') + new Date().toLocaleDateString();
+    doc.text(footerTexto, 40, 155, { align: "center" });
 
     // Descargar PDF
     const nombreArchivo = `Ticket_${(nombre||'Ganador').replace(/\s+/g,'_')}.pdf`;
     doc.save(nombreArchivo);
 
-    // 4. Preparar WhatsApp con mensaje personalizado
-    // ✅ Usar el mensaje guardado o el default si está vacío
-    let mensajeBase = wa && wa.trim() ? wa : "¡Hola {{NOMBRE}}! Ganaste {{PREMIO}} en {{COMERCIO}}.";
+    // 4. WhatsApp con mensaje personalizado
+    let mensajeBase = wa && wa.trim() ? wa : CONFIG_DEFAULT.wa;
     let mensaje = mensajeBase
         .replace(/{{NOMBRE}}/g, nombre || "Ganador")
         .replace(/{{PREMIO}}/g, premio || "el premio")
+        .replace(/{{DESCRIPCION}}/g, descripcion || "este increíble premio")
         .replace(/{{COMERCIO}}/g, comercio || "el comercio");
 
     if(telefono) {
         const numAR = window.normalizarTelefonoAR(telefono);
         const urlWA = `https://wa.me/${numAR}?text=${encodeURIComponent(mensaje)}`;
         
-        // ✅ Nota: WhatsApp Web NO permite adjuntar archivos vía URL.
-        // El usuario debe adjuntar manualmente el PDF descargado.
-        // Mostramos una notificación para guiar al usuario.
-        mostrarToast("📄 PDF descargado. Adjuntalo manualmente en WhatsApp.", "warning");
-        
-        // Pequeño delay para que el PDF empiece a descargar
+        mostrarToast("📄 PDF descargado. Adjuntalo en WhatsApp.", "warning");
         setTimeout(() => { window.open(urlWA, '_blank'); }, 1200);
     }
     
@@ -565,7 +614,7 @@ window.eliminarIndividual = async (id, btn) => {
     } catch(e) { console.error(e); mostrarToast("❌ Error", "error"); btn.disabled=false; btn.innerHTML=original; }
 };
 
-// --- ⏰ RELOJES Y CONTADOR EN VIVO ---
+// --- ⏰ RELOJES ---
 window.iniciarRelojes = () => {
     setInterval(() => {
         document.querySelectorAll('.btn-sortear-accion').forEach(btn => {
@@ -589,7 +638,7 @@ window.iniciarRelojes = () => {
     }, 1000);
 };
 
-// --- 🎲 VALIDACIÓN DE SEGURIDAD ---
+// --- 🎲 VALIDACIÓN ---
 window.validarAccionSegura = async (idComercio, claveIngresada) => {
     if (claveIngresada === CLAVE_MAESTRA) return true;
     try {
@@ -604,7 +653,7 @@ window.validarAccionSegura = async (idComercio, claveIngresada) => {
     return false;
 };
 
-// --- 🎲 INTENTAR SORTEO (CON BYPASS) ---
+// --- 🎲 INTENTAR SORTEO ---
 window.intentarSorteo = async (btn) => {
     const ts = parseInt(btn.dataset.timestamp);
     const ahora = Date.now();
@@ -620,7 +669,7 @@ window.intentarSorteo = async (btn) => {
     ejecutarSorteo(btn.dataset.id, btn.dataset.nombre, btn.dataset.premio, parseInt(btn.dataset.cant), btn.dataset.mail, btn.dataset.logo, btn.dataset.desc, btn.dataset.claveComercio);
 };
 
-// --- 🗑️ ELIMINAR CON ZONA CRÍTICA ---
+// --- 🗑️ ELIMINAR ---
 window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
     const timestampSorteo = new Date(fechaSorteoISO).getTime();
     const ahora = Date.now();
@@ -782,7 +831,7 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
     } catch(e) { console.error(e); mostrarToast("❌ Error en sorteo", "error"); }
 };
 
-// --- 📜 HISTORIAL CON BOTONES ACTUALIZADOS ---
+// --- 📜 HISTORIAL CON BOTÓN ACTUALIZADO ---
 window.mostrarHistorial = () => {
     window.vistaActual = 'historial';
     window.itemsSeleccionados.clear();
@@ -809,7 +858,9 @@ window.mostrarHistorial = () => {
                     : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
                 const textoCopiar = `${nombreG} - WA: ${celG} - Email: ${emailG}`.trim();
                 const logoC = h.logoUrl || LOGO_DEFAULT;
+                const descripcionG = h.descripcion_sorteo || "";
                 
+                // ✅ BOTÓN ÚNICO: ENVIAR WHATSAPP Y PDF (sin botón WA separado)
                 tabla.innerHTML += `<tr>
                 <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}', this)"></td>
                 <td><small>${fecha}</small></td>
@@ -829,12 +880,10 @@ window.mostrarHistorial = () => {
                     </div>
                     ${emailG ? `<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
                     <div style="margin-top:8px;display:flex;gap:5px;">
-                        <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')">
-                            <i class="fab fa-whatsapp"></i>
-                        </button>
-                        <button class="btn-accion btn-success" title="Generar Ticket + WhatsApp" 
-                            onclick="enviarTicketElite('${nombreG.replace(/'/g, "\\'")}', '${h.premio.replace(/'/g, "\\'")}', '${h.comercio.replace(/'/g, "\\'")}', '${celG}', '${logoC.replace(/'/g, "\\'")}')">
-                            <i class="fas fa-ticket-alt"></i> ENVIAR
+                        <!-- ✅ BOTÓN ÚNICO QUE HACE AMBAS COSAS -->
+                        <button class="btn-accion btn-success" title="Generar PDF y abrir WhatsApp" 
+                            onclick="enviarWhatsappYPDF('${nombreG.replace(/'/g, "\\'")}', '${h.premio.replace(/'/g, "\\'")}', '${h.comercio.replace(/'/g, "\\'")}', '${descripcionG.replace(/'/g, "\\'")}', '${celG}', '${logoC.replace(/'/g, "\\'")}')">
+                            <i class="fas fa-paper-plane"></i> ENVIAR WHATSAPP y PDF
                         </button>
                     </div>
                 </td>
@@ -852,7 +901,7 @@ window.mostrarHistorial = () => {
     });
 };
 
-// --- 🍞 TOAST NOTIFICATIONS ---
+// --- 🍞 TOAST ---
 function mostrarToast(mensaje, tipo="success") {
     const div = document.createElement('div');
     div.className = `toast ${tipo}`;
@@ -861,7 +910,7 @@ function mostrarToast(mensaje, tipo="success") {
     setTimeout(() => div.remove(), 3000);
 }
 
-// --- 📅 FORMATEO DE FECHA ---
+// --- 📅 FECHA ---
 function formatearFechaHora(fechaISO) { 
     if (!fechaISO) return null; 
     try { 
@@ -890,7 +939,7 @@ document.getElementById('modalWA').addEventListener('click', (e) => {
     if(e.target.id === 'modalWA') cerrarModales();
 });
 
-// Exportar funciones globales
+// Exportar funciones
 window.abrirWA = abrirWA;
 window.mostrarHistorial = mostrarHistorial; 
 window.mostrarToast = mostrarToast;
@@ -906,7 +955,7 @@ window.actualizarBulkActions = actualizarBulkActions;
 window.intentarSorteo = intentarSorteo;
 window.intentarEliminarSorteo = intentarEliminarSorteo;
 window.validarAccionSegura = validarAccionSegura;
-window.enviarTicketElite = enviarTicketElite;
+window.enviarWhatsappYPDF = enviarWhatsappYPDF;
 window.abrirEditorPDF = abrirEditorPDF;
 window.abrirEditorWA = abrirEditorWA;
 window.actualizarPrevia = actualizarPrevia;
