@@ -379,41 +379,71 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, 
         // ===========================================
         // EMAILJS - ENVÍO DEL EMAIL
         // ===========================================
-        
-        const templateParams = {
-            to_name: nombre,
-            to_email: emailDestino,
-            premio: premio,
-            comercio: comercio,
-            direccion: direccionComercio,
-            whatsapp: whatsappComercio
-        };
-        
-        console.log("Enviando con parámetros:", templateParams);
-        
-        // ✅ TEMPLATE ID CORREGIDO
-        const response = await emailjs.send(
-            "service_vp6ubol",
-            "template_lzr55pd", // Template ID actualizado
-            templateParams
-        );
-        
-        console.log("Respuesta de EmailJS:", response);
-        
-        if (response.status === 200) {
-            mostrarToast(`✅ Certificado enviado a ${nombre}!`);
-        } else {
-            mostrarToast("❌ Error: " + (response.text || "desconocido"), "error");
-        }
+        // ===========================================
+// EMAILJS - ENVÍO DEL EMAIL (VERSIÓN MEJORADA)
+// ===========================================
 
-    } catch (e) {
-        console.error("Error completo:", e);
-        mostrarToast("❌ Error al enviar: " + (e.text || e.message || "desconocido"), "error");
-    } finally {
-        btn.disabled = false;
-        btn.innerHTML = originalText;
-    }
+const templateParams = {
+    to_name: nombre,
+    to_email: emailDestino,
+    premio: premio,
+    comercio: comercio,
+    direccion: direccionComercio,
+    whatsapp: whatsappComercio
 };
+
+console.log("Enviando a:", emailDestino);
+
+try {
+    // Versión alternativa que funciona mejor con Yahoo/Hotmail
+    const response = await emailjs.send(
+        "service_vp6ubol",
+        "template_lzr55pd",
+        templateParams
+    );
+    
+    console.log("Respuesta completa:", response);
+    
+    if (response.status === 200) {
+        mostrarToast(`✅ Certificado enviado a ${nombre}!`);
+        
+        // Si es Yahoo, mostrar un aviso
+        if (emailDestino.includes('yahoo.com')) {
+            setTimeout(() => {
+                mostrarToast("⚠️ Revisá también la carpeta SPAM en Yahoo", "warning");
+            }, 3000);
+        }
+    } else {
+        mostrarToast("❌ Error: " + response.text, "error");
+    }
+
+} catch (error) {
+    console.error("Error completo:", error);
+    
+    // Si falla, intentamos con el servicio alternativo (el segundo template)
+    if (emailDestino.includes('yahoo.com') || emailDestino.includes('hotmail.com') || emailDestino.includes('outlook.com')) {
+        try {
+            console.log("Intentando con template alternativo...");
+            const response2 = await emailjs.send(
+                "service_vp6ubol",
+                "template_4tbnqod", // El segundo template que tenés
+                templateParams
+            );
+            
+            if (response2.status === 200) {
+                mostrarToast(`✅ Enviado (vía template alternativo) a ${nombre}!`, "success");
+                mostrarToast("⚠️ Revisá SPAM en Yahoo", "warning");
+                return;
+            }
+        } catch (error2) {
+            console.error("También falló el alternativo:", error2);
+            mostrarToast("❌ No se pudo enviar a Yahoo. Probá con otro correo.", "error");
+        }
+    } else {
+        mostrarToast("❌ Error al enviar: " + (error.text || error.message), "error");
+    }
+}
+   
 
 window.enviarMailPorKey = (btn, key) => {
     const d = window._ganadorData[key];
@@ -778,3 +808,4 @@ window.mostrarToast = mostrarToast;
 window.cargarActivos = cargarActivos;
 </script>
 </body></html>
+
