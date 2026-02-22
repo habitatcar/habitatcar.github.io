@@ -126,7 +126,7 @@ body { padding-top: 120px; }
 <button class="btn btn-danger" onclick="eliminarSeleccionados()"><i class="fas fa-trash"></i> ELIMINAR SELECCIONADOS</button>
 <button class="btn btn-warning" onclick="desmarcarTodos()"><i class="fas fa-times"></i> CANCELAR</button>
 </div>
-<div class="table-container">
+<div id="sorteos-activos" class="table-container">
 <table>
 <thead>
 <tr id="tabla-headers">
@@ -259,18 +259,16 @@ window.abrirWA = (cel, nom, pre, comercio) => {
     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
 };
 
-// ✅ FUNCIÓN ENVIAR MAIL CORREGIDA - MÉTODO ROBUSTO
+// ✅ FUNCIÓN ENVIAR MAIL - MÉTODO ROBUSTO
 window.enviarMail = async (btn, email, nombre, premio, comercio, mailCC) => {
     if (!email) return mostrarToast("Email no encontrado", "error");
     
     btn.disabled = true;
     btn.innerHTML = "⏳";
 
-    // 1. Preparamos las plantillas
     const asuntoT = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}!";
     const cuerpoT = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}}.";
 
-    // 2. Inyectamos los datos (Método Robusto con split/join)
     const inyectar = (texto) => {
         return texto.split('{{NOMBRE}}').join(nombre)
                     .split('{{PREMIO}}').join(premio)
@@ -278,7 +276,7 @@ window.enviarMail = async (btn, email, nombre, premio, comercio, mailCC) => {
     };
 
     try {
-        const respuesta = await fetch(URL_SCRIPT, {
+        await fetch(URL_SCRIPT, {
             method: 'POST',
             body: JSON.stringify({
                 email: email.trim(),
@@ -287,7 +285,6 @@ window.enviarMail = async (btn, email, nombre, premio, comercio, mailCC) => {
                 cc: `habitatcar@gmail.com, ${mailCC || ''}`
             })
         });
-        
         mostrarToast(`✅ Enviado vía Brevo a ${nombre}`);
     } catch (e) {
         console.error(e);
@@ -298,7 +295,7 @@ window.enviarMail = async (btn, email, nombre, premio, comercio, mailCC) => {
     }
 };
 
-// FUNCIONES AUXILIARES PARA OBJETO GLOBAL
+// FUNCIONES AUXILIARES
 window.enviarMailPorKey = (btn, key) => {
     const d = window._ganadorData[key];
     if (!d) return mostrarToast("❌ Error: datos no encontrados", "error");
@@ -620,67 +617,58 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
     } catch(e) { console.error(e); mostrarToast("❌ Error en sorteo", "error"); }
 };
 
-// ✅ MOSTRAR HISTORIAL CORREGIDO - CON VERIFICACIÓN DE ARRAYS Y MAPEO FLEXIBLE
+// ✅ MOSTRAR HISTORIAL - VERSIÓN "SILENCIOSA" CON MAPEO FLEXIBLE
 window.mostrarHistorial = async () => {
-    const cont = document.getElementById('tabla-sorteos');
-    cont.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> Cargando historial de éxitos...</td></tr>';
+    const cont = document.getElementById('sorteos-activos');
+    cont.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Cargando historial de éxitos...</div>';
     
     try {
         const querySnapshot = await getDocs(collection(db, "comercios"));
-        let html = '';
+        let html = `
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="color:var(--azul-habitat)"><i class="fas fa-history"></i> Historial de Ganadores</h2>
+                <button class="btn-sortear" onclick="cargarActivos()" style="background:var(--gris-texto)">Volver</button>
+            </div>
+            <table class="tabla-sorteos">
+                <thead>
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Comercio</th>
+                        <th>Premio</th>
+                        <th>Ganador</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+
         let hayDatos = false;
 
         querySnapshot.forEach((docCom) => {
             const c = docCom.data();
-            // ✅ VERIFICACIÓN: historial_sorteos debe existir y ser array
+            // Verificamos que exista el historial y sea una lista
             if (c.historial_sorteos && Array.isArray(c.historial_sorteos)) {
                 c.historial_sorteos.forEach((h) => {
-                    // ✅ VERIFICACIÓN: ganadores debe existir y ser array
+                    // Verificamos que tenga ganadores
                     if (h.ganadores && Array.isArray(h.ganadores)) {
-                        h.ganadores.forEach((gan, idx) => {
+                        h.ganadores.forEach(gan => {
                             hayDatos = true;
-                            // ✅ MAPEO FLEXIBLE: soporta diferentes nombres de campo
+                            // MAPEO FLEXIBLE: Busca todas las variantes de nombres de campos
                             const nombreG = gan.nombre || gan.nombre_completo || "Ganador";
                             const emailG = gan.email || gan.email_usuario || "";
-                            const telG = gan.telefono || gan.celular || "";
-                            const ganadorKey = `${docCom.id}_${idx}`;
-                            
-                            // Guardar en objeto global para funciones auxiliares
-                            window._ganadorData[ganadorKey] = {
-                                email: emailG,
-                                nombre: nombreG,
-                                premio: h.premio || "",
-                                comercio: h.comercio || "",
-                                mailComercio: c.mail_comercio || 'habitatcar@gmail.com',
-                                logoUrl: c.logoUrl || '',
-                                whatsappComercio: c.whatsapp || '',
-                                direccionComercio: c.direccion || '',
-                                celular: telG
-                            };
+                            const telG = gan.telefono || "";
 
-                            html += `<tr data-ganador-key="${ganadorKey}">
-                                <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docCom.id}" onchange="toggleSeleccion('${docCom.id}', this)"></td>
-                                <td><small>${h.fecha || '---'}</small></td>
-                                <td><img src="${c.logoUrl||LOGO_DEFAULT}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-                                <td>
-                                    <span class="badge badge-comercio">${h.comercio || 'S/D'}</span><br>
-                                    <span class="badge badge-premio">🎁 ${h.premio || '---'}</span>
-                                </td>
+                            html += `
+                            <tr>
+                                <td>${h.fecha || '---'}</td>
+                                <td><strong>${h.comercio || 'S/D'}</strong></td>
+                                <td>${h.premio || '---'}</td>
                                 <td>${nombreG}<br><small>${emailG}</small></td>
                                 <td>
-                                    <button class="btn-accion btn-mail" title="Reenviar Mail" onclick="enviarMailPorKey(this, '${ganadorKey}')">
+                                    <button class="btn-accion btn-mail" title="Reenviar Mail" onclick="enviarMail(this, '${emailG}', '${nombreG}', '${h.premio}', '${h.comercio}', '${c.mail_comercio || ''}')">
                                         <i class="fas fa-envelope"></i>
                                     </button>
-                                    <button class="btn-accion btn-wa" title="Enviar WhatsApp" onclick="abrirWAPorKey('${ganadorKey}')">
+                                    <button class="btn-accion btn-wa" title="Enviar WhatsApp" onclick="abrirWA('${telG}', '${nombreG}', '${h.premio}', '${h.comercio}')">
                                         <i class="fab fa-whatsapp"></i>
-                                    </button>
-                                </td>
-                                <td>
-                                    <button class="btn-accion" style="background:#666" onclick="copiarGanador('${ganadorKey}')">
-                                        <i class="fas fa-copy"></i>
-                                    </button>
-                                    <button class="btn-accion btn-delete" onclick="eliminarIndividual('${docCom.id}', this)">
-                                        <i class="fas fa-trash"></i>
                                     </button>
                                 </td>
                             </tr>`;
@@ -691,14 +679,15 @@ window.mostrarHistorial = async () => {
         });
 
         if (!hayDatos) {
-            html = `<tr><td colspan="7" style="text-align:center; padding:20px;">No se encontraron sorteos finalizados.</td></tr>`;
+            html += `<tr><td colspan="5" style="text-align:center; padding:20px;">No se encontraron sorteos en el historial.</td></tr>`;
         }
 
+        html += `</tbody></table>`;
         cont.innerHTML = html;
 
     } catch (error) {
-        console.error("Error al cargar historial:", error);
-        cont.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:red;"><i class="fas fa-exclamation-triangle"></i> Error al conectar con la base de datos.</td></tr>`;
+        console.error("Error cargando historial:", error);
+        cont.innerHTML = `<div style="text-align:center; padding:20px; color:red;">Error al cargar datos. Revisá la consola.</div>`;
     }
 };
 
