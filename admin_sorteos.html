@@ -87,26 +87,48 @@ td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
 .bulk-actions.active { display: flex; align-items: center; }
 .selected-count { font-weight: bold; color: #856404; }
 
-/* ✅ ESTILOS PARA MODAL MAESTRO COMPACTO */
-.modal-maestro { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; overflow-y: auto; padding: 15px; color: white; font-family: sans-serif; }
-.modal-maestro-content { background: #222; max-width: 500px; margin: auto; padding: 20px; border-radius: 12px; border: 1px solid #444; }
-.modal-maestro h2 { color: var(--naranja); margin-bottom: 10px; font-size: 1.3rem; }
-.modal-maestro p { font-size: 11px; margin-bottom: 15px; color: #ccc; }
-.modal-maestro label { display: block; font-size: 12px; margin: 10px 0 5px; color: #ddd; }
-.modal-maestro input[type="text"], .modal-maestro input[type="number"], .modal-maestro textarea { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #555; background: #333; color: white; font-size: 12px; box-sizing: border-box; }
-.modal-maestro input[type="color"] { width: 100%; height: 35px; padding: 2px; border: none; background: #333; cursor: pointer; }
-.modal-maestro .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-.modal-maestro .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; align-items: end; }
-.modal-maestro h4 { margin: 18px 0 10px; border-bottom: 1px solid #444; padding-bottom: 8px; font-size: 13px; color: var(--celeste); }
-.modal-maestro .btn-save { width: 100%; background: var(--verde); color: white; padding: 12px; border: none; border-radius: 8px; margin-top: 18px; font-weight: bold; cursor: pointer; font-size: 13px; }
-.modal-maestro .btn-cancel { width: 100%; background: none; border: none; color: #ff6b6b; margin-top: 10px; cursor: pointer; font-size: 12px; }
+/* ✅ ESTILOS PARA MODAL MAESTRO */
+.modal-maestro { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; overflow-y: auto; padding: 20px; }
+.modal-maestro-content { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1200px; margin: auto; }
+.modal-panel { background: #fff; padding: 20px; border-radius: 15px; width: 350px; color: #333; }
+.modal-panel h3 { color: var(--azul-habitat); margin-bottom: 10px; }
+.modal-panel label { display: block; font-size: 12px; margin: 10px 0 5px; font-weight: 600; }
+.modal-panel input[type="text"], .modal-panel textarea { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 12px; box-sizing: border-box; }
+.modal-panel input[type="color"] { width: 100%; height: 35px; padding: 2px; border: none; cursor: pointer; }
+.modal-panel input[type="range"] { flex: 1; }
+.modal-panel .range-row { display: flex; gap: 5px; align-items: center; }
+.modal-panel .btn-save { width: 100%; background: var(--verde); color: white; padding: 15px; border: none; border-radius: 8px; margin-top: 18px; font-weight: bold; cursor: pointer; }
+.modal-panel .btn-cancel { width: 100%; background: none; border: none; color: red; margin-top: 10px; cursor: pointer; }
+
+/* ✅ PREVISUALIZACIÓN DEL TICKET */
+#previa_ticket {
+    width: 280px; height: 560px;
+    background: #eee; border-radius: 20px;
+    border: 8px solid #333;
+    position: relative; overflow: hidden;
+    background-size: cover; background-position: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+#prev_l1, #prev_l2 {
+    position: absolute; width: 50px; height: 50px;
+    background: rgba(0,0,0,0.1); border: 1px dashed #666;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; color: #666; pointer-events: none;
+}
+#prev_texto {
+    position: absolute; width: 100%; top: 50%;
+    text-align: center; font-weight: bold;
+    transform: translateY(-50%);
+}
+#prev_texto p { margin: 5px 0; }
 
 @media (max-width: 768px) {
 .faja-nav { gap: 3px; }
 .faja-nav a { font-size: 9px; padding: 4px 6px; }
 body { padding-top: 120px; }
 .logo-mini { height: 70px; }
-.modal-maestro-content { max-width: 95%; padding: 15px; }
+.modal-panel { width: 100%; max-width: 350px; }
+#previa_ticket { width: 100%; max-width: 280px; height: 560px; }
 }
 </style>
 </head>
@@ -127,7 +149,6 @@ body { padding-top: 120px; }
 <div class="controls">
 <button class="btn btn-success" id="btn-activos">SORTEOS ACTIVOS</button>
 <button class="btn btn-warning" id="btn-historial">HISTORIAL DE ÉXITOS</button>
-<button class="btn btn-info" onclick="abrirModalMaestro()"><i class="fas fa-cog"></i> CONFIGURAR TICKET</button>
 </div>
 
 <!-- ✅ ACCIONES MASIVAS -->
@@ -166,48 +187,58 @@ body { padding-top: 120px; }
 </div>
 </div>
 
-<!-- ✅ MODAL MAESTRO DE CONFIGURACIÓN (COMPACTO) -->
-<div id="modalMaestroPDF" class="modal-maestro">
+<!-- ✅ BOTÓN FLOTANTE EDITOR MAESTRO -->
+<button onclick="abrirEditorMaestro()" style="position:fixed; bottom:20px; left:20px; background:var(--naranja); color:white; border:none; border-radius:50%; width:60px; height:60px; cursor:pointer; z-index:9999; box-shadow:0 4px 15px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;">
+    <i class="fas fa-edit fa-lg"></i>
+</button>
+
+<!-- ✅ MODAL MAESTRO CON PREVISUALIZACIÓN -->
+<div id="modalMaestro" class="modal-maestro">
 <div class="modal-maestro-content">
-<h2>🎨 Editor de Ticket & WhatsApp</h2>
-<p style="font-size:11px; margin-bottom:15px;">Configurá la plantilla móvil (80x160mm)</p>
+    
+    <!-- Panel de Configuración -->
+    <div class="modal-panel">
+        <h3>🎨 Diseño de Ticket</h3>
+        <hr><br>
+        
+        <label>Imagen de Fondo (URL):</label>
+        <input type="text" id="cfg_bg" oninput="actualizarPrevia()" placeholder="https://...">
+        
+        <label>Color de Texto:</label>
+        <input type="color" id="cfg_color" oninput="actualizarPrevia()" value="#003d80">
 
-<div class="grid-2">
-<div>
-<label>Fondo del Ticket (URL JPG/PNG):</label>
-<input type="text" id="cfg_pdf_bg" placeholder="https://...">
-</div>
-<div>
-<label>Color de Fuente:</label>
-<input type="color" id="cfg_pdf_color" value="#003d80">
-</div>
-</div>
+        <label>Posición Logo Comercio (X - Y):</label>
+        <div class="range-row">
+            <input type="range" id="cfg_l1x" min="0" max="60" oninput="actualizarPrevia()" value="5">
+            <input type="range" id="cfg_l1y" min="0" max="140" oninput="actualizarPrevia()" value="5">
+        </div>
 
-<h4>Logos (Posición y Tamaño en mm)</h4>
-<div style="margin-bottom:10px;">
-<span style="font-size:11px; color:#aaa;">Logo Comercio:</span>
-<div class="grid-3">
-<input type="number" id="cfg_l1_x" placeholder="X" value="5">
-<input type="number" id="cfg_l1_y" placeholder="Y" value="5">
-<input type="number" id="cfg_l1_s" placeholder="Size" value="20">
-</div>
-</div>
-<div>
-<span style="font-size:11px; color:#aaa;">Logo Empresa:</span>
-<div class="grid-3">
-<input type="number" id="cfg_l2_x" placeholder="X" value="55">
-<input type="number" id="cfg_l2_y" placeholder="Y" value="5">
-<input type="number" id="cfg_l2_s" placeholder="Size" value="20">
-</div>
-<input type="hidden" id="cfg_logo_empresa" value="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true">
-</div>
+        <label>Posición Logo Hábitat (X - Y):</label>
+        <div class="range-row">
+            <input type="range" id="cfg_l2x" min="0" max="60" oninput="actualizarPrevia()" value="55">
+            <input type="range" id="cfg_l2y" min="0" max="140" oninput="actualizarPrevia()" value="5">
+        </div>
 
-<h4>Mensaje de WhatsApp</h4>
-<textarea id="cfg_wa_msg" placeholder="¡Hola {{NOMBRE}}! Ganaste {{PREMIO}} en {{COMERCIO}}...">¡Felicidades {{NOMBRE}}! Ganaste {{PREMIO}} en {{COMERCIO}}.</textarea>
-<p style="font-size:10px; color:#aaa; margin-top:5px;">Usá {{NOMBRE}}, {{PREMIO}}, {{COMERCIO}} para autocompletar.</p>
+        <label>Mensaje WhatsApp Personalizado:</label>
+        <textarea id="cfg_wa" placeholder="Hola {{NOMBRE}}...">¡Felicidades {{NOMBRE}}! Ganaste {{PREMIO}} en {{COMERCIO}}.</textarea>
+        <small style="color:#666; display:block; margin-top:3px;">Usa {{NOMBRE}}, {{PREMIO}}, {{COMERCIO}}</small>
+        
+        <br>
+        <button class="btn-save" onclick="guardarTodo()">💾 GUARDAR TODO</button>
+        <button class="btn-cancel" onclick="document.getElementById('modalMaestro').style.display='none'">Cerrar</button>
+    </div>
 
-<button class="btn-save" onclick="guardarConfigMaestra()">💾 GUARDAR PLANTILLA MAESTRA</button>
-<button class="btn-cancel" onclick="cerrarModalMaestro()">Cancelar</button>
+    <!-- Previsualización en Vivo -->
+    <div id="previa_ticket">
+        <div id="prev_l1">Logo 1</div>
+        <div id="prev_l2">Logo 2</div>
+        <div id="prev_texto">
+            <p style="font-size:18px;">NOMBRE GANADOR</p>
+            <p style="font-size:14px;">Premio del Sorteo</p>
+            <p style="font-size:12px;">Comercio</p>
+        </div>
+    </div>
+
 </div>
 </div>
 
@@ -218,6 +249,7 @@ import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimes
 // --- 🔐 CONFIGURACIÓN DE SEGURIDAD ---
 const CLAVE_MAESTRA = "HABITAT_MASTER_2026";
 const LOGO_DEFAULT = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
+const LOGO_HABITAT = "https://i.ibb.co/m5fdvTr/HABITAT-CAR-SF.png";
 
 const firebaseConfig = { 
     apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM", 
@@ -231,106 +263,102 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// --- 🎫 CONFIGURACIÓN MAESTRA ---
-const CONFIG_DEFAULT = {
-    pdf: { bg: "", color: "#003d80", l1:{x:5,y:5,s:20}, l2:{x:55,y:5,s:20}, logoEmpresa: LOGO_DEFAULT },
-    wa: "¡Felicidades {{NOMBRE}}! Ganaste {{PREMIO}} en {{COMERCIO}}."
-};
-
-function getConfigMaestro() {
-    try {
-        const saved = localStorage.getItem('hc_config_final');
-        return saved ? JSON.parse(saved) : CONFIG_DEFAULT;
-    } catch(e) { return CONFIG_DEFAULT; }
-}
-
-// --- 🎫 MODAL MAESTRO ---
-window.abrirModalMaestro = () => {
-    const cfg = getConfigMaestro();
-    document.getElementById('cfg_pdf_bg').value = cfg.pdf.bg || '';
-    document.getElementById('cfg_pdf_color').value = cfg.pdf.color || '#003d80';
-    document.getElementById('cfg_l1_x').value = cfg.pdf.l1?.x || 5;
-    document.getElementById('cfg_l1_y').value = cfg.pdf.l1?.y || 5;
-    document.getElementById('cfg_l1_s').value = cfg.pdf.l1?.s || 20;
-    document.getElementById('cfg_l2_x').value = cfg.pdf.l2?.x || 55;
-    document.getElementById('cfg_l2_y').value = cfg.pdf.l2?.y || 5;
-    document.getElementById('cfg_l2_s').value = cfg.pdf.l2?.s || 20;
-    document.getElementById('cfg_logo_empresa').value = cfg.pdf.logoEmpresa || LOGO_DEFAULT;
-    document.getElementById('cfg_wa_msg').value = cfg.wa || CONFIG_DEFAULT.wa;
-    document.getElementById('modalMaestroPDF').style.display = 'block';
-};
-
-window.cerrarModalMaestro = () => {
-    document.getElementById('modalMaestroPDF').style.display = 'none';
-};
-
-window.guardarConfigMaestra = () => {
-    const config = {
-        pdf: {
-            bg: document.getElementById('cfg_pdf_bg').value,
-            color: document.getElementById('cfg_pdf_color').value,
-            l1: { 
-                x: parseInt(document.getElementById('cfg_l1_x').value) || 5, 
-                y: parseInt(document.getElementById('cfg_l1_y').value) || 5, 
-                s: parseInt(document.getElementById('cfg_l1_s').value) || 20 
-            },
-            l2: { 
-                x: parseInt(document.getElementById('cfg_l2_x').value) || 55, 
-                y: parseInt(document.getElementById('cfg_l2_y').value) || 5, 
-                s: parseInt(document.getElementById('cfg_l2_s').value) || 20 
-            },
-            logoEmpresa: document.getElementById('cfg_logo_empresa').value || LOGO_DEFAULT
-        },
-        wa: document.getElementById('cfg_wa_msg').value || CONFIG_DEFAULT.wa
+// --- 🎫 FUNCIONES DEL EDITOR MAESTRO ---
+window.abrirEditorMaestro = () => {
+    const cfg = JSON.parse(localStorage.getItem('hc_elite_cfg')) || {
+        bg: '', color: '#003d80', l1x: 5, l1y: 5, l2x: 55, l2y: 5, 
+        wa: '¡Felicidades {{NOMBRE}}! Ganaste {{PREMIO}} en {{COMERCIO}}.'
     };
-    localStorage.setItem('hc_config_final', JSON.stringify(config));
-    mostrarToast("✅ Plantilla y mensaje guardados", "success");
-    cerrarModalMaestro();
+    document.getElementById('cfg_bg').value = cfg.bg || '';
+    document.getElementById('cfg_color').value = cfg.color || '#003d80';
+    document.getElementById('cfg_l1x').value = cfg.l1x || 5;
+    document.getElementById('cfg_l1y').value = cfg.l1y || 5;
+    document.getElementById('cfg_l2x').value = cfg.l2x || 55;
+    document.getElementById('cfg_l2y').value = cfg.l2y || 5;
+    document.getElementById('cfg_wa').value = cfg.wa || CONFIG_DEFAULT_WA;
+    document.getElementById('modalMaestro').style.display = 'flex';
+    actualizarPrevia();
 };
 
-// --- 🎫 FUNCIÓN PRINCIPAL: GENERAR ENTREGA INDIVIDUAL ---
-window.generarEntregaIndividual = async (nombre, premio, comercio, telefono, logoComercio) => {
-    const { jsPDF } = window.jspdf;
-    const cfg = getConfigMaestro();
+window.actualizarPrevia = () => {
+    const ticket = document.getElementById('previa_ticket');
+    const bg = document.getElementById('cfg_bg').value;
+    if(bg) ticket.style.backgroundImage = `url(${bg})`;
+    else ticket.style.backgroundImage = 'none';
     
+    document.getElementById('prev_texto').style.color = document.getElementById('cfg_color').value;
+    
+    // Mover logos en la previa (factor 3.5 para escalar de mm a px en el preview)
+    const f = 3.5;
+    document.getElementById('prev_l1').style.left = (document.getElementById('cfg_l1x').value * f) + 'px';
+    document.getElementById('prev_l1').style.top = (document.getElementById('cfg_l1y').value * f) + 'px';
+    document.getElementById('prev_l2').style.left = (document.getElementById('cfg_l2x').value * f) + 'px';
+    document.getElementById('prev_l2').style.top = (document.getElementById('cfg_l2y').value * f) + 'px';
+};
+
+window.guardarTodo = () => {
+    const config = {
+        bg: document.getElementById('cfg_bg').value,
+        color: document.getElementById('cfg_color').value,
+        l1x: document.getElementById('cfg_l1x').value,
+        l1y: document.getElementById('cfg_l1y').value,
+        l2x: document.getElementById('cfg_l2x').value,
+        l2y: document.getElementById('cfg_l2y').value,
+        wa: document.getElementById('cfg_wa').value
+    };
+    localStorage.setItem('hc_elite_cfg', JSON.stringify(config));
+    mostrarToast("✅ Diseño y mensaje guardados", "success");
+    document.getElementById('modalMaestro').style.display = 'none';
+};
+
+// --- 🎫 FUNCIÓN PRINCIPAL: GENERAR ENTREGA ELITE INDIVIDUAL ---
+window.generarEntregaElite = async (nombre, premio, comercio, telefono, logoComercio) => {
+    const { jsPDF } = window.jspdf;
+    const cfg = JSON.parse(localStorage.getItem('hc_elite_cfg'));
+    
+    if(!cfg) {
+        mostrarToast("⚠️ Primero configura el diseño en el editor", "warning");
+        return abrirEditorMaestro();
+    }
+
     // Crear PDF formato ticket móvil 80x160mm
     const doc = new jsPDF({ unit: "mm", format: [80, 160] });
 
     // Función auxiliar para cargar imágenes con CORS
-    const drawImg = (url, x, y, s) => {
-        return new Promise((resolve) => {
-            if(!url) return resolve();
+    const loadImage = (url) => {
+        return new Promise((resolve, reject) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
-            img.onload = () => { 
-                try { doc.addImage(img, 'PNG', x, y, s, s); } catch(e) {}
-                resolve(); 
-            };
-            img.onerror = () => resolve();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
             img.src = url;
         });
     };
 
-    // Capa 1: Fondo personalizado si existe
-    if(cfg.pdf.bg) {
-        await new Promise(r => {
-            const bg = new Image(); 
-            bg.crossOrigin = "Anonymous";
-            bg.onload = () => { 
-                try { doc.addImage(bg, 'JPEG', 0, 0, 80, 160); } catch(e) {}
-                r(); 
-            };
-            bg.onerror = r; 
-            bg.src = cfg.pdf.bg;
-        });
+    // 1. Imagen de Fondo (si existe)
+    if(cfg.bg) {
+        try {
+            const bgImg = await loadImage(cfg.bg);
+            doc.addImage(bgImg, 'JPEG', 0, 0, 80, 160);
+        } catch(e) {
+            console.log("No se pudo cargar el fondo:", e);
+        }
     }
 
-    // Capa 2: Logos posicionables
-    await drawImg(logoComercio || LOGO_DEFAULT, cfg.pdf.l1.x, cfg.pdf.l1.y, cfg.pdf.l1.s);
-    await drawImg(cfg.pdf.logoEmpresa, cfg.pdf.l2.x, cfg.pdf.l2.y, cfg.pdf.l2.s);
+    // 2. Logos posicionables
+    const addLogo = async (url, x, y) => {
+        if(!url) return;
+        try {
+            const img = await loadImage(url);
+            doc.addImage(img, 'PNG', x, y, 20, 20);
+        } catch(e) {}
+    };
+    
+    await addLogo(logoComercio || LOGO_DEFAULT, parseInt(cfg.l1x), parseInt(cfg.l1y));
+    await addLogo(LOGO_HABITAT, parseInt(cfg.l2x), parseInt(cfg.l2y));
 
-    // Capa 3: Textos con relleno automático
-    doc.setTextColor(cfg.pdf.color);
+    // 3. Textos con relleno automático
+    doc.setTextColor(cfg.color || '#003d80');
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
     doc.text((nombre || "Ganador").toUpperCase(), 40, 90, { align: "center" });
@@ -348,15 +376,15 @@ window.generarEntregaIndividual = async (nombre, premio, comercio, telefono, log
     const nombreArchivo = `Ticket_${(nombre||'Ganador').replace(/\s+/g,'_')}.pdf`;
     doc.save(nombreArchivo);
 
-    // Preparar y abrir WhatsApp con mensaje personalizado
-    let msgFinal = cfg.wa
+    // 4. Preparar y abrir WhatsApp con mensaje personalizado
+    let mensaje = (cfg.wa || CONFIG_DEFAULT_WA)
         .replace(/{{NOMBRE}}/g, nombre || "Ganador")
         .replace(/{{PREMIO}}/g, premio || "el premio")
         .replace(/{{COMERCIO}}/g, comercio || "el comercio");
 
     if(telefono) {
         const numAR = window.normalizarTelefonoAR(telefono);
-        const urlWA = `https://wa.me/${numAR}?text=${encodeURIComponent(msgFinal)}`;
+        const urlWA = `https://wa.me/${numAR}?text=${encodeURIComponent(mensaje)}`;
         // Pequeño delay para que el PDF empiece a descargar
         setTimeout(() => { window.open(urlWA, '_blank'); }, 800);
     }
@@ -405,6 +433,7 @@ window.irAlHistorial = () => { window.cerrarModalSorteo(); window.mostrarHistori
 // --- ✅ VARIABLES GLOBALES ---
 window.itemsSeleccionados = new Set();
 window.vistaActual = 'activos';
+const CONFIG_DEFAULT_WA = "¡Felicidades {{NOMBRE}}! Ganaste {{PREMIO}} en {{COMERCIO}}.";
 
 // --- ✅ CHECKBOXES Y ACCIONES MASIVAS ---
 window.toggleSelectAll = () => {
@@ -680,7 +709,7 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
     } catch(e) { console.error(e); mostrarToast("❌ Error en sorteo", "error"); }
 };
 
-// --- 📜 HISTORIAL CON BOTONES INDIVIDUALES ---
+// --- 📜 HISTORIAL CON BOTONES INDIVIDUALES ACTUALIZADOS ---
 window.mostrarHistorial = () => {
     window.vistaActual = 'historial';
     window.itemsSeleccionados.clear();
@@ -706,8 +735,9 @@ window.mostrarHistorial = () => {
                     ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>` 
                     : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
                 const textoCopiar = `${nombreG} - WA: ${celG} - Email: ${emailG}`.trim();
+                const logoC = h.logoUrl || LOGO_DEFAULT;
                 
-                // ✅ BOTÓN INDIVIDUAL CON NUEVA FUNCIÓN
+                // ✅ BOTÓN ACTUALIZADO CON NUEVA FUNCIÓN generarEntregaElite
                 tabla.innerHTML += `<tr>
                 <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}', this)"></td>
                 <td><small>${fecha}</small></td>
@@ -730,10 +760,10 @@ window.mostrarHistorial = () => {
                         <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')">
                             <i class="fab fa-whatsapp"></i>
                         </button>
-                        <!-- ✅ BOTÓN DE TICKET INDIVIDUAL -->
+                        <!-- ✅ BOTÓN DE TICKET CON NUEVA FUNCIÓN -->
                         <button class="btn-accion btn-success" title="Generar Ticket + WhatsApp" 
-                            onclick="generarEntregaIndividual('${nombreG.replace(/'/g, "\\'")}', '${h.premio.replace(/'/g, "\\'")}', '${h.comercio.replace(/'/g, "\\'")}', '${celG}', '${h.logoUrl||LOGO_DEFAULT}')">
-                            <i class="fas fa-ticket-alt"></i>
+                            onclick="generarEntregaElite('${nombreG.replace(/'/g, "\\'")}', '${h.premio.replace(/'/g, "\\'")}', '${h.comercio.replace(/'/g, "\\'")}', '${celG}', '${logoC.replace(/'/g, "\\'")}')">
+                            <i class="fas fa-ticket-alt"></i> ENVIAR
                         </button>
                     </div>
                 </td>
@@ -782,8 +812,8 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Cerrar modal al hacer clic fuera
-document.getElementById('modalMaestroPDF').addEventListener('click', (e) => {
-    if(e.target.id === 'modalMaestroPDF') cerrarModalMaestro();
+document.getElementById('modalMaestro').addEventListener('click', (e) => {
+    if(e.target.id === 'modalMaestro') document.getElementById('modalMaestro').style.display = 'none';
 });
 
 // Exportar funciones globales
@@ -802,10 +832,10 @@ window.actualizarBulkActions = actualizarBulkActions;
 window.intentarSorteo = intentarSorteo;
 window.intentarEliminarSorteo = intentarEliminarSorteo;
 window.validarAccionSegura = validarAccionSegura;
-window.generarEntregaIndividual = generarEntregaIndividual;
-window.abrirModalMaestro = abrirModalMaestro;
-window.cerrarModalMaestro = cerrarModalMaestro;
-window.guardarConfigMaestra = guardarConfigMaestra;
+window.generarEntregaElite = generarEntregaElite;
+window.abrirEditorMaestro = abrirEditorMaestro;
+window.actualizarPrevia = actualizarPrevia;
+window.guardarTodo = guardarTodo;
 </script>
 </body>
 </html>
