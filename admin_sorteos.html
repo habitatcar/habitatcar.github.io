@@ -254,21 +254,20 @@ window.abrirWA = (cel, nom, pre) => {
     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
 };
 
-// --- ✅ MOTOR DE ENVÍO OPTIMIZADO PARA GITHUB/SERVIDOR ---
+// --- ✅ MOTOR DE ENVÍO OPTIMIZADO - CORS + ANTI-CACHE ---
 window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC) => {
     if (!emailDestino || emailDestino === 'undefined') return mostrarToast("❌ Email inválido", "error");
     
-    // Bloqueamos el botón para evitar envíos múltiples accidentales
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
 
     try {
-        // 1. OBTENEMOS PLANTILLAS FRESCAS EN CADA CLIC
+        // 1. OBTENEMOS PLANTILLAS FRESCAS
         const asuntoBase = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}, ganaste!";
         const cuerpoBase = localStorage.getItem('hc_cuerpo') || "Hola {{NOMBRE}}, ganaste {{PREMIO}} en {{COMERCIO}}.";
 
-        // 2. INYECCIÓN DE DATOS (Usamos split().join() para mayor estabilidad)
+        // 2. INYECCIÓN DE DATOS
         const inyectar = (texto) => {
             if (!texto) return "";
             return texto
@@ -280,7 +279,7 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC) 
         const asuntoFinal = inyectar(asuntoBase);
         const cuerpoFinal = inyectar(cuerpoBase);
 
-        // 3. PREPARACIÓN DEL PAQUETE (Payload)
+        // 3. PREPARACIÓN DEL PAQUETE
         const datosEnvio = {
             email: emailDestino.trim(),
             asunto: asuntoFinal,
@@ -290,14 +289,21 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC) 
             pdfB64: ""
         };
 
-        // 4. ENVÍO AL SCRIPT DE GOOGLE (cache: 'no-cache' para evitar caché en GitHub Pages)
-        await fetch(URL_SCRIPT, {
+        // 🔥 4. ENVÍO CON CORS + ANTI-CACHE (CORRECCIÓN SOLICITADA)
+        const url = URL_SCRIPT + "?t=" + Date.now(); // ← Anti-cache GitHub Pages
+        
+        const response = await fetch(url, {
             method: 'POST',
-            mode: 'no-cors', 
-            cache: 'no-cache',
-            headers: { 'Content-Type': 'text/plain' }, 
+            mode: 'cors',  // ← ✅ Permite leer respuesta del servidor
+            headers: { 
+                'Content-Type': 'application/json'  // ← ✅ JSON real, no text/plain
+            },
             body: JSON.stringify(datosEnvio)
         });
+
+        // ✅ Leemos respuesta para confirmar éxito (ya no es opaque)
+        const text = await response.text();
+        console.log("📨 Respuesta del servidor:", text);
 
         mostrarToast(`✅ Enviado correctamente a ${nombre}`);
 
@@ -305,7 +311,6 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC) 
         console.error("Error en el motor de envío:", e);
         mostrarToast("❌ Error de conexión", "error");
     } finally {
-        // Restauramos el botón pase lo que pase
         btn.disabled = false;
         btn.innerHTML = originalText;
     }
@@ -506,7 +511,7 @@ document.addEventListener('click', (e) => {
     }
 });
 
-// --- ✅ EJECUTAR SORTEO - GUARDA DATOS DEL COMERCIO EN FIREBASE ---
+// --- ✅ EJECUTAR SORTEO ---
 const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc) => {
     mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
     try {
@@ -537,7 +542,6 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc)
         const limite = Math.min(cant, bolsa.length);
         for (let i = 0; i < limite; i++) { const idx = Math.floor(Math.random() * bolsa.length); ganadores.push(bolsa.splice(idx, 1)[0]); }
         
-        // ✅ OBTENER DATOS DEL COMERCIO PARA GUARDAR EN HISTORIAL
         const comercioDoc = await getDoc(doc(db, "comercios", idCom));
         const comercioData = comercioDoc.exists() ? comercioDoc.data() : {};
         
@@ -549,7 +553,6 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc)
             ganadores: ganadores,
             fecha: serverTimestamp(),
             mailComercio: mailC || 'habitatcar@gmail.com',
-            // ✅ GUARDAR WHATSAPP Y DIRECCIÓN DEL COMERCIO
             whatsappComercio: comercioData.whatsapp || "",
             direccionComercio: comercioData.direccion || ""
         });
@@ -558,7 +561,7 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc)
     } catch (e) { console.error(e); mostrarToast("❌ Error en el sorteo", "error"); }
 };
 
-// ✅ HISTORIAL: CON CHECKBOXES Y ELIMINACIÓN (BOTONES CON COMILLAS SIMPLES)
+// ✅ HISTORIAL
 window.mostrarHistorial = () => {
     window.vistaActual = 'historial';
     window.itemsSeleccionados.clear();
