@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Panel de Sorteos Elite | Hábitat-Car</title>
+<!-- ✅ NUEVA LIBRERÍA PDFLib para generación de PDF -->
+<script src="https://unpkg.com/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -305,6 +307,15 @@ const WA_DEFAULT = `🎉 ¡Hola {{NOMBRE}}! Ganaste el sorteo {{PREMIO}}
 const leerMsgWA = () => localStorage.getItem('hc_wa_v3') || WA_DEFAULT;
 const leerCfgPDF = () => { try { return JSON.parse(localStorage.getItem('hc_pdf_v3')) || {}; } catch(e) { return {}; } };
 
+// ✅ CONFIGURACIÓN PDF PARA PDFLib (libre en eje Y)
+window.pdfConfig = {
+    nombreY: 650,
+    premioY: 600,
+    comercioY: 550,
+    habitatLogoY: 780,
+    comercioLogoY: 780
+};
+
 window.abrirEditorPDF = () => {
     const p = leerCfgPDF();
     const sv = (id, val) => { const el = document.getElementById(id); if (el) el.value = val; };
@@ -319,6 +330,15 @@ window.abrirEditorPDF = () => {
     su('cfg_desc_y', p.desc_y ?? 117, 'v_desc_y'); su('cfg_desc_s', p.desc_s ?? 11, 'v_desc_s');
     su('cfg_t3x', p.t3x ?? 40, 'v_t3x'); su('cfg_t3y', p.t3y ?? 130, 'v_t3y'); su('cfg_t3s', p.t3s ?? 14, 'v_t3s');
     sv('cfg_t5txt', p.t5txt ?? 'Hábitat-Car');
+    
+    // ✅ ACTUALIZAR window.pdfConfig con valores de sliders
+    window.pdfConfig = {
+        nombreY: parseInt(p.t1y) || 650,
+        premioY: parseInt(p.t2y) || 600,
+        comercioY: parseInt(p.t3y) || 550,
+        habitatLogoY: parseInt(p.l2y) || 780,
+        comercioLogoY: parseInt(p.l1y) || 780
+    };
     
     document.getElementById('modalPDF').style.display = 'flex';
     actualizarPrevia();
@@ -386,6 +406,16 @@ window.guardarConfigPDF = () => {
         t5txt:gv('cfg_t5txt')
     };
     localStorage.setItem('hc_pdf_v3', JSON.stringify(data));
+    
+    // ✅ ACTUALIZAR window.pdfConfig al guardar
+    window.pdfConfig = {
+        nombreY: gi('cfg_t1y'),
+        premioY: gi('cfg_t2y'),
+        comercioY: gi('cfg_t3y'),
+        habitatLogoY: gi('cfg_l2y'),
+        comercioLogoY: gi('cfg_l1y')
+    };
+    
     mostrarToast("✅ Diseño de Ticket guardado", "success");
     cerrarModales();
 };
@@ -401,74 +431,142 @@ window.cerrarModales = () => {
     document.getElementById('modalWA').style.display = 'none';
 };
 
-window.enviarTicketElite = async (nombre, premio, comercio, telefono, logoComercio, descripcionPremio = "") => {
-    const { jsPDF } = window.jspdf;
-    const cfg = leerCfgPDF();
-    const doc = new jsPDF({ unit: "mm", format: [80, 160] });
-    const textColor = cfg.color || "#000000";
+// ✅ ✅ ✅ NUEVA FUNCIÓN DE GENERACIÓN DE PDF CON PDFLib (REEMPLAZO COMPLETO) ✅ ✅ ✅
+async function generarPDFGanador(datos) {
+    try {
+        mostrarToast("Generando PDF...", "warning");
 
-    const cargarImagen = (url) => {
-        return new Promise((resolve) => {
-            if (!url) return resolve(null);
-            const img = new Image();
-            img.crossOrigin = "Anonymous";
-            img.onload = () => resolve(img);
-            img.onerror = () => resolve(null);
-            img.src = url;
+        const { PDFDocument, rgb } = PDFLib;
+
+        // ===============================
+        // CREAR DOCUMENTO
+        // ===============================
+        const pdfDoc = await PDFDocument.create();
+        const page = pdfDoc.addPage([600, 900]); // 🔥 ALTO REAL LIBRE
+
+        const { width, height } = page.getSize();
+
+        // ===============================
+        // 🔥 CARGAR LOGO HABITAT-CAR
+        // ===============================
+        const logoHabitatUrl = "https://raw.githubusercontent.com/habitatcar/habitatcar.github.io/main/logo.png";
+        const logoHabitatBytes = await fetch(logoHabitatUrl).then(r => r.arrayBuffer());
+        const logoHabitatImg = await pdfDoc.embedPng(logoHabitatBytes);
+
+        // ===============================
+        // 🔥 CARGAR LOGO DEL COMERCIO (DINÁMICO)
+        // ===============================
+        let logoComercioImg = null;
+
+        if (datos.logoUrl) {
+            try {
+                const logoBytes = await fetch(datos.logoUrl).then(r => r.arrayBuffer());
+                logoComercioImg = await pdfDoc.embedJpg(logoBytes);
+            } catch (e) {
+                console.warn("No se pudo cargar logo comercio");
+            }
+        }
+
+        // ===============================
+        // 🔥 POSICIONES CONFIGURABLES LIBRES
+        // ===============================
+
+        const pos = window.pdfConfig || {
+            nombreY: 650,
+            premioY: 600,
+            comercioY: 550,
+            habitatLogoY: 780,
+            comercioLogoY: 780
+        };
+
+        // ===============================
+        // 🧾 TEXTO GANADOR
+        // ===============================
+
+        page.drawText(datos.nombreMostrar || "GANADOR", {
+            x: 50,
+            y: pos.nombreY,
+            size: 22,
+            color: rgb(0, 0, 0)
         });
-    };
 
-    const imgFondo = await cargarImagen(cfg.bg);
-    if (imgFondo) doc.addImage(imgFondo, 'JPEG', 0, 0, 80, 160);
+        page.drawText(`Premio: ${datos.premio || "-"}`, {
+            x: 50,
+            y: pos.premioY,
+            size: 16
+        });
 
-    const logoHab = await cargarImagen(LOGO_HABITAT);
-    const logoCom = await cargarImagen(logoComercio);
+        page.drawText(`Comercio: ${datos.comercio || "-"}`, {
+            x: 50,
+            y: pos.comercioY,
+            size: 16
+        });
 
-    if (logoCom) {
-        doc.addImage(logoCom, 'PNG', parseInt(cfg.l1x || 5), parseInt(cfg.l1y || 5), parseInt(cfg.l1s || 20), parseInt(cfg.l1s || 20));
+        // ===============================
+        // 🏢 LOGO HABITAT
+        // ===============================
+        page.drawImage(logoHabitatImg, {
+            x: 50,
+            y: pos.habitatLogoY,
+            width: 120,
+            height: 60
+        });
+
+        // ===============================
+        // 🏪 LOGO COMERCIO
+        // ===============================
+        if (logoComercioImg) {
+            page.drawImage(logoComercioImg, {
+                x: width - 170,
+                y: pos.comercioLogoY,
+                width: 120,
+                height: 60
+            });
+        }
+
+        // ===============================
+        // 💾 GUARDAR
+        // ===============================
+        const pdfBytes = await pdfDoc.save();
+
+        const blob = new Blob([pdfBytes], { type: "application/pdf" });
+        const url = URL.createObjectURL(blob);
+
+        window.open(url);
+
+        mostrarToast("PDF generado correctamente", "success");
+
+    } catch (error) {
+        console.error(error);
+        mostrarToast("Error al generar PDF", "error");
     }
-    if (logoHab) {
-        doc.addImage(logoHab, 'PNG', parseInt(cfg.l2x || 45), parseInt(cfg.l2y || 5), parseInt(cfg.l2s || 20), parseInt(cfg.l2s || 20));
-    }
+}
 
-    doc.setTextColor(textColor);
-
-    doc.setFontSize(parseInt(cfg.t1s || 22));
-    const nombreLines = doc.splitTextToSize((nombre || "Ganador").toUpperCase(), 70);
-    doc.text(nombreLines, parseInt(cfg.t1x || 40), parseInt(cfg.t1y || 90), { align: "center" });
-
-    doc.setFontSize(parseInt(cfg.t2s || 16));
-    doc.text(premio, parseInt(cfg.t2x || 40), parseInt(cfg.t2y || 110), { align: "center", maxWidth: 70 });
+// ✅ FUNCIÓN UNIFICADA: GENERAR PDF + ABRIR WHATSAPP
+window.enviarTicketElite = async (nombre, premio, comercio, telefono, logoComercio, descripcionPremio = "") => {
+    // 1. Generar PDF con la nueva función
+    await generarPDFGanador({
+        nombreMostrar: nombre,
+        premio: premio,
+        comercio: comercio,
+        logoUrl: logoComercio
+    });
     
-    doc.setFontSize(parseInt(cfg.desc_s || 11));
-    if(descripcionPremio) {
-        doc.text(descripcionPremio, parseInt(cfg.t2x || 40), parseInt(cfg.desc_y || 117), { align: "center", maxWidth: 65 });
-    }
-
-    doc.setFontSize(parseInt(cfg.t3s || 14));
-    doc.text(comercio, parseInt(cfg.t3x || 40), parseInt(cfg.t3y || 130), { align: "center" });
-
-    doc.setFontSize(parseInt(cfg.t5s || 8));
-    doc.text(cfg.t5txt || "Hábitat-Car", parseInt(cfg.t5x || 40), parseInt(cfg.t5y || 154), { align: "center" });
-
-    doc.save(`Ticket_${(nombre || 'Ganador').replace(/\s+/g, '_')}.pdf`);
-
-    let msg = leerMsgWA()
-        .replace(/{{NOMBRE}}/g, nombre || "Ganador")
-        .replace(/{{PREMIO}}/g, premio || "el premio")
-        .replace(/{{COMERCIO}}/g, comercio || "el comercio")
-        .replace(/{{DESCRIPCION}}/g, descripcionPremio || premio || "el premio");
-
+    // 2. Abrir WhatsApp con mensaje personalizado
     if (telefono) {
         const num = normalizarTelefonoAR(telefono);
         if (num) {
+            let msg = leerMsgWA()
+                .replace(/{{NOMBRE}}/g, nombre || "Ganador")
+                .replace(/{{PREMIO}}/g, premio || "el premio")
+                .replace(/{{COMERCIO}}/g, comercio || "el comercio")
+                .replace(/{{DESCRIPCION}}/g, descripcionPremio || premio || "el premio");
+            
             setTimeout(() => {
                 window.open(`https://wa.me/${num}?text=${encodeURIComponent(msg)}`, '_blank');
             }, 1500);
         }
     }
-    
-    mostrarToast("✅ Ticket generado", "success");
 };
 
 function normalizarTelefonoAR(numero) { 
