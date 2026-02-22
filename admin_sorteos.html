@@ -3,6 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Panel de Sorteos Elite | Hábitat-Car</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@3/dist/email.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
 :root {
@@ -216,6 +217,9 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const LOGO_DEFAULT = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
 
+// Inicializar EmailJS con TU Public Key
+emailjs.init("qBSSJOjtxiVgU9emi");
+
 // FUNCIONES DE MODALES
 window.abrirEditorEmail = () => {
     document.getElementById('inp-asunto').value = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}! Ganaste en {{COMERCIO}}";
@@ -283,7 +287,7 @@ window.abrirWA = (cel, nom, pre) => {
     window.open(`https://wa.me/${numFormateado}?text=${msg}`, '_blank');
 };
 
-// ✅ FUNCIÓN DE EMAIL CONECTADA A MAILGUN (YA CON TUS DATOS)
+// ✅ FUNCIÓN DE EMAIL CON EMAILJS (TUS DATOS YA INCLUIDOS)
 window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, logoComercio, whatsappComercio, direccionComercio) => {
     nombre = nombre || "Ganador/a";
     premio = premio || "el premio";
@@ -372,43 +376,32 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, 
 
         const pdfB64 = pdf.output('datauristring').split(',')[1];
 
-        // ✅ CONFIGURACIÓN DE MAILGUN (TUS DATOS YA ESTÁN AQUÍ)
-        const MAILGUN_DOMAIN = "sandbox02af71e65929410c9a5e74b423e10d05.mailgun.org";
-        const MAILGUN_API_KEY = "process.env.MAILGUN_API_KEY";
+        // ===========================================
+        // EMAILJS - ENVÍO DEL EMAIL
+        // ===========================================
         
-        // Convertir base64 a Blob
-        const byteCharacters = atob(pdfB64);
-        const byteNumbers = new Array(byteCharacters.length);
-        for (let i = 0; i < byteCharacters.length; i++) {
-            byteNumbers[i] = byteCharacters.charCodeAt(i);
-        }
-        const byteArray = new Uint8Array(byteNumbers);
-        const pdfBlob = new Blob([byteArray], { type: 'application/pdf' });
-
-        // Preparar FormData para Mailgun
-        const formData = new FormData();
-        formData.append('from', `Hábitat-Car Sorteos <mailgun@${MAILGUN_DOMAIN}>`);
-        formData.append('to', emailDestino);
-        formData.append('subject', asuntoFinal);
-        formData.append('html', cuerpoFinal);
-        formData.append('attachment', pdfBlob, 'certificado.pdf');
-
-        // Enviar a Mailgun
-        const response = await fetch(`https://api.mailgun.net/v3/${MAILGUN_DOMAIN}/messages`, {
-            method: 'POST',
-            headers: {
-                'Authorization': 'Basic ' + btoa('api:' + MAILGUN_API_KEY)
-            },
-            body: formData
-        });
-
-        const result = await response.text();
-        console.log("Mailgun response:", result);
-
-        if (response.ok) {
+        const templateParams = {
+            to_email: emailDestino,
+            to_name: nombre,
+            from_name: "Hábitat-Car Sorteos",
+            subject: asuntoFinal,
+            message: cuerpoFinal,
+            premio: premio,
+            comercio: comercio,
+            direccion: direccionComercio,
+            whatsapp: whatsappComercio
+        };
+        
+        const response = await emailjs.send(
+            "service_vp6ubol",
+            "rr2rr8l",
+            templateParams
+        );
+        
+        if (response.status === 200) {
             mostrarToast(`✅ Certificado enviado a ${nombre}!`);
         } else {
-            mostrarToast("❌ Error de Mailgun: " + result, "error");
+            mostrarToast("❌ Error al enviar", "error");
         }
 
     } catch (e) {
