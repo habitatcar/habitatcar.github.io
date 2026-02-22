@@ -320,6 +320,9 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
+// --- ✅ OBJETO GLOBAL PARA DATOS DE GANADORES (RECUPERADO) ---
+window._ganadorData = {};
+
 // --- 🎫 CONFIGURACIÓN DEFAULT ---
 const CONFIG_DEFAULT = {
     pdf: { 
@@ -451,8 +454,43 @@ window.cerrarModales = () => {
     document.getElementById('modalWA').style.display = 'none';
 };
 
-// --- 🎫 FUNCIÓN PRINCIPAL: ENVIAR WHATSAPP Y PDF ---
-window.enviarTicketElite = async (nombre, premio, comercio, descripcion, telefono, logoComercio) => {
+// --- 📞 UTILIDADES ---
+window.normalizarTelefonoAR = (numero) => { 
+    if (!numero) return null; 
+    let num = numero.toString().replace(/\D/g, ''); 
+    if (num.length === 10) return '549' + num; 
+    if (num.startsWith('54') && !num.startsWith('549')) return '549' + num.substring(2); 
+    return num.startsWith('549') ? num : '549' + num; 
+};
+
+// ✅ FUNCIÓN ABRIR WHATSAPP (RECUPERADA - USA _ganadorData)
+window.abrirWAPorKey = (key) => {
+    const d = window._ganadorData[key];
+    if (!d) return mostrarToast("❌ Error: datos no encontrados", "error");
+    window.abrirWA(d.celular || d.whatsappComercio, d.nombre, d.premio);
+};
+
+window.abrirWA = (cel, nom, pre) => {
+    if (!cel) return mostrarToast("⚠️ El participante no tiene celular.", "error");
+    const num = window.normalizarTelefonoAR(cel);
+    const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`);
+    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
+};
+
+// ✅ FUNCIÓN COPIAR GANADOR (RECUPERADA - USA _ganadorData)
+window.copiarGanador = (key) => {
+    const d = window._ganadorData[key];
+    if (!d) return mostrarToast("❌ Error: datos no encontrados", "error");
+    const texto = `${d.nombre} - WA: ${d.celular || 'sin tel'} - Email: ${d.email || 'sin email'}`.trim();
+    navigator.clipboard.writeText(texto);
+    mostrarToast('📋 Copiado', 'warning');
+};
+
+// --- 🎫 FUNCIÓN PRINCIPAL: ENVIAR WHATSAPP Y PDF (RECUPERADA + MEJORADA) ---
+window.enviarTicketElite = async (key) => {
+    const d = window._ganadorData[key];
+    if (!d) return mostrarToast("❌ Error: datos no encontrados", "error");
+    
     const { pdf, wa } = CARGAR_CONFIG();
     const { jsPDF } = window.jspdf;
     
@@ -487,19 +525,19 @@ window.enviarTicketElite = async (nombre, premio, comercio, descripcion, telefon
         } catch(e) {}
     };
     
-    await addLogo(logoComercio || LOGO_DEFAULT, pdf.l1x, pdf.l1y);
+    await addLogo(d.logoUrl || LOGO_DEFAULT, pdf.l1x, pdf.l1y);
     await addLogo(LOGO_HABITAT, pdf.l2x, pdf.l2y);
 
     // 3. Textos con posiciones configurables
     doc.setTextColor(pdf.color || '#003d80');
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
-    doc.text((nombre || "Ganador").toUpperCase(), 40, parseInt(pdf.txtNombreY), { align: "center" });
+    doc.text((d.nombre || "Ganador").toUpperCase(), 40, parseInt(pdf.txtNombreY), { align: "center" });
     
     doc.setFontSize(16);
     doc.setFont("helvetica", "normal");
-    doc.text(premio || "Premio", 40, parseInt(pdf.txtPremioY), { align: "center" });
-    doc.text(comercio || "Comercio", 40, parseInt(pdf.txtComercioY), { align: "center" });
+    doc.text(d.premio || "Premio", 40, parseInt(pdf.txtPremioY), { align: "center" });
+    doc.text(d.comercio || "Comercio", 40, parseInt(pdf.txtComercioY), { align: "center" });
     
     // Footer
     doc.setFontSize(8);
@@ -507,19 +545,19 @@ window.enviarTicketElite = async (nombre, premio, comercio, descripcion, telefon
     doc.text(footerTexto, 40, 155, { align: "center" });
 
     // Descargar PDF
-    const nombreArchivo = `Ticket_${(nombre||'Ganador').replace(/\s+/g,'_')}.pdf`;
+    const nombreArchivo = `Ticket_${(d.nombre||'Ganador').replace(/\s+/g,'_')}.pdf`;
     doc.save(nombreArchivo);
 
     // 4. WhatsApp con mensaje personalizado
     let mensajeBase = wa && wa.trim() ? wa : CONFIG_DEFAULT.wa;
     let mensaje = mensajeBase
-        .replace(/{{NOMBRE}}/g, nombre || "Ganador")
-        .replace(/{{PREMIO}}/g, premio || "el premio")
-        .replace(/{{DESCRIPCION}}/g, descripcion || "este increíble premio")
-        .replace(/{{COMERCIO}}/g, comercio || "el comercio");
+        .replace(/{{NOMBRE}}/g, d.nombre || "Ganador")
+        .replace(/{{PREMIO}}/g, d.premio || "el premio")
+        .replace(/{{DESCRIPCION}}/g, d.descripcion || "este increíble premio")
+        .replace(/{{COMERCIO}}/g, d.comercio || "el comercio");
 
-    if(telefono) {
-        const numAR = window.normalizarTelefonoAR(telefono);
+    if(d.celular) {
+        const numAR = window.normalizarTelefonoAR(d.celular);
         const urlWA = `https://wa.me/${numAR}?text=${encodeURIComponent(mensaje)}`;
         
         mostrarToast("📄 PDF descargado. Adjuntalo en WhatsApp.", "warning");
@@ -527,22 +565,6 @@ window.enviarTicketElite = async (nombre, premio, comercio, descripcion, telefon
     }
     
     mostrarToast("✅ Ticket generado", "success");
-};
-
-// --- 📞 UTILIDADES ---
-window.normalizarTelefonoAR = (numero) => { 
-    if (!numero) return null; 
-    let num = numero.toString().replace(/\D/g, ''); 
-    if (num.length === 10) return '549' + num; 
-    if (num.startsWith('54') && !num.startsWith('549')) return '549' + num.substring(2); 
-    return num.startsWith('549') ? num : '549' + num; 
-};
-
-window.abrirWA = (cel, nom, pre) => {
-    if (!cel) return mostrarToast("⚠️ El participante no tiene celular.", "error");
-    const num = window.normalizarTelefonoAR(cel);
-    const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`);
-    window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
 };
 
 // --- 🎉 MODAL CONFIRMACIÓN ---
@@ -845,10 +867,11 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
     } catch(e) { console.error(e); mostrarToast("❌ Error en sorteo", "error"); }
 };
 
-// --- 📜 HISTORIAL CON BOTÓN ACTUALIZADO ---
+// --- 📜 HISTORIAL CON BOTONES ACTUALIZADOS (RECUPERA _ganadorData) ---
 window.mostrarHistorial = () => {
     window.vistaActual = 'historial';
     window.itemsSeleccionados.clear();
+    window._ganadorData = {}; // ✅ LIMPIAR Y RECARGAR DATOS
     actualizarBulkActions();
     document.getElementById('header-checkbox').style.display = 'table-cell';
     
@@ -856,13 +879,14 @@ window.mostrarHistorial = () => {
     
     onSnapshot(collection(db, "historial_sorteos"), (snap) => {
         tabla.innerHTML = "";
+        window._ganadorData = {}; // ✅ REINICIALIZAR
         const docs = snap.docs.sort((a,b) => (b.data().fecha?.seconds||0) - (a.data().fecha?.seconds||0));
         
         docs.forEach(docSnap => {
             const h = docSnap.data();
             const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
             
-            h.ganadores?.forEach(g => {
+            h.ganadores?.forEach((g, idxGanador) => {
                 const nombreG = g.nombreMostrar || "Invitado";
                 const celG = g.celular || "";
                 const emailG = g.email || "";
@@ -874,7 +898,22 @@ window.mostrarHistorial = () => {
                 const logoC = h.logoUrl || LOGO_DEFAULT;
                 const descripcionG = h.descripcion_sorteo || "";
                 
-                // ✅ BOTÓN ÚNICO: ENVIAR WHATSAPP Y PDF (renombrado, misma función)
+                // ✅ GUARDAR DATOS EN _ganadorData (ESENCIAL PARA QUE FUNCIONE EL BOTÓN)
+                const ganadorKey = `${docSnap.id}_${idxGanador}`;
+                window._ganadorData[ganadorKey] = {
+                    email: emailG,
+                    nombre: nombreG,
+                    premio: h.premio || "",
+                    comercio: h.comercio || "",
+                    descripcion: descripcionG,
+                    mailComercio: h.mailComercio || 'habitatcar@gmail.com',
+                    logoUrl: logoC,
+                    whatsappComercio: h.whatsappComercio || '',
+                    direccionComercio: h.direccionComercio || '',
+                    celular: celG
+                };
+                
+                // ✅ BOTÓN ÚNICO: ENVIAR WHATSAPP Y PDF (USA _ganadorData)
                 tabla.innerHTML += `<tr>
                 <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}', this)"></td>
                 <td><small>${fecha}</small></td>
@@ -894,15 +933,15 @@ window.mostrarHistorial = () => {
                     </div>
                     ${emailG ? `<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
                     <div style="margin-top:8px;display:flex;gap:5px;">
-                        <!-- ✅ BOTÓN RENOMBRADO - MISMA FUNCIÓN QUE YA FUNCIONABA -->
+                        <!-- ✅ BOTÓN QUE USA _ganadorData - MISMA FUNCIÓN QUE EL BOTÓN WA ORIGINAL -->
                         <button class="btn-accion btn-success" title="Generar PDF y abrir WhatsApp" 
-                            onclick="enviarTicketElite('${nombreG.replace(/'/g, "\\'")}', '${h.premio.replace(/'/g, "\\'")}', '${h.comercio.replace(/'/g, "\\'")}', '${descripcionG.replace(/'/g, "\\'")}', '${celG}', '${logoC.replace(/'/g, "\\'")}')">
+                            onclick="enviarTicketElite('${ganadorKey}')">
                             <i class="fas fa-paper-plane"></i> ENVIAR WHATSAPP y PDF
                         </button>
                     </div>
                 </td>
                 <td>
-                    <button class="btn-accion" style="background:#666" onclick="navigator.clipboard.writeText('${textoCopiar}');mostrarToast('📋 Copiado','warning')">
+                    <button class="btn-accion" style="background:#666" onclick="copiarGanador('${ganadorKey}')">
                         <i class="fas fa-copy"></i>
                     </button>
                     <button class="btn-accion btn-delete" onclick="eliminarIndividual('${docSnap.id}',this)">
@@ -955,6 +994,7 @@ document.getElementById('modalWA').addEventListener('click', (e) => {
 
 // Exportar funciones
 window.abrirWA = abrirWA;
+window.abrirWAPorKey = abrirWAPorKey;
 window.mostrarHistorial = mostrarHistorial; 
 window.mostrarToast = mostrarToast;
 window.mostrarConfirmacionSorteo = mostrarConfirmacionSorteo; 
@@ -970,6 +1010,7 @@ window.intentarSorteo = intentarSorteo;
 window.intentarEliminarSorteo = intentarEliminarSorteo;
 window.validarAccionSegura = validarAccionSegura;
 window.enviarTicketElite = enviarTicketElite;
+window.copiarGanador = copiarGanador;
 window.abrirEditorPDF = abrirEditorPDF;
 window.abrirEditorWA = abrirEditorWA;
 window.actualizarPrevia = actualizarPrevia;
