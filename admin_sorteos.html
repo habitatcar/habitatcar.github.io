@@ -93,6 +93,7 @@ td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
 .bulk-actions { display: none; gap: 10px; margin-bottom: 15px; padding: 10px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107; }
 .bulk-actions.active { display: flex; align-items: center; }
 .selected-count { font-weight: bold; color: #856404; }
+.loading { text-align: center; padding: 40px; color: var(--azul-habitat); font-size: 1.1rem; }
 @media (max-width: 768px) {
 .faja-nav { gap: 3px; }
 .faja-nav a { font-size: 9px; padding: 4px 6px; }
@@ -144,7 +145,7 @@ body { padding-top: 120px; }
 </div>
 </div>
 
-<!-- MODAL EDITAR EMAIL -->
+<!-- MODALES (se mantienen igual) -->
 <div id="modal-email" class="modal">
 <div class="modal-content">
 <h3 style="color:var(--azul-habitat); margin-bottom:15px;">✉️ Editar Plantilla de Email</h3>
@@ -168,7 +169,6 @@ El sistema reemplazará automáticamente:<br>
 </div>
 </div>
 
-<!-- MODAL DISEÑAR PDF -->
 <div id="modal-pdf" class="modal">
 <div class="modal-content">
 <h3 style="color:var(--azul-habitat); margin-bottom:15px;">📄 Diseñar Certificado PDF</h3>
@@ -185,7 +185,6 @@ El sistema reemplazará automáticamente:<br>
 </div>
 </div>
 
-<!-- MODAL CONFIRMACIÓN SORTEO -->
 <div id="popup-confirmacion" class="modal" style="display: none;">
 <div class="modal-content">
 <h3 style="color: var(--azul-habitat); margin-bottom: 15px;">🎉 ¡SORTEO REALIZADO!</h3>
@@ -617,7 +616,7 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
     } catch(e) { console.error(e); mostrarToast("❌ Error en sorteo", "error"); }
 };
 
-// ✅ MOSTRAR HISTORIAL - VERSIÓN "SILENCIOSA" CON MAPEO FLEXIBLE
+// ✅ MOSTRAR HISTORIAL - VERSIÓN "SILENCIOSA" CON BORRADO INDIVIDUAL
 window.mostrarHistorial = async () => {
     const cont = document.getElementById('sorteos-activos');
     cont.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Cargando historial de éxitos...</div>';
@@ -631,13 +630,7 @@ window.mostrarHistorial = async () => {
             </div>
             <table class="tabla-sorteos">
                 <thead>
-                    <tr>
-                        <th>Fecha</th>
-                        <th>Comercio</th>
-                        <th>Premio</th>
-                        <th>Ganador</th>
-                        <th>Acciones</th>
-                    </tr>
+                    <tr><th>Fecha</th><th>Comercio</th><th>Premio</th><th>Ganador</th><th>Acciones</th></tr>
                 </thead>
                 <tbody>`;
 
@@ -645,30 +638,35 @@ window.mostrarHistorial = async () => {
 
         querySnapshot.forEach((docCom) => {
             const c = docCom.data();
-            // Verificamos que exista el historial y sea una lista
+            const idComercio = docCom.id;
+            
             if (c.historial_sorteos && Array.isArray(c.historial_sorteos)) {
-                c.historial_sorteos.forEach((h) => {
-                    // Verificamos que tenga ganadores
-                    if (h.ganadores && Array.isArray(h.ganadores)) {
-                        h.ganadores.forEach(gan => {
+                c.historial_sorteos.forEach((sorteo, idxSorteo) => {
+                    if (sorteo.ganadores && Array.isArray(sorteo.ganadores)) {
+                        sorteo.ganadores.forEach((gan, idxGanador) => {
                             hayDatos = true;
-                            // MAPEO FLEXIBLE: Busca todas las variantes de nombres de campos
-                            const nombreG = gan.nombre || gan.nombre_completo || "Ganador";
-                            const emailG = gan.email || gan.email_usuario || "";
-                            const telG = gan.telefono || "";
+                            // Mapeo ultra-seguro de datos - SI FALTA ALGO, PONE "S/D" Y SIGUE
+                            const nombre = gan.nombre || gan.nombre_completo || "Ganador";
+                            const email = gan.email || gan.email_usuario || "";
+                            const tel = gan.telefono || "";
+                            const premio = sorteo.premio || "Premio";
+                            const comercio = sorteo.comercio || c.nombre_comercio || c.nombre || "Comercio";
 
                             html += `
                             <tr>
-                                <td>${h.fecha || '---'}</td>
-                                <td><strong>${h.comercio || 'S/D'}</strong></td>
-                                <td>${h.premio || '---'}</td>
-                                <td>${nombreG}<br><small>${emailG}</small></td>
+                                <td>${sorteo.fecha || '---'}</td>
+                                <td><strong>${comercio}</strong></td>
+                                <td>${premio}</td>
+                                <td>${nombre}<br><small>${email || 'S/D'}</small></td>
                                 <td>
-                                    <button class="btn-accion btn-mail" title="Reenviar Mail" onclick="enviarMail(this, '${emailG}', '${nombreG}', '${h.premio}', '${h.comercio}', '${c.mail_comercio || ''}')">
+                                    <button class="btn-accion btn-mail" title="Reenviar Mail Brevo" onclick="enviarMail(this, '${email}', '${nombre}', '${premio}', '${comercio}', '${c.mail_comercio || ''}')">
                                         <i class="fas fa-envelope"></i>
                                     </button>
-                                    <button class="btn-accion btn-wa" title="Enviar WhatsApp" onclick="abrirWA('${telG}', '${nombreG}', '${h.premio}', '${h.comercio}')">
+                                    <button class="btn-accion btn-wa" title="WhatsApp" onclick="abrirWA('${tel}', '${nombre}', '${premio}', '${comercio}')">
                                         <i class="fab fa-whatsapp"></i>
+                                    </button>
+                                    <button class="btn-accion btn-delete" title="Eliminar solo este ganador" onclick="eliminarGanadorIndiv('${idComercio}', ${idxSorteo}, ${idxGanador})">
+                                        <i class="fas fa-trash"></i>
                                     </button>
                                 </td>
                             </tr>`;
@@ -678,16 +676,41 @@ window.mostrarHistorial = async () => {
             }
         });
 
-        if (!hayDatos) {
-            html += `<tr><td colspan="5" style="text-align:center; padding:20px;">No se encontraron sorteos en el historial.</td></tr>`;
-        }
-
+        if (!hayDatos) html += `<tr><td colspan="5" style="text-align:center; padding:20px;">No hay registros.</td></tr>`;
         html += `</tbody></table>`;
         cont.innerHTML = html;
+    } catch (e) {
+        console.error("Error cargando historial:", e);
+        cont.innerHTML = '<p style="color:red; text-align:center;">Error de conexión.</p>';
+    }
+};
 
-    } catch (error) {
-        console.error("Error cargando historial:", error);
-        cont.innerHTML = `<div style="text-align:center; padding:20px; color:red;">Error al cargar datos. Revisá la consola.</div>`;
+// ✅ FUNCIÓN PARA BORRAR SOLO UN GANADOR SIN ROMPER EL GRUPO
+window.eliminarGanadorIndiv = async (idCom, iSorteo, iGanador) => {
+    if (!confirm("¿Eliminar solo a este ganador? Los demás del mismo sorteo se mantendrán.")) return;
+    try {
+        const docRef = doc(db, "comercios", idCom);
+        const snap = await getDoc(docRef);
+        let data = snap.data();
+        
+        // Entramos al array y quitamos solo el ganador específico
+        if (data.historial_sorteos && data.historial_sorteos[iSorteo] && data.historial_sorteos[iSorteo].ganadores) {
+            data.historial_sorteos[iSorteo].ganadores.splice(iGanador, 1);
+            
+            // Si el sorteo se quedó vacío, lo borramos del historial
+            if (data.historial_sorteos[iSorteo].ganadores.length === 0) {
+                data.historial_sorteos.splice(iSorteo, 1);
+            }
+            
+            await updateDoc(docRef, { historial_sorteos: data.historial_sorteos });
+            mostrarToast("✅ Ganador eliminado correctamente");
+            window.mostrarHistorial();
+        } else {
+            mostrarToast("❌ Datos no encontrados", "error");
+        }
+    } catch (e) {
+        console.error("Error al eliminar:", e);
+        mostrarToast("❌ Error al eliminar", "error");
     }
 };
 
@@ -716,6 +739,7 @@ window.enviarMailPorKey = enviarMailPorKey;
 window.abrirWAPorKey = abrirWAPorKey;
 window.copiarGanador = copiarGanador;
 window.mostrarHistorial = mostrarHistorial;
+window.eliminarGanadorIndiv = eliminarGanadorIndiv;
 window.mostrarToast = mostrarToast;
 window.mostrarConfirmacionSorteo = mostrarConfirmacionSorteo;
 window.cerrarModalSorteo = cerrarModalSorteo;
