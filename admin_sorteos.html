@@ -252,10 +252,10 @@ window.normalizarTelefonoAR = (numero) => {
     if (num.startsWith('54') && !num.startsWith('549')) return '549' + num.substring(2);
     return num.startsWith('549') ? num : '549' + num;
 };
-window.abrirWA = (cel, nom, pre) => {
+window.abrirWA = (cel, nom, pre, comercio) => {
     if (!cel) return mostrarToast("⚠️ El participante no tiene celular.", "error");
     const num = window.normalizarTelefonoAR(cel);
-    const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre}! 🎉`);
+    const msg = encodeURIComponent(`¡Hola ${nom}! 🏆 Soy de Hábitat-Car. ¡Felicidades, ganaste el sorteo de ${pre} en ${comercio}! 🎉`);
     window.open(`https://wa.me/${num}?text=${msg}`, '_blank');
 };
 
@@ -278,7 +278,7 @@ window.enviarMail = async (btn, email, nombre, premio, comercio, mailCC) => {
     };
 
     try {
-        const respuesta = await fetch(https://script.google.com/macros/s/AKfycbxiHERsZnj9ocaHzDe0e-c2P23V2pcvBhiURJuC42aUh1nuT78IyX406BcTBi1rQRNWEA/exec, {
+        const respuesta = await fetch(URL_SCRIPT, {
             method: 'POST',
             body: JSON.stringify({
                 email: email.trim(),
@@ -307,7 +307,7 @@ window.enviarMailPorKey = (btn, key) => {
 window.abrirWAPorKey = (key) => {
     const d = window._ganadorData[key];
     if (!d) return mostrarToast("❌ Error: datos no encontrados", "error");
-    window.abrirWA(d.celular || d.whatsappComercio, d.nombre, d.premio);
+    window.abrirWA(d.celular || d.whatsappComercio, d.nombre, d.premio, d.comercio);
 };
 window.copiarGanador = (key) => {
     const d = window._ganadorData[key];
@@ -620,87 +620,86 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
     } catch(e) { console.error(e); mostrarToast("❌ Error en sorteo", "error"); }
 };
 
-// MOSTRAR HISTORIAL
-window.mostrarHistorial = () => {
-    window.vistaActual = 'historial';
-    window.itemsSeleccionados.clear();
-    window._ganadorData = {};
-    actualizarBulkActions();
-    document.getElementById('header-checkbox').style.display = 'table-cell';
+// ✅ MOSTRAR HISTORIAL CORREGIDO - CON VERIFICACIÓN DE ARRAYS Y MAPEO FLEXIBLE
+window.mostrarHistorial = async () => {
+    const cont = document.getElementById('tabla-sorteos');
+    cont.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:20px;"><i class="fas fa-spinner fa-spin"></i> Cargando historial de éxitos...</td></tr>';
     
-    const tabla = document.getElementById('tabla-sorteos');
-    onSnapshot(collection(db, "historial_sorteos"), (snap) => {
-        tabla.innerHTML = "";
-        window._ganadorData = {};
-        
-        const docs = snap.docs.sort((a,b) => (b.data().fecha?.seconds||0) - (a.data().fecha?.seconds||0));
-        
-        docs.forEach(docSnap => {
-            const h = docSnap.data();
-            const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
-            
-            h.ganadores?.forEach((g, idx) => {
-                const nombreG = g.nombreMostrar || "Invitado";
-                const celG = g.celular || "";
-                const emailG = g.email || "";
-                const esVIP = g.tipo === "VIP";
-                const badgeTipo = esVIP 
-                    ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>` 
-                    : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
-                
-                const ganadorKey = `${docSnap.id}_${idx}`;
-                
-                window._ganadorData[ganadorKey] = {
-                    email: emailG,
-                    nombre: nombreG,
-                    premio: h.premio || "",
-                    comercio: h.comercio || "",
-                    mailComercio: h.mailComercio || 'habitatcar@gmail.com',
-                    logoUrl: h.logoUrl || '',
-                    whatsappComercio: h.whatsappComercio || '',
-                    direccionComercio: h.direccionComercio || '',
-                    celular: celG
-                };
-                
-                tabla.innerHTML += `<tr>
-                    <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}', this)"></td>
-                    <td><small>${fecha}</small></td>
-                    <td><img src="${h.logoUrl||''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-                    <td>
-                        <span class="badge badge-comercio">${h.comercio}</span><br>
-                        <span class="badge badge-premio">🎁 ${h.premio}</span>
-                        ${h.descripcion_sorteo ? `<div class="premio-desc">${h.descripcion_sorteo}</div>` : ''}
-                    </td>
-                    <td>
-                        <div style="font-weight:bold">${nombreG}</div>
-                        <div style="margin-top:4px">${badgeTipo}</div>
-                    </td>
-                    <td>
-                        <div style="font-size:0.85em;color:var(--verde);margin-bottom:3px;">
-                            <i class="fab fa-whatsapp"></i> ${celG}
-                        </div>
-                        ${emailG ? `<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
-                        <div style="margin-top:8px;display:flex;gap:5px;">
-                            <button class="btn-accion btn-wa" onclick="abrirWAPorKey('${ganadorKey}')">
-                                <i class="fab fa-whatsapp"></i>
-                            </button>
-                            <button class="btn-accion btn-mail" onclick="enviarMailPorKey(this, '${ganadorKey}')">
-                                <i class="fas fa-envelope"></i>
-                            </button>
-                        </div>
-                    </td>
-                    <td>
-                        <button class="btn-accion" style="background:#666" onclick="copiarGanador('${ganadorKey}')">
-                            <i class="fas fa-copy"></i>
-                        </button>
-                        <button class="btn-accion btn-delete" onclick="eliminarIndividual('${docSnap.id}', this)">
-                            <i class="fas fa-trash"></i>
-                        </button>
-                    </td>
-                </tr>`;
-            });
+    try {
+        const querySnapshot = await getDocs(collection(db, "comercios"));
+        let html = '';
+        let hayDatos = false;
+
+        querySnapshot.forEach((docCom) => {
+            const c = docCom.data();
+            // ✅ VERIFICACIÓN: historial_sorteos debe existir y ser array
+            if (c.historial_sorteos && Array.isArray(c.historial_sorteos)) {
+                c.historial_sorteos.forEach((h) => {
+                    // ✅ VERIFICACIÓN: ganadores debe existir y ser array
+                    if (h.ganadores && Array.isArray(h.ganadores)) {
+                        h.ganadores.forEach((gan, idx) => {
+                            hayDatos = true;
+                            // ✅ MAPEO FLEXIBLE: soporta diferentes nombres de campo
+                            const nombreG = gan.nombre || gan.nombre_completo || "Ganador";
+                            const emailG = gan.email || gan.email_usuario || "";
+                            const telG = gan.telefono || gan.celular || "";
+                            const ganadorKey = `${docCom.id}_${idx}`;
+                            
+                            // Guardar en objeto global para funciones auxiliares
+                            window._ganadorData[ganadorKey] = {
+                                email: emailG,
+                                nombre: nombreG,
+                                premio: h.premio || "",
+                                comercio: h.comercio || "",
+                                mailComercio: c.mail_comercio || 'habitatcar@gmail.com',
+                                logoUrl: c.logoUrl || '',
+                                whatsappComercio: c.whatsapp || '',
+                                direccionComercio: c.direccion || '',
+                                celular: telG
+                            };
+
+                            html += `<tr data-ganador-key="${ganadorKey}">
+                                <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docCom.id}" onchange="toggleSeleccion('${docCom.id}', this)"></td>
+                                <td><small>${h.fecha || '---'}</small></td>
+                                <td><img src="${c.logoUrl||LOGO_DEFAULT}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+                                <td>
+                                    <span class="badge badge-comercio">${h.comercio || 'S/D'}</span><br>
+                                    <span class="badge badge-premio">🎁 ${h.premio || '---'}</span>
+                                </td>
+                                <td>${nombreG}<br><small>${emailG}</small></td>
+                                <td>
+                                    <button class="btn-accion btn-mail" title="Reenviar Mail" onclick="enviarMailPorKey(this, '${ganadorKey}')">
+                                        <i class="fas fa-envelope"></i>
+                                    </button>
+                                    <button class="btn-accion btn-wa" title="Enviar WhatsApp" onclick="abrirWAPorKey('${ganadorKey}')">
+                                        <i class="fab fa-whatsapp"></i>
+                                    </button>
+                                </td>
+                                <td>
+                                    <button class="btn-accion" style="background:#666" onclick="copiarGanador('${ganadorKey}')">
+                                        <i class="fas fa-copy"></i>
+                                    </button>
+                                    <button class="btn-accion btn-delete" onclick="eliminarIndividual('${docCom.id}', this)">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>`;
+                        });
+                    }
+                });
+            }
         });
-    });
+
+        if (!hayDatos) {
+            html = `<tr><td colspan="7" style="text-align:center; padding:20px;">No se encontraron sorteos finalizados.</td></tr>`;
+        }
+
+        cont.innerHTML = html;
+
+    } catch (error) {
+        console.error("Error al cargar historial:", error);
+        cont.innerHTML = `<tr><td colspan="7" style="text-align:center; padding:20px; color:red;"><i class="fas fa-exclamation-triangle"></i> Error al conectar con la base de datos.</td></tr>`;
+    }
 };
 
 // TOAST NOTIFICATIONS
@@ -744,4 +743,3 @@ window.validarAccionSegura = validarAccionSegura;
 </script>
 </body>
 </html>
-
