@@ -287,7 +287,7 @@ window.abrirWA = (cel, nom, pre) => {
     window.open(`https://wa.me/${numFormateado}?text=${msg}`, '_blank');
 };
 
-// ✅ FUNCIÓN DE EMAIL CORREGIDA CON TEMPLATE ID
+// FUNCIÓN DE EMAIL CORREGIDA
 window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, logoComercio, whatsappComercio, direccionComercio) => {
     nombre = nombre || "Ganador/a";
     premio = premio || "el premio";
@@ -303,25 +303,6 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, 
     const originalText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = "⏳ Enviando...";
-
-    // Plantillas
-    let asuntoPlantilla = localStorage.getItem('hc_asunto') || "🏆 ¡Felicidades {{NOMBRE}}! Ganaste en {{COMERCIO}}";
-    let cuerpoPlantilla = localStorage.getItem('hc_cuerpo') || 
-        `Hola {{NOMBRE}}, ganaste un/a {{PREMIO}} en {{COMERCIO}}.\n\nTenés 30 días para ir por {{DIRECCION_COMERCIO}} a buscar tu premio o contactarte con {{WHATSAPP_COMERCIO}}.`;
-
-    // Reemplazar placeholders
-    const inyectar = (texto) => {
-        return texto
-            .replace(/\{\{NOMBRE\}\}/g, nombre)
-            .replace(/\{\{PREMIO\}\}/g, premio)
-            .replace(/\{\{COMERCIO\}\}/g, comercio)
-            .replace(/\{\{WHATSAPP_COMERCIO\}\}/g, whatsappComercio)
-            .replace(/\{\{DIRECCION_COMERCIO\}\}/g, direccionComercio);
-    };
-
-    const asuntoFinal = inyectar(asuntoPlantilla);
-    let cuerpoFinal = inyectar(cuerpoPlantilla);
-    cuerpoFinal = cuerpoFinal.replace(/\n/g, '<br>');
 
     try {
         // Generar PDF
@@ -379,71 +360,54 @@ window.enviarMail = async (btn, emailDestino, nombre, premio, comercio, mailCC, 
         // ===========================================
         // EMAILJS - ENVÍO DEL EMAIL
         // ===========================================
-        // ===========================================
-// EMAILJS - ENVÍO DEL EMAIL (VERSIÓN MEJORADA)
-// ===========================================
-
-const templateParams = {
-    to_name: nombre,
-    to_email: emailDestino,
-    premio: premio,
-    comercio: comercio,
-    direccion: direccionComercio,
-    whatsapp: whatsappComercio
-};
-
-console.log("Enviando a:", emailDestino);
-
-try {
-    // Versión alternativa que funciona mejor con Yahoo/Hotmail
-    const response = await emailjs.send(
-        "service_vp6ubol",
-        "template_lzr55pd",
-        templateParams
-    );
-    
-    console.log("Respuesta completa:", response);
-    
-    if (response.status === 200) {
-        mostrarToast(`✅ Certificado enviado a ${nombre}!`);
         
-        // Si es Yahoo, mostrar un aviso
-        if (emailDestino.includes('yahoo.com')) {
-            setTimeout(() => {
-                mostrarToast("⚠️ Revisá también la carpeta SPAM en Yahoo", "warning");
-            }, 3000);
-        }
-    } else {
-        mostrarToast("❌ Error: " + response.text, "error");
-    }
-
-} catch (error) {
-    console.error("Error completo:", error);
-    
-    // Si falla, intentamos con el servicio alternativo (el segundo template)
-    if (emailDestino.includes('yahoo.com') || emailDestino.includes('hotmail.com') || emailDestino.includes('outlook.com')) {
-        try {
-            console.log("Intentando con template alternativo...");
-            const response2 = await emailjs.send(
-                "service_vp6ubol",
-                "template_4tbnqod", // El segundo template que tenés
-                templateParams
-            );
+        // Plantillas (sin usar las de localStorage por ahora)
+        let asuntoFinal = `🏆 ¡Felicidades ${nombre}! Ganaste en ${comercio}`;
+        let cuerpoFinal = `Hola ${nombre}, ganaste un/a ${premio} en ${comercio}. Tenés 30 días para ir por ${direccionComercio} a buscar tu premio o contactarte con ${whatsappComercio}.`;
+        
+        const templateParams = {
+            to_name: nombre,
+            to_email: emailDestino,
+            premio: premio,
+            comercio: comercio,
+            direccion: direccionComercio,
+            whatsapp: whatsappComercio,
+            subject: asuntoFinal,
+            message: cuerpoFinal
+        };
+        
+        console.log("Enviando a:", emailDestino);
+        console.log("Parámetros:", templateParams);
+        
+        const response = await emailjs.send(
+            "service_vp6ubol",
+            "template_lzr55pd",
+            templateParams
+        );
+        
+        console.log("Respuesta:", response);
+        
+        if (response.status === 200) {
+            mostrarToast(`✅ Certificado enviado a ${nombre}!`);
             
-            if (response2.status === 200) {
-                mostrarToast(`✅ Enviado (vía template alternativo) a ${nombre}!`, "success");
-                mostrarToast("⚠️ Revisá SPAM en Yahoo", "warning");
-                return;
+            // Aviso para Yahoo/Hotmail
+            if (emailDestino.includes('yahoo') || emailDestino.includes('hotmail') || emailDestino.includes('outlook')) {
+                setTimeout(() => {
+                    mostrarToast("⚠️ Revisá también la carpeta SPAM", "warning");
+                }, 3000);
             }
-        } catch (error2) {
-            console.error("También falló el alternativo:", error2);
-            mostrarToast("❌ No se pudo enviar a Yahoo. Probá con otro correo.", "error");
+        } else {
+            mostrarToast("❌ Error: " + response.text, "error");
         }
-    } else {
-        mostrarToast("❌ Error al enviar: " + (error.text || error.message), "error");
+
+    } catch (e) {
+        console.error("Error completo:", e);
+        mostrarToast("❌ Error al enviar: " + (e.text || e.message || "desconocido"), "error");
+    } finally {
+        btn.disabled = false;
+        btn.innerHTML = originalText;
     }
-}
-   
+};
 
 window.enviarMailPorKey = (btn, key) => {
     const d = window._ganadorData[key];
@@ -808,4 +772,3 @@ window.mostrarToast = mostrarToast;
 window.cargarActivos = cargarActivos;
 </script>
 </body></html>
-
