@@ -128,6 +128,8 @@ td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
     background: rgba(255,255,255,0.7);
     border-radius: 4px;
     font-size: 11px;
+    width: 100%;
+    left: 0;
 }
 #prev_nombre { color: #003d80; }
 #prev_premio { color: #e60000; }
@@ -326,7 +328,19 @@ const CONFIG_DEFAULT = {
         txtNombreY: 90, txtPremioY: 110, txtComercioY: 125,
         footerText: 'Hábitat-Car • '
     },
-    wa: `🎉 ¡Hola {{NOMBRE}}! Ganaste el sorteo {{PREMIO}}\n\n🎁 ***consistente en {{DESCRIPCION}}***\n\n🏪 ***realizado por*** {{COMERCIO}}\n\n📎 Adjunto tu ticket.\n\n⏰ Presentate antes de los 30 días para reclamar tu premio.\n\n⚠️ Si dejas pasar los 30 días, perdés el premio.\n\n🚨 ¡NO TE DUERMAS! 🚨`
+    wa: `🎉 ¡Hola {{NOMBRE}}! Ganaste el sorteo {{PREMIO}}
+
+🎁 ***consistente en {{DESCRIPCION}}***
+
+🏪 ***realizado por*** {{COMERCIO}}
+
+📎 Adjunto tu ticket.
+
+⏰ Presentate antes de los 30 días para reclamar tu premio.
+
+⚠️ Si dejas pasar los 30 días, perdés el premio.
+
+🚨 ¡NO TE DUERMAS! 🚨`
 };
 
 // --- 🎫 FUNCIONES DE CONFIGURACIÓN ---
@@ -438,7 +452,7 @@ window.cerrarModales = () => {
 };
 
 // --- 🎫 FUNCIÓN PRINCIPAL: ENVIAR WHATSAPP Y PDF ---
-window.enviarWhatsappYPDF = async (nombre, premio, comercio, descripcion, telefono, logoComercio) => {
+window.enviarTicketElite = async (nombre, premio, comercio, descripcion, telefono, logoComercio) => {
     const { pdf, wa } = CARGAR_CONFIG();
     const { jsPDF } = window.jspdf;
     
@@ -463,7 +477,7 @@ window.enviarWhatsappYPDF = async (nombre, premio, comercio, descripcion, telefo
         } catch(e) { console.log("Fondo no cargado:", e); }
     }
 
-    // 2. Logos
+    // 2. Logos (Comercio + Hábitat automático)
     const logoSize = parseInt(pdf.logoSize) || 20;
     const addLogo = async (url, x, y) => {
         if(!url) return;
@@ -860,7 +874,7 @@ window.mostrarHistorial = () => {
                 const logoC = h.logoUrl || LOGO_DEFAULT;
                 const descripcionG = h.descripcion_sorteo || "";
                 
-                // ✅ BOTÓN ÚNICO: ENVIAR WHATSAPP Y PDF (sin botón WA separado)
+                // ✅ BOTÓN ÚNICO: ENVIAR WHATSAPP Y PDF (renombrado, misma función)
                 tabla.innerHTML += `<tr>
                 <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}', this)"></td>
                 <td><small>${fecha}</small></td>
@@ -880,9 +894,9 @@ window.mostrarHistorial = () => {
                     </div>
                     ${emailG ? `<div class="email-display"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
                     <div style="margin-top:8px;display:flex;gap:5px;">
-                        <!-- ✅ BOTÓN ÚNICO QUE HACE AMBAS COSAS -->
+                        <!-- ✅ BOTÓN RENOMBRADO - MISMA FUNCIÓN QUE YA FUNCIONABA -->
                         <button class="btn-accion btn-success" title="Generar PDF y abrir WhatsApp" 
-                            onclick="enviarWhatsappYPDF('${nombreG.replace(/'/g, "\\'")}', '${h.premio.replace(/'/g, "\\'")}', '${h.comercio.replace(/'/g, "\\'")}', '${descripcionG.replace(/'/g, "\\'")}', '${celG}', '${logoC.replace(/'/g, "\\'")}')">
+                            onclick="enviarTicketElite('${nombreG.replace(/'/g, "\\'")}', '${h.premio.replace(/'/g, "\\'")}', '${h.comercio.replace(/'/g, "\\'")}', '${descripcionG.replace(/'/g, "\\'")}', '${celG}', '${logoC.replace(/'/g, "\\'")}')">
                             <i class="fas fa-paper-plane"></i> ENVIAR WHATSAPP y PDF
                         </button>
                     </div>
@@ -955,7 +969,7 @@ window.actualizarBulkActions = actualizarBulkActions;
 window.intentarSorteo = intentarSorteo;
 window.intentarEliminarSorteo = intentarEliminarSorteo;
 window.validarAccionSegura = validarAccionSegura;
-window.enviarWhatsappYPDF = enviarWhatsappYPDF;
+window.enviarTicketElite = enviarTicketElite;
 window.abrirEditorPDF = abrirEditorPDF;
 window.abrirEditorWA = abrirEditorWA;
 window.actualizarPrevia = actualizarPrevia;
