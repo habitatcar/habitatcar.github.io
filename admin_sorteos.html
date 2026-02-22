@@ -32,7 +32,7 @@ body { font-family: 'Segoe UI', system-ui, sans-serif; background: #f8f9fa; colo
 header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; }
 header h1 { font-size: 1.8rem; margin-bottom: 8px; }
 header p { opacity: 0.9; font-size: 0.95rem; }
-.controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; }
+.controls { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px; align-items: center; }
 .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; transition: all 0.2s; }
 .btn-primary { background: #667eea; color: white; }
 .btn-primary:hover { background: #5568d3; }
@@ -46,6 +46,7 @@ header p { opacity: 0.9; font-size: 0.95rem; }
 .btn-danger:hover { background: #c82333; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-sm { padding: 4px 8px; font-size: 0.8rem; }
+.btn-icon { padding: 10px; border-radius: 50%; width: 40px; height: 40px; display: flex; align-items: center; justify-content: center; }
 .table-container { overflow-x: auto; max-height: calc(100vh - 280px); }
 table { width: 100%; border-collapse: collapse; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 10px rgba(0,0,0,0.08); transition: opacity 0.3s ease; }
 thead { position: sticky; top: 0; z-index: 100; background: #667eea; }
@@ -87,11 +88,51 @@ td { padding: 12px; border-bottom: 1px solid #eee; vertical-align: middle; }
 .bulk-actions.active { display: flex; align-items: center; }
 .selected-count { font-weight: bold; color: #856404; }
 
+/* ✅ ESTILOS PARA MODALES EDITORES */
+.modal-editor { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 10000; overflow-y: auto; padding: 20px; }
+.modal-editor-content { display: flex; flex-wrap: wrap; justify-content: center; gap: 20px; max-width: 1000px; margin: auto; }
+.modal-panel { background: white; padding: 20px; border-radius: 15px; width: 320px; color: #333; }
+.modal-panel h3 { color: var(--azul-habitat); margin-bottom: 10px; }
+.modal-panel label { display: block; font-size: 12px; margin: 10px 0 5px; font-weight: 600; }
+.modal-panel input[type="text"], .modal-panel textarea { width: 100%; padding: 8px; border-radius: 6px; border: 1px solid #ccc; font-size: 12px; box-sizing: border-box; }
+.modal-panel input[type="color"] { width: 100%; height: 35px; padding: 2px; border: none; cursor: pointer; }
+.modal-panel input[type="range"] { flex: 1; }
+.modal-panel .range-row { display: flex; gap: 5px; align-items: center; margin-bottom: 8px; }
+.modal-panel .btn-save { width: 100%; background: var(--verde); color: white; padding: 12px; border: none; border-radius: 8px; margin-top: 15px; font-weight: bold; cursor: pointer; }
+.modal-panel .btn-cancel { width: 100%; background: none; border: none; color: red; margin-top: 5px; cursor: pointer; padding: 8px; }
+
+/* ✅ PREVISUALIZACIÓN DEL TICKET */
+#previa_ticket {
+    width: 260px; height: 520px;
+    background: #ddd; border-radius: 15px;
+    border: 5px solid #222;
+    position: relative; overflow: hidden;
+    background-size: 100% 100%; background-position: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+#prev_l1, #prev_l2 {
+    position: absolute; width: 45px; height: 45px;
+    border: 1px dashed #666; background: rgba(255,255,255,0.5);
+    font-size: 9px; text-align: center;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+}
+#prev_txt {
+    position: absolute; width: 100%; top: 50%;
+    text-align: center; transform: translateY(-50%);
+    color: #000;
+}
+#prev_txt b { font-size: 16px; }
+#prev_txt small { font-size: 12px; }
+
 @media (max-width: 768px) {
 .faja-nav { gap: 3px; }
 .faja-nav a { font-size: 9px; padding: 4px 6px; }
 body { padding-top: 120px; }
 .logo-mini { height: 70px; }
+.modal-panel { width: 100%; max-width: 320px; }
+#previa_ticket { width: 100%; max-width: 260px; height: 520px; }
+.controls { flex-wrap: wrap; }
 }
 </style>
 </head>
@@ -109,9 +150,19 @@ body { padding-top: 120px; }
 </div>
 <div class="container">
 <header><h1>🏆 SORTEOS PREMIUM</h1><p>Panel de Sorteos Elite | Hábitat-Car</p></header>
+
+<!-- ✅ CONTROLES CON BOTONES DE EDITOR AL LADO DE HISTORIAL -->
 <div class="controls">
 <button class="btn btn-success" id="btn-activos">SORTEOS ACTIVOS</button>
 <button class="btn btn-warning" id="btn-historial">HISTORIAL DE ÉXITOS</button>
+
+<!-- Botones de editor integrados en controls -->
+<button class="btn btn-icon btn-primary" onclick="abrirEditorPDF()" title="Editar Ticket PDF" style="background:var(--azul-habitat);">
+    <i class="fas fa-file-pdf"></i>
+</button>
+<button class="btn btn-icon btn-success" onclick="abrirEditorWA()" title="Editar Mensaje WhatsApp" style="background:#25D366;">
+    <i class="fab fa-whatsapp"></i>
+</button>
 </div>
 
 <!-- ✅ ACCIONES MASIVAS -->
@@ -150,61 +201,64 @@ body { padding-top: 120px; }
 </div>
 </div>
 
-<!-- ✅ BOTONES FLOTANTES SEPARADOS (PDF + WA) - AL FINAL DEL BODY -->
-<div style="position:fixed; bottom:20px; left:20px; display:flex; gap:10px; z-index:9999;">
-    <button onclick="abrirEditorPDF()" title="Editar Ticket PDF" style="background:var(--azul-habitat); color:white; border:none; border-radius:50%; width:50px; height:50px; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;">
-        <i class="fas fa-file-pdf"></i>
-    </button>
-    <button onclick="abrirEditorWA()" title="Editar Mensaje WhatsApp" style="background:#25D366; color:white; border:none; border-radius:50%; width:50px; height:50px; cursor:pointer; box-shadow:0 4px 10px rgba(0,0,0,0.3); display:flex; align-items:center; justify-content:center;">
-        <i class="fab fa-whatsapp"></i>
-    </button>
-</div>
-
 <!-- ✅ MODAL EDITOR PDF -->
-<div id="modalPDF" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); z-index:10000; overflow-y:auto; padding:20px;">
-    <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:20px; max-width:1000px; margin:auto;">
-        <div style="background:white; padding:20px; border-radius:15px; width:320px; color:#333;">
-            <h3 style="color:var(--azul-habitat)">🎨 Diseño del Ticket</h3>
-            <hr><br>
-            <label>Imagen de Fondo (URL):</label>
-            <input type="text" id="cfg_bg" oninput="actualizarPrevia()" style="width:100%; margin-bottom:10px; padding:8px; border:1px solid #ccc; border-radius:4px;">
-            <label>Color Texto:</label>
-            <input type="color" id="cfg_color" oninput="actualizarPrevia()" style="width:100%; margin-bottom:10px; height:35px; cursor:pointer;">
-            <label>Logo 1 (Comercio) X - Y:</label>
-            <div style="display:flex; gap:5px; margin-bottom:10px;">
-                <input type="range" id="cfg_l1x" min="0" max="60" oninput="actualizarPrevia()" value="5" style="flex:1;">
-                <input type="range" id="cfg_l1y" min="0" max="140" oninput="actualizarPrevia()" value="5" style="flex:1;">
-            </div>
-            <label>Logo 2 (Hábitat) X - Y:</label>
-            <div style="display:flex; gap:5px; margin-bottom:15px;">
-                <input type="range" id="cfg_l2x" min="0" max="60" oninput="actualizarPrevia()" value="55" style="flex:1;">
-                <input type="range" id="cfg_l2y" min="0" max="140" oninput="actualizarPrevia()" value="5" style="flex:1;">
-            </div>
-            <button onclick="guardarConfigPDF()" style="width:100%; background:var(--verde); color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">GUARDAR DISEÑO</button>
-            <button onclick="cerrarModales()" style="width:100%; background:none; border:none; color:red; margin-top:5px; cursor:pointer; padding:8px;">Cerrar</button>
+<div id="modalPDF" class="modal-editor">
+<div class="modal-editor-content">
+    <div class="modal-panel">
+        <h3>🎨 Diseño del Ticket</h3>
+        <hr><br>
+        <label>Imagen de Fondo (URL):</label>
+        <input type="text" id="cfg_bg" oninput="actualizarPrevia()" placeholder="https://...">
+        
+        <label>Color Texto:</label>
+        <input type="color" id="cfg_color" oninput="actualizarPrevia()" value="#003d80">
+        
+        <label>Logo 1 (Comercio) - Posición X/Y:</label>
+        <div class="range-row">
+            <input type="range" id="cfg_l1x" min="0" max="60" oninput="actualizarPrevia()" value="5">
+            <input type="range" id="cfg_l1y" min="0" max="140" oninput="actualizarPrevia()" value="5">
         </div>
-        <div id="previa_ticket" style="width:260px; height:520px; background:#ddd; border-radius:15px; border:5px solid #222; position:relative; overflow:hidden; background-size:100% 100%; background-position:center;">
-            <div id="prev_l1" style="position:absolute; width:45px; height:45px; border:1px dashed #666; background:rgba(255,255,255,0.5); font-size:9px; text-align:center; display:flex; align-items:center; justify-content:center;">Logo 1</div>
-            <div id="prev_l2" style="position:absolute; width:45px; height:45px; border:1px dashed #666; background:rgba(255,255,255,0.5); font-size:9px; text-align:center; display:flex; align-items:center; justify-content:center;">Logo 2</div>
-            <div id="prev_txt" style="position:absolute; width:100%; top:50%; text-align:center; transform:translateY(-50%); color:#000;">
-                <b style="font-size:16px;">NOMBRE GANADOR</b><br><small style="font-size:12px;">Premio - Comercio</small>
-            </div>
+        
+        <label>Logo 2 (Hábitat) - Posición X/Y:</label>
+        <div class="range-row">
+            <input type="range" id="cfg_l2x" min="0" max="60" oninput="actualizarPrevia()" value="55">
+            <input type="range" id="cfg_l2y" min="0" max="140" oninput="actualizarPrevia()" value="5">
+        </div>
+        
+        <!-- ✅ NUEVO: Slider para tamaño de logos -->
+        <label>Tamaño de Logos (mm):</label>
+        <div class="range-row">
+            <input type="range" id="cfg_logo_size" min="10" max="40" oninput="actualizarPrevia()" value="20" style="flex:1;">
+            <span id="logo_size_val" style="font-size:11px; min-width:30px;">20mm</span>
+        </div>
+        
+        <button class="btn-save" onclick="guardarConfigPDF()">💾 GUARDAR DISEÑO</button>
+        <button class="btn-cancel" onclick="cerrarModales()">Cerrar</button>
+    </div>
+    
+    <!-- Previsualización -->
+    <div id="previa_ticket">
+        <div id="prev_l1">Logo 1</div>
+        <div id="prev_l2">Logo 2</div>
+        <div id="prev_txt">
+            <b>NOMBRE GANADOR</b><br><small>Premio - Comercio</small>
         </div>
     </div>
+</div>
 </div>
 
 <!-- ✅ MODAL EDITOR WHATSAPP -->
-<div id="modalWA" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center;">
-    <div style="background:white; padding:25px; border-radius:15px; width:90%; max-width:400px; color:#333;">
-        <h3 style="color:#25D366"><i class="fab fa-whatsapp"></i> Mensaje de WhatsApp</h3>
-        <p style="font-size:12px; margin-bottom:10px;">Configurá el saludo automático:</p>
-        <textarea id="cfg_wa_msg" style="width:100%; height:120px; padding:10px; font-family:sans-serif; border:1px solid #ccc; border-radius:6px;" placeholder="Ej: ¡Hola {{NOMBRE}}!"></textarea>
-        <div style="font-size:11px; color:#666; margin:10px 0;">
-            Tags: <b>{{NOMBRE}}</b>, <b>{{PREMIO}}</b>, <b>{{COMERCIO}}</b>
-        </div>
-        <button onclick="guardarConfigWA()" style="width:100%; background:#25D366; color:white; padding:12px; border:none; border-radius:8px; font-weight:bold; cursor:pointer;">GUARDAR MENSAJE</button>
-        <button onclick="cerrarModales()" style="width:100%; background:none; border:none; color:red; margin-top:5px; cursor:pointer; padding:8px;">Cerrar</button>
+<div id="modalWA" class="modal-editor" style="align-items:center; justify-content:center;">
+<div style="background:white; padding:25px; border-radius:15px; width:90%; max-width:400px; color:#333;">
+    <h3 style="color:#25D366"><i class="fab fa-whatsapp"></i> Mensaje de WhatsApp</h3>
+    <p style="font-size:12px; margin-bottom:10px;">Configurá el saludo automático:</p>
+    <textarea id="cfg_wa_msg" style="width:100%; height:120px; padding:10px; font-family:sans-serif; border:1px solid #ccc; border-radius:6px;" placeholder="Ej: ¡Hola {{NOMBRE}}!"></textarea>
+    <div style="font-size:11px; color:#666; margin:10px 0;">
+        Tags: <b>{{NOMBRE}}</b>, <b>{{PREMIO}}</b>, <b>{{COMERCIO}}</b>
     </div>
+    <button class="btn-save" style="background:#25D366;" onclick="guardarConfigWA()">💾 GUARDAR MENSAJE</button>
+    <button class="btn-cancel" onclick="cerrarModales()">Cerrar</button>
+</div>
 </div>
 
 <script type="module">
@@ -228,16 +282,20 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-// --- 🎫 FUNCIONES DE CONFIGURACIÓN SEPARADAS ---
+// --- 🎫 FUNCIONES DE CONFIGURACIÓN ---
 const CARGAR_CONFIG = () => {
     const pdf = JSON.parse(localStorage.getItem('hc_pdf_v3')) || { 
-        bg: '', color: '#000000', l1x: 5, l1y: 5, l2x: 55, l2y: 5 
+        bg: '', color: '#000000', l1x: 5, l1y: 5, l2x: 55, l2y: 5, logoSize: 20 
     };
-    const wa = localStorage.getItem('hc_wa_v3') || "¡Hola {{NOMBRE}}! Ganaste {{PREMIO}} en {{COMERCIO}}. Adjunto tu ticket.";
-    return { pdf, wa };
+    const wa = localStorage.getItem('hc_wa_v3');
+    // ✅ Si no hay mensaje guardado, usar el default
+    return { 
+        pdf, 
+        wa: wa || "¡Hola {{NOMBRE}}! Ganaste {{PREMIO}} en {{COMERCIO}}. Adjunto tu ticket." 
+    };
 };
 
-// ✅ FUNCIONES DEL EDITOR - GLOBALES
+// ✅ EDITOR PDF
 window.abrirEditorPDF = () => {
     const { pdf } = CARGAR_CONFIG();
     document.getElementById('cfg_bg').value = pdf.bg || '';
@@ -246,20 +304,30 @@ window.abrirEditorPDF = () => {
     document.getElementById('cfg_l1y').value = pdf.l1y || 5;
     document.getElementById('cfg_l2x').value = pdf.l2x || 55;
     document.getElementById('cfg_l2y').value = pdf.l2y || 5;
+    document.getElementById('cfg_logo_size').value = pdf.logoSize || 20;
+    document.getElementById('logo_size_val').textContent = (pdf.logoSize || 20) + 'mm';
     document.getElementById('modalPDF').style.display = 'flex';
     actualizarPrevia();
 };
 
+// ✅ EDITOR WHATSAPP
 window.abrirEditorWA = () => {
-    document.getElementById('cfg_wa_msg').value = CARGAR_CONFIG().wa;
+    const { wa } = CARGAR_CONFIG();
+    // ✅ Asegurar que se cargue el mensaje guardado o el default
+    document.getElementById('cfg_wa_msg').value = wa;
     document.getElementById('modalWA').style.display = 'flex';
 };
 
+// ✅ ACTUALIZAR PREVISUALIZACIÓN
 window.actualizarPrevia = () => {
     const bg = document.getElementById('cfg_bg').value;
     const color = document.getElementById('cfg_color').value;
-    const p = document.getElementById('previa_ticket');
+    const logoSize = parseInt(document.getElementById('cfg_logo_size').value) || 20;
     
+    // Actualizar valor mostrado del tamaño
+    document.getElementById('logo_size_val').textContent = logoSize + 'mm';
+    
+    const p = document.getElementById('previa_ticket');
     if(bg) {
         p.style.backgroundImage = `url(${bg})`;
     } else {
@@ -271,12 +339,20 @@ window.actualizarPrevia = () => {
     
     // Factor de escala: 260px / 80mm ≈ 3.25
     const f = 3.25;
+    const sizePx = logoSize * f;
+    
     document.getElementById('prev_l1').style.left = (document.getElementById('cfg_l1x').value * f) + 'px';
     document.getElementById('prev_l1').style.top = (document.getElementById('cfg_l1y').value * f) + 'px';
+    document.getElementById('prev_l1').style.width = sizePx + 'px';
+    document.getElementById('prev_l1').style.height = sizePx + 'px';
+    
     document.getElementById('prev_l2').style.left = (document.getElementById('cfg_l2x').value * f) + 'px';
     document.getElementById('prev_l2').style.top = (document.getElementById('cfg_l2y').value * f) + 'px';
+    document.getElementById('prev_l2').style.width = sizePx + 'px';
+    document.getElementById('prev_l2').style.height = sizePx + 'px';
 };
 
+// ✅ GUARDAR CONFIG PDF
 window.guardarConfigPDF = () => {
     const data = {
         bg: document.getElementById('cfg_bg').value,
@@ -284,15 +360,19 @@ window.guardarConfigPDF = () => {
         l1x: document.getElementById('cfg_l1x').value,
         l1y: document.getElementById('cfg_l1y').value,
         l2x: document.getElementById('cfg_l2x').value,
-        l2y: document.getElementById('cfg_l2y').value
+        l2y: document.getElementById('cfg_l2y').value,
+        logoSize: document.getElementById('cfg_logo_size').value
     };
     localStorage.setItem('hc_pdf_v3', JSON.stringify(data));
     mostrarToast("✅ Diseño de Ticket guardado", "success");
     cerrarModales();
 };
 
+// ✅ GUARDAR CONFIG WHATSAPP
 window.guardarConfigWA = () => {
-    localStorage.setItem('hc_wa_v3', document.getElementById('cfg_wa_msg').value);
+    const msg = document.getElementById('cfg_wa_msg').value;
+    // ✅ Guardar explícitamente, incluso si está vacío
+    localStorage.setItem('hc_wa_v3', msg);
     mostrarToast("✅ Mensaje de WhatsApp guardado", "success");
     cerrarModales();
 };
@@ -302,7 +382,7 @@ window.cerrarModales = () => {
     document.getElementById('modalWA').style.display = 'none';
 };
 
-// --- 🎫 FUNCIÓN PRINCIPAL: ENVIAR TICKET ELITE ---
+// --- 🎫 FUNCIÓN PRINCIPAL: GENERAR TICKET + WHATSAPP ---
 window.enviarTicketElite = async (nombre, premio, comercio, telefono, logoComercio) => {
     const { pdf, wa } = CARGAR_CONFIG();
     const { jsPDF } = window.jspdf;
@@ -327,24 +407,23 @@ window.enviarTicketElite = async (nombre, premio, comercio, telefono, logoComerc
         try {
             const bgImg = await loadImage(pdf.bg);
             if(bgImg) doc.addImage(bgImg, 'JPEG', 0, 0, 80, 160);
-        } catch(e) {
-            console.log("No se pudo cargar el fondo:", e);
-        }
+        } catch(e) { console.log("Fondo no cargado:", e); }
     }
 
-    // 2. Logos posicionables
+    // 2. Logos posicionables con tamaño configurable
+    const logoSize = parseInt(pdf.logoSize) || 20;
     const addLogo = async (url, x, y) => {
         if(!url) return;
         try {
             const img = await loadImage(url);
-            if(img) doc.addImage(img, 'PNG', parseInt(x), parseInt(y), 20, 20);
+            if(img) doc.addImage(img, 'PNG', parseInt(x), parseInt(y), logoSize, logoSize);
         } catch(e) {}
     };
     
     await addLogo(logoComercio || LOGO_DEFAULT, pdf.l1x, pdf.l1y);
     await addLogo(LOGO_HABITAT, pdf.l2x, pdf.l2y);
 
-    // 3. Textos con relleno automático
+    // 3. Textos
     doc.setTextColor(pdf.color || '#000000');
     doc.setFont("helvetica", "bold");
     doc.setFontSize(22);
@@ -363,8 +442,10 @@ window.enviarTicketElite = async (nombre, premio, comercio, telefono, logoComerc
     const nombreArchivo = `Ticket_${(nombre||'Ganador').replace(/\s+/g,'_')}.pdf`;
     doc.save(nombreArchivo);
 
-    // 4. Preparar y abrir WhatsApp con mensaje personalizado
-    let mensaje = (wa || "¡Hola {{NOMBRE}}! Ganaste {{PREMIO}} en {{COMERCIO}}.")
+    // 4. Preparar WhatsApp con mensaje personalizado
+    // ✅ Usar el mensaje guardado o el default si está vacío
+    let mensajeBase = wa && wa.trim() ? wa : "¡Hola {{NOMBRE}}! Ganaste {{PREMIO}} en {{COMERCIO}}.";
+    let mensaje = mensajeBase
         .replace(/{{NOMBRE}}/g, nombre || "Ganador")
         .replace(/{{PREMIO}}/g, premio || "el premio")
         .replace(/{{COMERCIO}}/g, comercio || "el comercio");
@@ -372,11 +453,17 @@ window.enviarTicketElite = async (nombre, premio, comercio, telefono, logoComerc
     if(telefono) {
         const numAR = window.normalizarTelefonoAR(telefono);
         const urlWA = `https://wa.me/${numAR}?text=${encodeURIComponent(mensaje)}`;
+        
+        // ✅ Nota: WhatsApp Web NO permite adjuntar archivos vía URL.
+        // El usuario debe adjuntar manualmente el PDF descargado.
+        // Mostramos una notificación para guiar al usuario.
+        mostrarToast("📄 PDF descargado. Adjuntalo manualmente en WhatsApp.", "warning");
+        
         // Pequeño delay para que el PDF empiece a descargar
-        setTimeout(() => { window.open(urlWA, '_blank'); }, 1500);
+        setTimeout(() => { window.open(urlWA, '_blank'); }, 1200);
     }
     
-    mostrarToast("✅ Ticket generado + WhatsApp", "success");
+    mostrarToast("✅ Ticket generado", "success");
 };
 
 // --- 📞 UTILIDADES ---
@@ -723,7 +810,6 @@ window.mostrarHistorial = () => {
                 const textoCopiar = `${nombreG} - WA: ${celG} - Email: ${emailG}`.trim();
                 const logoC = h.logoUrl || LOGO_DEFAULT;
                 
-                // ✅ BOTÓN ACTUALIZADO CON FUNCIÓN enviarTicketElite
                 tabla.innerHTML += `<tr>
                 <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}', this)"></td>
                 <td><small>${fecha}</small></td>
@@ -746,7 +832,6 @@ window.mostrarHistorial = () => {
                         <button class="btn-accion btn-wa" onclick="abrirWA('${celG}','${nombreG}','${h.premio}')">
                             <i class="fab fa-whatsapp"></i>
                         </button>
-                        <!-- ✅ BOTÓN DE TICKET CON FUNCIÓN ACTUALIZADA -->
                         <button class="btn-accion btn-success" title="Generar Ticket + WhatsApp" 
                             onclick="enviarTicketElite('${nombreG.replace(/'/g, "\\'")}', '${h.premio.replace(/'/g, "\\'")}', '${h.comercio.replace(/'/g, "\\'")}', '${celG}', '${logoC.replace(/'/g, "\\'")}')">
                             <i class="fas fa-ticket-alt"></i> ENVIAR
