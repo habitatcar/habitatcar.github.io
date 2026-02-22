@@ -267,7 +267,7 @@ import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimes
 
 const CLAVE_MAESTRA = "HABITAT_MASTER_2026";
 const LOGO_DEFAULT  = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
-// LOGO HÁBITAT CORREGIDO (usando la URL que verificaste)
+// LOGO HÁBITAT CORREGIDO (redondo)
 const LOGO_HABITAT  = "https://raw.githubusercontent.com/habitatcar/habitatcar.github.io/refs/heads/main/logo_redondo.png";
 
 // PROXY CORS para Firebase Storage
@@ -406,6 +406,9 @@ window.cerrarModales = () => {
     document.getElementById('modalWA').style.display  = 'none';
 };
 
+// ============================================
+// FUNCIÓN PRINCIPAL CORREGIDA
+// ============================================
 window.enviarTicketElite = async (nombre, premio, comercio, descripcion, telefono, logoComercio) => {
     const p = leerCfgPDF();
     const mensajeWA = leerMsgWA()
@@ -413,8 +416,10 @@ window.enviarTicketElite = async (nombre, premio, comercio, descripcion, telefon
         .replace(/\{\{PREMIO\}\}/g,      premio      || 'el premio')
         .replace(/\{\{COMERCIO\}\}/g,    comercio    || 'el comercio')
         .replace(/\{\{DESCRIPCION\}\}/g, descripcion || premio || 'el premio');
+    
     const { jsPDF } = window.jspdf;
     const docPDF = new jsPDF({ unit: "mm", format: [80, 160] });
+    
     const loadImg = url => new Promise(resolve => {
         if (!url) return resolve(null);
         const proxiedUrl = proxyURL(url);
@@ -427,40 +432,100 @@ window.enviarTicketElite = async (nombre, premio, comercio, descripcion, telefon
         };
         img.src = proxiedUrl;
     });
+    
     const [bgImg, logoComercioImg, logoHabitatImg] = await Promise.all([
         loadImg(p.bg),
         loadImg(logoComercio || LOGO_DEFAULT),
         loadImg(LOGO_HABITAT)
     ]);
+    
+    // Fondo
     if (bgImg) docPDF.addImage(bgImg, 'JPEG', 0, 0, 80, 160);
+    
+    // LOGO COMERCIO (manteniendo proporción)
     if (logoComercioImg) {
         const sz = parseInt(p.l1s) || 20;
-        docPDF.addImage(logoComercioImg, 'PNG', parseInt(p.l1x) || 5, parseInt(p.l1y) || 5, sz, sz);
+        const aspectRatio = logoComercioImg.width / logoComercioImg.height;
+        if (aspectRatio > 1) {
+            // Más ancho que alto
+            docPDF.addImage(logoComercioImg, 'PNG', parseInt(p.l1x) || 5, parseInt(p.l1y) || 5, sz, sz / aspectRatio);
+        } else {
+            // Más alto que ancho o cuadrado
+            docPDF.addImage(logoComercioImg, 'PNG', parseInt(p.l1x) || 5, parseInt(p.l1y) || 5, sz * aspectRatio, sz);
+        }
     }
+    
+    // LOGO HÁBITAT (manteniendo proporción) - CORREGIDO
     if (logoHabitatImg) {
         const sz = parseInt(p.l2s) || 20;
-        docPDF.addImage(logoHabitatImg, 'PNG', parseInt(p.l2x) || 45, parseInt(p.l2y) || 5, sz, sz);
+        const aspectRatio = logoHabitatImg.width / logoHabitatImg.height;
+        if (aspectRatio > 1) {
+            // Más ancho que alto
+            docPDF.addImage(logoHabitatImg, 'PNG', parseInt(p.l2x) || 45, parseInt(p.l2y) || 5, sz, sz / aspectRatio);
+        } else {
+            // Más alto que ancho o cuadrado - Para logo redondo, aspectRatio ≈ 1
+            docPDF.addImage(logoHabitatImg, 'PNG', parseInt(p.l2x) || 45, parseInt(p.l2y) || 5, sz * aspectRatio, sz);
+        }
     }
+    
     docPDF.setTextColor(p.color || '#000000');
+    
+    // Frase libre (t4)
     docPDF.setFont("helvetica", "bold");
     docPDF.setFontSize(p.t4s || 14);
     docPDF.text(p.t4txt || '¡Felicitaciones!', p.t4x || 40, p.t4y || 45, { align: "center" });
+    
+    // ============================================
+    // NOMBRE DEL GANADOR - CORREGIDO (multilínea y centrado)
+    // ============================================
     docPDF.setFont("helvetica", "bold");
     docPDF.setFontSize(p.t1s || 22);
-    docPDF.text((nombre || "Ganador").toUpperCase(), p.t1x || 40, p.t1y || 70, { align: "justify", maxWidth: 70 });
+    const nombreLines = docPDF.splitTextToSize((nombre || "Ganador").toUpperCase(), 70);
+    const lineHeightNombre = (p.t1s || 22) * 0.35; // Altura aproximada por línea en mm
+    const startYNombre = p.t1y || 70;
+    
+    nombreLines.forEach((line, index) => {
+        docPDF.text(line, p.t1x || 40, startYNombre + (index * lineHeightNombre), { align: "center" });
+    });
+    
+    // ============================================
+    // TÍTULO DEL PREMIO (t2)
+    // ============================================
     docPDF.setFont("helvetica", "normal");
     docPDF.setFontSize(p.t2s || 16);
     docPDF.text(premio || "Premio", p.t2x || 40, p.t2y || 90, { align: "center" });
+    
+    // ============================================
+    // DESCRIPCIÓN DEL PREMIO - CORREGIDA (multilínea y centrada)
+    // ============================================
     docPDF.setFont("helvetica", "normal");
     docPDF.setFontSize(p.t6s || 12);
-    docPDF.text(descripcion || premio || "", p.t6x || 40, p.t6y || 105, { align: "center" });
+    const descLines = docPDF.splitTextToSize(descripcion || premio || "", 70);
+    const lineHeightDesc = (p.t6s || 12) * 0.35;
+    const startYDesc = p.t6y || 105;
+    
+    descLines.forEach((line, index) => {
+        docPDF.text(line, p.t6x || 40, startYDesc + (index * lineHeightDesc), { align: "center" });
+    });
+    
+    // ============================================
+    // COMERCIO (t3)
+    // ============================================
     docPDF.setFont("helvetica", "normal");
     docPDF.setFontSize(p.t3s || 14);
     docPDF.text(comercio || "Comercio", p.t3x || 40, p.t3y || 118, { align: "center" });
+    
+    // ============================================
+    // PIE DE PÁGINA (t5)
+    // ============================================
     docPDF.setFont("helvetica", "normal");
     docPDF.setFontSize(p.t5s || 8);
     docPDF.text(`${p.t5txt || 'Hábitat-Car'} • ${new Date().toLocaleDateString()}`, p.t5x || 40, p.t5y || 148, { align: "center" });
+    
+    // Guardar PDF
     docPDF.save(`Ticket_${(nombre || 'Ganador').replace(/\s+/g, '_')}.pdf`);
+    
+    // Abrir WhatsApp si hay teléfono
     if (telefono) {
         const num = window.normalizarTelefonoAR(telefono);
         if (num) {
