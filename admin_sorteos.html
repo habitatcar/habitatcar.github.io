@@ -161,6 +161,8 @@ td { padding: 12px; border-bottom: 1px solid var(--border-color); vertical-align
 .template-btn { padding: 5px 8px; font-size: 10px; border: none; border-radius: 4px; cursor: pointer; background: var(--azul-habitat); color: white; }
 .upload-btn { background: var(--celeste); color: white; padding: 5px 10px; font-size: 11px; border: none; border-radius: 4px; cursor: pointer; width: 100%; margin-top: 5px; }
 .dark-mode-toggle { position: fixed; bottom: 20px; right: 20px; background: var(--azul-habitat); color: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 10px rgba(0,0,0,0.3); z-index: 1001; border: none; font-size: 24px; }
+.btn-email { background: #4285F4; font-weight: 700; }
+.btn-email:hover { background: #3367D6; }
 @media (max-width: 768px) {
 .faja-nav { gap: 3px; }
 .faja-nav a { font-size: 9px; padding: 4px 6px; }
@@ -237,7 +239,7 @@ body { padding-top: 120px; }
 </div>
 </div>
 
-<!-- NUEVO MODAL PARA SOLICITAR CLAVE (BYpass) -->
+<!-- MODAL PARA SOLICITAR CLAVE -->
 <div id="modal-clave" class="modal" style="display:none;">
 <div class="modal-content">
 <h3 style="color:var(--azul-habitat); margin-bottom:15px;">🔐 AUTORIZACIÓN REQUERIDA</h3>
@@ -250,6 +252,7 @@ body { padding-top: 120px; }
 </div>
 </div>
 
+<!-- MODAL EDITOR PDF -->
 <div id="modalPDF" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:10000; overflow-y:auto; padding:16px; box-sizing:border-box;">
   <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:18px; max-width:1060px; margin:auto; padding-top:8px;">
     <div style="background:var(--modal-bg); padding:16px; border-radius:14px; width:360px; color:#333; flex-shrink:0; max-height:88vh; overflow-y:auto;">
@@ -371,6 +374,7 @@ body { padding-top: 120px; }
   </div>
 </div>
 
+<!-- MODAL WHATSAPP -->
 <div id="modalWA" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:10000; justify-content:center; align-items:center;">
   <div style="background:var(--modal-bg); padding:25px; border-radius:15px; width:90%; max-width:440px; color:var(--text-color);">
     <h3 style="color:#25D366; margin-bottom:8px;"><i class="fab fa-whatsapp"></i> Mensaje de WhatsApp</h3>
@@ -438,7 +442,7 @@ const db  = getFirestore(app);
 // VARIABLES GLOBALES
 // ============================================
 let estadisticas = { totalSorteos: 0, totalGanadores: 0, topComercio: '-', participantesUnicos: new Set() };
-let datosPendientes = null; // Para el modal de clave
+let datosPendientes = null;
 
 // ============================================
 // MODO OSCURO
@@ -730,7 +734,7 @@ window.cerrarModales = () => {
 };
 
 // ============================================
-// NUEVAS FUNCIONES PARA MODAL DE CLAVE
+// MODAL DE CLAVE
 // ============================================
 window.abrirModalClave = (mensaje, callback) => {
     document.getElementById('modal-clave-mensaje').textContent = mensaje;
@@ -871,7 +875,23 @@ window.normalizarTelefonoAR = n => {
 };
 
 // ============================================
-// NUEVA: SORTEO AUTOMÁTICO
+// NUEVA FUNCIÓN: ENVIAR EMAIL A GANADOR
+// ============================================
+window.enviarEmailGanador = (nombre, premio, comercio, email) => {
+    if (!email) {
+        mostrarToast("⚠️ Este ganador no tiene email registrado", "warning");
+        return;
+    }
+    
+    const asunto = `¡Felicitaciones! Ganaste en ${comercio}`;
+    const cuerpo = `Hola ${nombre},\n\n¡Felicitaciones! Has resultado ganador del sorteo de ${premio} en ${comercio}.\n\nComunícate con el comercio para reclamar tu premio.\n\nSaludos,\nEquipo Hábitat-Car`;
+    
+    window.location.href = `mailto:${email}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+    mostrarToast("📧 Cliente de correo abierto", "success");
+};
+
+// ============================================
+// NUEVA: SORTEO AUTOMÁTICO (VERSIÓN CORREGIDA)
 // ============================================
 window.ejecutarSorteoAutomatico = async (idComercio) => {
     try {
@@ -939,12 +959,27 @@ window.ejecutarSorteoAutomatico = async (idComercio) => {
             ganadores.push(bolsa.splice(idx, 1)[0]);
         }
         
+        // Numerar los ganadores (1º Premio, 2º Premio, etc.)
+        const ganadoresConNumero = ganadores.map((g, index) => {
+            let numeroPremio = "";
+            if (cant === 1) {
+                numeroPremio = "Ganador";
+            } else {
+                const sufijos = ["º", "º", "º", "º", "º"];
+                numeroPremio = `${index + 1}${sufijos[index] || "º"} Premio`;
+            }
+            return {
+                ...g,
+                numeroPremio
+            };
+        });
+        
         await addDoc(collection(db, "historial_sorteos"), {
             comercio: comercio.nombre,
             premio: comercio.titulo_sorteo,
             descripcion_sorteo: comercio.descripcion_sorteo || "",
             logoUrl: comercio.logoUrl || "",
-            ganadores,
+            ganadores: ganadoresConNumero,
             fecha: serverTimestamp(),
             mailComercio: comercio.email || 'habitatcar@gmail.com',
             timestampProgramado: Date.now()
@@ -963,6 +998,9 @@ window.ejecutarSorteoAutomatico = async (idComercio) => {
             }
         }
         
+        // ============================================
+        // BLOQUE CORREGIDO DE ENVÍO DE EMAIL (con then/catch)
+        // ============================================
         try {
             const GAS_URL = "https://script.google.com/macros/s/AKfycbwWqItLbuGollI4F6OBDrHHoWwrvSJz88CWp1Wutt5hPWbqPUaATtIxVVv-wHOu3DGLbQ/exec";
             
@@ -977,21 +1015,31 @@ window.ejecutarSorteoAutomatico = async (idComercio) => {
                     <p><strong>Participantes:</strong> ${participantes.length}</p>
                     <h3>Lista de Ganadores:</h3>
                     <ul>
-                        ${ganadores.map(g => `<li>${g.nombreMostrar} - ${g.email} - ${g.celular}</li>`).join('')}
+                        ${ganadoresConNumero.map(g => `<li><strong>${g.numeroPremio}:</strong> ${g.nombreMostrar} - ${g.email} - ${g.celular}</li>`).join('')}
                     </ul>
                 `,
                 cc: comercio.email || ''
             };
             
-            await fetch(GAS_URL, {
+            console.log("📤 Enviando a GAS:", payloadHC);
+            
+            fetch(GAS_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payloadHC)
+            })
+            .then(() => {
+                console.log("📨 Solicitud enviada al servidor de correos");
+                mostrarToast("📧 Notificación enviada a Hábitat-Car", "success");
+            })
+            .catch(error => {
+                console.error("❌ Error en fetch:", error);
+                mostrarToast("⚠️ No se pudo enviar notificación por email", "warning");
             });
             
         } catch (e) {
-            console.error("Error enviando email:", e);
+            console.error("💥 Error al preparar email:", e);
         }
         
         mostrarToast(`✅ Sorteo automático de ${comercio.nombre} realizado`, "success");
@@ -1003,7 +1051,7 @@ window.ejecutarSorteoAutomatico = async (idComercio) => {
 };
 
 // ============================================
-// NUEVA: PROGRAMAR SORTEOS
+// NUEVA: PROGRAMAR SORTEOS (AHORA REVISA CADA 30 MINUTOS)
 // ============================================
 const programarSorteosPendientes = async () => {
     try {
@@ -1022,7 +1070,15 @@ const programarSorteosPendientes = async () => {
             const ts = new Date(c.fecha_sorteo).getTime();
             const tiempoRestante = ts - ahora;
             
-            if (tiempoRestante > 0 && tiempoRestante < 3600000) {
+            // Si ya pasó la fecha, ejecutar inmediatamente
+            if (tiempoRestante <= 0 && tiempoRestante > -3600000) { // Hasta 1 hora después
+                console.log(`⏰ Sorteo de ${c.nombre} debería ejecutarse ahora (programado para ${new Date(ts).toLocaleString()})`);
+                setTimeout(() => {
+                    window.ejecutarSorteoAutomatico(doc.id);
+                }, 5000); // Pequeño retraso para evitar bloqueos
+            }
+            // Si falta menos de 1 hora, programar
+            else if (tiempoRestante > 0 && tiempoRestante < 3600000) {
                 setTimeout(() => {
                     window.ejecutarSorteoAutomatico(doc.id);
                 }, tiempoRestante);
@@ -1038,15 +1094,25 @@ const programarSorteosPendientes = async () => {
 // FUNCIONES EXISTENTES MODIFICADAS
 // ============================================
 window.mostrarConfirmacionSorteo = (total, ganadores, comercio) => {
-    document.getElementById('lista-ganadores-popup').innerHTML = ganadores.map(g => {
+    document.getElementById('lista-ganadores-popup').innerHTML = ganadores.map((g, index) => {
         const badge = g.tipo==="VIP"
             ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>`
             : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
+        
+        let numeroPremio = "";
+        if (ganadores.length === 1) {
+            numeroPremio = "🏆 Ganador";
+        } else {
+            const sufijos = ["º", "º", "º", "º", "º"];
+            numeroPremio = `${index + 1}${sufijos[index] || "º"} Premio`;
+        }
+        
         return `<div style="background:#f8f9fa;border-left:4px solid var(--oro);padding:12px;margin:8px 0;border-radius:8px;">
             <div style="display:flex;justify-content:space-between;align-items:center;">
-                <span style="font-weight:bold;"><i class="fas fa-trophy" style="color:var(--oro);margin-right:5px;"></i>${g.nombreMostrar}</span>${badge}
+                <span style="font-weight:bold;"><i class="fas fa-trophy" style="color:var(--oro);margin-right:5px;"></i>${g.nombreMostrar}</span>
+                <span><span class="badge" style="background:var(--oro); color:white;">${numeroPremio}</span> ${badge}</span>
             </div>
-            <small style="color:#666;display:block;margin-top:5px;"><i class="fab fa-whatsapp"></i> ${g.celular||'Sin teléfono'}</small>
+            <small style="color:#666;display:block;margin-top:5px;"><i class="fab fa-whatsapp"></i> ${g.celular||'Sin teléfono'} | <i class="fas fa-envelope"></i> ${g.email||'Sin email'}</small>
         </div>`;
     }).join('');
     document.getElementById('texto-sorteo').innerText = `Sorteo de ${comercio}: ${ganadores.length} ganador(es) entre ${total} participantes.`;
@@ -1128,9 +1194,6 @@ window.validarAccionSegura = async (idComercio, claveIngresada) => {
     return false;
 };
 
-// ============================================
-// NUEVO: VERSIÓN MEJORADA DE intentarSorteo (CON MODAL)
-// ============================================
 window.intentarSorteo = async (btn) => {
     const ts = parseInt(btn.dataset.timestamp);
     const idComercio = btn.dataset.id;
@@ -1142,7 +1205,6 @@ window.intentarSorteo = async (btn) => {
     const desc = btn.dataset.desc;
     
     if (Date.now() < ts) {
-        // Mostrar modal elegante en lugar de prompt
         const mensaje = `🔒 Sorteo programado para ${new Date(ts).toLocaleString()}\n\nIngrese clave de comercio o maestra para realizar el sorteo AHORA`;
         
         abrirModalClave(mensaje, async (clave) => {
@@ -1159,7 +1221,6 @@ window.intentarSorteo = async (btn) => {
             }
         });
     } else {
-        // Ya pasó la fecha, sortear directamente
         ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
     }
 };
@@ -1209,63 +1270,160 @@ window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
 const cargarActivos = async () => {
     window.vistaActual='activos'; window.itemsSeleccionados.clear(); actualizarBulkActions();
     document.getElementById('header-checkbox').style.display='none';
-    onSnapshot(collection(db,"comercios"), async snap => {
-        const tabla=document.getElementById('tabla-sorteos'); tabla.innerHTML="";
+    
+    // Usar onSnapshot para escuchar cambios en tiempo real
+    onSnapshot(collection(db, "comercios"), async (snap) => {
+        const tabla = document.getElementById('tabla-sorteos');
+        tabla.innerHTML = "";
+        
         for (const docCom of snap.docs) {
-            const c=docCom.data(); 
+            const c = docCom.data();
+            
+            // Solo mostrar si tiene título de sorteo y no está finalizado
             if (!c.titulo_sorteo || c.sorteo_finalizado) continue;
             
-            const nomCom=c.nombre, premio=c.titulo_sorteo, descPremio=c.descripcion_sorteo||"";
-            const cant=parseInt(c.cantidad_premios)||1, fechaISO=c.fecha_sorteo||"";
-            const ts=fechaISO?new Date(fechaISO).getTime():Date.now();
-            let cL=0,cV=0;
-            const snapP=await getDocs(query(collection(db,"admin_participantes_sorteos"),where("comercio","==",nomCom)));
-            await Promise.all(snapP.docs.map(async p=>{
-                const pd=p.data();
-                if(pd.usuarioId&&!pd.usuarioId.startsWith('temp_')){try{const ld=await getDoc(doc(db,"leads",pd.usuarioId));if(ld.exists()&&(ld.data().convertidoVIP||ld.data().tipo==="VIP")){cV++;return;}}catch(e){}}
-                pd.tipo==="VIP"?cV++:cL++;
-            }));
-            const f=formatearFechaHora(fechaISO)||{fecha:'A definir',hora:''};
-            const badge=ts>Date.now()?`<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`:`<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
-            tabla.innerHTML+=`<tr>
-            <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div></td>
-            <td><img src="${c.logoUrl||''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-            <td><span class="badge badge-comercio">${nomCom}</span><br><span class="badge badge-premio">🎁 ${premio}</span>${descPremio?`<div class="premio-desc">${descPremio}</div>`:''}</td>
-            <td><div class="participantes-cell">
-                <div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cL}</span></div>
-                <div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cV}</span></div>
-                <div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${cL+cV}</span></div>
-            </div></td>
-            <td>
-                <button class="btn btn-sortear-accion"
-                    data-id="${docCom.id}" data-nombre="${nomCom}" data-premio="${premio}"
-                    data-cant="${cant}" data-mail="${c.email||''}" data-logo="${c.logoUrl||''}"
-                    data-desc="${descPremio}" data-timestamp="${ts}" data-clave-comercio="${c.password||''}"
-                    onclick="intentarSorteo(this)">Calculando...</button>
-                <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docCom.id}','${fechaISO}')">🗑️ Cancelar</button>
-            </td>
-            <td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant>1?'s':''}</span></td>
+            const nomCom = c.nombre || "Sin nombre";
+            const premio = c.titulo_sorteo;
+            const descPremio = c.descripcion_sorteo || "";
+            const cant = parseInt(c.cantidad_premios) || 1;
+            const fechaISO = c.fecha_sorteo || "";
+            const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
+            
+            // Contar participantes
+            let cL = 0, cV = 0;
+            try {
+                const snapP = await getDocs(query(
+                    collection(db, "admin_participantes_sorteos"),
+                    where("comercio", "==", nomCom)
+                ));
+                
+                await Promise.all(snapP.docs.map(async p => {
+                    const pd = p.data();
+                    if (pd.usuarioId && !pd.usuarioId.startsWith('temp_')) {
+                        try {
+                            const ld = await getDoc(doc(db, "leads", pd.usuarioId));
+                            if (ld.exists() && (ld.data().convertidoVIP || ld.data().tipo === "VIP")) {
+                                cV++;
+                                return;
+                            }
+                        } catch (e) {}
+                    }
+                    pd.tipo === "VIP" ? cV++ : cL++;
+                }));
+            } catch (e) {
+                console.error("Error contando participantes:", e);
+            }
+            
+            const f = formatearFechaHora(fechaISO) || { fecha: 'A definir', hora: '' };
+            const badge = ts > Date.now()
+                ? `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`
+                : `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
+            
+            tabla.innerHTML += `<tr>
+                <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div></td>
+                <td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+                <td>
+                    <span class="badge badge-comercio">${nomCom}</span><br>
+                    <span class="badge badge-premio">🎁 ${premio}</span>
+                    ${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}
+                </td>
+                <td>
+                    <div class="participantes-cell">
+                        <div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cL}</span></div>
+                        <div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cV}</span></div>
+                        <div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${cL + cV}</span></div>
+                    </div>
+                </td>
+                <td>
+                    <button class="btn btn-sortear-accion"
+                        data-id="${docCom.id}"
+                        data-nombre="${nomCom}"
+                        data-premio="${premio}"
+                        data-cant="${cant}"
+                        data-mail="${c.email || ''}"
+                        data-logo="${c.logoUrl || ''}"
+                        data-desc="${descPremio}"
+                        data-timestamp="${ts}"
+                        data-clave-comercio="${c.password || ''}"
+                        onclick="intentarSorteo(this)">Calculando...</button>
+                    <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docCom.id}','${fechaISO}')">🗑️ Cancelar</button>
+                </td>
+                <td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant > 1 ? 's' : ''}</span></td>
             </tr>`;
         }
     });
 };
 
 const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc) => {
-    mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`,"warning");
+    mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
     try {
-        const snapP=await getDocs(query(collection(db,"admin_participantes_sorteos"),where("comercio","==",nomCom)));
-        let participantes=[];
+        const snapP = await getDocs(query(
+            collection(db, "admin_participantes_sorteos"),
+            where("comercio", "==", nomCom)
+        ));
+        
+        let participantes = [];
         for (const d of snapP.docs) {
-            const p=d.data(); let nom=p.nombre||"Participante",cel=p.celular||p.whatsapp||"S/D",tipo=p.tipo||"LEAD",email=p.email||"";
-            if(p.usuarioId&&!p.usuarioId.startsWith('temp_')){try{const ld=await getDoc(doc(db,"leads",p.usuarioId));if(ld.exists()){const l=ld.data();nom=`${l.nombres||''} ${l.apellido||''}`.trim()||nom;cel=l.whatsapp||l.celular||cel;tipo=(l.convertidoVIP||l.tipo==="VIP")?"VIP":"LEAD";email=l.email||email;}}catch(e){}}
-            participantes.push({...p,nombreMostrar:nom,celular:cel,tipo,email});
+            const p = d.data();
+            let nom = p.nombre || "Participante";
+            let cel = p.celular || p.whatsapp || "S/D";
+            let tipo = p.tipo || "LEAD";
+            let email = p.email || "";
+            let provincia = p.provincia || "";
+            let ciudad = p.ciudad || "";
+            let dni = p.dni || "";
+            
+            if (p.usuarioId && !p.usuarioId.startsWith('temp_')) {
+                try {
+                    const ld = await getDoc(doc(db, "leads", p.usuarioId));
+                    if (ld.exists()) {
+                        const l = ld.data();
+                        nom = `${l.nombres || ''} ${l.apellido || ''}`.trim() || nom;
+                        cel = l.whatsapp || l.celular || cel;
+                        tipo = (l.convertidoVIP || l.tipo === "VIP") ? "VIP" : "LEAD";
+                        email = l.email || email;
+                        provincia = l.provincia || provincia;
+                        ciudad = l.ciudad || ciudad;
+                        dni = l.dni || dni;
+                    }
+                } catch (e) {}
+            }
+            participantes.push({ ...p, nombreMostrar: nom, celular: cel, tipo, email, provincia, ciudad, dni });
         }
-        if(!participantes.length) return mostrarToast("⚠️ Sin participantes","error");
-        let ganadores=[],bolsa=[...participantes];
-        for(let i=0;i<Math.min(cant,bolsa.length);i++){const idx=Math.floor(Math.random()*bolsa.length);ganadores.push(bolsa.splice(idx,1)[0]);}
-        await addDoc(collection(db,"historial_sorteos"),{
-            comercio:nomCom, premio, descripcion_sorteo:desc||"", logoUrl:logoUrl||"",
-            ganadores, fecha:serverTimestamp(), mailComercio:mailC||'habitatcar@gmail.com', timestampProgramado:Date.now()
+        
+        if (!participantes.length) return mostrarToast("⚠️ Sin participantes", "error");
+        
+        let ganadores = [];
+        let bolsa = [...participantes];
+        for (let i = 0; i < Math.min(cant, bolsa.length); i++) {
+            const idx = Math.floor(Math.random() * bolsa.length);
+            ganadores.push(bolsa.splice(idx, 1)[0]);
+        }
+        
+        // Numerar los ganadores
+        const ganadoresConNumero = ganadores.map((g, index) => {
+            let numeroPremio = "";
+            if (cant === 1) {
+                numeroPremio = "Ganador";
+            } else {
+                const sufijos = ["º", "º", "º", "º", "º"];
+                numeroPremio = `${index + 1}${sufijos[index] || "º"} Premio`;
+            }
+            return {
+                ...g,
+                numeroPremio
+            };
+        });
+        
+        await addDoc(collection(db, "historial_sorteos"), {
+            comercio: nomCom,
+            premio,
+            descripcion_sorteo: desc || "",
+            logoUrl: logoUrl || "",
+            ganadores: ganadoresConNumero,
+            fecha: serverTimestamp(),
+            mailComercio: mailC || 'habitatcar@gmail.com',
+            timestampProgramado: Date.now()
         });
         
         try {
@@ -1287,123 +1445,175 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc)
             console.error("Error marcando sorteo como finalizado:", e);
         }
         
-        mostrarToast("✅ Sorteo exitoso","success");
-        mostrarConfirmacionSorteo(participantes.length, ganadores, nomCom);
+        mostrarToast("✅ Sorteo exitoso", "success");
+        mostrarConfirmacionSorteo(participantes.length, ganadoresConNumero, nomCom);
         actualizarEstadisticas();
-    } catch(e){console.error(e); mostrarToast("❌ Error en sorteo","error");}
+    } catch (e) {
+        console.error(e);
+        mostrarToast("❌ Error en sorteo", "error");
+    }
 };
 
 window.mostrarHistorial = () => {
-    window.vistaActual='historial'; window.itemsSeleccionados.clear(); actualizarBulkActions();
-    document.getElementById('header-checkbox').style.display='table-cell';
-    const tabla=document.getElementById('tabla-sorteos');
-    onSnapshot(collection(db,"historial_sorteos"), snap => {
-        tabla.innerHTML="";
+    window.vistaActual = 'historial';
+    window.itemsSeleccionados.clear();
+    actualizarBulkActions();
+    document.getElementById('header-checkbox').style.display = 'table-cell';
+    
+    const tabla = document.getElementById('tabla-sorteos');
+    onSnapshot(collection(db, "historial_sorteos"), snap => {
+        tabla.innerHTML = "";
         actualizarEstadisticas();
-        snap.docs.sort((a,b)=>(b.data().fecha?.seconds||0)-(a.data().fecha?.seconds||0))
-        .forEach(docSnap => {
-            const h=docSnap.data();
-            const fecha=h.fecha?.toDate?h.fecha.toDate().toLocaleString():"Reciente";
-            const logoC=h.logoUrl||LOGO_DEFAULT;
-            const descSorteo=h.descripcion_sorteo||"";
-            (h.ganadores||[]).forEach(g => {
-                const nombreG=g.nombreMostrar||"Invitado", celG=g.celular||"", emailG=g.email||"";
-                const badge=g.tipo==="VIP"
-                    ?`<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>`
-                    :`<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
-                const esc=s=>(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;');
-                tabla.innerHTML+=`<tr>
-                <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}',this)"></td>
-                <td><small>${fecha}</small></td>
-                <td><img src="${esc(logoC)}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-                <td>
-                    <span class="badge badge-comercio">${h.comercio}</span><br>
-                    <span class="badge badge-premio">🎁 ${h.premio}</span>
-                    ${descSorteo?`<div class="premio-desc">${descSorteo}</div>`:''}
-                </td>
-                <td><div style="font-weight:bold">${nombreG}</div><div style="margin-top:4px">${badge}</div></td>
-                <td>
-                    <div style="font-size:0.85em;color:var(--verde);margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>
-                    ${emailG?`<div style="font-size:0.8em;color:#666;word-break:break-all;"><i class="fas fa-envelope"></i> ${emailG}</div>`:''}
-                    <div style="margin-top:8px;">
-                        <button class="btn-accion btn-wapdf"
-                            data-nombre="${esc(nombreG)}"
-                            data-premio="${esc(h.premio)}"
-                            data-comercio="${esc(h.comercio)}"
-                            data-descripcion="${esc(descSorteo)}"
-                            data-cel="${esc(celG)}"
-                            data-logo="${esc(logoC)}"
-                            onclick="clickEnviarTicket(this)"
-                            title="Genera PDF y abre WhatsApp con mensaje personalizado">
-                            <i class="fab fa-whatsapp"></i> <i class="fas fa-file-pdf"></i> ENVIAR WHATSAPP Y PDF
-                        </button>
-                    </div>
-                </td>
-                <td>
-                    <button class="btn-accion" style="background:#6c757d"
-                        data-texto="${esc(nombreG+' - WA: '+celG+' - Email: '+emailG)}"
-                        onclick="navigator.clipboard.writeText(this.dataset.texto);mostrarToast('📋 Copiado','warning')">
-                        <i class="fas fa-copy"></i>
-                    </button>
-                    <button class="btn-accion btn-delete" onclick="eliminarIndividual('${docSnap.id}',this)">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-                </tr>`;
+        
+        snap.docs.sort((a, b) => (b.data().fecha?.seconds || 0) - (a.data().fecha?.seconds || 0))
+            .forEach(docSnap => {
+                const h = docSnap.data();
+                const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
+                const logoC = h.logoUrl || LOGO_DEFAULT;
+                const descSorteo = h.descripcion_sorteo || "";
+                
+                (h.ganadores || []).forEach((g, index) => {
+                    const nombreG = g.nombreMostrar || "Invitado";
+                    const celG = g.celular || "";
+                    const emailG = g.email || "";
+                    const numeroPremio = g.numeroPremio || (h.ganadores.length === 1 ? "Ganador" : `${index + 1}º Premio`);
+                    
+                    const badge = g.tipo === "VIP"
+                        ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>`
+                        : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
+                    
+                    const esc = s => (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+                    
+                    tabla.innerHTML += `<tr>
+                        <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}',this)"></td>
+                        <td><small>${fecha}</small></td>
+                        <td><img src="${esc(logoC)}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+                        <td>
+                            <span class="badge badge-comercio">${h.comercio}</span><br>
+                            <span class="badge badge-premio">🎁 ${h.premio}</span>
+                            ${descSorteo ? `<div class="premio-desc">${descSorteo}</div>` : ''}
+                        </td>
+                        <td>
+                            <div style="font-weight:bold">${nombreG}</div>
+                            <div><span class="badge" style="background:var(--oro); color:white; margin-top:4px;">${numeroPremio}</span> ${badge}</div>
+                        </td>
+                        <td>
+                            <div style="font-size:0.85em;color:var(--verde);margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>
+                            ${emailG ? `<div style="font-size:0.8em;color:#666;word-break:break-all;"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
+                            <div style="margin-top:8px; display:flex; gap:5px; flex-wrap:wrap;">
+                                <button class="btn-accion btn-wapdf"
+                                    data-nombre="${esc(nombreG)}"
+                                    data-premio="${esc(h.premio)}"
+                                    data-comercio="${esc(h.comercio)}"
+                                    data-descripcion="${esc(descSorteo)}"
+                                    data-cel="${esc(celG)}"
+                                    data-logo="${esc(logoC)}"
+                                    onclick="clickEnviarTicket(this)"
+                                    title="Genera PDF y abre WhatsApp">
+                                    <i class="fab fa-whatsapp"></i> <i class="fas fa-file-pdf"></i>
+                                </button>
+                                <button class="btn-accion btn-email"
+                                    onclick="enviarEmailGanador('${esc(nombreG)}', '${esc(h.premio)}', '${esc(h.comercio)}', '${esc(emailG)}')"
+                                    title="Enviar email al ganador">
+                                    <i class="fas fa-envelope"></i>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <button class="btn-accion" style="background:#6c757d"
+                                data-texto="${esc(nombreG + ' - WA: ' + celG + ' - Email: ' + emailG)}"
+                                onclick="navigator.clipboard.writeText(this.dataset.texto);mostrarToast('📋 Copiado','warning')">
+                                <i class="fas fa-copy"></i>
+                            </button>
+                            <button class="btn-accion btn-delete" onclick="eliminarIndividual('${docSnap.id}',this)">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>`;
+                });
             });
-        });
     });
 };
 
 window.clickEnviarTicket = btn => {
     window.enviarTicketElite(
-        btn.dataset.nombre      || '',
-        btn.dataset.premio      || '',
-        btn.dataset.comercio    || '',
+        btn.dataset.nombre || '',
+        btn.dataset.premio || '',
+        btn.dataset.comercio || '',
         btn.dataset.descripcion || '',
-        btn.dataset.cel         || '',
-        btn.dataset.logo        || ''
+        btn.dataset.cel || '',
+        btn.dataset.logo || ''
     );
 };
 
-function mostrarToast(msg, tipo="success") {
-    const d=document.createElement('div'); d.className=`toast ${tipo}`; d.innerText=msg;
-    document.body.appendChild(d); setTimeout(()=>d.remove(),3500);
+function mostrarToast(msg, tipo = "success") {
+    const d = document.createElement('div');
+    d.className = `toast ${tipo}`;
+    d.innerText = msg;
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 3500);
 }
 
 function formatearFechaHora(fechaISO) {
-    if(!fechaISO)return null;
-    try{const[fp,hp]=fechaISO.split('T');const[a,m,d]=fp.split('-');const[h,min]=hp.split(':');return{fecha:`${d}/${m}/${a}`,hora:`${h}:${min} Hs.`};}catch(e){return null;}
+    if (!fechaISO) return null;
+    try {
+        const [fp, hp] = fechaISO.split('T');
+        const [a, m, d] = fp.split('-');
+        const [h, min] = hp.split(':');
+        return { fecha: `${d}/${m}/${a}`, hora: `${h}:${min} Hs.` };
+    } catch (e) {
+        return null;
+    }
 }
 
-document.getElementById('btn-activos').onclick  = cargarActivos;
+document.getElementById('btn-activos').onclick = cargarActivos;
 document.getElementById('btn-historial').onclick = () => { mostrarHistorial(); actualizarEstadisticas(); };
-document.addEventListener('DOMContentLoaded',()=>{ 
-    cargarActivos(); 
-    iniciarRelojes(); 
+
+document.addEventListener('DOMContentLoaded', () => {
+    cargarActivos();
+    iniciarRelojes();
     actualizarEstadisticas();
     programarSorteosPendientes();
-    setInterval(programarSorteosPendientes, 3600000);
+    // Revisar cada 30 minutos en lugar de cada hora
+    setInterval(programarSorteosPendientes, 1800000);
 });
-document.getElementById('modalPDF').addEventListener('click',e=>{ if(e.target.id==='modalPDF') cerrarModales(); });
-document.getElementById('modalWA').addEventListener('click', e=>{ if(e.target.id==='modalWA')  cerrarModales(); });
-document.getElementById('modal-clave').addEventListener('click', e=>{ if(e.target.id==='modal-clave') cerrarModalClave(); });
 
-window.mostrarHistorial=mostrarHistorial; window.mostrarToast=mostrarToast;
-window.mostrarConfirmacionSorteo=mostrarConfirmacionSorteo; window.cerrarModalSorteo=cerrarModalSorteo;
-window.irAlHistorial=irAlHistorial; window.toggleSeleccion=toggleSeleccion; window.toggleSelectAll=toggleSelectAll;
-window.eliminarSeleccionados=eliminarSeleccionados; window.desmarcarTodos=desmarcarTodos;
-window.eliminarIndividual=eliminarIndividual; window.actualizarBulkActions=actualizarBulkActions;
-window.intentarSorteo=intentarSorteo; window.intentarEliminarSorteo=intentarEliminarSorteo;
-window.validarAccionSegura=validarAccionSegura; window.enviarTicketElite=enviarTicketElite;
-window.clickEnviarTicket=clickEnviarTicket; window.abrirEditorPDF=abrirEditorPDF;
-window.abrirEditorWA=abrirEditorWA; window.actualizarPrevia=actualizarPrevia;
-window.guardarConfigPDF=guardarConfigPDF; window.guardarConfigWA=guardarConfigWA;
-window.cerrarModales=cerrarModales; window.iniciarRelojes=iniciarRelojes;
-window.toggleDarkMode=toggleDarkMode; window.cargarPlantilla=cargarPlantilla;
-window.subirImagenFondo=subirImagenFondo; window.procesarImagenSubida=procesarImagenSubida;
-window.ejecutarSorteoAutomatico=ejecutarSorteoAutomatico;
-window.abrirModalClave=abrirModalClave; window.cerrarModalClave=cerrarModalClave; window.validarClaveModal=validarClaveModal;
+document.getElementById('modalPDF').addEventListener('click', e => { if (e.target.id === 'modalPDF') cerrarModales(); });
+document.getElementById('modalWA').addEventListener('click', e => { if (e.target.id === 'modalWA') cerrarModales(); });
+document.getElementById('modal-clave').addEventListener('click', e => { if (e.target.id === 'modal-clave') cerrarModalClave(); });
+
+window.mostrarHistorial = mostrarHistorial;
+window.mostrarToast = mostrarToast;
+window.mostrarConfirmacionSorteo = mostrarConfirmacionSorteo;
+window.cerrarModalSorteo = cerrarModalSorteo;
+window.irAlHistorial = irAlHistorial;
+window.toggleSeleccion = toggleSeleccion;
+window.toggleSelectAll = toggleSelectAll;
+window.eliminarSeleccionados = eliminarSeleccionados;
+window.desmarcarTodos = desmarcarTodos;
+window.eliminarIndividual = eliminarIndividual;
+window.actualizarBulkActions = actualizarBulkActions;
+window.intentarSorteo = intentarSorteo;
+window.intentarEliminarSorteo = intentarEliminarSorteo;
+window.validarAccionSegura = validarAccionSegura;
+window.enviarTicketElite = enviarTicketElite;
+window.clickEnviarTicket = clickEnviarTicket;
+window.abrirEditorPDF = abrirEditorPDF;
+window.abrirEditorWA = abrirEditorWA;
+window.actualizarPrevia = actualizarPrevia;
+window.guardarConfigPDF = guardarConfigPDF;
+window.guardarConfigWA = guardarConfigWA;
+window.cerrarModales = cerrarModales;
+window.iniciarRelojes = iniciarRelojes;
+window.toggleDarkMode = toggleDarkMode;
+window.cargarPlantilla = cargarPlantilla;
+window.subirImagenFondo = subirImagenFondo;
+window.procesarImagenSubida = procesarImagenSubida;
+window.ejecutarSorteoAutomatico = ejecutarSorteoAutomatico;
+window.abrirModalClave = abrirModalClave;
+window.cerrarModalClave = cerrarModalClave;
+window.validarClaveModal = validarClaveModal;
+window.enviarEmailGanador = enviarEmailGanador;
 </script>
 </body>
 </html>
