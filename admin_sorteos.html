@@ -238,18 +238,6 @@ style="background:#25D366; color:white; border:none; border-radius:8px; padding:
 <button class="btn btn-warning" onclick="cerrarModalSorteo()" style="margin-top:10px;">SEGUIR AQUÍ</button>
 </div>
 </div>
-<!-- MODAL PARA SOLICITAR CLAVE -->
-<div id="modal-clave" class="modal" style="display:none;">
-<div class="modal-content">
-<h3 style="color:var(--azul-habitat); margin-bottom:15px;">🔐 AUTORIZACIÓN REQUERIDA</h3>
-<p id="modal-clave-mensaje" style="margin-bottom:15px;">Ingrese la clave de comercio o maestra</p>
-<input type="password" id="modal-clave-input" placeholder="Clave de acceso">
-<div class="modal-buttons">
-<button class="btn btn-success" onclick="validarClaveModal()">CONFIRMAR</button>
-<button class="btn btn-danger" onclick="cerrarModalClave()">CANCELAR</button>
-</div>
-</div>
-</div>
 <!-- MODAL EDITOR PDF -->
 <div id="modalPDF" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:10000; overflow-y:auto; padding:16px; box-sizing:border-box;">
 <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:18px; max-width:1060px; margin:auto; padding-top:8px;">
@@ -640,25 +628,6 @@ cerrarModales();
 window.cerrarModales = () => {
 document.getElementById('modalPDF').style.display = 'none';
 document.getElementById('modalWA').style.display  = 'none';
-document.getElementById('modal-clave').style.display = 'none';
-};
-window.abrirModalClave = (mensaje, callback) => {
-document.getElementById('modal-clave-mensaje').textContent = mensaje;
-document.getElementById('modal-clave-input').value = '';
-document.getElementById('modal-clave').style.display = 'flex';
-window.callbackClave = callback;
-};
-window.cerrarModalClave = () => {
-document.getElementById('modal-clave').style.display = 'none';
-window.callbackClave = null;
-};
-window.validarClaveModal = async () => {
-const clave = document.getElementById('modal-clave-input').value;
-if (!clave || !window.callbackClave) return;
-const resultado = await window.callbackClave(clave);
-if (resultado) {
-cerrarModalClave();
-}
 };
 window.enviarEmailGanador = async (nombre, premio, comercio, email) => {
 if (!email) {
@@ -863,14 +832,15 @@ try {
 const ahora = Date.now();
 const q = query(
 collection(db, "comercios"),
-where("titulo_sorteo", "!=", null)
+where("titulo_sorteo", "!=", null),
+where("sorteo_finalizado", "!=", true)
 );
 const snap = await getDocs(q);
 snap.forEach(doc => {
 const c = doc.data();
 if (!c.fecha_sorteo) return;
 const ts = new Date(c.fecha_sorteo).getTime();
-if (ts <= ahora && !c.sorteo_finalizado) {
+if (ts <= ahora) {
 console.log(`⏰ Ejecutando sorteo de ${c.nombre} ahora mismo`);
 window.ejecutarSorteoAutomatico(doc.id);
 }
@@ -958,26 +928,37 @@ const orig=btn.innerHTML; btn.disabled=true; btn.innerHTML="⏳";
 try { await deleteDoc(doc(db,"historial_sorteos",id)); mostrarToast("✅ Eliminado","success"); mostrarHistorial(); actualizarEstadisticas(); }
 catch(e) { mostrarToast("❌ Error","error"); btn.disabled=false; btn.innerHTML=orig; }
 };
+// ============================================
+// ✅ RELOJES - SOLO MUESTRA TIEMPO, SIN FUNCIÓN DE ACTIVACIÓN
+// ============================================
 window.iniciarRelojes = () => {
 setInterval(() => {
-document.querySelectorAll('.btn-sortear-accion:not(.finalizado)').forEach(btn => {
+document.querySelectorAll('.btn-sortear-accion').forEach(btn => {
+// Si el botón ya está deshabilitado (sorteo finalizado), no hacer nada
+if (btn.disabled || btn.closest('tr')?.classList.contains('finalizado')) {
+return;
+}
 const ts=parseInt(btn.dataset.timestamp), f=ts-Date.now();
 if (f>0) {
+// Solo muestra la cuenta regresiva
 const d=Math.floor(f/86400000),h=Math.floor((f%86400000)/3600000),m=Math.floor((f%3600000)/60000),s=Math.floor((f%60000)/1000);
-btn.innerHTML=`⏳ ${d}d ${h}h ${m}m ${s}s`; btn.classList.add('btn-dark'); btn.classList.remove('btn-primary');
-} else { btn.innerHTML=`🎲 SORTEAR AHORA`; btn.classList.remove('btn-dark'); btn.classList.add('btn-primary'); }
+btn.innerHTML=`⏳ ${d}d ${h}h ${m}m ${s}s`;
+btn.classList.add('btn-dark');
+btn.classList.remove('btn-primary');
+} else {
+// Cuando el tiempo llega a 0, cambia a "SORTEAR AHORA"
+btn.innerHTML=`🎲 SORTEAR AHORA`;
+btn.classList.remove('btn-dark');
+btn.classList.add('btn-primary');
+}
 });
 },1000);
 };
-window.validarAccionSegura = async (idComercio, claveIngresada) => {
-if (claveIngresada === CLAVE_MAESTRA) return true;
-try {
-const s = await getDoc(doc(db, "comercios", idComercio));
-if (s.exists() && claveIngresada === s.data().password) return true;
-} catch(e) {}
-return false;
-};
+// ============================================
+// ✅ EJECUTAR SORTEO - SIN CONTRASEÑA, DIRECTO
+// ============================================
 window.intentarSorteo = async (btn) => {
+// Si ya está finalizado, no hacer nada
 if (btn.closest('tr')?.classList.contains('finalizado')) {
 mostrarToast("🔒 Sorteo ya finalizado", "warning");
 return;
@@ -990,65 +971,16 @@ const cant = parseInt(btn.dataset.cant);
 const mailC = btn.dataset.mail;
 const logoUrl = btn.dataset.logo;
 const desc = btn.dataset.desc;
+// Solo permite ejecutar si la fecha ya pasó
 if (Date.now() < ts) {
-const mensaje = `🔒 Sorteo programado para ${new Date(ts).toLocaleString()}
-Ingrese clave de comercio o maestra para realizar el sorteo AHORA`;
-abrirModalClave(mensaje, async (clave) => {
-if (!clave) return false;
-const valida = await validarAccionSegura(idComercio, clave);
-if (valida) {
-mostrarToast("🔓 Acceso autorizado - Realizando sorteo", "warning");
+mostrarToast("⏳ El sorteo aún no está disponible", "warning");
+return;
+}
+// Ejecuta directamente sin contraseña
 ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
-return true;
-} else {
-mostrarToast("❌ Contraseña incorrecta", "error");
-return false;
-}
-});
-} else {
-ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
-}
-};
-window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
-const dh = (new Date(fechaSorteoISO).getTime() - Date.now()) / 3600000;
-let mensaje;
-if (dh < 24 && dh > 0) {
-mensaje = "⚠️ ZONA CRÍTICA: Faltan menos de 24hs\nSolo la CLAVE MAESTRA puede cancelar este sorteo.\nIngrese la clave:";
-} else {
-mensaje = "Ingrese CLAVE DE COMERCIO o MAESTRA para eliminar:";
-}
-abrirModalClave(mensaje, async (clave) => {
-if (!clave) return false;
-const valida = await validarAccionSegura(idComercio, clave);
-if (!valida) {
-mostrarToast("❌ Contraseña incorrecta", "error");
-return false;
-}
-if (dh < 24 && dh > 0 && clave !== CLAVE_MAESTRA) {
-mostrarToast("❌ Solo Admin puede cancelar sorteos inminentes", "error");
-return false;
-}
-try {
-await updateDoc(doc(db, "comercios", idComercio), {
-titulo_sorteo: null,
-descripcion_sorteo: null,
-fecha_sorteo: null,
-cantidad_premios: null,
-logoUrl: null,
-sorteo_finalizado: null,
-timestamp_finalizacion: null
-});
-mostrarToast("🗑️ Sorteo cancelado", "success");
-cargarActivos();
-return true;
-} catch (e) {
-mostrarToast("❌ Error", "error");
-return false;
-}
-});
 };
 // ============================================
-// ✅ CARGAR ACTIVOS - CORREGIDO (USA sorteo_finalizado DE FIREBASE)
+// ✅ CARGAR ACTIVOS
 // ============================================
 const cargarActivos = () => {
 window.vistaActual = 'activos';
@@ -1067,22 +999,13 @@ if (data.titulo_sorteo) {
 comerciosArray.push({ id: doc.id, data: data });
 }
 });
-// ✅ ORDEN: Primero los NO finalizados, luego los finalizados
+// ORDEN: Primero los activos, luego los finalizados
+const ahora = Date.now();
 comerciosArray.sort((a, b) => {
-// ✅ USAR EL FLAG DE FIREBASE, NO LA FECHA
 const finalizadoA = a.data.sorteo_finalizado === true;
 const finalizadoB = b.data.sorteo_finalizado === true;
-// Si ambos están finalizados, ordenar por fecha descendente
-if (finalizadoA && finalizadoB) {
-const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
-const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
-return fechaB - fechaA;
-}
-// Si solo A está finalizado, A va después
 if (finalizadoA && !finalizadoB) return 1;
-// Si solo B está finalizado, B va después
 if (!finalizadoA && finalizadoB) return -1;
-// Ambos activos: ordenar por fecha ascendente (más próximos primero)
 const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
 const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
 return fechaA - fechaB;
@@ -1098,7 +1021,6 @@ const descPremio = c.descripcion_sorteo || "";
 const cant = parseInt(c.cantidad_premios) || 1;
 const fechaISO = c.fecha_sorteo || "";
 const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
-// ✅ USAR EL FLAG DE FIREBASE PARA DETERMINAR SI ESTÁ FINALIZADO
 const finalizado = c.sorteo_finalizado === true;
 let cL = 0, cV = 0;
 try {
@@ -1127,7 +1049,7 @@ let badge = '';
 let estadoClase = finalizado ? 'finalizado' : '';
 if (finalizado) {
 badge = `<span class="badge badge-finalizado">✅ SORTEO FINALIZADO</span>`;
-} else if (ts > Date.now()) {
+} else if (ts > ahora) {
 badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`;
 } else {
 badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
@@ -1160,7 +1082,6 @@ data-mail="${c.email || ''}"
 data-logo="${c.logoUrl || ''}"
 data-desc="${descPremio}"
 data-timestamp="${ts}"
-data-clave-comercio="${c.password || ''}"
 onclick="intentarSorteo(this)">Calculando...</button>`
 }
 <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docId}','${fechaISO}')">🗑️ Cancelar</button>
@@ -1171,7 +1092,7 @@ onclick="intentarSorteo(this)">Calculando...</button>`
 });
 };
 // ============================================
-// ✅ EJECUTAR SORTEO - CON ELIMINACIÓN DE PARTICIPANTES Y RECARGA INMEDIATA
+// ✅ EJECUTAR SORTEO - MARCA COMO FINALIZADO INMEDIATAMENTE
 // ============================================
 const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc) => {
 mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
@@ -1234,7 +1155,7 @@ await updateDoc(doc(db, "comercios", idCom), {
 sorteo_finalizado: true,
 timestamp_finalizacion: serverTimestamp()
 });
-console.log(`✅ Sorteo de ${nomCom} marcado como finalizado en Firebase`);
+console.log(`✅ Sorteo de ${nomCom} marcado como finalizado`);
 } catch (e) {
 console.error("Error marcando sorteo como finalizado:", e);
 }
@@ -1254,7 +1175,7 @@ window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, 
 } catch (e) {
 console.error("Error notificando al comercio:", e);
 }
-// ✅ ELIMINAR TODOS LOS PARTICIPANTES DE ESTE COMERCIO
+// ✅ ELIMINAR PARTICIPANTES
 try {
 const participantesAEliminar = await getDocs(query(
 collection(db, "admin_participantes_sorteos"),
@@ -1272,11 +1193,53 @@ console.error("Error eliminando participantes:", e);
 mostrarToast("✅ Sorteo exitoso", "success");
 mostrarConfirmacionSorteo(participantes.length, ganadoresConNumero, nomCom);
 actualizarEstadisticas();
-// ✅ FORZAR RECARGA INMEDIATA PARA MOSTRAR EL CAMBIO
+// ✅ RECARGAR PARA MOSTRAR COMO FINALIZADO
 cargarActivos();
 } catch (e) {
 console.error(e);
 mostrarToast("❌ Error en sorteo", "error");
+}
+};
+window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
+const dh = (new Date(fechaSorteoISO).getTime() - Date.now()) / 3600000;
+let mensaje;
+if (dh < 24 && dh > 0) {
+mensaje = "⚠️ ZONA CRÍTICA: Faltan menos de 24hs\nSolo la CLAVE MAESTRA puede cancelar este sorteo.\nIngrese la clave:";
+} else {
+mensaje = "Ingrese CLAVE DE COMERCIO o MAESTRA para eliminar:";
+}
+const clave = prompt(mensaje);
+if (!clave) return;
+if (clave !== CLAVE_MAESTRA) {
+try {
+const s = await getDoc(doc(db, "comercios", idComercio));
+if (!s.exists() || clave !== s.data().password) {
+mostrarToast("❌ Contraseña incorrecta", "error");
+return;
+}
+} catch(e) {
+mostrarToast("❌ Error", "error");
+return;
+}
+}
+if (dh < 24 && dh > 0 && clave !== CLAVE_MAESTRA) {
+mostrarToast("❌ Solo Admin puede cancelar sorteos inminentes", "error");
+return;
+}
+try {
+await updateDoc(doc(db, "comercios", idComercio), {
+titulo_sorteo: null,
+descripcion_sorteo: null,
+fecha_sorteo: null,
+cantidad_premios: null,
+logoUrl: null,
+sorteo_finalizado: null,
+timestamp_finalizacion: null
+});
+mostrarToast("🗑️ Sorteo cancelado", "success");
+cargarActivos();
+} catch (e) {
+mostrarToast("❌ Error", "error");
 }
 };
 window.mostrarHistorial = () => {
@@ -1495,7 +1458,6 @@ setInterval(programarSorteosPendientes, 30000);
 });
 document.getElementById('modalPDF').addEventListener('click', e => { if (e.target.id === 'modalPDF') cerrarModales(); });
 document.getElementById('modalWA').addEventListener('click', e => { if (e.target.id === 'modalWA') cerrarModales(); });
-document.getElementById('modal-clave').addEventListener('click', e => { if (e.target.id === 'modal-clave') cerrarModalClave(); });
 window.mostrarHistorial = mostrarHistorial;
 window.mostrarToast = mostrarToast;
 window.mostrarConfirmacionSorteo = mostrarConfirmacionSorteo;
@@ -1510,7 +1472,6 @@ window.eliminarIndividual = eliminarIndividual;
 window.actualizarBulkActions = actualizarBulkActions;
 window.intentarSorteo = intentarSorteo;
 window.intentarEliminarSorteo = intentarEliminarSorteo;
-window.validarAccionSegura = validarAccionSegura;
 window.enviarTicketElite = enviarTicketElite;
 window.clickEnviarTicket = clickEnviarTicket;
 window.abrirEditorPDF = abrirEditorPDF;
@@ -1525,9 +1486,6 @@ window.cargarPlantilla = cargarPlantilla;
 window.subirImagenFondo = subirImagenFondo;
 window.procesarImagenSubida = procesarImagenSubida;
 window.ejecutarSorteoAutomatico = ejecutarSorteoAutomatico;
-window.abrirModalClave = abrirModalClave;
-window.cerrarModalClave = cerrarModalClave;
-window.validarClaveModal = validarClaveModal;
 window.enviarEmailGanador = enviarEmailGanador;
 </script>
 </body>
