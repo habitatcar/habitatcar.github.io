@@ -890,7 +890,21 @@ if (num) {
 window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, '_blank');
 }
 }
-// ✅ NO ELIMINAR PARTICIPANTES - se guardan en el historial
+// ✅ ELIMINAR TODOS LOS PARTICIPANTES DE ESTE COMERCIO
+try {
+const participantesAEliminar = await getDocs(query(
+collection(db, "admin_participantes_sorteos"),
+where("comercio", "==", comercio.nombre)
+));
+const batch = [];
+participantesAEliminar.forEach(doc => {
+batch.push(deleteDoc(doc.ref));
+});
+await Promise.all(batch);
+console.log(`✅ Participantes de ${comercio.nombre} eliminados`);
+} catch (e) {
+console.error("Error eliminando participantes:", e);
+}
 mostrarToast(`✅ Sorteo automático de ${comercio.nombre} realizado`, "success");
 actualizarEstadisticas();
 } catch (e) {
@@ -906,15 +920,15 @@ try {
 const ahora = Date.now();
 const q = query(
 collection(db, "comercios"),
-where("titulo_sorteo", "!=", null)
+where("titulo_sorteo", "!=", null),
+where("sorteo_finalizado", "!=", true)
 );
 const snap = await getDocs(q);
 snap.forEach(doc => {
 const c = doc.data();
 if (!c.fecha_sorteo) return;
 const ts = new Date(c.fecha_sorteo).getTime();
-// Solo ejecutar si NO está finalizado
-if (ts <= ahora && !c.sorteo_finalizado) {
+if (ts <= ahora) {
 console.log(`⏰ Ejecutando sorteo de ${c.nombre} ahora mismo`);
 window.ejecutarSorteoAutomatico(doc.id);
 }
@@ -1104,7 +1118,7 @@ return false;
 });
 };
 // ============================================
-// CARGAR ACTIVOS (CORREGIDO - USA FECHA PARA DETERMINAR FINALIZADO)
+// CARGAR ACTIVOS (CORREGIDO - SIN ESPERA DE 1 HORA)
 // ============================================
 const cargarActivos = () => {
 window.vistaActual = 'activos';
@@ -1119,7 +1133,6 @@ tabla.innerHTML = "";
 const comerciosArray = [];
 snap.forEach(doc => {
 const data = doc.data();
-// ✅ SOLO FILTRAMOS POR TITULO_SORTEO (no por sorteo_finalizado)
 if (data.titulo_sorteo) {
 comerciosArray.push({ id: doc.id, data: data });
 }
@@ -1129,18 +1142,15 @@ const ahora = Date.now();
 comerciosArray.sort((a, b) => {
 const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
 const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
-// ✅ SOLO USAMOS LA FECHA PARA DETERMINAR SI ESTÁ FINALIZADO
-const finalizadoA = fechaA < ahora - 3600000;
-const finalizadoB = fechaB < ahora - 3600000;
-// Si ambos están finalizados, ordenar por fecha descendente
+// ✅ CORRECCIÓN: Usar el flag de Firebase O la fecha
+const finalizadoA = a.data.sorteo_finalizado === true || fechaA < ahora;
+const finalizadoB = b.data.sorteo_finalizado === true || fechaB < ahora;
+
 if (finalizadoA && finalizadoB) {
 return fechaB - fechaA;
 }
-// Si solo A está finalizado, A va después
 if (finalizadoA && !finalizadoB) return 1;
-// Si solo B está finalizado, B va después
 if (!finalizadoA && finalizadoB) return -1;
-// Ambos activos: ordenar por fecha ascendente (más próximos primero)
 return fechaA - fechaB;
 });
 if (comerciosArray.length === 0) {
@@ -1154,8 +1164,8 @@ const descPremio = c.descripcion_sorteo || "";
 const cant = parseInt(c.cantidad_premios) || 1;
 const fechaISO = c.fecha_sorteo || "";
 const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
-// ✅ SOLO LA FECHA DETERMINA SI ESTÁ FINALIZADO (no el flag sorteo_finalizado)
-const finalizado = ts < ahora - 3600000; // 1 hora después de la fecha
+// ✅ CORRECCIÓN: Finalizado si el flag es true O si la fecha pasó
+const finalizado = c.sorteo_finalizado === true || ts < ahora;
 let cL = 0, cV = 0;
 try {
 const snapP = await getDocs(query(
@@ -1227,7 +1237,7 @@ onclick="intentarSorteo(this)">Calculando...</button>`
 });
 };
 // ============================================
-// EJECUTAR SORTEO (SIN ELIMINAR PARTICIPANTES)
+// EJECUTAR SORTEO (CON ELIMINACIÓN DE PARTICIPANTES)
 // ============================================
 const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc) => {
 mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
@@ -1284,7 +1294,6 @@ fecha: serverTimestamp(),
 mailComercio: mailC || 'habitatcar@gmail.com',
 timestampProgramado: Date.now()
 });
-// ✅ MARCAR COMO FINALIZADO (pero se reseteará con nueva fecha)
 try {
 await updateDoc(doc(db, "comercios", idCom), {
 sorteo_finalizado: true,
@@ -1309,7 +1318,21 @@ window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, 
 } catch (e) {
 console.error("Error notificando al comercio:", e);
 }
-// ✅ NO ELIMINAR PARTICIPANTES - se guardan en el historial
+// ✅ ELIMINAR TODOS LOS PARTICIPANTES DE ESTE COMERCIO
+try {
+const participantesAEliminar = await getDocs(query(
+collection(db, "admin_participantes_sorteos"),
+where("comercio", "==", nomCom)
+));
+const batch = [];
+participantesAEliminar.forEach(doc => {
+batch.push(deleteDoc(doc.ref));
+});
+await Promise.all(batch);
+console.log(`✅ Participantes de ${nomCom} eliminados`);
+} catch (e) {
+console.error("Error eliminando participantes:", e);
+}
 mostrarToast("✅ Sorteo exitoso", "success");
 mostrarConfirmacionSorteo(participantes.length, ganadoresConNumero, nomCom);
 actualizarEstadisticas();
