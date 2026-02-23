@@ -418,9 +418,9 @@ const db  = getFirestore(app);
 // VARIABLES GLOBALES
 // ============================================
 let estadisticas = { totalSorteos: 0, totalGanadores: 0, topComercio: '-', participantesUnicos: new Set() };
-let datosPendientes = null;
 let listenerActivos = null;
 let listenerHistorial = null;
+let sorteosProcesados = new Set();
 // ============================================
 // MODO OSCURO
 // ============================================
@@ -891,21 +891,6 @@ if (num) {
 window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, '_blank');
 }
 }
-// ✅ ELIMINAR TODOS LOS PARTICIPANTES DE ESTE COMERCIO
-try {
-const participantesAEliminar = await getDocs(query(
-collection(db, "admin_participantes_sorteos"),
-where("comercio", "==", comercio.nombre)
-));
-const batch = [];
-participantesAEliminar.forEach(doc => {
-batch.push(deleteDoc(doc.ref));
-});
-await Promise.all(batch);
-console.log(`✅ Participantes de ${comercio.nombre} eliminados`);
-} catch (e) {
-console.error("Error eliminando participantes:", e);
-}
 mostrarToast(`✅ Sorteo automático de ${comercio.nombre} realizado`, "success");
 actualizarEstadisticas();
 } catch (e) {
@@ -1119,141 +1104,138 @@ return false;
 });
 };
 // ============================================
-// CARGAR ACTIVOS (CON ORDEN CORREGIDO)
+// CARGAR ACTIVOS (CON ORDEN CORREGIDO + PARTICIPANTES LIMPIOS)
 // ============================================
 const cargarActivos = () => {
-    window.vistaActual = 'activos';
-    window.itemsSeleccionados.clear();
-    actualizarBulkActions();
-    document.getElementById('header-checkbox').style.display = 'table-cell';
-    
-    const tabla = document.getElementById('tabla-sorteos');
-    tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando sorteos...</td></tr>';
-    
-    if (listenerActivos) listenerActivos();
-    
-    listenerActivos = onSnapshot(collection(db, "comercios"), async (snap) => {
-        tabla.innerHTML = "";
-        const comerciosArray = [];
-        
-        snap.forEach(doc => {
-            const data = doc.data();
-            if (data.titulo_sorteo) {
-                comerciosArray.push({ id: doc.id, data: data });
-            }
-        });
-        
-        // ORDEN CORREGIDO: Primero los más próximos (fecha más cercana a ahora)
-        // y al final los ya sorteados
-        const ahora = Date.now();
-        comerciosArray.sort((a, b) => {
-            const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
-            const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
-            const finalizadoA = fechaA < ahora - 3600000;
-            const finalizadoB = fechaB < ahora - 3600000;
-            
-            // Si ambos están finalizados, ordenar por fecha descendente
-            if (finalizadoA && finalizadoB) {
-                return fechaB - fechaA;
-            }
-            // Si solo A está finalizado, A va después
-            if (finalizadoA && !finalizadoB) return 1;
-            // Si solo B está finalizado, B va después
-            if (!finalizadoA && finalizadoB) return -1;
-            // Ambos activos: ordenar por fecha ascendente (más próximos primero)
-            return fechaA - fechaB;
-        });
-        
-        if (comerciosArray.length === 0) {
-            tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#666;">📭 No hay sorteos activos</td></tr>';
-            return;
-        }
-        
-        for (const { id: docId, data: c } of comerciosArray) {
-            const nomCom = c.nombre || "Sin nombre";
-            const premio = c.titulo_sorteo;
-            const descPremio = c.descripcion_sorteo || "";
-            const cant = parseInt(c.cantidad_premios) || 1;
-            const fechaISO = c.fecha_sorteo || "";
-            const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
-            
-            // ✅ DETERMINAMOS SI ESTÁ FINALIZADO BASADO EN LA FECHA
-            const finalizado = ts < ahora - 3600000; // 1 hora después de la fecha
-            
-            let cL = 0, cV = 0;
-            try {
-                const snapP = await getDocs(query(
-                    collection(db, "admin_participantes_sorteos"),
-                    where("comercio", "==", nomCom)
-                ));
-                
-                await Promise.all(snapP.docs.map(async p => {
-                    const pd = p.data();
-                    if (pd.usuarioId && !pd.usuarioId.startsWith('temp_')) {
-                        try {
-                            const ld = await getDoc(doc(db, "leads", pd.usuarioId));
-                            if (ld.exists() && (ld.data().convertidoVIP || ld.data().tipo === "VIP")) {
-                                cV++;
-                                return;
-                            }
-                        } catch (e) {}
-                    }
-                    pd.tipo === "VIP" ? cV++ : cL++;
-                }));
-            } catch (e) {
-                console.error("Error contando participantes:", e);
-            }
-            
-            const f = formatearFechaHora(fechaISO) || { fecha: 'A definir', hora: '' };
-            
-            let badge = '';
-            let estadoClase = finalizado ? 'finalizado' : '';
-            
-            if (finalizado) {
-                badge = `<span class="badge badge-finalizado">✅ SORTEO FINALIZADO</span>`;
-            } else if (ts > ahora) {
-                badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`;
-            } else {
-                badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
-            }
-            
-            tabla.innerHTML += `<tr class="${estadoClase}">
-                <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docId}" onchange="toggleSeleccion('${docId}',this)"></td>
-                <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div></td>
-                <td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-                <td>
-                    <span class="badge badge-comercio">${nomCom}</span><br>
-                    <span class="badge badge-premio">🎁 ${premio}</span>
-                    ${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}
-                </td>
-                <td>
-                    <div class="participantes-cell">
-                        <div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cL}</span></div>
-                        <div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cV}</span></div>
-                        <div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${cL + cV}</span></div>
-                    </div>
-                </td>
-                <td>
-                    ${finalizado ?
-                        `<button class="btn btn-secondary btn-sm" disabled style="opacity:0.5">✅ FINALIZADO</button>` :
-                        `<button class="btn btn-sortear-accion"
-                            data-id="${docId}"
-                            data-nombre="${nomCom}"
-                            data-premio="${premio}"
-                            data-cant="${cant}"
-                            data-mail="${c.email || ''}"
-                            data-logo="${c.logoUrl || ''}"
-                            data-desc="${descPremio}"
-                            data-timestamp="${ts}"
-                            data-clave-comercio="${c.password || ''}"
-                            onclick="intentarSorteo(this)">Calculando...</button>`
-                    }
-                    <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docId}','${fechaISO}')">🗑️ Cancelar</button>
-                </td>
-                <td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant > 1 ? 's' : ''}</span></td>
-            </tr>`;
-        }
-    });
+window.vistaActual = 'activos';
+window.itemsSeleccionados.clear();
+actualizarBulkActions();
+document.getElementById('header-checkbox').style.display = 'table-cell';
+const tabla = document.getElementById('tabla-sorteos');
+tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando sorteos...</td></tr>';
+if (listenerActivos) listenerActivos();
+listenerActivos = onSnapshot(collection(db, "comercios"), async (snap) => {
+tabla.innerHTML = "";
+const comerciosArray = [];
+snap.forEach(doc => {
+const data = doc.data();
+if (data.titulo_sorteo) {
+comerciosArray.push({ id: doc.id, data: data });
+}
+});
+// ORDEN CORREGIDO: Primero los más próximos (fecha más cercana a ahora)
+const ahora = Date.now();
+comerciosArray.sort((a, b) => {
+const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
+const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
+const finalizadoA = a.data.sorteo_finalizado || false;
+const finalizadoB = b.data.sorteo_finalizado || false;
+// Si ambos están finalizados, ordenar por fecha descendente
+if (finalizadoA && finalizadoB) {
+return fechaB - fechaA;
+}
+// Si solo A está finalizado, A va después
+if (finalizadoA && !finalizadoB) return 1;
+// Si solo B está finalizado, B va después
+if (!finalizadoA && finalizadoB) return -1;
+// Ambos activos: ordenar por fecha ascendente (más próximos primero)
+return fechaA - fechaB;
+});
+if (comerciosArray.length === 0) {
+tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#666;">📭 No hay sorteos activos</td></tr>';
+return;
+}
+for (const { id: docId, data: c } of comerciosArray) {
+const nomCom = c.nombre || "Sin nombre";
+const premio = c.titulo_sorteo;
+const descPremio = c.descripcion_sorteo || "";
+const cant = parseInt(c.cantidad_premios) || 1;
+const fechaISO = c.fecha_sorteo || "";
+const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
+// ✅ DETERMINAMOS SI ESTÁ FINALIZADO BASADO EN LA FECHA
+const finalizado = c.sorteo_finalizado || ts < ahora - 3600000;
+// ============================================
+// CORRECCIÓN: FILTRAR PARTICIPANTES POR FECHA DEL SORTEO
+// Solo contar participantes que se registraron DESPUÉS de que se creó el sorteo actual
+// ============================================
+let cL = 0, cV = 0;
+try {
+const snapP = await getDocs(query(
+collection(db, "admin_participantes_sorteos"),
+where("comercio", "==", nomCom)
+));
+const fechaSorteo = ts; // Timestamp cuando se creó el sorteo
+await Promise.all(snapP.docs.map(async p => {
+const pd = p.data();
+// ✅ FILTRO: Solo contar si el participante se registró después de la fecha del sorteo
+// o si no tiene timestamp (asumimos que es del sorteo actual)
+const fechaRegistro = pd.timestamp?.seconds ? pd.timestamp.seconds * 1000 : 
+                      pd.fechaRegistro?.seconds ? pd.fechaRegistro.seconds * 1000 : 
+                      ahora;
+// Si la fecha de registro es después o igual a la fecha del sorteo, contar
+if (fechaRegistro >= fechaSorteo - 86400000) { // Margen de 24hs por seguridad
+if (pd.usuarioId && !pd.usuarioId.startsWith('temp_')) {
+try {
+const ld = await getDoc(doc(db, "leads", pd.usuarioId));
+if (ld.exists() && (ld.data().convertidoVIP || ld.data().tipo === "VIP")) {
+cV++;
+return;
+}
+} catch (e) {}
+}
+pd.tipo === "VIP" ? cV++ : cL++;
+}
+}));
+} catch (e) {
+console.error("Error contando participantes:", e);
+}
+const f = formatearFechaHora(fechaISO) || { fecha: 'A definir', hora: '' };
+let badge = '';
+let estadoClase = finalizado ? 'finalizado' : '';
+if (finalizado) {
+badge = `<span class="badge badge-finalizado">✅ SORTEO FINALIZADO</span>`;
+} else if (ts > ahora) {
+badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`;
+} else {
+badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
+}
+tabla.innerHTML += `<tr class="${estadoClase}">
+<td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docId}" onchange="toggleSeleccion('${docId}',this)"></td>
+<td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div></td>
+<td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+<td>
+<span class="badge badge-comercio">${nomCom}</span><br>
+<span class="badge badge-premio">🎁 ${premio}</span>
+${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}
+</td>
+<td>
+<div class="participantes-cell">
+<div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cL}</span></div>
+<div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cV}</span></div>
+<div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${cL + cV}</span></div>
+</div>
+</td>
+<td>
+${finalizado ?
+`<button class="btn btn-secondary btn-sm" disabled style="opacity:0.5">✅ FINALIZADO</button>` :
+`<button class="btn btn-sortear-accion"
+data-id="${docId}"
+data-nombre="${nomCom}"
+data-premio="${premio}"
+data-cant="${cant}"
+data-mail="${c.email || ''}"
+data-logo="${c.logoUrl || ''}"
+data-desc="${descPremio}"
+data-timestamp="${ts}"
+data-clave-comercio="${c.password || ''}"
+onclick="intentarSorteo(this)">Calculando...</button>`
+}
+<br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docId}','${fechaISO}')">🗑️ Cancelar</button>
+</td>
+<td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant > 1 ? 's' : ''}</span></td>
+</tr>`;
+}
+});
 };
 // ============================================
 // EJECUTAR SORTEO
@@ -1336,21 +1318,6 @@ window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, 
 }
 } catch (e) {
 console.error("Error notificando al comercio:", e);
-}
-// ✅ ELIMINAR TODOS LOS PARTICIPANTES DE ESTE COMERCIO
-try {
-const participantesAEliminar = await getDocs(query(
-collection(db, "admin_participantes_sorteos"),
-where("comercio", "==", nomCom)
-));
-const batch = [];
-participantesAEliminar.forEach(doc => {
-batch.push(deleteDoc(doc.ref));
-});
-await Promise.all(batch);
-console.log(`✅ Participantes de ${nomCom} eliminados`);
-} catch (e) {
-console.error("Error eliminando participantes:", e);
 }
 mostrarToast("✅ Sorteo exitoso", "success");
 mostrarConfirmacionSorteo(participantes.length, ganadoresConNumero, nomCom);
@@ -1585,7 +1552,6 @@ cargarActivos();
 iniciarRelojes();
 actualizarEstadisticas();
 programarSorteosPendientes();
-// Verificar cada 30 segundos si hay sorteos que ejecutar
 setInterval(programarSorteosPendientes, 30000);
 });
 document.getElementById('modalPDF').addEventListener('click', e => { if (e.target.id === 'modalPDF') cerrarModales(); });
