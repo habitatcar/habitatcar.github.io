@@ -23,6 +23,7 @@
 --modal-bg: white;
 --section-bg: #f8f9fa;
 --border-color: #dee2e6;
+--gris-sorteo: #e9ecef;
 }
 body.dark-mode {
 --azul-habitat: #1a5a9c;
@@ -36,6 +37,7 @@ body.dark-mode {
 --modal-bg: #2d2d2d;
 --section-bg: #3d3d3d;
 --border-color: #4d4d4d;
+--gris-sorteo: #3a3a3a;
 }
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { 
@@ -95,6 +97,7 @@ border: 1px solid rgba(255,255,255,0.2);
 .btn-danger:hover { background: #c82333; }
 .btn-purple { background: #6f42c1; color: white; }
 .btn-purple:hover { background: #5e35b1; }
+.btn-secondary { background: #6c757d; color: white; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
 .btn-sm { padding: 4px 8px; font-size: 0.8rem; }
 .table-container { overflow-x: auto; max-height: calc(100vh - 280px); }
@@ -102,9 +105,18 @@ table { width: 100%; border-collapse: collapse; background: var(--table-bg); bor
 thead { position: sticky; top: 0; z-index: 100; background: #667eea; }
 th { background: #667eea; color: white; padding: 14px 12px; text-align: left; white-space: nowrap; }
 td { padding: 12px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-tr.finalizado { opacity: 0.7; background-color: rgba(128, 128, 128, 0.1); }
-tr.finalizado td { border-bottom-color: #999; }
-tr.finalizado .btn-sortear-accion { opacity: 0.5; pointer-events: none; }
+tr.finalizado { 
+    background-color: var(--gris-sorteo); 
+    opacity: 0.8; 
+}
+tr.finalizado td { 
+    border-bottom-color: var(--border-color);
+}
+tr.finalizado .btn-sortear-accion { 
+    opacity: 0.5; 
+    pointer-events: none; 
+    background-color: #6c757d !important;
+}
 .btn-accion { padding: 6px 12px; margin: 2px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: white; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .btn-wa { background: #25D366; }
 .btn-wapdf { background: #20a37f; font-weight: 700; }
@@ -132,8 +144,8 @@ tr.finalizado .btn-sortear-accion { opacity: 0.5; pointer-events: none; }
 .valor-total { background: #e8f5e9; color: #388e3c; }
 .premio-desc { font-size: 0.85rem; color: #666; margin-top: 4px; line-height: 1.4; max-width: 200px; }
 .fecha-cell { display: flex; flex-direction: column; gap: 2px; font-size: 0.85rem; min-width: 100px; }
-.fecha-principal { font-weight: bold; color: #333; }
-.hora-secundaria { color: #666; font-size: 0.8rem; }
+.fecha-principal { font-weight: bold; color: var(--text-color); }
+.hora-secundaria { color: var(--gris-texto); font-size: 0.8rem; }
 .timestamp-badge { font-size: 0.75rem; color: #666; background: #f1f1f1; padding: 2px 6px; border-radius: 4px; display: inline-block; margin-top: 4px; }
 .logo-mini { height: 80px; width: auto; max-width: 120px; object-fit: contain; display: block; margin: 0 auto; }
 .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; }
@@ -215,7 +227,7 @@ body { padding-top: 120px; }
 
 <div id="bulk-actions" class="bulk-actions">
 <span class="selected-count"><i class="fas fa-check-circle"></i> <span id="selected-count">0</span> seleccionado(s)</span>
-<button class="btn btn-danger" onclick="eliminarSeleccionados()"><i class="fas fa-trash"></i> ELIMINAR SELECCIONADOS</button>
+<button class="btn btn-danger" id="btn-eliminar-bulk"><i class="fas fa-trash"></i> ELIMINAR SELECCIONADOS</button>
 <button class="btn btn-warning" onclick="desmarcarTodos()"><i class="fas fa-times"></i> CANCELAR</button>
 </div>
 
@@ -400,7 +412,7 @@ body { padding-top: 120px; }
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, doc, getDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, doc, getDoc, deleteDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
 const CLAVE_MAESTRA = "HABITAT_MASTER_2026";
 const LOGO_DEFAULT  = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
@@ -879,7 +891,7 @@ window.normalizarTelefonoAR = n => {
 };
 
 // ============================================
-// NUEVA FUNCIÓN: ENVIAR EMAIL A GANADOR (usando Google Apps Script)
+// NUEVA FUNCIÓN: ENVIAR EMAIL A GANADOR (USANDO mailto: como respaldo)
 // ============================================
 window.enviarEmailGanador = (nombre, premio, comercio, email) => {
     if (!email) {
@@ -887,34 +899,12 @@ window.enviarEmailGanador = (nombre, premio, comercio, email) => {
         return;
     }
     
-    const GAS_URL = "https://script.google.com/macros/s/AKfycbwWqItLbuGollI4F6OBDrHHoWwrvSJz88CWp1Wutt5hPWbqPUaATtIxVVv-wHOu3DGLbQ/exec";
+    const asunto = `¡Felicitaciones! Ganaste en ${comercio}`;
+    const cuerpo = `Hola ${nombre},\n\n¡Felicitaciones! Has resultado ganador del sorteo de ${premio} en ${comercio}.\n\nComunícate con el comercio para reclamar tu premio.\n\nSaludos,\nEquipo Hábitat-Car`;
     
-    const payload = {
-        email: email,
-        asunto: `¡Felicitaciones! Ganaste en ${comercio}`,
-        cuerpoHtml: `
-            <h2>¡FELICITACIONES ${nombre}!</h2>
-            <p>Has resultado ganador del sorteo de <strong>${premio}</strong> en <strong>${comercio}</strong>.</p>
-            <p>Comunícate con el comercio para reclamar tu premio.</p>
-            <br>
-            <p>Saludos,<br>Equipo Hábitat-Car</p>
-        `,
-        cc: ''
-    };
-    
-    fetch(GAS_URL, {
-        method: 'POST',
-        mode: 'no-cors',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    })
-    .then(() => {
-        mostrarToast(`📧 Email enviado a ${email}`, "success");
-    })
-    .catch(error => {
-        console.error("Error enviando email:", error);
-        mostrarToast("⚠️ No se pudo enviar el email", "warning");
-    });
+    // Usar mailto como solución temporal (abre el cliente de correo)
+    window.location.href = `mailto:${email}?subject=${encodeURIComponent(asunto)}&body=${encodeURIComponent(cuerpo)}`;
+    mostrarToast("📧 Cliente de correo abierto", "success");
 };
 
 // ============================================
@@ -934,20 +924,16 @@ window.eliminarSeleccionadosActivos = async () => {
     
     for (const id of window.itemsSeleccionados) {
         try {
-            // Primero obtenemos el documento para saber el nombre del comercio
-            const docSnap = await getDoc(doc(db, "comercios", id));
-            if (docSnap.exists()) {
-                // Eliminamos los campos de sorteo
-                await updateDoc(doc(db, "comercios", id), {
-                    titulo_sorteo: null,
-                    descripcion_sorteo: null,
-                    fecha_sorteo: null,
-                    cantidad_premios: null,
-                    sorteo_finalizado: null,
-                    timestamp_finalizacion: null
-                });
-                exitosos++;
-            }
+            // Eliminamos los campos de sorteo para permitir nuevos
+            await updateDoc(doc(db, "comercios", id), {
+                titulo_sorteo: null,
+                descripcion_sorteo: null,
+                fecha_sorteo: null,
+                cantidad_premios: null,
+                sorteo_finalizado: null,
+                timestamp_finalizacion: null
+            });
+            exitosos++;
         } catch (e) {
             console.error("Error eliminando sorteo:", e);
             errores++;
@@ -960,7 +946,7 @@ window.eliminarSeleccionadosActivos = async () => {
 };
 
 // ============================================
-// NUEVA: SORTEO AUTOMÁTICO (VERSIÓN CORREGIDA)
+// NUEVA: SORTEO AUTOMÁTICO
 // ============================================
 window.ejecutarSorteoAutomatico = async (idComercio) => {
     try {
@@ -1067,50 +1053,6 @@ window.ejecutarSorteoAutomatico = async (idComercio) => {
             }
         }
         
-        // ============================================
-        // BLOQUE CORREGIDO DE ENVÍO DE EMAIL (con then/catch)
-        // ============================================
-        try {
-            const GAS_URL = "https://script.google.com/macros/s/AKfycbwWqItLbuGollI4F6OBDrHHoWwrvSJz88CWp1Wutt5hPWbqPUaATtIxVVv-wHOu3DGLbQ/exec";
-            
-            const payloadHC = {
-                email: "habitatcar@gmail.com",
-                asunto: `🎯 Sorteo Automático: ${comercio.nombre}`,
-                cuerpoHtml: `
-                    <h2>Sorteo Automático Ejecutado</h2>
-                    <p><strong>Comercio:</strong> ${comercio.nombre}</p>
-                    <p><strong>Premio:</strong> ${comercio.titulo_sorteo}</p>
-                    <p><strong>Ganadores:</strong> ${ganadores.length}</p>
-                    <p><strong>Participantes:</strong> ${participantes.length}</p>
-                    <h3>Lista de Ganadores:</h3>
-                    <ul>
-                        ${ganadoresConNumero.map(g => `<li><strong>${g.numeroPremio}:</strong> ${g.nombreMostrar} - ${g.email} - ${g.celular}</li>`).join('')}
-                    </ul>
-                `,
-                cc: comercio.email || ''
-            };
-            
-            console.log("📤 Enviando a GAS:", payloadHC);
-            
-            fetch(GAS_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payloadHC)
-            })
-            .then(() => {
-                console.log("📨 Solicitud enviada al servidor de correos");
-                mostrarToast("📧 Notificación enviada a Hábitat-Car", "success");
-            })
-            .catch(error => {
-                console.error("❌ Error en fetch:", error);
-                mostrarToast("⚠️ No se pudo enviar notificación por email", "warning");
-            });
-            
-        } catch (e) {
-            console.error("💥 Error al preparar email:", e);
-        }
-        
         mostrarToast(`✅ Sorteo automático de ${comercio.nombre} realizado`, "success");
         
     } catch (e) {
@@ -1120,15 +1062,15 @@ window.ejecutarSorteoAutomatico = async (idComercio) => {
 };
 
 // ============================================
-// NUEVA: PROGRAMAR SORTEOS (AHORA REVISA CADA 30 MINUTOS)
+// PROGRAMAR SORTEOS PENDIENTES
 // ============================================
 const programarSorteosPendientes = async () => {
     try {
         const ahora = Date.now();
         const q = query(
             collection(db, "comercios"),
-            where("titulo_sorteo", "!=", null)
-            // Ya no filtramos por sorteo_finalizado para poder ver los finalizados en gris
+            where("titulo_sorteo", "!=", null),
+            where("sorteo_finalizado", "!=", true)
         );
         const snap = await getDocs(q);
         
@@ -1139,15 +1081,15 @@ const programarSorteosPendientes = async () => {
             const ts = new Date(c.fecha_sorteo).getTime();
             const tiempoRestante = ts - ahora;
             
-            // Si ya pasó la fecha y NO está finalizado, ejecutar inmediatamente
-            if (tiempoRestante <= 0 && !c.sorteo_finalizado) {
-                console.log(`⏰ Sorteo de ${c.nombre} debería ejecutarse ahora (programado para ${new Date(ts).toLocaleString()})`);
+            // Si ya pasó la fecha, ejecutar inmediatamente
+            if (tiempoRestante <= 0) {
+                console.log(`⏰ Ejecutando sorteo de ${c.nombre} (programado para ${new Date(ts).toLocaleString()})`);
                 setTimeout(() => {
                     window.ejecutarSorteoAutomatico(doc.id);
-                }, 5000); // Pequeño retraso para evitar bloqueos
+                }, 5000);
             }
-            // Si falta menos de 1 hora y NO está finalizado, programar
-            else if (tiempoRestante > 0 && tiempoRestante < 3600000 && !c.sorteo_finalizado) {
+            // Si falta menos de 1 hora, programar
+            else if (tiempoRestante < 3600000) {
                 setTimeout(() => {
                     window.ejecutarSorteoAutomatico(doc.id);
                 }, tiempoRestante);
@@ -1211,10 +1153,10 @@ window.actualizarBulkActions = () => {
         document.getElementById('select-all').checked = window.itemsSeleccionados.size === document.querySelectorAll('.row-checkbox').length;
         
         // Cambiar el texto del botón según la vista
-        const btnEliminar = bulk.querySelector('.btn-danger');
+        const btnEliminar = document.getElementById('btn-eliminar-bulk');
         if (btnEliminar) {
             if (window.vistaActual === 'activos') {
-                btnEliminar.innerHTML = '<i class="fas fa-trash"></i> ELIMINAR SORTEOS';
+                btnEliminar.innerHTML = '<i class="fas fa-trash"></i> ELIMINAR SORTEOS SELECCIONADOS';
                 btnEliminar.onclick = eliminarSeleccionadosActivos;
             } else {
                 btnEliminar.innerHTML = '<i class="fas fa-trash"></i> ELIMINAR DEL HISTORIAL';
@@ -1347,7 +1289,6 @@ window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
                 timestamp_finalizacion: null
             });
             mostrarToast("🗑️ Sorteo cancelado", "success");
-            cargarActivos();
             return true;
         } catch (e) {
             mostrarToast("❌ Error", "error");
@@ -1421,11 +1362,10 @@ const cargarActivos = () => {
             const f = formatearFechaHora(fechaISO) || { fecha: 'A definir', hora: '' };
             
             let badge = '';
-            let estadoClase = '';
+            let estadoClase = finalizado ? 'finalizado' : '';
             
             if (finalizado) {
                 badge = `<span class="badge badge-finalizado">✅ SORTEO FINALIZADO</span>`;
-                estadoClase = 'finalizado';
             } else if (ts > Date.now()) {
                 badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`;
             } else {
@@ -1691,8 +1631,8 @@ document.addEventListener('DOMContentLoaded', () => {
     iniciarRelojes();
     actualizarEstadisticas();
     programarSorteosPendientes();
-    // Revisar cada 30 minutos en lugar de cada hora
-    setInterval(programarSorteosPendientes, 1800000);
+    // Revisar cada hora
+    setInterval(programarSorteosPendientes, 3600000);
 });
 
 document.getElementById('modalPDF').addEventListener('click', e => { if (e.target.id === 'modalPDF') cerrarModales(); });
