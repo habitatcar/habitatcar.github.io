@@ -134,6 +134,8 @@ td { padding: 12px; border-bottom: 1px solid var(--border-color); vertical-align
 .logo-mini { height: 80px; width: auto; max-width: 120px; object-fit: contain; display: block; margin: 0 auto; }
 .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); z-index: 2000; align-items: center; justify-content: center; }
 .modal-content { background: var(--modal-bg); padding: 25px; border-radius: 16px; max-width: 450px; width: 90%; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+.modal-content input { width: 100%; padding: 10px; margin: 15px 0; border: 1px solid var(--border-color); border-radius: 8px; font-size: 14px; background: var(--bg-body); color: var(--text-color); }
+.modal-buttons { display: flex; gap: 10px; justify-content: center; }
 .checkbox-cell { text-align: center; width: 50px; }
 .checkbox-cell input[type="checkbox"] { width: 18px; height: 18px; cursor: pointer; }
 .bulk-actions { display: none; gap: 10px; margin-bottom: 15px; padding: 10px; background: #fff3cd; border-radius: 8px; border: 1px solid #ffc107; }
@@ -224,6 +226,7 @@ body { padding-top: 120px; }
 </div>
 </div>
 
+<!-- MODAL CONFIRMACIÓN SORTEO -->
 <div id="popup-confirmacion" class="modal" style="display:none;">
 <div class="modal-content">
 <h3 style="color:var(--azul-habitat); margin-bottom:15px;">🎉 ¡SORTEO REALIZADO!</h3>
@@ -231,6 +234,19 @@ body { padding-top: 120px; }
 <div id="lista-ganadores-popup" style="text-align:left; margin-bottom:20px;"></div>
 <button class="btn btn-primary" onclick="irAlHistorial()">IR AL HISTORIAL DE ÉXITOS</button>
 <button class="btn btn-warning" onclick="cerrarModalSorteo()" style="margin-top:10px;">SEGUIR AQUÍ</button>
+</div>
+</div>
+
+<!-- NUEVO MODAL PARA SOLICITAR CLAVE (BYpass) -->
+<div id="modal-clave" class="modal" style="display:none;">
+<div class="modal-content">
+<h3 style="color:var(--azul-habitat); margin-bottom:15px;">🔐 AUTORIZACIÓN REQUERIDA</h3>
+<p id="modal-clave-mensaje" style="margin-bottom:15px;">Ingrese la clave de comercio o maestra</p>
+<input type="password" id="modal-clave-input" placeholder="Clave de acceso">
+<div class="modal-buttons">
+<button class="btn btn-success" onclick="validarClaveModal()">CONFIRMAR</button>
+<button class="btn btn-danger" onclick="cerrarModalClave()">CANCELAR</button>
+</div>
 </div>
 </div>
 
@@ -422,6 +438,7 @@ const db  = getFirestore(app);
 // VARIABLES GLOBALES
 // ============================================
 let estadisticas = { totalSorteos: 0, totalGanadores: 0, topComercio: '-', participantesUnicos: new Set() };
+let datosPendientes = null; // Para el modal de clave
 
 // ============================================
 // MODO OSCURO
@@ -709,6 +726,32 @@ window.guardarConfigWA = () => {
 window.cerrarModales = () => {
     document.getElementById('modalPDF').style.display = 'none';
     document.getElementById('modalWA').style.display  = 'none';
+    document.getElementById('modal-clave').style.display = 'none';
+};
+
+// ============================================
+// NUEVAS FUNCIONES PARA MODAL DE CLAVE
+// ============================================
+window.abrirModalClave = (mensaje, callback) => {
+    document.getElementById('modal-clave-mensaje').textContent = mensaje;
+    document.getElementById('modal-clave-input').value = '';
+    document.getElementById('modal-clave').style.display = 'flex';
+    window.callbackClave = callback;
+};
+
+window.cerrarModalClave = () => {
+    document.getElementById('modal-clave').style.display = 'none';
+    window.callbackClave = null;
+};
+
+window.validarClaveModal = async () => {
+    const clave = document.getElementById('modal-clave-input').value;
+    if (!clave || !window.callbackClave) return;
+    
+    const resultado = await window.callbackClave(clave);
+    if (resultado) {
+        cerrarModalClave();
+    }
 };
 
 // ============================================
@@ -921,7 +964,8 @@ window.ejecutarSorteoAutomatico = async (idComercio) => {
         }
         
         try {
-            const GAS_URL = "URL_DE_TU_SCRIPT"; // <--- REEMPLAZA ESTO
+            const GAS_URL = "https://script.google.com/macros/s/AKfycbwWqItLbuGollI4F6OBDrHHoWwrvSJz88CWp1Wutt5hPWbqPUaATtIxVVv-wHOu3DGLbQ/exec
+"; // <--- REEMPLAZA ESTO
             
             const payloadHC = {
                 email: "habitatcar@gmail.com",
@@ -1077,32 +1121,90 @@ window.iniciarRelojes = () => {
 };
 
 window.validarAccionSegura = async (idComercio, claveIngresada) => {
-    if (claveIngresada===CLAVE_MAESTRA) return true;
-    try { const s=await getDoc(doc(db,"comercios",idComercio)); if(s.exists()&&claveIngresada===s.data().password) return true; } catch(e){}
+    if (claveIngresada === CLAVE_MAESTRA) return true;
+    try { 
+        const s = await getDoc(doc(db, "comercios", idComercio)); 
+        if (s.exists() && claveIngresada === s.data().password) return true; 
+    } catch(e) {}
     return false;
 };
 
+// ============================================
+// NUEVO: VERSIÓN MEJORADA DE intentarSorteo (CON MODAL)
+// ============================================
 window.intentarSorteo = async (btn) => {
-    const ts=parseInt(btn.dataset.timestamp);
-    if (Date.now()<ts) {
-        const clave=prompt(`⏰ Sorteo programado para ${new Date(ts).toLocaleString()}\nIngrese CLAVE DE COMERCIO o MAESTRA para adelantar:`);
-        if (!clave) return;
-        if (!await validarAccionSegura(btn.dataset.id,clave)) { mostrarToast("❌ Contraseña incorrecta","error"); return; }
-        mostrarToast("🔓 Acceso autorizado - Sorteo adelantado","warning");
+    const ts = parseInt(btn.dataset.timestamp);
+    const idComercio = btn.dataset.id;
+    const nombreComercio = btn.dataset.nombre;
+    const premio = btn.dataset.premio;
+    const cant = parseInt(btn.dataset.cant);
+    const mailC = btn.dataset.mail;
+    const logoUrl = btn.dataset.logo;
+    const desc = btn.dataset.desc;
+    
+    if (Date.now() < ts) {
+        // Mostrar modal elegante en lugar de prompt
+        const mensaje = `🔒 Sorteo programado para ${new Date(ts).toLocaleString()}\n\nIngrese clave de comercio o maestra para realizar el sorteo AHORA`;
+        
+        abrirModalClave(mensaje, async (clave) => {
+            if (!clave) return false;
+            
+            const valida = await validarAccionSegura(idComercio, clave);
+            if (valida) {
+                mostrarToast("🔓 Acceso autorizado - Realizando sorteo", "warning");
+                ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
+                return true;
+            } else {
+                mostrarToast("❌ Contraseña incorrecta", "error");
+                return false;
+            }
+        });
+    } else {
+        // Ya pasó la fecha, sortear directamente
+        ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
     }
-    ejecutarSorteo(btn.dataset.id,btn.dataset.nombre,btn.dataset.premio,parseInt(btn.dataset.cant),btn.dataset.mail,btn.dataset.logo,btn.dataset.desc,btn.dataset.claveComercio);
 };
 
 window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
-    const dh=(new Date(fechaSorteoISO).getTime()-Date.now())/3600000;
-    const clave=prompt((dh<24&&dh>0)?"⚠️ ZONA CRÍTICA: Solo CLAVE MAESTRA:":"Ingrese CLAVE DE COMERCIO para eliminar:");
-    if (!clave) return;
-    if (!await validarAccionSegura(idComercio,clave)) { mostrarToast("❌ Contraseña incorrecta","error"); return; }
-    if (dh<24&&dh>0&&clave!==CLAVE_MAESTRA) { mostrarToast("❌ Solo Admin puede cancelar sorteos inminentes","error"); return; }
-    try {
-        await updateDoc(doc(db,"comercios",idComercio),{titulo_sorteo:null,descripcion_sorteo:null,fecha_sorteo:null,cantidad_premios:null,logoUrl:null});
-        mostrarToast("🗑️ Sorteo cancelado","success"); cargarActivos();
-    } catch(e) { mostrarToast("❌ Error","error"); }
+    const dh = (new Date(fechaSorteoISO).getTime() - Date.now()) / 3600000;
+    
+    let mensaje;
+    if (dh < 24 && dh > 0) {
+        mensaje = "⚠️ ZONA CRÍTICA: Faltan menos de 24hs\nSolo la CLAVE MAESTRA puede cancelar este sorteo.\n\nIngrese la clave:";
+    } else {
+        mensaje = "Ingrese CLAVE DE COMERCIO o MAESTRA para eliminar:";
+    }
+    
+    abrirModalClave(mensaje, async (clave) => {
+        if (!clave) return false;
+        
+        const valida = await validarAccionSegura(idComercio, clave);
+        if (!valida) {
+            mostrarToast("❌ Contraseña incorrecta", "error");
+            return false;
+        }
+        
+        if (dh < 24 && dh > 0 && clave !== CLAVE_MAESTRA) {
+            mostrarToast("❌ Solo Admin puede cancelar sorteos inminentes", "error");
+            return false;
+        }
+        
+        try {
+            await updateDoc(doc(db, "comercios", idComercio), {
+                titulo_sorteo: null,
+                descripcion_sorteo: null,
+                fecha_sorteo: null,
+                cantidad_premios: null,
+                logoUrl: null
+            });
+            mostrarToast("🗑️ Sorteo cancelado", "success");
+            cargarActivos();
+            return true;
+        } catch (e) {
+            mostrarToast("❌ Error", "error");
+            return false;
+        }
+    });
 };
 
 const cargarActivos = async () => {
@@ -1112,7 +1214,7 @@ const cargarActivos = async () => {
         const tabla=document.getElementById('tabla-sorteos'); tabla.innerHTML="";
         for (const docCom of snap.docs) {
             const c=docCom.data(); 
-            if (!c.titulo_sorteo || c.sorteo_finalizado) continue; // MODIFICADO
+            if (!c.titulo_sorteo || c.sorteo_finalizado) continue;
             
             const nomCom=c.nombre, premio=c.titulo_sorteo, descPremio=c.descripcion_sorteo||"";
             const cant=parseInt(c.cantidad_premios)||1, fechaISO=c.fecha_sorteo||"";
@@ -1167,7 +1269,6 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc)
             ganadores, fecha:serverTimestamp(), mailComercio:mailC||'habitatcar@gmail.com', timestampProgramado:Date.now()
         });
         
-        // NUEVO: Marcar como finalizado
         try {
             await updateDoc(doc(db, "comercios", idCom), {
                 sorteo_finalizado: true,
@@ -1287,6 +1388,7 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 document.getElementById('modalPDF').addEventListener('click',e=>{ if(e.target.id==='modalPDF') cerrarModales(); });
 document.getElementById('modalWA').addEventListener('click', e=>{ if(e.target.id==='modalWA')  cerrarModales(); });
+document.getElementById('modal-clave').addEventListener('click', e=>{ if(e.target.id==='modal-clave') cerrarModalClave(); });
 
 window.mostrarHistorial=mostrarHistorial; window.mostrarToast=mostrarToast;
 window.mostrarConfirmacionSorteo=mostrarConfirmacionSorteo; window.cerrarModalSorteo=cerrarModalSorteo;
@@ -1302,6 +1404,7 @@ window.cerrarModales=cerrarModales; window.iniciarRelojes=iniciarRelojes;
 window.toggleDarkMode=toggleDarkMode; window.cargarPlantilla=cargarPlantilla;
 window.subirImagenFondo=subirImagenFondo; window.procesarImagenSubida=procesarImagenSubida;
 window.ejecutarSorteoAutomatico=ejecutarSorteoAutomatico;
+window.abrirModalClave=abrirModalClave; window.cerrarModalClave=cerrarModalClave; window.validarClaveModal=validarClaveModal;
 </script>
 </body>
 </html>
