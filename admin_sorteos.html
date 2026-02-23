@@ -1119,7 +1119,7 @@ return false;
 });
 };
 // ============================================
-// CARGAR ACTIVOS (VERSIÓN CORREGIDA - USA FECHA O FLAG)
+// CARGAR ACTIVOS (VERSIÓN DEFINITIVA - SOLO USA FECHA)
 // ============================================
 const cargarActivos = () => {
     window.vistaActual = 'activos';
@@ -1132,7 +1132,6 @@ const cargarActivos = () => {
     
     if (listenerActivos) listenerActivos();
     
-    // ✅ CORREGIDO: QUERY SIN FILTROS ADICIONALES
     listenerActivos = onSnapshot(collection(db, "comercios"), async (snap) => {
         tabla.innerHTML = "";
         const comerciosArray = [];
@@ -1150,8 +1149,10 @@ const cargarActivos = () => {
         comerciosArray.sort((a, b) => {
             const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
             const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
-            const finalizadoA = (fechaA < ahora - 3600000) || a.data.sorteo_finalizado === true;
-            const finalizadoB = (fechaB < ahora - 3600000) || b.data.sorteo_finalizado === true;
+            
+            // ✅ SOLO USAMOS LA FECHA PARA DETERMINAR SI ESTÁ FINALIZADO
+            const finalizadoA = fechaA < ahora - 3600000;
+            const finalizadoB = fechaB < ahora - 3600000;
             
             // Si ambos están finalizados, ordenar por fecha descendente
             if (finalizadoA && finalizadoB) {
@@ -1178,8 +1179,9 @@ const cargarActivos = () => {
             const fechaISO = c.fecha_sorteo || "";
             const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
             
-            // ✅ DETERMINAMOS SI ESTÁ FINALIZADO BASADO EN FECHA O FLAG
-            const finalizado = (ts < ahora - 3600000) || c.sorteo_finalizado === true;
+            // ✅ IGNORAMOS COMPLETAMENTE c.sorteo_finalizado
+            // Solo usamos la fecha para determinar si está finalizado
+            const finalizado = ts < ahora - 3600000; // 1 hora después de la fecha
             
             let cL = 0, cV = 0;
             try {
