@@ -103,7 +103,7 @@ table { width: 100%; border-collapse: collapse; background: var(--table-bg); bor
 thead { position: sticky; top: 0; z-index: 100; background: #667eea; }
 th { background: #667eea; color: white; padding: 14px 12px; text-align: left; white-space: nowrap; }
 td { padding: 12px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-tr.finalizado { opacity: 0.5; background-color: rgba(128, 128, 128, 0.2); }
+tr.finalizado { opacity: 0.5; background-color: rgba(128, 128, 128, 0.1); }
 tr.finalizado td { border-bottom-color: #999; }
 .btn-accion { padding: 6px 12px; margin: 2px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: white; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .btn-wa { background: #25D366; }
@@ -627,6 +627,7 @@ cerrarModales();
 window.cerrarModales = () => {
 document.getElementById('modalPDF').style.display = 'none';
 document.getElementById('modalWA').style.display  = 'none';
+document.getElementById('modal-clave').style.display = 'none';
 };
 window.enviarEmailGanador = async (nombre, premio, comercio, email) => {
 if (!email) {
@@ -722,18 +723,14 @@ actualizarBulkActions();
 mostrarToast(`✅ ${exitosos} eliminados, ${errores} errores`, exitosos > 0 ? "success" : "error");
 cargarActivos();
 };
-// ============================================
-// ✅ SORTEO AUTOMÁTICO - CORREGIDO
-// ============================================
 window.ejecutarSorteoAutomatico = async (idComercio) => {
 try {
 const comercioRef = doc(db, "comercios", idComercio);
 const comercioSnap = await getDoc(comercioRef);
 if (!comercioSnap.exists()) return;
 const comercio = comercioSnap.data();
-// ✅ VERIFICAR SI YA ESTÁ FINALIZADO
-if (comercio.sorteo_finalizado === true) {
-console.log(`Sorteo de ${comercio.nombre} ya finalizado`);
+if (comercio.sorteo_finalizado) {
+console.log("Sorteo ya finalizado");
 return;
 }
 const snapP = await getDocs(query(
@@ -767,10 +764,7 @@ tipo,
 email
 });
 }
-if (!participantes.length) {
-console.log(`No hay participantes para ${comercio.nombre}`);
-return;
-}
+if (!participantes.length) return;
 const cant = parseInt(comercio.cantidad_premios) || 1;
 let ganadores = [];
 let bolsa = [...participantes];
@@ -798,7 +792,6 @@ fecha: serverTimestamp(),
 mailComercio: comercio.email || 'habitatcar@gmail.com',
 timestampProgramado: Date.now()
 });
-// ✅ MARCAR COMO FINALIZADO INMEDIATAMENTE
 await updateDoc(comercioRef, {
 sorteo_finalizado: true,
 timestamp_finalizacion: serverTimestamp()
@@ -813,7 +806,6 @@ if (num) {
 window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, '_blank');
 }
 }
-// ✅ ELIMINAR PARTICIPANTES PARA PRÓXIMO SORTEO
 try {
 const participantesAEliminar = await getDocs(query(
 collection(db, "admin_participantes_sorteos"),
@@ -835,35 +827,25 @@ console.error("Error en sorteo automático:", e);
 mostrarToast("❌ Error en sorteo automático", "error");
 }
 };
-// ============================================
-// ✅ PROGRAMAR SORTEOS - CORREGIDO (SIN FILTRO INCORRECTO)
-// ============================================
 const programarSorteosPendientes = async () => {
 try {
 const ahora = Date.now();
-// ✅ SIN FILTRO sorteo_finalizado - lo verificamos en el código
 const q = query(
 collection(db, "comercios"),
 where("titulo_sorteo", "!=", null)
 );
 const snap = await getDocs(q);
-let ejecutados = 0;
 snap.forEach(doc => {
 const c = doc.data();
 if (!c.fecha_sorteo) return;
-// ✅ SI YA ESTÁ FINALIZADO, NO HACER NADA
-if (c.sorteo_finalizado === true) return;
+// ✅ Solo ejecutar si NO está finalizado
+if (c.sorteo_finalizado) return;
 const ts = new Date(c.fecha_sorteo).getTime();
-// ✅ SI LLEGÓ LA HORA, EJECUTAR
 if (ts <= ahora) {
-console.log(`⏰ Ejecutando sorteo AUTOMÁTICO de ${c.nombre}`);
+console.log(`⏰ Ejecutando sorteo de ${c.nombre} ahora mismo`);
 window.ejecutarSorteoAutomatico(doc.id);
-ejecutados++;
 }
 });
-if (ejecutados > 0) {
-console.log(`✅ ${ejecutados} sorteos ejecutados automáticamente`);
-}
 } catch (e) {
 console.error("Error programando sorteos:", e);
 }
@@ -966,6 +948,29 @@ btn.classList.add('btn-primary');
 });
 },1000);
 };
+window.intentarSorteo = async (btn) => {
+// Verificar si el sorteo ya está finalizado
+if (btn.closest('tr')?.classList.contains('finalizado')) {
+mostrarToast("🔒 Sorteo ya finalizado", "warning");
+return;
+}
+const ts = parseInt(btn.dataset.timestamp);
+const ahora = Date.now();
+// Si el sorteo todavía no está habilitado (futuro), no hacer nada
+if (ahora < ts) {
+mostrarToast("⏳ El sorteo aún no está disponible. Esperá a que termine la cuenta regresiva.", "warning");
+return;
+}
+// Si ya pasó la fecha, ejecutar el sorteo
+const idComercio = btn.dataset.id;
+const nombreComercio = btn.dataset.nombre;
+const premio = btn.dataset.premio;
+const cant = parseInt(btn.dataset.cant);
+const mailC = btn.dataset.mail;
+const logoUrl = btn.dataset.logo;
+const desc = btn.dataset.desc;
+ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
+};
 window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
 const dh = (new Date(fechaSorteoISO).getTime() - Date.now()) / 3600000;
 let mensaje;
@@ -1031,7 +1036,7 @@ if (s.exists() && claveIngresada === s.data().password) return true;
 return false;
 };
 // ============================================
-// ✅ CARGAR ACTIVOS - CORREGIDO (USA SOLO sorteo_finalizado)
+// ✅ CARGAR ACTIVOS - CORREGIDO (USA sorteo_finalizado COMO PRINCIPAL)
 // ============================================
 const cargarActivos = () => {
 window.vistaActual = 'activos';
@@ -1046,13 +1051,15 @@ tabla.innerHTML = "";
 const comerciosArray = [];
 snap.forEach(doc => {
 const data = doc.data();
+// Solo mostrar si tiene título de sorteo
 if (data.titulo_sorteo) {
 comerciosArray.push({ id: doc.id, data: data });
 }
 });
+// ORDEN: Primero los NO finalizados (por fecha), luego los finalizados
 const ahora = Date.now();
-// ✅ ORDEN: PRIMERO ACTIVOS (no finalizados), LUEGO FINALIZADOS
 comerciosArray.sort((a, b) => {
+// ✅ USAR EL FLAG sorteo_finalizado COMO PRINCIPAL
 const finalizadoA = a.data.sorteo_finalizado === true;
 const finalizadoB = b.data.sorteo_finalizado === true;
 // Si ambos están finalizados, ordenar por fecha descendente
@@ -1065,7 +1072,7 @@ return fechaB - fechaA;
 if (finalizadoA && !finalizadoB) return 1;
 // Si solo B está finalizado, B va después
 if (!finalizadoA && finalizadoB) return -1;
-// Ambos activos: ordenar por fecha ascendente (más próximos primero)
+// Ambos NO finalizados: ordenar por fecha ascendente (más próximos primero)
 const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
 const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
 return fechaA - fechaB;
@@ -1081,7 +1088,7 @@ const descPremio = c.descripcion_sorteo || "";
 const cant = parseInt(c.cantidad_premios) || 1;
 const fechaISO = c.fecha_sorteo || "";
 const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
-// ✅ USAR SOLO EL FLAG sorteo_finalizado
+// ✅ USAR EL FLAG sorteo_finalizado COMO PRINCIPAL
 const finalizado = c.sorteo_finalizado === true;
 let cL = 0, cV = 0;
 try {
@@ -1115,6 +1122,7 @@ badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</sp
 } else {
 badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
 }
+// Para sorteos finalizados, el botón de sorteo debe estar deshabilitado
 const botonSorteo = finalizado
 ? `<button class="btn btn-secondary btn-sm" disabled style="opacity:0.5">✅ FINALIZADO</button>`
 : `<button class="btn btn-sortear-accion ${ts > ahora ? 'btn-dark' : 'btn-primary'}"
@@ -1151,29 +1159,6 @@ ${botonSorteo}
 </tr>`;
 }
 });
-};
-// ============================================
-// ✅ EJECUTAR SORTEO MANUAL - CORREGIDO
-// ============================================
-window.intentarSorteo = async (btn) => {
-if (btn.closest('tr')?.classList.contains('finalizado')) {
-mostrarToast("🔒 Sorteo ya finalizado", "warning");
-return;
-}
-const ts = parseInt(btn.dataset.timestamp);
-const ahora = Date.now();
-if (ahora < ts) {
-mostrarToast("⏳ El sorteo aún no está disponible. Esperá a que termine la cuenta regresiva.", "warning");
-return;
-}
-const idComercio = btn.dataset.id;
-const nombreComercio = btn.dataset.nombre;
-const premio = btn.dataset.premio;
-const cant = parseInt(btn.dataset.cant);
-const mailC = btn.dataset.mail;
-const logoUrl = btn.dataset.logo;
-const desc = btn.dataset.desc;
-ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
 };
 const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc) => {
 mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
@@ -1231,10 +1216,15 @@ mailComercio: mailC || 'habitatcar@gmail.com',
 timestampProgramado: Date.now()
 });
 // ✅ MARCAR COMO FINALIZADO INMEDIATAMENTE
+try {
 await updateDoc(doc(db, "comercios", idCom), {
 sorteo_finalizado: true,
 timestamp_finalizacion: serverTimestamp()
 });
+console.log(`✅ Sorteo de ${nomCom} marcado como finalizado en Firebase`);
+} catch (e) {
+console.error("Error marcando sorteo como finalizado:", e);
+}
 await enviarEmailAutomatico(ganadoresConNumero, nomCom, premio);
 try {
 const comercioSnap = await getDoc(doc(db, "comercios", idCom));
@@ -1488,8 +1478,7 @@ cargarActivos();
 iniciarRelojes();
 actualizarEstadisticas();
 programarSorteosPendientes();
-// ✅ VERIFICAR CADA 10 SEGUNDOS (más frecuente para sorteos automáticos)
-setInterval(programarSorteosPendientes, 10000);
+setInterval(programarSorteosPendientes, 30000);
 });
 document.getElementById('modalPDF').addEventListener('click', e => { if (e.target.id === 'modalPDF') cerrarModales(); });
 document.getElementById('modalWA').addEventListener('click', e => { if (e.target.id === 'modalWA') cerrarModales(); });
