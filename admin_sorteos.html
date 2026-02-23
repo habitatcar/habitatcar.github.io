@@ -914,22 +914,22 @@ mostrarToast("❌ Error en sorteo automático", "error");
 }
 };
 // ============================================
-// PROGRAMAR SORTEOS (VERSIÓN CORREGIDA)
+// PROGRAMAR SORTEOS
 // ============================================
 const programarSorteosPendientes = async () => {
 try {
 const ahora = Date.now();
 const q = query(
 collection(db, "comercios"),
-where("titulo_sorteo", "!=", null)
+where("titulo_sorteo", "!=", null),
+where("sorteo_finalizado", "!=", true)
 );
 const snap = await getDocs(q);
 snap.forEach(doc => {
 const c = doc.data();
 if (!c.fecha_sorteo) return;
 const ts = new Date(c.fecha_sorteo).getTime();
-// Solo ejecutar si NO está finalizado
-if (ts <= ahora && !c.sorteo_finalizado) {
+if (ts <= ahora) {
 console.log(`⏰ Ejecutando sorteo de ${c.nombre} ahora mismo`);
 window.ejecutarSorteoAutomatico(doc.id);
 }
@@ -1143,8 +1143,7 @@ const cargarActivos = () => {
             }
         });
         
-        // ORDEN CORREGIDO: Primero los más próximos (fecha más cercana a ahora)
-        // y al final los ya sorteados
+        // ORDEN: Primero los más próximos, luego los finalizados
         const ahora = Date.now();
         comerciosArray.sort((a, b) => {
             const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
@@ -1177,7 +1176,7 @@ const cargarActivos = () => {
             const fechaISO = c.fecha_sorteo || "";
             const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
             
-            // ✅ DETERMINAMOS SI ESTÁ FINALIZADO BASADO EN FECHA O FLAG
+            // ✅ CORREGIDO: FINALIZADO SI (FECHA < AHORA - 1 HORA) O (sorteo_finalizado === true)
             const finalizado = (ts < ahora - 3600000) || c.sorteo_finalizado === true;
             
             let cL = 0, cV = 0;
