@@ -1116,125 +1116,115 @@ return false;
 });
 };
 // ============================================
-// CARGAR ACTIVOS (VERSIÓN CORREGIDA - AHORA MUESTRA TODOS LOS SORTEOS)
+// CARGAR ACTIVOS (CON CHECKBOXES) - CORREGIDO PARA MOSTRAR NUEVOS SORTEOS
 // ============================================
 const cargarActivos = () => {
-    window.vistaActual = 'activos';
-    window.itemsSeleccionados.clear();
-    actualizarBulkActions();
-    document.getElementById('header-checkbox').style.display = 'table-cell';
-    
-    const tabla = document.getElementById('tabla-sorteos');
-    tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando sorteos...</td></tr>';
-    
-    if (listenerActivos) listenerActivos();
-    
-    listenerActivos = onSnapshot(collection(db, "comercios"), async (snap) => {
-        tabla.innerHTML = "";
-        const comerciosArray = [];
-        
-        snap.forEach(doc => {
-            const data = doc.data();
-            // ✅ SOLO FILTRAMOS POR TITULO_SORTEO, NO POR FINALIZADO
-            if (data.titulo_sorteo) {
-                comerciosArray.push({ id: doc.id, data: data });
-            }
-        });
-        
-        comerciosArray.sort((a, b) => {
-            if (a.data.sorteo_finalizado && !b.data.sorteo_finalizado) return 1;
-            if (!a.data.sorteo_finalizado && b.data.sorteo_finalizado) return -1;
-            return 0;
-        });
-        
-        if (comerciosArray.length === 0) {
-            tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#666;">📭 No hay sorteos activos</td></tr>';
-            return;
-        }
-        
-        for (const { id: docId, data: c } of comerciosArray) {
-            const nomCom = c.nombre || "Sin nombre";
-            const premio = c.titulo_sorteo;
-            const descPremio = c.descripcion_sorteo || "";
-            const cant = parseInt(c.cantidad_premios) || 1;
-            const fechaISO = c.fecha_sorteo || "";
-            const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
-            const finalizado = c.sorteo_finalizado || false;
-            
-            let cL = 0, cV = 0;
-            try {
-                const snapP = await getDocs(query(
-                    collection(db, "admin_participantes_sorteos"),
-                    where("comercio", "==", nomCom)
-                ));
-                
-                await Promise.all(snapP.docs.map(async p => {
-                    const pd = p.data();
-                    if (pd.usuarioId && !pd.usuarioId.startsWith('temp_')) {
-                        try {
-                            const ld = await getDoc(doc(db, "leads", pd.usuarioId));
-                            if (ld.exists() && (ld.data().convertidoVIP || ld.data().tipo === "VIP")) {
-                                cV++;
-                                return;
-                            }
-                        } catch (e) {}
-                    }
-                    pd.tipo === "VIP" ? cV++ : cL++;
-                }));
-            } catch (e) {
-                console.error("Error contando participantes:", e);
-            }
-            
-            const f = formatearFechaHora(fechaISO) || { fecha: 'A definir', hora: '' };
-            
-            let badge = '';
-            let estadoClase = finalizado ? 'finalizado' : '';
-            
-            if (finalizado) {
-                badge = `<span class="badge badge-finalizado">✅ SORTEO FINALIZADO</span>`;
-            } else if (ts > Date.now()) {
-                badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`;
-            } else {
-                badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
-            }
-            
-            tabla.innerHTML += `<tr class="${estadoClase}">
-                <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docId}" onchange="toggleSeleccion('${docId}',this)"></td>
-                <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div></td>
-                <td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-                <td>
-                    <span class="badge badge-comercio">${nomCom}</span><br>
-                    <span class="badge badge-premio">🎁 ${premio}</span>
-                    ${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}
-                </td>
-                <td>
-                    <div class="participantes-cell">
-                        <div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cL}</span></div>
-                        <div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cV}</span></div>
-                        <div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${cL + cV}</span></div>
-                    </div>
-                </td>
-                <td>
-                    ${finalizado ?
-                        `<button class="btn btn-secondary btn-sm" disabled style="opacity:0.5">✅ FINALIZADO</button>` :
-                        `<button class="btn btn-sortear-accion"
-                            data-id="${docId}"
-                            data-nombre="${nomCom}"
-                            data-premio="${premio}"
-                            data-cant="${cant}"
-                            data-mail="${c.email || ''}"
-                            data-logo="${c.logoUrl || ''}"
-                            data-desc="${descPremio}"
-                            data-timestamp="${ts}"
-                            data-clave-comercio="${c.password || ''}"
-                            onclick="intentarSorteo(this)">Calculando...</button>`
-                    }
-                    <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docId}','${fechaISO}')">🗑️ Cancelar</button>
-                </td>
-                <td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant > 1 ? 's' : ''}</span></td>
-            </tr>`;
-        }
-    });
+window.vistaActual = 'activos';
+window.itemsSeleccionados.clear();
+actualizarBulkActions();
+document.getElementById('header-checkbox').style.display = 'table-cell';
+const tabla = document.getElementById('tabla-sorteos');
+tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando sorteos...</td></tr>';
+if (listenerActivos) listenerActivos();
+listenerActivos = onSnapshot(collection(db, "comercios"), async (snap) => {
+tabla.innerHTML = "";
+const comerciosArray = [];
+snap.forEach(doc => {
+comerciosArray.push({ id: doc.id, data: doc.data() });
+});
+comerciosArray.sort((a, b) => {
+if (a.data.sorteo_finalizado && !b.data.sorteo_finalizado) return 1;
+if (!a.data.sorteo_finalizado && b.data.sorteo_finalizado) return -1;
+return 0;
+});
+let haySorteos = false;
+for (const { id: docId, data: c } of comerciosArray) {
+if (!c.titulo_sorteo) continue;
+haySorteos = true;
+const nomCom = c.nombre || "Sin nombre";
+const premio = c.titulo_sorteo;
+const descPremio = c.descripcion_sorteo || "";
+const cant = parseInt(c.cantidad_premios) || 1;
+const fechaISO = c.fecha_sorteo || "";
+const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
+
+// CORRECCIÓN: Si hay fecha futura, ignorar sorteo_finalizado y mostrar como activo
+const hayFechaFutura = fechaISO && ts > Date.now();
+const finalizado = c.sorteo_finalizado && !hayFechaFutura;
+
+let cL = 0, cV = 0;
+try {
+const snapP = await getDocs(query(
+collection(db, "admin_participantes_sorteos"),
+where("comercio", "==", nomCom)
+));
+await Promise.all(snapP.docs.map(async p => {
+const pd = p.data();
+if (pd.usuarioId && !pd.usuarioId.startsWith('temp_')) {
+try {
+const ld = await getDoc(doc(db, "leads", pd.usuarioId));
+if (ld.exists() && (ld.data().convertidoVIP || ld.data().tipo === "VIP")) {
+cV++;
+return;
+}
+} catch (e) {}
+}
+pd.tipo === "VIP" ? cV++ : cL++;
+}));
+} catch (e) {
+console.error("Error contando participantes:", e);
+}
+const f = formatearFechaHora(fechaISO) || { fecha: 'A definir', hora: '' };
+let badge = '';
+let estadoClase = '';
+if (finalizado) {
+badge = `<span class="badge badge-finalizado">✅ SORTEO FINALIZADO</span>`;
+estadoClase = 'finalizado';
+} else if (ts > Date.now()) {
+badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`;
+} else {
+badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
+}
+tabla.innerHTML += `<tr class="${estadoClase}">
+<td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docId}" onchange="toggleSeleccion('${docId}',this)"></td>
+<td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div></td>
+<td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+<td>
+<span class="badge badge-comercio">${nomCom}</span><br>
+<span class="badge badge-premio">🎁 ${premio}</span>
+${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}
+</td>
+<td>
+<div class="participantes-cell">
+<div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cL}</span></div>
+<div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cV}</span></div>
+<div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${cL + cV}</span></div>
+</div>
+</td>
+<td>
+${finalizado ?
+`<button class="btn btn-secondary btn-sm" disabled style="opacity:0.5">✅ FINALIZADO</button>` :
+`<button class="btn btn-sortear-accion"
+data-id="${docId}"
+data-nombre="${nomCom}"
+data-premio="${premio}"
+data-cant="${cant}"
+data-mail="${c.email || ''}"
+data-logo="${c.logoUrl || ''}"
+data-desc="${descPremio}"
+data-timestamp="${ts}"
+data-clave-comercio="${c.password || ''}"
+onclick="intentarSorteo(this)">Calculando...</button>`
+}
+<br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docId}','${fechaISO}')">🗑️ Cancelar</button>
+</td>
+<td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant > 1 ? 's' : ''}</span></td>
+</tr>`;
+}
+if (!haySorteos) {
+tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#666;">📭 No hay sorteos activos</td></tr>';
+}
+});
 };
 // ============================================
 // EJECUTAR SORTEO
