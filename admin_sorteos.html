@@ -921,15 +921,15 @@ try {
 const ahora = Date.now();
 const q = query(
 collection(db, "comercios"),
-where("titulo_sorteo", "!=", null),
-where("sorteo_finalizado", "!=", true)
+where("titulo_sorteo", "!=", null)
 );
 const snap = await getDocs(q);
 snap.forEach(doc => {
 const c = doc.data();
 if (!c.fecha_sorteo) return;
 const ts = new Date(c.fecha_sorteo).getTime();
-if (ts <= ahora) {
+// Solo ejecutar si NO está finalizado
+if (ts <= ahora && !c.sorteo_finalizado) {
 console.log(`⏰ Ejecutando sorteo de ${c.nombre} ahora mismo`);
 window.ejecutarSorteoAutomatico(doc.id);
 }
@@ -1132,12 +1132,14 @@ const cargarActivos = () => {
     
     if (listenerActivos) listenerActivos();
     
+    // ✅ CORREGIDO: QUERY SIN FILTROS ADICIONALES
     listenerActivos = onSnapshot(collection(db, "comercios"), async (snap) => {
         tabla.innerHTML = "";
         const comerciosArray = [];
         
         snap.forEach(doc => {
             const data = doc.data();
+            // ✅ SOLO FILTRAMOS POR TITULO_SORTEO
             if (data.titulo_sorteo) {
                 comerciosArray.push({ id: doc.id, data: data });
             }
@@ -1176,7 +1178,7 @@ const cargarActivos = () => {
             const fechaISO = c.fecha_sorteo || "";
             const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
             
-            // ✅ CORREGIDO: FINALIZADO SI (FECHA < AHORA - 1 HORA) O (sorteo_finalizado === true)
+            // ✅ DETERMINAMOS SI ESTÁ FINALIZADO BASADO EN FECHA O FLAG
             const finalizado = (ts < ahora - 3600000) || c.sorteo_finalizado === true;
             
             let cL = 0, cV = 0;
