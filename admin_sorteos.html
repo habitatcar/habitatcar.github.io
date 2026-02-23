@@ -871,7 +871,7 @@ window.normalizarTelefonoAR = n => {
 };
 
 // ============================================
-// NUEVA: SORTEO AUTOMÁTICO CON CORRECCIÓN DE EMAIL
+// NUEVA: SORTEO AUTOMÁTICO
 // ============================================
 window.ejecutarSorteoAutomatico = async (idComercio) => {
     try {
@@ -963,9 +963,6 @@ window.ejecutarSorteoAutomatico = async (idComercio) => {
             }
         }
         
-        // ============================================
-        // BLOQUE CORREGIDO DE ENVÍO DE EMAIL
-        // ============================================
         try {
             const GAS_URL = "https://script.google.com/macros/s/AKfycbwWqItLbuGollI4F6OBDrHHoWwrvSJz88CWp1Wutt5hPWbqPUaATtIxVVv-wHOu3DGLbQ/exec";
             
@@ -986,26 +983,15 @@ window.ejecutarSorteoAutomatico = async (idComercio) => {
                 cc: comercio.email || ''
             };
             
-            console.log("📤 Enviando a GAS:", payloadHC);
-            
-            // Usar fetch con promesa para manejar mejor el error
-            fetch(GAS_URL, {
+            await fetch(GAS_URL, {
                 method: 'POST',
                 mode: 'no-cors',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payloadHC)
-            })
-            .then(() => {
-                console.log("📨 Solicitud enviada al servidor de correos");
-                mostrarToast("📧 Notificación enviada a Hábitat-Car", "success");
-            })
-            .catch(error => {
-                console.error("❌ Error en fetch:", error);
-                mostrarToast("⚠️ No se pudo enviar notificación por email", "warning");
             });
             
         } catch (e) {
-            console.error("💥 Error al preparar email:", e);
+            console.error("Error enviando email:", e);
         }
         
         mostrarToast(`✅ Sorteo automático de ${comercio.nombre} realizado`, "success");
