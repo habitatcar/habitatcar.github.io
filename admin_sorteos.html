@@ -213,7 +213,7 @@ style="background:#25D366; color:white; border:none; border-radius:8px; padding:
 </div>
 <div id="bulk-actions" class="bulk-actions">
 <span class="selected-count"><i class="fas fa-check-circle"></i> <span id="selected-count">0</span> seleccionado(s)</span>
-<button class="btn btn-danger" onclick="eliminarSeleccionados()"><i class="fas fa-trash"></i> ELIMINAR SELECCIONADOS</button>
+<button class="btn btn-danger" id="btn-eliminar-seleccionados"><i class="fas fa-trash"></i> ELIMINAR SELECCIONADOS</button>
 <button class="btn btn-warning" onclick="desmarcarTodos()"><i class="fas fa-times"></i> CANCELAR</button>
 </div>
 <div class="table-container">
@@ -380,20 +380,19 @@ Variables: <b>{{NOMBRE}}</b>, <b>{{PREMIO}}</b>, <b>{{COMERCIO}}</b>, <b style="
 </div>
 <!-- BOTÓN MODO OSCURO -->
 <div class="dark-mode-toggle" onclick="toggleDarkMode()" id="darkModeToggle">🌙</div>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, doc, getDoc, deleteDoc, updateDoc } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+
+// ============================================
+// CONSTANTES Y CONFIGURACIÓN
+// ============================================
 const CLAVE_MAESTRA = "HABITAT_MASTER_2026";
 const LOGO_DEFAULT  = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
 const LOGO_HABITAT  = "https://raw.githubusercontent.com/habitatcar/habitatcar.github.io/refs/heads/main/logo_redondo.png";
-const proxyURL = (url) => {
-if (!url) return url;
-if (url.includes('raw.githubusercontent.com') || url.includes('github.com')) return url;
-if (url.includes('firebasestorage.googleapis.com')) {
-return `https://corsproxy.io/?${encodeURIComponent(url)}`;
-}
-return url;
-};
+const GAS_URL = "https://script.google.com/macros/s/AKfycbwWqItLbuGollI4F6OBDrHHoWwrvSJz88CWp1Wutt5hPWbqPUaATtIxVVv-wHOu3DGLbQ/exec";
+
 const WA_DEFAULT = `🎉🏆 ¡Hola {{NOMBRE}}! ¡Felicitaciones!
 Ganaste el sorteo 🎁 *{{PREMIO}}*
 consistente en *{{DESCRIPCION}}*
@@ -404,765 +403,960 @@ Tenés *30 días* para presentarte a reclamar tu premio.
 ⏰ Si dejás pasar los 30 días ❌ *perdés el premio* ❌
 😴💤 ¡No dejes pasar esta oportunidad única!
 — Equipo Hábitat-Car 🚗🏠`;
+
 const firebaseConfig = {
-apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
-authDomain: "habitatcar-pro.firebaseapp.com",
-projectId: "habitatcar-pro",
-storageBucket: "habitatcar-pro.firebasestorage.app",
-messagingSenderId: "311691258694",
-appId: "1:311691258694:web:17a09051dcea7707af9347"
+    apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+    authDomain: "habitatcar-pro.firebaseapp.com",
+    projectId: "habitatcar-pro",
+    storageBucket: "habitatcar-pro.firebasestorage.app",
+    messagingSenderId: "311691258694",
+    appId: "1:311691258694:web:17a09051dcea7707af9347"
 };
+
 const app = initializeApp(firebaseConfig);
 const db  = getFirestore(app);
+
 // ============================================
-// VARIABLES GLOBALES
+// ESTADO GLOBAL
 // ============================================
-let estadisticas = { totalSorteos: 0, totalGanadores: 0, topComercio: '-', participantesUnicos: new Set() };
-let datosPendientes = null;
-let listenerActivos = null;
-let listenerHistorial = null;
+const state = {
+    vistaActual: 'activos',
+    itemsSeleccionados: new Set(),
+    listenerActivos: null,
+    listenerHistorial: null,
+    callbackClave: null
+};
+
+// ============================================
+// UTILIDADES
+// ============================================
+const proxyURL = (url) => {
+    if (!url) return url;
+    if (url.includes('raw.githubusercontent.com') || url.includes('github.com')) return url;
+    if (url.includes('firebasestorage.googleapis.com')) {
+        return `https://corsproxy.io/?${encodeURIComponent(url)}`;
+    }
+    return url;
+};
+
+const mostrarToast = (msg, tipo = "success") => {
+    const d = document.createElement('div');
+    d.className = `toast ${tipo}`;
+    d.innerText = msg;
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 3500);
+};
+
+const formatearFechaHora = (fechaISO) => {
+    if (!fechaISO) return null;
+    try {
+        const [fp, hp] = fechaISO.split('T');
+        const [a, m, d] = fp.split('-');
+        const [h, min] = hp.split(':');
+        return { fecha: `${d}/${m}/${a}`, hora: `${h}:${min} Hs.` };
+    } catch (e) {
+        return null;
+    }
+};
+
+const normalizarTelefonoAR = (n) => {
+    if (!n) return null;
+    let s = n.toString().replace(/\D/g,'');
+    if (s.length===10) return '549'+s;
+    if (s.startsWith('54')&&!s.startsWith('549')) return '549'+s.substring(2);
+    return s.startsWith('549')?s:'549'+s;
+};
+
 // ============================================
 // MODO OSCURO
 // ============================================
 window.toggleDarkMode = () => {
-document.body.classList.toggle('dark-mode');
-const toggle = document.getElementById('darkModeToggle');
-toggle.textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
-localStorage.setItem('darkMode', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+    document.body.classList.toggle('dark-mode');
+    const toggle = document.getElementById('darkModeToggle');
+    toggle.textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+    localStorage.setItem('darkMode', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
 };
+
 if (localStorage.getItem('darkMode') === 'dark') {
-document.body.classList.add('dark-mode');
-document.getElementById('darkModeToggle').textContent = '☀️';
+    document.body.classList.add('dark-mode');
+    document.getElementById('darkModeToggle').textContent = '☀️';
 }
+
 // ============================================
-// FUNCIONES DE ESTADÍSTICAS
+// ESTADÍSTICAS
 // ============================================
 const actualizarEstadisticas = async () => {
-try {
-const snap = await getDocs(collection(db, "historial_sorteos"));
-let totalGanadores = 0;
-let comercioCount = {};
-let participantesSet = new Set();
-snap.docs.forEach(doc => {
-const h = doc.data();
-if (h.ganadores) {
-totalGanadores += h.ganadores.length;
-h.ganadores.forEach(g => {
-if (g.celular) participantesSet.add(g.celular);
-});
-}
-if (h.comercio) {
-comercioCount[h.comercio] = (comercioCount[h.comercio] || 0) + (h.ganadores?.length || 0);
-}
-});
-let topComercio = '-';
-let maxGanadores = 0;
-for (const [comercio, count] of Object.entries(comercioCount)) {
-if (count > maxGanadores) {
-maxGanadores = count;
-topComercio = comercio;
-}
-}
-document.getElementById('stat-total').textContent = snap.size;
-document.getElementById('stat-ganadores').textContent = totalGanadores;
-document.getElementById('stat-top').textContent = topComercio;
-document.getElementById('stat-participantes').textContent = participantesSet.size;
-} catch(e) {
-console.error("Error actualizando estadísticas:", e);
-}
+    try {
+        const snap = await getDocs(collection(db, "historial_sorteos"));
+        let totalGanadores = 0;
+        let comercioCount = {};
+        let participantesSet = new Set();
+        
+        snap.docs.forEach(doc => {
+            const h = doc.data();
+            if (h.ganadores) {
+                totalGanadores += h.ganadores.length;
+                h.ganadores.forEach(g => {
+                    if (g.celular) participantesSet.add(g.celular);
+                });
+            }
+            if (h.comercio) {
+                comercioCount[h.comercio] = (comercioCount[h.comercio] || 0) + (h.ganadores?.length || 0);
+            }
+        });
+        
+        let topComercio = '-';
+        let maxGanadores = 0;
+        for (const [comercio, count] of Object.entries(comercioCount)) {
+            if (count > maxGanadores) {
+                maxGanadores = count;
+                topComercio = comercio;
+            }
+        }
+        
+        document.getElementById('stat-total').textContent = snap.size;
+        document.getElementById('stat-ganadores').textContent = totalGanadores;
+        document.getElementById('stat-top').textContent = topComercio;
+        document.getElementById('stat-participantes').textContent = participantesSet.size;
+    } catch(e) {
+        console.error("Error actualizando estadísticas:", e);
+    }
 };
+
 // ============================================
-// SUBIR IMAGEN DESDE PC
-// ============================================
-window.subirImagenFondo = () => {
-document.getElementById('upload-bg').click();
-};
-window.procesarImagenSubida = (event) => {
-const file = event.target.files[0];
-if (!file) return;
-const reader = new FileReader();
-reader.onload = (e) => {
-document.getElementById('cfg_bg').value = e.target.result;
-actualizarPrevia();
-mostrarToast("✅ Imagen cargada como fondo", "success");
-};
-reader.readAsDataURL(file);
-};
-// ============================================
-// PLANTILLAS RÁPIDAS
-// ============================================
-window.cargarPlantilla = (tipo) => {
-switch(tipo) {
-case 'clasica':
-document.getElementById('cfg_l1x').value = 5; document.getElementById('cfg_l1y').value = 5; document.getElementById('cfg_l1s').value = 20;
-document.getElementById('cfg_l2x').value = 45; document.getElementById('cfg_l2y').value = 5; document.getElementById('cfg_l2s').value = 20;
-document.getElementById('cfg_t1x').value = 40; document.getElementById('cfg_t1y').value = 70; document.getElementById('cfg_t1s').value = 22;
-document.getElementById('cfg_t2x').value = 40; document.getElementById('cfg_t2y').value = 90; document.getElementById('cfg_t2s').value = 16;
-document.getElementById('cfg_t6x').value = 40; document.getElementById('cfg_t6y').value = 105; document.getElementById('cfg_t6s').value = 12;
-document.getElementById('cfg_t3x').value = 40; document.getElementById('cfg_t3y').value = 118; document.getElementById('cfg_t3s').value = 14;
-document.getElementById('cfg_t4x').value = 40; document.getElementById('cfg_t4y').value = 45; document.getElementById('cfg_t4s').value = 14;
-document.getElementById('cfg_t5x').value = 40; document.getElementById('cfg_t5y').value = 148; document.getElementById('cfg_t5s').value = 8;
-document.getElementById('cfg_t4txt').value = '¡Felicitaciones!';
-document.getElementById('cfg_t5txt').value = 'Hábitat-Car';
-break;
-case 'elegante':
-document.getElementById('cfg_l1x').value = 10; document.getElementById('cfg_l1y').value = 10; document.getElementById('cfg_l1s').value = 15;
-document.getElementById('cfg_l2x').value = 40; document.getElementById('cfg_l2y').value = 10; document.getElementById('cfg_l2s').value = 15;
-document.getElementById('cfg_t1x').value = 40; document.getElementById('cfg_t1y').value = 65; document.getElementById('cfg_t1s').value = 18;
-document.getElementById('cfg_t2x').value = 40; document.getElementById('cfg_t2y').value = 85; document.getElementById('cfg_t2s').value = 14;
-document.getElementById('cfg_t6x').value = 40; document.getElementById('cfg_t6y').value = 100; document.getElementById('cfg_t6s').value = 10;
-document.getElementById('cfg_t3x').value = 40; document.getElementById('cfg_t3y').value = 115; document.getElementById('cfg_t3s').value = 12;
-document.getElementById('cfg_t4x').value = 40; document.getElementById('cfg_t4y').value = 45; document.getElementById('cfg_t4s').value = 12;
-document.getElementById('cfg_t5x').value = 40; document.getElementById('cfg_t5y').value = 150; document.getElementById('cfg_t5s').value = 7;
-document.getElementById('cfg_t4txt').value = 'Enhorabuena';
-document.getElementById('cfg_t5txt').value = 'Hábitat-Car';
-break;
-case 'destacada':
-document.getElementById('cfg_l1x').value = 5; document.getElementById('cfg_l1y').value = 5; document.getElementById('cfg_l1s').value = 25;
-document.getElementById('cfg_l2x').value = 45; document.getElementById('cfg_l2y').value = 5; document.getElementById('cfg_l2s').value = 25;
-document.getElementById('cfg_t1x').value = 40; document.getElementById('cfg_t1y').value = 75; document.getElementById('cfg_t1s').value = 28;
-document.getElementById('cfg_t2x').value = 40; document.getElementById('cfg_t2y').value = 95; document.getElementById('cfg_t2s').value = 20;
-document.getElementById('cfg_t6x').value = 40; document.getElementById('cfg_t6y').value = 110; document.getElementById('cfg_t6s').value = 14;
-document.getElementById('cfg_t3x').value = 40; document.getElementById('cfg_t3y').value = 123; document.getElementById('cfg_t3s').value = 16;
-document.getElementById('cfg_t4x').value = 40; document.getElementById('cfg_t4y').value = 45; document.getElementById('cfg_t4s').value = 16;
-document.getElementById('cfg_t5x').value = 40; document.getElementById('cfg_t5y').value = 148; document.getElementById('cfg_t5s').value = 9;
-document.getElementById('cfg_t4txt').value = '¡GRAN GANADOR!';
-document.getElementById('cfg_t5txt').value = 'Hábitat-Car';
-break;
-case 'minimalista':
-document.getElementById('cfg_l1x').value = 5; document.getElementById('cfg_l1y').value = 5; document.getElementById('cfg_l1s').value = 18;
-document.getElementById('cfg_l2x').value = 45; document.getElementById('cfg_l2y').value = 5; document.getElementById('cfg_l2s').value = 18;
-document.getElementById('cfg_t1x').value = 40; document.getElementById('cfg_t1y').value = 68; document.getElementById('cfg_t1s').value = 20;
-document.getElementById('cfg_t2x').value = 40; document.getElementById('cfg_t2y').value = 88; document.getElementById('cfg_t2s').value = 14;
-document.getElementById('cfg_t6x').value = 40; document.getElementById('cfg_t6y').value = 103; document.getElementById('cfg_t6s').value = 10;
-document.getElementById('cfg_t3x').value = 40; document.getElementById('cfg_t3y').value = 116; document.getElementById('cfg_t3s').value = 12;
-document.getElementById('cfg_t4x').value = 40; document.getElementById('cfg_t4y').value = 45; document.getElementById('cfg_t4s').value = 12;
-document.getElementById('cfg_t5x').value = 40; document.getElementById('cfg_t5y').value = 148; document.getElementById('cfg_t5s').value = 7;
-document.getElementById('cfg_t4txt').value = 'Gracias';
-document.getElementById('cfg_t5txt').value = 'HC';
-break;
-}
-actualizarPrevia();
-};
-// ============================================
-// LEER CONFIGURACIÓN
+// CONFIGURACIÓN PDF Y WA
 // ============================================
 const leerMsgWA  = () => localStorage.getItem('hc_wa_v3') || WA_DEFAULT;
 const leerCfgPDF = () => {
-try {
-return JSON.parse(localStorage.getItem('hc_pdf_v3')) || {};
-} catch(e) {
-return {};
-}
+    try {
+        return JSON.parse(localStorage.getItem('hc_pdf_v3')) || {};
+    } catch(e) {
+        return {};
+    }
 };
+
 // ============================================
-// ABRIR EDITOR PDF
+// EDITOR PDF
 // ============================================
+window.subirImagenFondo = () => {
+    document.getElementById('upload-bg').click();
+};
+
+window.procesarImagenSubida = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        document.getElementById('cfg_bg').value = e.target.result;
+        actualizarPrevia();
+        mostrarToast("✅ Imagen cargada como fondo", "success");
+    };
+    reader.readAsDataURL(file);
+};
+
+window.cargarPlantilla = (tipo) => {
+    const plantillas = {
+        clasica: { l1x:5, l1y:5, l1s:20, l2x:45, l2y:5, l2s:20, t1x:40, t1y:70, t1s:22, t2x:40, t2y:90, t2s:16, t6x:40, t6y:105, t6s:12, t3x:40, t3y:118, t3s:14, t4x:40, t4y:45, t4s:14, t5x:40, t5y:148, t5s:8, t4txt:'¡Felicitaciones!', t5txt:'Hábitat-Car' },
+        elegante: { l1x:10, l1y:10, l1s:15, l2x:40, l2y:10, l2s:15, t1x:40, t1y:65, t1s:18, t2x:40, t2y:85, t2s:14, t6x:40, t6y:100, t6s:10, t3x:40, t3y:115, t3s:12, t4x:40, t4y:45, t4s:12, t5x:40, t5y:150, t5s:7, t4txt:'Enhorabuena', t5txt:'Hábitat-Car' },
+        destacada: { l1x:5, l1y:5, l1s:25, l2x:45, l2y:5, l2s:25, t1x:40, t1y:75, t1s:28, t2x:40, t2y:95, t2s:20, t6x:40, t6y:110, t6s:14, t3x:40, t3y:123, t3s:16, t4x:40, t4y:45, t4s:16, t5x:40, t5y:148, t5s:9, t4txt:'¡GRAN GANADOR!', t5txt:'Hábitat-Car' },
+        minimalista: { l1x:5, l1y:5, l1s:18, l2x:45, l2y:5, l2s:18, t1x:40, t1y:68, t1s:20, t2x:40, t2y:88, t2s:14, t6x:40, t6y:103, t6s:10, t3x:40, t3y:116, t3s:12, t4x:40, t4y:45, t4s:12, t5x:40, t5y:148, t5s:7, t4txt:'Gracias', t5txt:'HC' }
+    };
+    
+    const p = plantillas[tipo];
+    if (!p) return;
+    
+    Object.keys(p).forEach(key => {
+        const el = document.getElementById(`cfg_${key}`);
+        if (el) el.value = p[key];
+    });
+    actualizarPrevia();
+};
+
 window.abrirEditorPDF = () => {
-const p = leerCfgPDF();
-document.getElementById('cfg_bg').value = p.bg || '';
-document.getElementById('cfg_l1x').value = p.l1x ?? 5; document.getElementById('cfg_l1y').value = p.l1y ?? 5; document.getElementById('cfg_l1s').value = p.l1s ?? 20;
-document.getElementById('cfg_l2x').value = p.l2x ?? 45; document.getElementById('cfg_l2y').value = p.l2y ?? 5; document.getElementById('cfg_l2s').value = p.l2s ?? 20;
-document.getElementById('cfg_t1x').value = p.t1x ?? 40; document.getElementById('cfg_t1y').value = p.t1y ?? 70; document.getElementById('cfg_t1s').value = p.t1s ?? 22;
-document.getElementById('cfg_t2x').value = p.t2x ?? 40; document.getElementById('cfg_t2y').value = p.t2y ?? 90; document.getElementById('cfg_t2s').value = p.t2s ?? 16;
-document.getElementById('cfg_t6x').value = p.t6x ?? 40; document.getElementById('cfg_t6y').value = p.t6y ?? 105; document.getElementById('cfg_t6s').value = p.t6s ?? 12;
-document.getElementById('cfg_t3x').value = p.t3x ?? 40; document.getElementById('cfg_t3y').value = p.t3y ?? 118; document.getElementById('cfg_t3s').value = p.t3s ?? 14;
-document.getElementById('cfg_t4x').value = p.t4x ?? 40; document.getElementById('cfg_t4y').value = p.t4y ?? 45; document.getElementById('cfg_t4s').value = p.t4s ?? 14;
-document.getElementById('cfg_t4txt').value = p.t4txt ?? '¡Felicitaciones!';
-document.getElementById('cfg_t5x').value = p.t5x ?? 40; document.getElementById('cfg_t5y').value = p.t5y ?? 148; document.getElementById('cfg_t5s').value = p.t5s ?? 8;
-document.getElementById('cfg_t5txt').value = p.t5txt ?? 'Hábitat-Car';
-document.getElementById('cfg_color_t1').value = p.color_t1 || '#000000';
-document.getElementById('cfg_color_t2').value = p.color_t2 || '#000000';
-document.getElementById('cfg_color_t3').value = p.color_t3 || '#000000';
-document.getElementById('cfg_color_t4').value = p.color_t4 || '#000000';
-document.getElementById('cfg_color_t5').value = p.color_t5 || '#666666';
-document.getElementById('cfg_color_t6').value = p.color_t6 || '#000000';
-document.getElementById('cfg_font_t1').value = p.font_t1 || 'helvetica';
-document.getElementById('cfg_font_t2').value = p.font_t2 || 'helvetica';
-document.getElementById('cfg_font_t3').value = p.font_t3 || 'helvetica';
-document.getElementById('cfg_font_t4').value = p.font_t4 || 'helvetica';
-document.getElementById('cfg_font_t5').value = p.font_t5 || 'helvetica';
-document.getElementById('cfg_font_t6').value = p.font_t6 || 'helvetica';
-document.getElementById('modalPDF').style.display = 'flex';
-actualizarPrevia();
+    const p = leerCfgPDF();
+    document.getElementById('cfg_bg').value = p.bg || '';
+    
+    ['l1','l2','t1','t2','t3','t4','t5','t6'].forEach(pref => {
+        ['x','y','s'].forEach(suf => {
+            const el = document.getElementById(`cfg_${pref}${suf}`);
+            if (el) el.value = p[`${pref}${suf}`] ?? el.getAttribute('value');
+        });
+    });
+    
+    ['t4txt','t5txt'].forEach(id => {
+        const el = document.getElementById(`cfg_${id}`);
+        if (el) el.value = p[id] ?? el.getAttribute('value');
+    });
+    
+    ['t1','t2','t3','t4','t5','t6'].forEach(t => {
+        document.getElementById(`cfg_color_${t}`).value = p[`color_${t}`] || '#000000';
+        document.getElementById(`cfg_font_${t}`).value = p[`font_${t}`] || 'helvetica';
+    });
+    document.getElementById('cfg_color_t5').value = p.color_t5 || '#666666';
+    
+    document.getElementById('modalPDF').style.display = 'flex';
+    actualizarPrevia();
 };
-// ============================================
-// ACTUALIZAR VISTA PREVIA
-// ============================================
+
 window.actualizarPrevia = () => {
-const bg = document.getElementById('cfg_bg').value;
-const prev = document.getElementById('previa_ticket');
-prev.style.backgroundImage = bg ? `url(${bg})` : 'none';
-if (!bg) prev.style.backgroundColor = '#ddd';
-const f = 3.25;
-const movEl = (elId, xId, yId, sId, vxId, vyId, vsId, isLogo) => {
-const x = parseInt(document.getElementById(xId).value) || 0;
-const y = parseInt(document.getElementById(yId).value) || 0;
-const s = parseInt(document.getElementById(sId).value) || 10;
-if (vxId) document.getElementById(vxId).textContent = x;
-if (vyId) document.getElementById(vyId).textContent = y;
-if (vsId) document.getElementById(vsId).textContent = s;
-const el = document.getElementById(elId);
-if (!el) return;
-el.style.left = (x * f) + 'px';
-el.style.top = (y * f) + 'px';
-if (isLogo) {
-el.style.width = (s * f) + 'px';
-el.style.height = (s * f) + 'px';
-} else {
-el.style.fontSize = Math.round(s * f / 3.8) + 'px';
-}
+    const bg = document.getElementById('cfg_bg').value;
+    const prev = document.getElementById('previa_ticket');
+    prev.style.backgroundImage = bg ? `url(${bg})` : 'none';
+    if (!bg) prev.style.backgroundColor = '#ddd';
+    
+    const f = 3.25;
+    
+    const movEl = (elId, xId, yId, sId, vxId, vyId, vsId, isLogo) => {
+        const x = parseInt(document.getElementById(xId)?.value) || 0;
+        const y = parseInt(document.getElementById(yId)?.value) || 0;
+        const s = parseInt(document.getElementById(sId)?.value) || 10;
+        
+        if (vxId) document.getElementById(vxId).textContent = x;
+        if (vyId) document.getElementById(vyId).textContent = y;
+        if (vsId) document.getElementById(vsId).textContent = s;
+        
+        const el = document.getElementById(elId);
+        if (!el) return;
+        
+        el.style.left = (x * f) + 'px';
+        el.style.top = (y * f) + 'px';
+        
+        if (isLogo) {
+            el.style.width = (s * f) + 'px';
+            el.style.height = (s * f) + 'px';
+        } else {
+            el.style.fontSize = Math.round(s * f / 3.8) + 'px';
+        }
+    };
+    
+    const fontMap = { helvetica: 'Helvetica', times: 'Times New Roman', courier: 'Courier New', arial: 'Arial' };
+    
+    ['t1','t2','t3','t4','t5','t6'].forEach(t => {
+        const colorEl = document.getElementById(`cfg_color_${t}`);
+        const fontEl = document.getElementById(`cfg_font_${t}`);
+        const prevEl = document.getElementById(`prev_${t}`);
+        
+        if (prevEl) {
+            if (colorEl) prevEl.style.color = colorEl.value;
+            if (fontEl) prevEl.style.fontFamily = fontMap[fontEl.value] || 'Helvetica';
+        }
+    });
+    
+    movEl('prev_l1','cfg_l1x','cfg_l1y','cfg_l1s','v_l1x','v_l1y','v_l1s', true);
+    movEl('prev_l2','cfg_l2x','cfg_l2y','cfg_l2s','v_l2x','v_l2y','v_l2s', true);
+    movEl('prev_t1','cfg_t1x','cfg_t1y','cfg_t1s','v_t1x','v_t1y','v_t1s', false);
+    movEl('prev_t2','cfg_t2x','cfg_t2y','cfg_t2s','v_t2x','v_t2y','v_t2s', false);
+    movEl('prev_t6','cfg_t6x','cfg_t6y','cfg_t6s','v_t6x','v_t6y','v_t6s', false);
+    movEl('prev_t3','cfg_t3x','cfg_t3y','cfg_t3s','v_t3x','v_t3y','v_t3s', false);
+    movEl('prev_t4','cfg_t4x','cfg_t4y','cfg_t4s','v_t4x','v_t4y','v_t4s', false);
+    movEl('prev_t5','cfg_t5x','cfg_t5y','cfg_t5s','v_t5x','v_t5y','v_t5s', false);
+    
+    document.getElementById('prev_t4').textContent = document.getElementById('cfg_t4txt')?.value || '¡Felicitaciones!';
+    document.getElementById('prev_t5').textContent = (document.getElementById('cfg_t5txt')?.value || 'Hábitat-Car') + ' • 22/02/2026';
 };
-document.getElementById('prev_t1').style.color = document.getElementById('cfg_color_t1').value;
-document.getElementById('prev_t2').style.color = document.getElementById('cfg_color_t2').value;
-document.getElementById('prev_t3').style.color = document.getElementById('cfg_color_t3').value;
-document.getElementById('prev_t4').style.color = document.getElementById('cfg_color_t4').value;
-document.getElementById('prev_t5').style.color = document.getElementById('cfg_color_t5').value;
-document.getElementById('prev_t6').style.color = document.getElementById('cfg_color_t6').value;
-const fontMap = { helvetica: 'Helvetica', times: 'Times New Roman', courier: 'Courier New', arial: 'Arial' };
-document.getElementById('prev_t1').style.fontFamily = fontMap[document.getElementById('cfg_font_t1').value] || 'Helvetica';
-document.getElementById('prev_t2').style.fontFamily = fontMap[document.getElementById('cfg_font_t2').value] || 'Helvetica';
-document.getElementById('prev_t3').style.fontFamily = fontMap[document.getElementById('cfg_font_t3').value] || 'Helvetica';
-document.getElementById('prev_t4').style.fontFamily = fontMap[document.getElementById('cfg_font_t4').value] || 'Helvetica';
-document.getElementById('prev_t5').style.fontFamily = fontMap[document.getElementById('cfg_font_t5').value] || 'Helvetica';
-document.getElementById('prev_t6').style.fontFamily = fontMap[document.getElementById('cfg_font_t6').value] || 'Helvetica';
-movEl('prev_l1','cfg_l1x','cfg_l1y','cfg_l1s','v_l1x','v_l1y','v_l1s', true);
-movEl('prev_l2','cfg_l2x','cfg_l2y','cfg_l2s','v_l2x','v_l2y','v_l2s', true);
-movEl('prev_t1','cfg_t1x','cfg_t1y','cfg_t1s','v_t1x','v_t1y','v_t1s', false);
-movEl('prev_t2','cfg_t2x','cfg_t2y','cfg_t2s','v_t2x','v_t2y','v_t2s', false);
-movEl('prev_t6','cfg_t6x','cfg_t6y','cfg_t6s','v_t6x','v_t6y','v_t6s', false);
-movEl('prev_t3','cfg_t3x','cfg_t3y','cfg_t3s','v_t3x','v_t3y','v_t3s', false);
-movEl('prev_t4','cfg_t4x','cfg_t4y','cfg_t4s','v_t4x','v_t4y','v_t4s', false);
-movEl('prev_t5','cfg_t5x','cfg_t5y','cfg_t5s','v_t5x','v_t5y','v_t5s', false);
-document.getElementById('prev_t4').textContent = document.getElementById('cfg_t4txt').value || '¡Felicitaciones!';
-document.getElementById('prev_t5').textContent = document.getElementById('cfg_t5txt').value + ' • 22/02/2026';
-};
-// ============================================
-// GUARDAR CONFIGURACIÓN PDF
-// ============================================
+
 window.guardarConfigPDF = () => {
-const gv = id => document.getElementById(id).value;
-const gi = id => parseInt(gv(id)) || 0;
-const data = {
-bg: gv('cfg_bg'),
-l1x: gi('cfg_l1x'), l1y: gi('cfg_l1y'), l1s: gi('cfg_l1s'),
-l2x: gi('cfg_l2x'), l2y: gi('cfg_l2y'), l2s: gi('cfg_l2s'),
-t1x: gi('cfg_t1x'), t1y: gi('cfg_t1y'), t1s: gi('cfg_t1s'),
-t2x: gi('cfg_t2x'), t2y: gi('cfg_t2y'), t2s: gi('cfg_t2s'),
-t3x: gi('cfg_t3x'), t3y: gi('cfg_t3y'), t3s: gi('cfg_t3s'),
-t4x: gi('cfg_t4x'), t4y: gi('cfg_t4y'), t4s: gi('cfg_t4s'), t4txt: gv('cfg_t4txt'),
-t5x: gi('cfg_t5x'), t5y: gi('cfg_t5y'), t5s: gi('cfg_t5s'), t5txt: gv('cfg_t5txt'),
-t6x: gi('cfg_t6x'), t6y: gi('cfg_t6y'), t6s: gi('cfg_t6s'),
-color_t1: gv('cfg_color_t1'), color_t2: gv('cfg_color_t2'), color_t3: gv('cfg_color_t3'),
-color_t4: gv('cfg_color_t4'), color_t5: gv('cfg_color_t5'), color_t6: gv('cfg_color_t6'),
-font_t1: gv('cfg_font_t1'), font_t2: gv('cfg_font_t2'), font_t3: gv('cfg_font_t3'),
-font_t4: gv('cfg_font_t4'), font_t5: gv('cfg_font_t5'), font_t6: gv('cfg_font_t6')
+    const gv = id => document.getElementById(id)?.value;
+    const gi = id => parseInt(gv(id)) || 0;
+    
+    const data = {
+        bg: gv('cfg_bg'),
+        l1x: gi('cfg_l1x'), l1y: gi('cfg_l1y'), l1s: gi('cfg_l1s'),
+        l2x: gi('cfg_l2x'), l2y: gi('cfg_l2y'), l2s: gi('cfg_l2s'),
+        t1x: gi('cfg_t1x'), t1y: gi('cfg_t1y'), t1s: gi('cfg_t1s'),
+        t2x: gi('cfg_t2x'), t2y: gi('cfg_t2y'), t2s: gi('cfg_t2s'),
+        t3x: gi('cfg_t3x'), t3y: gi('cfg_t3y'), t3s: gi('cfg_t3s'),
+        t4x: gi('cfg_t4x'), t4y: gi('cfg_t4y'), t4s: gi('cfg_t4s'), t4txt: gv('cfg_t4txt'),
+        t5x: gi('cfg_t5x'), t5y: gi('cfg_t5y'), t5s: gi('cfg_t5s'), t5txt: gv('cfg_t5txt'),
+        t6x: gi('cfg_t6x'), t6y: gi('cfg_t6y'), t6s: gi('cfg_t6s'),
+        color_t1: gv('cfg_color_t1'), color_t2: gv('cfg_color_t2'), color_t3: gv('cfg_color_t3'),
+        color_t4: gv('cfg_color_t4'), color_t5: gv('cfg_color_t5'), color_t6: gv('cfg_color_t6'),
+        font_t1: gv('cfg_font_t1'), font_t2: gv('cfg_font_t2'), font_t3: gv('cfg_font_t3'),
+        font_t4: gv('cfg_font_t4'), font_t5: gv('cfg_font_t5'), font_t6: gv('cfg_font_t6')
+    };
+    
+    localStorage.setItem('hc_pdf_v3', JSON.stringify(data));
+    mostrarToast("✅ Diseño de Ticket guardado", "success");
+    cerrarModales();
 };
-localStorage.setItem('hc_pdf_v3', JSON.stringify(data));
-mostrarToast("✅ Diseño de Ticket guardado", "success");
-cerrarModales();
-};
+
 // ============================================
 // EDITOR WHATSAPP
 // ============================================
 window.abrirEditorWA = () => {
-document.getElementById('cfg_wa_msg').value = leerMsgWA();
-document.getElementById('modalWA').style.display = 'flex';
+    document.getElementById('cfg_wa_msg').value = leerMsgWA();
+    document.getElementById('modalWA').style.display = 'flex';
 };
+
 window.guardarConfigWA = () => {
-const msg = document.getElementById('cfg_wa_msg').value;
-if (!msg.trim()) return mostrarToast("⚠️ El mensaje no puede estar vacío", "warning");
-localStorage.setItem('hc_wa_v3', msg);
-mostrarToast("✅ Mensaje guardado", "success");
-cerrarModales();
+    const msg = document.getElementById('cfg_wa_msg').value;
+    if (!msg.trim()) return mostrarToast("⚠️ El mensaje no puede estar vacío", "warning");
+    localStorage.setItem('hc_wa_v3', msg);
+    mostrarToast("✅ Mensaje guardado", "success");
+    cerrarModales();
 };
+
 window.cerrarModales = () => {
-document.getElementById('modalPDF').style.display = 'none';
-document.getElementById('modalWA').style.display  = 'none';
-document.getElementById('modal-clave').style.display = 'none';
+    document.getElementById('modalPDF').style.display = 'none';
+    document.getElementById('modalWA').style.display = 'none';
+    document.getElementById('modal-clave').style.display = 'none';
 };
+
 // ============================================
 // MODAL DE CLAVE
 // ============================================
 window.abrirModalClave = (mensaje, callback) => {
-document.getElementById('modal-clave-mensaje').textContent = mensaje;
-document.getElementById('modal-clave-input').value = '';
-document.getElementById('modal-clave').style.display = 'flex';
-window.callbackClave = callback;
+    document.getElementById('modal-clave-mensaje').textContent = mensaje;
+    document.getElementById('modal-clave-input').value = '';
+    document.getElementById('modal-clave').style.display = 'flex';
+    state.callbackClave = callback;
 };
+
 window.cerrarModalClave = () => {
-document.getElementById('modal-clave').style.display = 'none';
-window.callbackClave = null;
+    document.getElementById('modal-clave').style.display = 'none';
+    state.callbackClave = null;
 };
+
 window.validarClaveModal = async () => {
-const clave = document.getElementById('modal-clave-input').value;
-if (!clave || !window.callbackClave) return;
-const resultado = await window.callbackClave(clave);
-if (resultado) {
-cerrarModalClave();
-}
+    const clave = document.getElementById('modal-clave-input').value;
+    if (!clave || !state.callbackClave) return;
+    const resultado = await state.callbackClave(clave);
+    if (resultado) cerrarModalClave();
 };
+
 // ============================================
-// ENVIAR EMAIL
+// EMAIL
 // ============================================
 window.enviarEmailGanador = async (nombre, premio, comercio, email) => {
-if (!email) {
-mostrarToast("⚠️ Este ganador no tiene email registrado", "warning");
-return;
-}
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwWqItLbuGollI4F6OBDrHHoWwrvSJz88CWp1Wutt5hPWbqPUaATtIxVVv-wHOu3DGLbQ/exec";
-const payload = {
-email: email,
-asunto: `¡Felicitaciones! Ganaste en ${comercio}`,
-cuerpoHtml: `
-<h2>¡FELICITACIONES ${nombre}!</h2>
-<p>Has resultado ganador del sorteo de <strong>${premio}</strong> en <strong>${comercio}</strong>.</p>
-<p>Comunícate con el comercio para reclamar tu premio.</p>
-<br>
-<p>Saludos,<br>Equipo Hábitat-Car</p>
-`,
-cc: ''
+    if (!email) {
+        mostrarToast("⚠️ Este ganador no tiene email registrado", "warning");
+        return;
+    }
+    
+    const payload = {
+        email: email,
+        asunto: `¡Felicitaciones! Ganaste en ${comercio}`,
+        cuerpoHtml: `
+            <h2>¡FELICITACIONES ${nombre}!</h2>
+            <p>Has resultado ganador del sorteo de <strong>${premio}</strong> en <strong>${comercio}</strong>.</p>
+            <p>Comunícate con el comercio para reclamar tu premio.</p>
+            <br>
+            <p>Saludos,<br>Equipo Hábitat-Car</p>
+        `,
+        cc: ''
+    };
+    
+    try {
+        await fetch(GAS_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        mostrarToast(`📧 Email enviado a ${email}`, "success");
+    } catch(error) {
+        console.error("Error enviando email:", error);
+        mostrarToast("⚠️ No se pudo enviar el email", "warning");
+    }
 };
-try {
-await fetch(GAS_URL, {
-method: 'POST',
-mode: 'no-cors',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify(payload)
-});
-mostrarToast(`📧 Email enviado a ${email}`, "success");
-} catch(error) {
-console.error("Error enviando email:", error);
-mostrarToast("⚠️ No se pudo enviar el email", "warning");
-}
-};
-// ============================================
-// ENVIAR EMAIL AUTOMÁTICO
-// ============================================
+
 const enviarEmailAutomatico = async (ganadores, comercio, premio) => {
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwWqItLbuGollI4F6OBDrHHoWwrvSJz88CWp1Wutt5hPWbqPUaATtIxVVv-wHOu3DGLbQ/exec";
-for (const g of ganadores) {
-if (g.email) {
-const payload = {
-email: g.email,
-asunto: `¡Felicitaciones! Ganaste en ${comercio}`,
-cuerpoHtml: `
-<h2>¡FELICITACIONES ${g.nombreMostrar}!</h2>
-<p>Has resultado ganador del sorteo de <strong>${premio}</strong> en <strong>${comercio}</strong>.</p>
-<p>Comunícate con el comercio para reclamar tu premio.</p>
-<br>
-<p>Saludos,<br>Equipo Hábitat-Car</p>
-`,
-cc: 'habitatcar@gmail.com'
+    for (const g of ganadores) {
+        if (g.email) {
+            const payload = {
+                email: g.email,
+                asunto: `¡Felicitaciones! Ganaste en ${comercio}`,
+                cuerpoHtml: `
+                    <h2>¡FELICITACIONES ${g.nombreMostrar}!</h2>
+                    <p>Has resultado ganador del sorteo de <strong>${premio}</strong> en <strong>${comercio}</strong>.</p>
+                    <p>Comunícate con el comercio para reclamar tu premio.</p>
+                    <br>
+                    <p>Saludos,<br>Equipo Hábitat-Car</p>
+                `,
+                cc: 'habitatcar@gmail.com'
+            };
+            
+            try {
+                await fetch(GAS_URL, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                console.log(`✅ Email enviado a ${g.email}`);
+            } catch(e) {
+                console.error(`❌ Error enviando email a ${g.email}:`, e);
+            }
+        }
+    }
 };
-try {
-await fetch(GAS_URL, {
-method: 'POST',
-mode: 'no-cors',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify(payload)
-});
-console.log(`✅ Email enviado a ${g.email}`);
-} catch(e) {
-console.error(`❌ Error enviando email a ${g.email}:`, e);
-}
-}
-}
-};
+
 // ============================================
-// ELIMINAR MÚLTIPLES SORTEOS ACTIVOS
+// BULK ACTIONS / CHECKBOXES
+// ============================================
+window.toggleSelectAll = () => {
+    const sa = document.getElementById('select-all');
+    document.querySelectorAll('.row-checkbox').forEach(cb => {
+        cb.checked = sa.checked;
+        sa.checked ? state.itemsSeleccionados.add(cb.dataset.id) : state.itemsSeleccionados.delete(cb.dataset.id);
+    });
+    actualizarBulkActions();
+};
+
+window.actualizarBulkActions = () => {
+    const bulk = document.getElementById('bulk-actions');
+    const btnEliminar = document.getElementById('btn-eliminar-seleccionados');
+    
+    if (state.itemsSeleccionados.size > 0) {
+        bulk.classList.add('active');
+        document.getElementById('selected-count').textContent = state.itemsSeleccionados.size;
+        document.getElementById('select-all').checked = 
+            state.itemsSeleccionados.size === document.querySelectorAll('.row-checkbox').length;
+        
+        if (btnEliminar) {
+            if (state.vistaActual === 'activos') {
+                btnEliminar.innerHTML = '<i class="fas fa-trash"></i> ELIMINAR SORTEOS';
+                btnEliminar.onclick = eliminarSeleccionadosActivos;
+            } else {
+                btnEliminar.innerHTML = '<i class="fas fa-trash"></i> ELIMINAR DEL HISTORIAL';
+                btnEliminar.onclick = eliminarSeleccionados;
+            }
+        }
+    } else {
+        bulk.classList.remove('active');
+        document.getElementById('select-all').checked = false;
+    }
+};
+
+window.toggleSeleccion = (id, cb) => {
+    cb.checked ? state.itemsSeleccionados.add(id) : state.itemsSeleccionados.delete(id);
+    actualizarBulkActions();
+};
+
+window.desmarcarTodos = () => {
+    state.itemsSeleccionados.clear();
+    document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = false);
+    document.getElementById('select-all').checked = false;
+    actualizarBulkActions();
+};
+
+// ============================================
+// ELIMINAR SELECCIONADOS (HISTORIAL)
+// ============================================
+window.eliminarSeleccionados = async () => {
+    if (!state.itemsSeleccionados.size) {
+        return mostrarToast("⚠️ No hay items seleccionados", "warning");
+    }
+    
+    if (!confirm(`¿Eliminar ${state.itemsSeleccionados.size} registro(s) del historial?`)) return;
+    
+    mostrarToast("🗑️ Eliminando...", "warning");
+    
+    try {
+        await Promise.all([...state.itemsSeleccionados].map(id => deleteDoc(doc(db, "historial_sorteos", id))));
+        mostrarToast(`✅ ${state.itemsSeleccionados.size} eliminado(s)`, "success");
+        state.itemsSeleccionados.clear();
+        actualizarBulkActions();
+        mostrarHistorial();
+        actualizarEstadisticas();
+    } catch(e) {
+        mostrarToast("❌ Error al eliminar", "error");
+    }
+};
+
+// ============================================
+// ELIMINAR SELECCIONADOS (ACTIVOS) - CORREGIDO
 // ============================================
 window.eliminarSeleccionadosActivos = async () => {
-if (!window.itemsSeleccionados.size) {
-mostrarToast("⚠️ No hay items seleccionados", "warning");
-return;
-}
-if (!confirm(`¿Eliminar ${window.itemsSeleccionados.size} sorteo(s) seleccionado(s)?`)) return;
-mostrarToast("🗑️ Eliminando...", "warning");
-let exitosos = 0;
-let errores = 0;
-for (const id of window.itemsSeleccionados) {
-try {
-const docSnap = await getDoc(doc(db, "comercios", id));
-if (docSnap.exists()) {
-await updateDoc(doc(db, "comercios", id), {
-titulo_sorteo: null,
-descripcion_sorteo: null,
-fecha_sorteo: null,
-cantidad_premios: null,
-sorteo_finalizado: null,
-timestamp_finalizacion: null
-});
-exitosos++;
-}
-} catch (e) {
-console.error("Error eliminando sorteo:", e);
-errores++;
-}
-}
-window.itemsSeleccionados.clear();
-actualizarBulkActions();
-mostrarToast(`✅ ${exitosos} eliminados, ${errores} errores`, exitosos > 0 ? "success" : "error");
-cargarActivos();
+    if (!state.itemsSeleccionados.size) {
+        return mostrarToast("⚠️ No hay items seleccionados", "warning");
+    }
+    
+    if (!confirm(`¿Eliminar ${state.itemsSeleccionados.size} sorteo(s) seleccionado(s)?`)) return;
+    
+    mostrarToast("🗑️ Eliminando...", "warning");
+    
+    let exitosos = 0;
+    let errores = 0;
+    
+    for (const id of state.itemsSeleccionados) {
+        try {
+            const docSnap = await getDoc(doc(db, "comercios", id));
+            if (docSnap.exists()) {
+                await updateDoc(doc(db, "comercios", id), {
+                    titulo_sorteo: null,
+                    descripcion_sorteo: null,
+                    fecha_sorteo: null,
+                    cantidad_premios: null,
+                    sorteo_finalizado: null,
+                    timestamp_finalizacion: null
+                });
+                exitosos++;
+            }
+        } catch (e) {
+            console.error("Error eliminando sorteo:", e);
+            errores++;
+        }
+    }
+    
+    state.itemsSeleccionados.clear();
+    actualizarBulkActions();
+    mostrarToast(`✅ ${exitosos} eliminados, ${errores} errores`, exitosos > 0 ? "success" : "error");
+    cargarActivos();
 };
-// ============================================
-// SORTEO AUTOMÁTICO
-// ============================================
-window.ejecutarSorteoAutomatico = async (idComercio) => {
-try {
-const comercioRef = doc(db, "comercios", idComercio);
-const comercioSnap = await getDoc(comercioRef);
-if (!comercioSnap.exists()) return;
-const comercio = comercioSnap.data();
-if (comercio.sorteo_finalizado) {
-console.log("Sorteo ya finalizado");
-return;
-}
-const snapP = await getDocs(query(
-collection(db, "admin_participantes_sorteos"),
-where("comercio", "==", comercio.nombre)
-));
-let participantes = [];
-for (const d of snapP.docs) {
-const p = d.data();
-let nom = p.nombre || "Participante";
-let cel = p.celular || p.whatsapp || "S/D";
-let tipo = p.tipo || "LEAD";
-let email = p.email || "";
-if (p.usuarioId && !p.usuarioId.startsWith('temp_')) {
-try {
-const ld = await getDoc(doc(db, "leads", p.usuarioId));
-if (ld.exists()) {
-const l = ld.data();
-nom = `${l.nombres || ''} ${l.apellido || ''}`.trim() || nom;
-cel = l.whatsapp || l.celular || cel;
-tipo = (l.convertidoVIP || l.tipo === "VIP") ? "VIP" : "LEAD";
-email = l.email || email;
-}
-} catch (e) {}
-}
-participantes.push({
-...p,
-nombreMostrar: nom,
-celular: cel,
-tipo,
-email
-});
-}
-if (!participantes.length) return;
-const cant = parseInt(comercio.cantidad_premios) || 1;
-let ganadores = [];
-let bolsa = [...participantes];
-for (let i = 0; i < Math.min(cant, bolsa.length); i++) {
-const idx = Math.floor(Math.random() * bolsa.length);
-ganadores.push(bolsa.splice(idx, 1)[0]);
-}
-const ganadoresConNumero = ganadores.map((g, index) => {
-let numeroPremio = "";
-if (cant === 1) {
-numeroPremio = "Ganador";
-} else {
-const sufijos = ["º", "º", "º", "º", "º"];
-numeroPremio = `${index + 1}${sufijos[index] || "º"} Premio`;
-}
-return { ...g, numeroPremio };
-});
-await addDoc(collection(db, "historial_sorteos"), {
-comercio: comercio.nombre,
-premio: comercio.titulo_sorteo,
-descripcion_sorteo: comercio.descripcion_sorteo || "",
-logoUrl: comercio.logoUrl || "",
-ganadores: ganadoresConNumero,
-fecha: serverTimestamp(),
-mailComercio: comercio.email || 'habitatcar@gmail.com',
-timestampProgramado: Date.now()
-});
-await updateDoc(comercioRef, {
-sorteo_finalizado: true,
-timestamp_finalizacion: serverTimestamp()
-});
-await enviarEmailAutomatico(ganadoresConNumero, comercio.nombre, comercio.titulo_sorteo);
-if (comercio.telefono) {
-const mensajeComercio = `🎉 Sorteo AUTOMÁTICO realizado para ${comercio.nombre}
-Ganadores: ${ganadores.length}
-📱 Revisa el historial en el panel.`;
-const num = window.normalizarTelefonoAR(comercio.telefono);
-if (num) {
-window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, '_blank');
-}
-}
-// ✅ ELIMINAR TODOS LOS PARTICIPANTES DE ESTE COMERCIO
-try {
-const participantesAEliminar = await getDocs(query(
-collection(db, "admin_participantes_sorteos"),
-where("comercio", "==", comercio.nombre)
-));
-const batch = [];
-participantesAEliminar.forEach(doc => {
-batch.push(deleteDoc(doc.ref));
-});
-await Promise.all(batch);
-console.log(`✅ Participantes de ${comercio.nombre} eliminados`);
-} catch (e) {
-console.error("Error eliminando participantes:", e);
-}
-mostrarToast(`✅ Sorteo automático de ${comercio.nombre} realizado`, "success");
-actualizarEstadisticas();
-} catch (e) {
-console.error("Error en sorteo automático:", e);
-mostrarToast("❌ Error en sorteo automático", "error");
-}
-};
-// ============================================
-// PROGRAMAR SORTEOS
-// ============================================
-const programarSorteosPendientes = async () => {
-try {
-const ahora = Date.now();
-const q = query(
-collection(db, "comercios"),
-where("titulo_sorteo", "!=", null)
-);
-const snap = await getDocs(q);
-snap.forEach(doc => {
-const c = doc.data();
-if (!c.fecha_sorteo) return;
-const ts = new Date(c.fecha_sorteo).getTime();
-// Solo ejecutar si NO está finalizado
-if (ts <= ahora && !c.sorteo_finalizado) {
-console.log(`⏰ Ejecutando sorteo de ${c.nombre} ahora mismo`);
-window.ejecutarSorteoAutomatico(doc.id);
-}
-});
-} catch (e) {
-console.error("Error programando sorteos:", e);
-}
-};
-// ============================================
-// CONFIRMACIÓN SORTEO
-// ============================================
-window.mostrarConfirmacionSorteo = (total, ganadores, comercio) => {
-document.getElementById('lista-ganadores-popup').innerHTML = ganadores.map((g, index) => {
-const badge = g.tipo==="VIP"
-? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>`
-: `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
-let numeroPremio = "";
-if (ganadores.length === 1) {
-numeroPremio = "🏆 Ganador";
-} else {
-const sufijos = ["º", "º", "º", "º", "º"];
-numeroPremio = `${index + 1}${sufijos[index] || "º"} Premio`;
-}
-return `<div style="background:#f8f9fa;border-left:4px solid var(--oro);padding:12px;margin:8px 0;border-radius:8px;">
-<div style="display:flex;justify-content:space-between;align-items:center;">
-<span style="font-weight:bold;"><i class="fas fa-trophy" style="color:var(--oro);margin-right:5px;"></i>${g.nombreMostrar}</span>
-<span><span class="badge" style="background:var(--oro); color:white;">${numeroPremio}</span> ${badge}</span>
-</div>
-<small style="color:#666;display:block;margin-top:5px;"><i class="fab fa-whatsapp"></i> ${g.celular||'Sin teléfono'} | <i class="fas fa-envelope"></i> ${g.email||'Sin email'}</small>
-</div>`;
-}).join('');
-document.getElementById('texto-sorteo').innerText = `Sorteo de ${comercio}: ${ganadores.length} ganador(es) entre ${total} participantes.`;
-document.getElementById('popup-confirmacion').style.display = 'flex';
-};
-window.cerrarModalSorteo = () => document.getElementById('popup-confirmacion').style.display = 'none';
-window.irAlHistorial = () => { cerrarModalSorteo(); mostrarHistorial(); };
-// ============================================
-// CHECKBOXES / BULK
-// ============================================
-window.itemsSeleccionados = new Set();
-window.vistaActual = 'activos';
-window.toggleSelectAll = () => {
-const sa = document.getElementById('select-all');
-document.querySelectorAll('.row-checkbox').forEach(cb => {
-cb.checked = sa.checked;
-sa.checked ? window.itemsSeleccionados.add(cb.dataset.id) : window.itemsSeleccionados.delete(cb.dataset.id);
-});
-actualizarBulkActions();
-};
-window.actualizarBulkActions = () => {
-const bulk = document.getElementById('bulk-actions');
-if (window.itemsSeleccionados.size > 0) {
-bulk.classList.add('active');
-document.getElementById('selected-count').textContent = window.itemsSeleccionados.size;
-document.getElementById('select-all').checked = window.itemsSeleccionados.size === document.querySelectorAll('.row-checkbox').length;
-const btnEliminar = bulk.querySelector('.btn-danger');
-if (btnEliminar) {
-if (window.vistaActual === 'activos') {
-btnEliminar.innerHTML = '<i class="fas fa-trash"></i> ELIMINAR SORTEOS';
-btnEliminar.onclick = eliminarSeleccionadosActivos;
-} else {
-btnEliminar.innerHTML = '<i class="fas fa-trash"></i> ELIMINAR DEL HISTORIAL';
-btnEliminar.onclick = eliminarSeleccionados;
-}
-}
-} else {
-bulk.classList.remove('active');
-document.getElementById('select-all').checked = false;
-}
-};
-window.toggleSeleccion = (id, cb) => { cb.checked ? window.itemsSeleccionados.add(id) : window.itemsSeleccionados.delete(id); actualizarBulkActions(); };
-window.eliminarSeleccionados = async () => {
-if (!window.itemsSeleccionados.size) return mostrarToast("⚠️ No hay items seleccionados","warning");
-if (!confirm(`¿Eliminar ${window.itemsSeleccionados.size} registro(s) del historial?`)) return;
-mostrarToast("🗑️ Eliminando...","warning");
-try {
-await Promise.all([...window.itemsSeleccionados].map(id => deleteDoc(doc(db,"historial_sorteos",id))));
-mostrarToast(`✅ ${window.itemsSeleccionados.size} eliminado(s)`,"success");
-window.itemsSeleccionados.clear(); actualizarBulkActions(); mostrarHistorial();
-actualizarEstadisticas();
-} catch(e) { mostrarToast("❌ Error","error"); }
-};
-window.desmarcarTodos = () => {
-window.itemsSeleccionados.clear();
-document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked=false);
-document.getElementById('select-all').checked=false; actualizarBulkActions();
-};
+
 window.eliminarIndividual = async (id, btn) => {
-if (!confirm('¿Eliminar este registro del historial?')) return;
-const orig=btn.innerHTML; btn.disabled=true; btn.innerHTML="⏳";
-try { await deleteDoc(doc(db,"historial_sorteos",id)); mostrarToast("✅ Eliminado","success"); mostrarHistorial(); actualizarEstadisticas(); }
-catch(e) { mostrarToast("❌ Error","error"); btn.disabled=false; btn.innerHTML=orig; }
+    if (!confirm('¿Eliminar este registro del historial?')) return;
+    
+    const orig = btn.innerHTML;
+    btn.disabled = true;
+    btn.innerHTML = "⏳";
+    
+    try {
+        await deleteDoc(doc(db, "historial_sorteos", id));
+        mostrarToast("✅ Eliminado", "success");
+        mostrarHistorial();
+        actualizarEstadisticas();
+    } catch(e) {
+        mostrarToast("❌ Error", "error");
+        btn.disabled = false;
+        btn.innerHTML = orig;
+    }
 };
-// ============================================
-// RELOJES
-// ============================================
-window.iniciarRelojes = () => {
-setInterval(() => {
-document.querySelectorAll('.btn-sortear-accion:not(.finalizado)').forEach(btn => {
-const ts=parseInt(btn.dataset.timestamp), f=ts-Date.now();
-if (f>0) {
-const d=Math.floor(f/86400000),h=Math.floor((f%86400000)/3600000),m=Math.floor((f%3600000)/60000),s=Math.floor((f%60000)/1000);
-btn.innerHTML=`⏳ ${d}d ${h}h ${m}m ${s}s`; btn.classList.add('btn-dark'); btn.classList.remove('btn-primary');
-} else { btn.innerHTML=`🎲 SORTEAR AHORA`; btn.classList.remove('btn-dark'); btn.classList.add('btn-primary'); }
-});
-},1000);
-};
+
 // ============================================
 // SEGURIDAD
 // ============================================
 window.validarAccionSegura = async (idComercio, claveIngresada) => {
-if (claveIngresada === CLAVE_MAESTRA) return true;
-try {
-const s = await getDoc(doc(db, "comercios", idComercio));
-if (s.exists() && claveIngresada === s.data().password) return true;
-} catch(e) {}
-return false;
+    if (claveIngresada === CLAVE_MAESTRA) return true;
+    
+    try {
+        const s = await getDoc(doc(db, "comercios", idComercio));
+        if (s.exists() && claveIngresada === s.data().password) return true;
+    } catch(e) {}
+    
+    return false;
 };
+
 window.intentarSorteo = async (btn) => {
-if (btn.closest('tr')?.classList.contains('finalizado')) {
-mostrarToast("🔒 Sorteo ya finalizado", "warning");
-return;
-}
-const ts = parseInt(btn.dataset.timestamp);
-const idComercio = btn.dataset.id;
-const nombreComercio = btn.dataset.nombre;
-const premio = btn.dataset.premio;
-const cant = parseInt(btn.dataset.cant);
-const mailC = btn.dataset.mail;
-const logoUrl = btn.dataset.logo;
-const desc = btn.dataset.desc;
-if (Date.now() < ts) {
-const mensaje = `🔒 Sorteo programado para ${new Date(ts).toLocaleString()}
-Ingrese clave de comercio o maestra para realizar el sorteo AHORA`;
-abrirModalClave(mensaje, async (clave) => {
-if (!clave) return false;
-const valida = await validarAccionSegura(idComercio, clave);
-if (valida) {
-mostrarToast("🔓 Acceso autorizado - Realizando sorteo", "warning");
-ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
-return true;
-} else {
-mostrarToast("❌ Contraseña incorrecta", "error");
-return false;
-}
-});
-} else {
-ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
-}
+    if (btn.closest('tr')?.classList.contains('finalizado')) {
+        mostrarToast("🔒 Sorteo ya finalizado", "warning");
+        return;
+    }
+    
+    const ts = parseInt(btn.dataset.timestamp);
+    const idComercio = btn.dataset.id;
+    const nombreComercio = btn.dataset.nombre;
+    const premio = btn.dataset.premio;
+    const cant = parseInt(btn.dataset.cant);
+    const mailC = btn.dataset.mail;
+    const logoUrl = btn.dataset.logo;
+    const desc = btn.dataset.desc;
+    
+    if (Date.now() < ts) {
+        const mensaje = `🔒 Sorteo programado para ${new Date(ts).toLocaleString()}\nIngrese clave de comercio o maestra para realizar el sorteo AHORA`;
+        
+        abrirModalClave(mensaje, async (clave) => {
+            if (!clave) return false;
+            const valida = await validarAccionSegura(idComercio, clave);
+            if (valida) {
+                mostrarToast("🔓 Acceso autorizado - Realizando sorteo", "warning");
+                ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
+                return true;
+            } else {
+                mostrarToast("❌ Contraseña incorrecta", "error");
+                return false;
+            }
+        });
+    } else {
+        ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
+    }
 };
+
 window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
-const dh = (new Date(fechaSorteoISO).getTime() - Date.now()) / 3600000;
-let mensaje;
-if (dh < 24 && dh > 0) {
-mensaje = "⚠️ ZONA CRÍTICA: Faltan menos de 24hs\nSolo la CLAVE MAESTRA puede cancelar este sorteo.\nIngrese la clave:";
-} else {
-mensaje = "Ingrese CLAVE DE COMERCIO o MAESTRA para eliminar:";
-}
-abrirModalClave(mensaje, async (clave) => {
-if (!clave) return false;
-const valida = await validarAccionSegura(idComercio, clave);
-if (!valida) {
-mostrarToast("❌ Contraseña incorrecta", "error");
-return false;
-}
-if (dh < 24 && dh > 0 && clave !== CLAVE_MAESTRA) {
-mostrarToast("❌ Solo Admin puede cancelar sorteos inminentes", "error");
-return false;
-}
-try {
-await updateDoc(doc(db, "comercios", idComercio), {
-titulo_sorteo: null,
-descripcion_sorteo: null,
-fecha_sorteo: null,
-cantidad_premios: null,
-logoUrl: null,
-sorteo_finalizado: null,
-timestamp_finalizacion: null
-});
-mostrarToast("🗑️ Sorteo cancelado", "success");
-cargarActivos();
-return true;
-} catch (e) {
-mostrarToast("❌ Error", "error");
-return false;
-}
-});
+    const dh = (new Date(fechaSorteoISO).getTime() - Date.now()) / 3600000;
+    
+    let mensaje;
+    if (dh < 24 && dh > 0) {
+        mensaje = "⚠️ ZONA CRÍTICA: Faltan menos de 24hs\nSolo la CLAVE MAESTRA puede cancelar este sorteo.\nIngrese la clave:";
+    } else {
+        mensaje = "Ingrese CLAVE DE COMERCIO o MAESTRA para eliminar:";
+    }
+    
+    abrirModalClave(mensaje, async (clave) => {
+        if (!clave) return false;
+        
+        const valida = await validarAccionSegura(idComercio, clave);
+        if (!valida) {
+            mostrarToast("❌ Contraseña incorrecta", "error");
+            return false;
+        }
+        
+        if (dh < 24 && dh > 0 && clave !== CLAVE_MAESTRA) {
+            mostrarToast("❌ Solo Admin puede cancelar sorteos inminentes", "error");
+            return false;
+        }
+        
+        try {
+            await updateDoc(doc(db, "comercios", idComercio), {
+                titulo_sorteo: null,
+                descripcion_sorteo: null,
+                fecha_sorteo: null,
+                cantidad_premios: null,
+                logoUrl: null,
+                sorteo_finalizado: null,
+                timestamp_finalizacion: null
+            });
+            mostrarToast("🗑️ Sorteo cancelado", "success");
+            cargarActivos();
+            return true;
+        } catch (e) {
+            mostrarToast("❌ Error", "error");
+            return false;
+        }
+    });
 };
+
 // ============================================
-// CARGAR ACTIVOS (VERSIÓN CORREGIDA - FECHA O FLAG)
+// EJECUTAR SORTEO
+// ============================================
+const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc) => {
+    mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
+    
+    try {
+        const snapP = await getDocs(query(
+            collection(db, "admin_participantes_sorteos"),
+            where("comercio", "==", nomCom)
+        ));
+        
+        let participantes = [];
+        for (const d of snapP.docs) {
+            const p = d.data();
+            let nom = p.nombre || "Participante";
+            let cel = p.celular || p.whatsapp || "S/D";
+            let tipo = p.tipo || "LEAD";
+            let email = p.email || "";
+            
+            if (p.usuarioId && !p.usuarioId.startsWith('temp_')) {
+                try {
+                    const ld = await getDoc(doc(db, "leads", p.usuarioId));
+                    if (ld.exists()) {
+                        const l = ld.data();
+                        nom = `${l.nombres || ''} ${l.apellido || ''}`.trim() || nom;
+                        cel = l.whatsapp || l.celular || cel;
+                        tipo = (l.convertidoVIP || l.tipo === "VIP") ? "VIP" : "LEAD";
+                        email = l.email || email;
+                    }
+                } catch (e) {}
+            }
+            
+            participantes.push({ ...p, nombreMostrar: nom, celular: cel, tipo, email });
+        }
+        
+        if (!participantes.length) return mostrarToast("⚠️ Sin participantes", "error");
+        
+        let ganadores = [];
+        let bolsa = [...participantes];
+        for (let i = 0; i < Math.min(cant, bolsa.length); i++) {
+            const idx = Math.floor(Math.random() * bolsa.length);
+            ganadores.push(bolsa.splice(idx, 1)[0]);
+        }
+        
+        const ganadoresConNumero = ganadores.map((g, index) => {
+            let numeroPremio = cant === 1 ? "Ganador" : `${index + 1}º Premio`;
+            return { ...g, numeroPremio };
+        });
+        
+        await addDoc(collection(db, "historial_sorteos"), {
+            comercio: nomCom,
+            premio,
+            descripcion_sorteo: desc || "",
+            logoUrl: logoUrl || "",
+            ganadores: ganadoresConNumero,
+            fecha: serverTimestamp(),
+            mailComercio: mailC || 'habitatcar@gmail.com',
+            timestampProgramado: Date.now()
+        });
+        
+        try {
+            await updateDoc(doc(db, "comercios", idCom), {
+                sorteo_finalizado: true,
+                timestamp_finalizacion: serverTimestamp()
+            });
+        } catch (e) {
+            console.error("Error marcando sorteo como finalizado:", e);
+        }
+        
+        await enviarEmailAutomatico(ganadoresConNumero, nomCom, premio);
+        
+        // Notificar al comercio
+        try {
+            const comercioSnap = await getDoc(doc(db, "comercios", idCom));
+            const comercio = comercioSnap.data();
+            if (comercio?.telefono) {
+                const mensajeComercio = `🎉 Sorteo MANUAL realizado para ${comercio.nombre}\nGanadores: ${ganadores.length}\n📱 Revisa el historial en el panel.`;
+                const num = normalizarTelefonoAR(comercio.telefono);
+                if (num) {
+                    window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, '_blank');
+                }
+            }
+        } catch (e) {
+            console.error("Error notificando al comercio:", e);
+        }
+        
+        // Eliminar participantes
+        try {
+            const participantesAEliminar = await getDocs(query(
+                collection(db, "admin_participantes_sorteos"),
+                where("comercio", "==", nomCom)
+            ));
+            await Promise.all(participantesAEliminar.docs.map(d => deleteDoc(d.ref)));
+            console.log(`✅ Participantes de ${nomCom} eliminados`);
+        } catch (e) {
+            console.error("Error eliminando participantes:", e);
+        }
+        
+        mostrarToast("✅ Sorteo exitoso", "success");
+        mostrarConfirmacionSorteo(participantes.length, ganadoresConNumero, nomCom);
+        actualizarEstadisticas();
+        cargarActivos();
+    } catch (e) {
+        console.error(e);
+        mostrarToast("❌ Error en sorteo", "error");
+    }
+};
+
+// ============================================
+// SORTEO AUTOMÁTICO
+// ============================================
+window.ejecutarSorteoAutomatico = async (idComercio) => {
+    try {
+        const comercioRef = doc(db, "comercios", idComercio);
+        const comercioSnap = await getDoc(comercioRef);
+        
+        if (!comercioSnap.exists()) return;
+        
+        const comercio = comercioSnap.data();
+        if (comercio.sorteo_finalizado) {
+            console.log("Sorteo ya finalizado");
+            return;
+        }
+        
+        const snapP = await getDocs(query(
+            collection(db, "admin_participantes_sorteos"),
+            where("comercio", "==", comercio.nombre)
+        ));
+        
+        let participantes = [];
+        for (const d of snapP.docs) {
+            const p = d.data();
+            let nom = p.nombre || "Participante";
+            let cel = p.celular || p.whatsapp || "S/D";
+            let tipo = p.tipo || "LEAD";
+            let email = p.email || "";
+            
+            if (p.usuarioId && !p.usuarioId.startsWith('temp_')) {
+                try {
+                    const ld = await getDoc(doc(db, "leads", p.usuarioId));
+                    if (ld.exists()) {
+                        const l = ld.data();
+                        nom = `${l.nombres || ''} ${l.apellido || ''}`.trim() || nom;
+                        cel = l.whatsapp || l.celular || cel;
+                        tipo = (l.convertidoVIP || l.tipo === "VIP") ? "VIP" : "LEAD";
+                        email = l.email || email;
+                    }
+                } catch (e) {}
+            }
+            
+            participantes.push({ ...p, nombreMostrar: nom, celular: cel, tipo, email });
+        }
+        
+        if (!participantes.length) return;
+        
+        const cant = parseInt(comercio.cantidad_premios) || 1;
+        let ganadores = [];
+        let bolsa = [...participantes];
+        
+        for (let i = 0; i < Math.min(cant, bolsa.length); i++) {
+            const idx = Math.floor(Math.random() * bolsa.length);
+            ganadores.push(bolsa.splice(idx, 1)[0]);
+        }
+        
+        const ganadoresConNumero = ganadores.map((g, index) => ({
+            ...g,
+            numeroPremio: cant === 1 ? "Ganador" : `${index + 1}º Premio`
+        }));
+        
+        await addDoc(collection(db, "historial_sorteos"), {
+            comercio: comercio.nombre,
+            premio: comercio.titulo_sorteo,
+            descripcion_sorteo: comercio.descripcion_sorteo || "",
+            logoUrl: comercio.logoUrl || "",
+            ganadores: ganadoresConNumero,
+            fecha: serverTimestamp(),
+            mailComercio: comercio.email || 'habitatcar@gmail.com',
+            timestampProgramado: Date.now()
+        });
+        
+        await updateDoc(comercioRef, {
+            sorteo_finalizado: true,
+            timestamp_finalizacion: serverTimestamp()
+        });
+        
+        await enviarEmailAutomatico(ganadoresConNumero, comercio.nombre, comercio.titulo_sorteo);
+        
+        // Notificar comercio
+        if (comercio.telefono) {
+            const mensajeComercio = `🎉 Sorteo AUTOMÁTICO realizado para ${comercio.nombre}\nGanadores: ${ganadores.length}\n📱 Revisa el historial en el panel.`;
+            const num = normalizarTelefonoAR(comercio.telefono);
+            if (num) {
+                window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, '_blank');
+            }
+        }
+        
+        // Eliminar participantes
+        try {
+            const participantesAEliminar = await getDocs(query(
+                collection(db, "admin_participantes_sorteos"),
+                where("comercio", "==", comercio.nombre)
+            ));
+            await Promise.all(participantesAEliminar.docs.map(d => deleteDoc(d.ref)));
+            console.log(`✅ Participantes de ${comercio.nombre} eliminados`);
+        } catch (e) {
+            console.error("Error eliminando participantes:", e);
+        }
+        
+        mostrarToast(`✅ Sorteo automático de ${comercio.nombre} realizado`, "success");
+        actualizarEstadisticas();
+    } catch (e) {
+        console.error("Error en sorteo automático:", e);
+        mostrarToast("❌ Error en sorteo automático", "error");
+    }
+};
+
+// ============================================
+// PROGRAMAR SORTEOS
+// ============================================
+const programarSorteosPendientes = async () => {
+    try {
+        const ahora = Date.now();
+        const q = query(collection(db, "comercios"), where("titulo_sorteo", "!=", null));
+        const snap = await getDocs(q);
+        
+        snap.forEach(doc => {
+            const c = doc.data();
+            if (!c.fecha_sorteo) return;
+            
+            const ts = new Date(c.fecha_sorteo).getTime();
+            if (ts <= ahora && !c.sorteo_finalizado) {
+                console.log(`⏰ Ejecutando sorteo de ${c.nombre} ahora mismo`);
+                window.ejecutarSorteoAutomatico(doc.id);
+            }
+        });
+    } catch (e) {
+        console.error("Error programando sorteos:", e);
+    }
+};
+
+// ============================================
+// CONFIRMACIÓN SORTEO
+// ============================================
+window.mostrarConfirmacionSorteo = (total, ganadores, comercio) => {
+    document.getElementById('lista-ganadores-popup').innerHTML = ganadores.map((g, index) => {
+        const badge = g.tipo === "VIP"
+            ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>`
+            : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
+        
+        const numeroPremio = ganadores.length === 1 ? "🏆 Ganador" : `${index + 1}º Premio`;
+        
+        return `<div style="background:#f8f9fa;border-left:4px solid var(--oro);padding:12px;margin:8px 0;border-radius:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:bold;"><i class="fas fa-trophy" style="color:var(--oro);margin-right:5px;"></i>${g.nombreMostrar}</span>
+                <span><span class="badge" style="background:var(--oro); color:white;">${numeroPremio}</span> ${badge}</span>
+            </div>
+            <small style="color:#666;display:block;margin-top:5px;"><i class="fab fa-whatsapp"></i> ${g.celular||'Sin teléfono'} | <i class="fas fa-envelope"></i> ${g.email||'Sin email'}</small>
+        </div>`;
+    }).join('');
+    
+    document.getElementById('texto-sorteo').innerText = `Sorteo de ${comercio}: ${ganadores.length} ganador(es) entre ${total} participantes.`;
+    document.getElementById('popup-confirmacion').style.display = 'flex';
+};
+
+window.cerrarModalSorteo = () => {
+    document.getElementById('popup-confirmacion').style.display = 'none';
+};
+
+window.irAlHistorial = () => {
+    cerrarModalSorteo();
+    mostrarHistorial();
+};
+
+// ============================================
+// RELOJES
+// ============================================
+window.iniciarRelojes = () => {
+    setInterval(() => {
+        document.querySelectorAll('.btn-sortear-accion:not(.finalizado)').forEach(btn => {
+            const ts = parseInt(btn.dataset.timestamp);
+            const f = ts - Date.now();
+            
+            if (f > 0) {
+                const d = Math.floor(f/86400000);
+                const h = Math.floor((f%86400000)/3600000);
+                const m = Math.floor((f%3600000)/60000);
+                const s = Math.floor((f%60000)/1000);
+                btn.innerHTML = `⏳ ${d}d ${h}h ${m}m ${s}s`;
+                btn.classList.add('btn-dark');
+                btn.classList.remove('btn-primary');
+            } else {
+                btn.innerHTML = `🎲 SORTEAR AHORA`;
+                btn.classList.remove('btn-dark');
+                btn.classList.add('btn-primary');
+            }
+        });
+    }, 1000);
+};
+
+// ============================================
+// CARGAR ACTIVOS
 // ============================================
 const cargarActivos = () => {
-    window.vistaActual = 'activos';
-    window.itemsSeleccionados.clear();
+    state.vistaActual = 'activos';
+    state.itemsSeleccionados.clear();
     actualizarBulkActions();
     document.getElementById('header-checkbox').style.display = 'table-cell';
     
     const tabla = document.getElementById('tabla-sorteos');
     tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando sorteos...</td></tr>';
     
-    if (listenerActivos) listenerActivos();
+    if (state.listenerActivos) state.listenerActivos();
+    if (state.listenerHistorial) {
+        state.listenerHistorial();
+        state.listenerHistorial = null;
+    }
     
-    listenerActivos = onSnapshot(collection(db, "comercios"), async (snap) => {
+    state.listenerActivos = onSnapshot(collection(db, "comercios"), async (snap) => {
         tabla.innerHTML = "";
         const comerciosArray = [];
         
         snap.forEach(doc => {
             const data = doc.data();
-            // ✅ SOLO FILTRAMOS POR TITULO_SORTEO
             if (data.titulo_sorteo) {
                 comerciosArray.push({ id: doc.id, data: data });
             }
         });
         
-        // ORDEN: Primero los más próximos, luego los finalizados
         const ahora = Date.now();
         comerciosArray.sort((a, b) => {
             const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
             const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
             
-            // ✅ FINALIZADO SI: fecha pasada O flag true
-            const finalizadoA = (fechaA < ahora - 3600000) || a.data.sorteo_finalizado === true;
-            const finalizadoB = (fechaB < ahora - 3600000) || b.data.sorteo_finalizado === true;
+            const finalizadoA = fechaA < ahora - 3600000;
+            const finalizadoB = fechaB < ahora - 3600000;
             
-            // Si ambos están finalizados, ordenar por fecha descendente
-            if (finalizadoA && finalizadoB) {
-                return fechaB - fechaA;
-            }
-            // Si solo A está finalizado, A va después
+            if (finalizadoA && finalizadoB) return fechaB - fechaA;
             if (finalizadoA && !finalizadoB) return 1;
-            // Si solo B está finalizado, B va después
             if (!finalizadoA && finalizadoB) return -1;
-            // Ambos activos: ordenar por fecha ascendente (más próximos primero)
             return fechaA - fechaB;
         });
         
@@ -1178,9 +1372,7 @@ const cargarActivos = () => {
             const cant = parseInt(c.cantidad_premios) || 1;
             const fechaISO = c.fecha_sorteo || "";
             const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
-            
-            // ✅ FINALIZADO SI: fecha pasada O flag true
-            const finalizado = (ts < ahora - 3600000) || c.sorteo_finalizado === true;
+            const finalizado = ts < ahora - 3600000;
             
             let cL = 0, cV = 0;
             try {
@@ -1219,7 +1411,9 @@ const cargarActivos = () => {
                 badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
             }
             
-            tabla.innerHTML += `<tr class="${estadoClase}">
+            const tr = document.createElement('tr');
+            tr.className = estadoClase;
+            tr.innerHTML = `
                 <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docId}" onchange="toggleSeleccion('${docId}',this)"></td>
                 <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div></td>
                 <td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
@@ -1253,379 +1447,252 @@ const cargarActivos = () => {
                     <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docId}','${fechaISO}')">🗑️ Cancelar</button>
                 </td>
                 <td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant > 1 ? 's' : ''}</span></td>
-            </tr>`;
+            `;
+            tabla.appendChild(tr);
         }
     });
 };
-// ============================================
-// EJECUTAR SORTEO
-// ============================================
-const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc) => {
-mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
-try {
-const snapP = await getDocs(query(
-collection(db, "admin_participantes_sorteos"),
-where("comercio", "==", nomCom)
-));
-let participantes = [];
-for (const d of snapP.docs) {
-const p = d.data();
-let nom = p.nombre || "Participante";
-let cel = p.celular || p.whatsapp || "S/D";
-let tipo = p.tipo || "LEAD";
-let email = p.email || "";
-if (p.usuarioId && !p.usuarioId.startsWith('temp_')) {
-try {
-const ld = await getDoc(doc(db, "leads", p.usuarioId));
-if (ld.exists()) {
-const l = ld.data();
-nom = `${l.nombres || ''} ${l.apellido || ''}`.trim() || nom;
-cel = l.whatsapp || l.celular || cel;
-tipo = (l.convertidoVIP || l.tipo === "VIP") ? "VIP" : "LEAD";
-email = l.email || email;
-}
-} catch (e) {}
-}
-participantes.push({ ...p, nombreMostrar: nom, celular: cel, tipo, email });
-}
-if (!participantes.length) return mostrarToast("⚠️ Sin participantes", "error");
-let ganadores = [];
-let bolsa = [...participantes];
-for (let i = 0; i < Math.min(cant, bolsa.length); i++) {
-const idx = Math.floor(Math.random() * bolsa.length);
-ganadores.push(bolsa.splice(idx, 1)[0]);
-}
-const ganadoresConNumero = ganadores.map((g, index) => {
-let numeroPremio = "";
-if (cant === 1) {
-numeroPremio = "Ganador";
-} else {
-const sufijos = ["º", "º", "º", "º", "º"];
-numeroPremio = `${index + 1}${sufijos[index] || "º"} Premio`;
-}
-return { ...g, numeroPremio };
-});
-await addDoc(collection(db, "historial_sorteos"), {
-comercio: nomCom,
-premio,
-descripcion_sorteo: desc || "",
-logoUrl: logoUrl || "",
-ganadores: ganadoresConNumero,
-fecha: serverTimestamp(),
-mailComercio: mailC || 'habitatcar@gmail.com',
-timestampProgramado: Date.now()
-});
-try {
-await updateDoc(doc(db, "comercios", idCom), {
-sorteo_finalizado: true,
-timestamp_finalizacion: serverTimestamp()
-});
-} catch (e) {
-console.error("Error marcando sorteo como finalizado:", e);
-}
-await enviarEmailAutomatico(ganadoresConNumero, nomCom, premio);
-try {
-const comercioSnap = await getDoc(doc(db, "comercios", idCom));
-const comercio = comercioSnap.data();
-if (comercio && comercio.telefono) {
-const mensajeComercio = `🎉 Sorteo MANUAL realizado para ${comercio.nombre}
-Ganadores: ${ganadores.length}
-📱 Revisa el historial en el panel.`;
-const num = window.normalizarTelefonoAR(comercio.telefono);
-if (num) {
-window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, '_blank');
-}
-}
-} catch (e) {
-console.error("Error notificando al comercio:", e);
-}
-// ✅ ELIMINAR TODOS LOS PARTICIPANTES DE ESTE COMERCIO
-try {
-const participantesAEliminar = await getDocs(query(
-collection(db, "admin_participantes_sorteos"),
-where("comercio", "==", nomCom)
-));
-const batch = [];
-participantesAEliminar.forEach(doc => {
-batch.push(deleteDoc(doc.ref));
-});
-await Promise.all(batch);
-console.log(`✅ Participantes de ${nomCom} eliminados`);
-} catch (e) {
-console.error("Error eliminando participantes:", e);
-}
-mostrarToast("✅ Sorteo exitoso", "success");
-mostrarConfirmacionSorteo(participantes.length, ganadoresConNumero, nomCom);
-actualizarEstadisticas();
-cargarActivos();
-} catch (e) {
-console.error(e);
-mostrarToast("❌ Error en sorteo", "error");
-}
-};
+
 // ============================================
 // HISTORIAL
 // ============================================
 window.mostrarHistorial = () => {
-window.vistaActual = 'historial';
-window.itemsSeleccionados.clear();
-actualizarBulkActions();
-document.getElementById('header-checkbox').style.display = 'table-cell';
-const tabla = document.getElementById('tabla-sorteos');
-tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando historial...</td></tr>';
-if (listenerHistorial) listenerHistorial();
-listenerHistorial = onSnapshot(collection(db, "historial_sorteos"), snap => {
-tabla.innerHTML = "";
-actualizarEstadisticas();
-if (snap.empty) {
-tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#666;">📭 No hay historial de sorteos</td></tr>';
-return;
-}
-snap.docs.sort((a, b) => (b.data().fecha?.seconds || 0) - (a.data().fecha?.seconds || 0))
-.forEach(docSnap => {
-const h = docSnap.data();
-const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
-const logoC = h.logoUrl || LOGO_DEFAULT;
-const descSorteo = h.descripcion_sorteo || "";
-(h.ganadores || []).forEach((g, index) => {
-const nombreG = g.nombreMostrar || "Invitado";
-const celG = g.celular || "";
-const emailG = g.email || "";
-const numeroPremio = g.numeroPremio || (h.ganadores.length === 1 ? "Ganador" : `${index + 1}º Premio`);
-const badge = g.tipo === "VIP"
-? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>`
-: `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
-const esc = s => (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-tabla.innerHTML += `<tr>
-<td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}',this)"></td>
-<td><small>${fecha}</small></td>
-<td><img src="${esc(logoC)}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
-<td>
-<span class="badge badge-comercio">${h.comercio}</span><br>
-<span class="badge badge-premio">🎁 ${h.premio}</span>
-${descSorteo ? `<div class="premio-desc">${descSorteo}</div>` : ''}
-</td>
-<td>
-<div style="font-weight:bold">${nombreG}</div>
-<div><span class="badge" style="background:var(--oro); color:white; margin-top:4px;">${numeroPremio}</span> ${badge}</div>
-</td>
-<td>
-<div style="font-size:0.85em;color:var(--verde);margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>
-${emailG ? `<div style="font-size:0.8em;color:#666;word-break:break-all;"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
-<div style="margin-top:8px; display:flex; gap:5px; flex-wrap:wrap;">
-<button class="btn-accion btn-wapdf"
-data-nombre="${esc(nombreG)}"
-data-premio="${esc(h.premio)}"
-data-comercio="${esc(h.comercio)}"
-data-descripcion="${esc(descSorteo)}"
-data-cel="${esc(celG)}"
-data-logo="${esc(logoC)}"
-onclick="clickEnviarTicket(this)"
-title="Genera PDF y abre WhatsApp">
-<i class="fab fa-whatsapp"></i> <i class="fas fa-file-pdf"></i>
-</button>
-<button class="btn-accion btn-email"
-onclick="enviarEmailGanador('${esc(nombreG)}', '${esc(h.premio)}', '${esc(h.comercio)}', '${esc(emailG)}')"
-title="Enviar email al ganador">
-<i class="fas fa-envelope"></i>
-</button>
-</div>
-</td>
-<td>
-<button class="btn-accion" style="background:#6c757d"
-data-texto="${esc(nombreG + ' - WA: ' + celG + ' - Email: ' + emailG)}"
-onclick="navigator.clipboard.writeText(this.dataset.texto);mostrarToast('📋 Copiado','warning')">
-<i class="fas fa-copy"></i>
-</button>
-<button class="btn-accion btn-delete" onclick="eliminarIndividual('${docSnap.id}',this)">
-<i class="fas fa-trash"></i>
-</button>
-</td>
-</tr>`;
-});
-});
-});
+    state.vistaActual = 'historial';
+    state.itemsSeleccionados.clear();
+    actualizarBulkActions();
+    document.getElementById('header-checkbox').style.display = 'table-cell';
+    
+    const tabla = document.getElementById('tabla-sorteos');
+    tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando historial...</td></tr>';
+    
+    if (state.listenerHistorial) state.listenerHistorial();
+    if (state.listenerActivos) {
+        state.listenerActivos();
+        state.listenerActivos = null;
+    }
+    
+    state.listenerHistorial = onSnapshot(collection(db, "historial_sorteos"), snap => {
+        tabla.innerHTML = "";
+        actualizarEstadisticas();
+        
+        if (snap.empty) {
+            tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#666;">📭 No hay historial de sorteos</td></tr>';
+            return;
+        }
+        
+        const docsOrdenados = snap.docs.sort((a, b) => 
+            (b.data().fecha?.seconds || 0) - (a.data().fecha?.seconds || 0)
+        );
+        
+        docsOrdenados.forEach(docSnap => {
+            const h = docSnap.data();
+            const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
+            const logoC = h.logoUrl || LOGO_DEFAULT;
+            const descSorteo = h.descripcion_sorteo || "";
+            
+            (h.ganadores || []).forEach((g, index) => {
+                const nombreG = g.nombreMostrar || "Invitado";
+                const celG = g.celular || "";
+                const emailG = g.email || "";
+                const numeroPremio = g.numeroPremio || (h.ganadores.length === 1 ? "Ganador" : `${index + 1}º Premio`);
+                
+                const badge = g.tipo === "VIP"
+                    ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>`
+                    : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
+                
+                const esc = s => (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+                
+                const tr = document.createElement('tr');
+                tr.innerHTML = `
+                    <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}',this)"></td>
+                    <td><small>${fecha}</small></td>
+                    <td><img src="${esc(logoC)}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+                    <td>
+                        <span class="badge badge-comercio">${h.comercio}</span><br>
+                        <span class="badge badge-premio">🎁 ${h.premio}</span>
+                        ${descSorteo ? `<div class="premio-desc">${descSorteo}</div>` : ''}
+                    </td>
+                    <td>
+                        <div style="font-weight:bold">${nombreG}</div>
+                        <div><span class="badge" style="background:var(--oro); color:white; margin-top:4px;">${numeroPremio}</span> ${badge}</div>
+                    </td>
+                    <td>
+                        <div style="font-size:0.85em;color:var(--verde);margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>
+                        ${emailG ? `<div style="font-size:0.8em;color:#666;word-break:break-all;"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
+                        <div style="margin-top:8px; display:flex; gap:5px; flex-wrap:wrap;">
+                            <button class="btn-accion btn-wapdf"
+                                data-nombre="${esc(nombreG)}"
+                                data-premio="${esc(h.premio)}"
+                                data-comercio="${esc(h.comercio)}"
+                                data-descripcion="${esc(descSorteo)}"
+                                data-cel="${esc(celG)}"
+                                data-logo="${esc(logoC)}"
+                                onclick="clickEnviarTicket(this)"
+                                title="Genera PDF y abre WhatsApp">
+                                <i class="fab fa-whatsapp"></i> <i class="fas fa-file-pdf"></i>
+                            </button>
+                            <button class="btn-accion btn-email"
+                                onclick="enviarEmailGanador('${esc(nombreG)}', '${esc(h.premio)}', '${esc(h.comercio)}', '${esc(emailG)}')"
+                                title="Enviar email al ganador">
+                                <i class="fas fa-envelope"></i>
+                            </button>
+                        </div>
+                    </td>
+                    <td>
+                        <button class="btn-accion" style="background:#6c757d"
+                            data-texto="${esc(nombreG + ' - WA: ' + celG + ' - Email: ' + emailG)}"
+                            onclick="navigator.clipboard.writeText(this.dataset.texto);mostrarToast('📋 Copiado','warning')">
+                            <i class="fas fa-copy"></i>
+                        </button>
+                        <button class="btn-accion btn-delete" onclick="eliminarIndividual('${docSnap.id}',this)">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </td>
+                `;
+                tabla.appendChild(tr);
+            });
+        });
+    });
 };
+
 // ============================================
 // ENVIAR TICKET
 // ============================================
 window.clickEnviarTicket = btn => {
-window.enviarTicketElite(
-btn.dataset.nombre || '',
-btn.dataset.premio || '',
-btn.dataset.comercio || '',
-btn.dataset.descripcion || '',
-btn.dataset.cel || '',
-btn.dataset.logo || ''
-);
+    window.enviarTicketElite(
+        btn.dataset.nombre || '',
+        btn.dataset.premio || '',
+        btn.dataset.comercio || '',
+        btn.dataset.descripcion || '',
+        btn.dataset.cel || '',
+        btn.dataset.logo || ''
+    );
 };
+
 window.enviarTicketElite = async (nombre, premio, comercio, descripcion, telefono, logoComercio) => {
-const p = leerCfgPDF();
-const mensajeWA = leerMsgWA()
-.replace(/\{\{NOMBRE\}\}/g,      nombre      || 'Ganador')
-.replace(/\{\{PREMIO\}\}/g,      premio      || 'el premio')
-.replace(/\{\{COMERCIO\}\}/g,    comercio    || 'el comercio')
-.replace(/\{\{DESCRIPCION\}\}/g, descripcion || premio || 'el premio');
-const { jsPDF } = window.jspdf;
-const docPDF = new jsPDF({ unit: "mm", format: [80, 160] });
-const loadImg = url => new Promise(resolve => {
-if (!url) return resolve(null);
-const proxiedUrl = proxyURL(url);
-const img = new Image();
-img.crossOrigin = "Anonymous";
-img.onload = () => resolve(img);
-img.onerror = (e) => {
-console.warn("Error cargando imagen:", proxiedUrl, e);
-resolve(null);
+    const p = leerCfgPDF();
+    const mensajeWA = leerMsgWA()
+        .replace(/\{\{NOMBRE\}\}/g, nombre || 'Ganador')
+        .replace(/\{\{PREMIO\}\}/g, premio || 'el premio')
+        .replace(/\{\{COMERCIO\}\}/g, comercio || 'el comercio')
+        .replace(/\{\{DESCRIPCION\}\}/g, descripcion || premio || 'el premio');
+    
+    const { jsPDF } = window.jspdf;
+    const docPDF = new jsPDF({ unit: "mm", format: [80, 160] });
+    
+    const loadImg = url => new Promise(resolve => {
+        if (!url) return resolve(null);
+        const proxiedUrl = proxyURL(url);
+        const img = new Image();
+        img.crossOrigin = "Anonymous";
+        img.onload = () => resolve(img);
+        img.onerror = () => resolve(null);
+        img.src = proxiedUrl;
+    });
+    
+    const [bgImg, logoComercioImg, logoHabitatImg] = await Promise.all([
+        loadImg(p.bg),
+        loadImg(logoComercio || LOGO_DEFAULT),
+        loadImg(LOGO_HABITAT)
+    ]);
+    
+    if (bgImg) docPDF.addImage(bgImg, 'JPEG', 0, 0, 80, 160);
+    
+    if (logoComercioImg) {
+        const sz = parseInt(p.l1s) || 20;
+        const aspectRatio = logoComercioImg.width / logoComercioImg.height;
+        if (aspectRatio > 1) {
+            docPDF.addImage(logoComercioImg, 'PNG', parseInt(p.l1x) || 5, parseInt(p.l1y) || 5, sz, sz / aspectRatio);
+        } else {
+            docPDF.addImage(logoComercioImg, 'PNG', parseInt(p.l1x) || 5, parseInt(p.l1y) || 5, sz * aspectRatio, sz);
+        }
+    }
+    
+    if (logoHabitatImg) {
+        const sz = parseInt(p.l2s) || 20;
+        const aspectRatio = logoHabitatImg.width / logoHabitatImg.height;
+        if (aspectRatio > 1) {
+            docPDF.addImage(logoHabitatImg, 'PNG', parseInt(p.l2x) || 45, parseInt(p.l2y) || 5, sz, sz / aspectRatio);
+        } else {
+            docPDF.addImage(logoHabitatImg, 'PNG', parseInt(p.l2x) || 45, parseInt(p.l2y) || 5, sz * aspectRatio, sz);
+        }
+    }
+    
+    // Textos
+    docPDF.setFont(p.font_t4 || 'helvetica', "bold");
+    docPDF.setFontSize(p.t4s || 14);
+    docPDF.setTextColor(p.color_t4 || '#000000');
+    docPDF.text(p.t4txt || '¡Felicitaciones!', p.t4x || 40, p.t4y || 45, { align: "center" });
+    
+    docPDF.setFont(p.font_t1 || 'helvetica', "bold");
+    docPDF.setFontSize(p.t1s || 22);
+    docPDF.setTextColor(p.color_t1 || '#000000');
+    const nombreLines = docPDF.splitTextToSize((nombre || "Ganador").toUpperCase(), 70);
+    const lineHeightNombre = (p.t1s || 22) * 0.35;
+    nombreLines.forEach((line, index) => {
+        docPDF.text(line, p.t1x || 40, (p.t1y || 70) + (index * lineHeightNombre), { align: "center" });
+    });
+    
+    docPDF.setFont(p.font_t2 || 'helvetica', "normal");
+    docPDF.setFontSize(p.t2s || 16);
+    docPDF.setTextColor(p.color_t2 || '#000000');
+    docPDF.text(premio || "Premio", p.t2x || 40, p.t2y || 90, { align: "center" });
+    
+    docPDF.setFont(p.font_t6 || 'helvetica', "normal");
+    docPDF.setFontSize(p.t6s || 12);
+    docPDF.setTextColor(p.color_t6 || '#000000');
+    const descLines = docPDF.splitTextToSize(descripcion || premio || "", 70);
+    const lineHeightDesc = (p.t6s || 12) * 0.35;
+    descLines.forEach((line, index) => {
+        docPDF.text(line, p.t6x || 40, (p.t6y || 105) + (index * lineHeightDesc), { align: "center" });
+    });
+    
+    docPDF.setFont(p.font_t3 || 'helvetica', "normal");
+    docPDF.setFontSize(p.t3s || 14);
+    docPDF.setTextColor(p.color_t3 || '#000000');
+    docPDF.text(comercio || "Comercio", p.t3x || 40, p.t3y || 118, { align: "center" });
+    
+    docPDF.setFont(p.font_t5 || 'helvetica', "normal");
+    docPDF.setFontSize(p.t5s || 8);
+    docPDF.setTextColor(p.color_t5 || '#666666');
+    docPDF.text(`${p.t5txt || 'Hábitat-Car'} • ${new Date().toLocaleDateString()}`, p.t5x || 40, p.t5y || 148, { align: "center" });
+    
+    docPDF.save(`Ticket_${(nombre || 'Ganador').replace(/\s+/g, '_')}.pdf`);
+    
+    if (telefono) {
+        const num = normalizarTelefonoAR(telefono);
+        if (num) {
+            setTimeout(() => window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeWA)}`, '_blank'), 1200);
+            mostrarToast("✅ PDF descargado — WhatsApp abierto.\nAdjuntá el PDF desde tu galería.", "success");
+            return;
+        }
+    }
+    mostrarToast("✅ Ticket PDF descargado", "success");
 };
-img.src = proxiedUrl;
-});
-const [bgImg, logoComercioImg, logoHabitatImg] = await Promise.all([
-loadImg(p.bg),
-loadImg(logoComercio || LOGO_DEFAULT),
-loadImg(LOGO_HABITAT)
-]);
-if (bgImg) docPDF.addImage(bgImg, 'JPEG', 0, 0, 80, 160);
-if (logoComercioImg) {
-const sz = parseInt(p.l1s) || 20;
-const aspectRatio = logoComercioImg.width / logoComercioImg.height;
-if (aspectRatio > 1) {
-docPDF.addImage(logoComercioImg, 'PNG', parseInt(p.l1x) || 5, parseInt(p.l1y) || 5, sz, sz / aspectRatio);
-} else {
-docPDF.addImage(logoComercioImg, 'PNG', parseInt(p.l1x) || 5, parseInt(p.l1y) || 5, sz * aspectRatio, sz);
-}
-}
-if (logoHabitatImg) {
-const sz = parseInt(p.l2s) || 20;
-const aspectRatio = logoHabitatImg.width / logoHabitatImg.height;
-if (aspectRatio > 1) {
-docPDF.addImage(logoHabitatImg, 'PNG', parseInt(p.l2x) || 45, parseInt(p.l2y) || 5, sz, sz / aspectRatio);
-} else {
-docPDF.addImage(logoHabitatImg, 'PNG', parseInt(p.l2x) || 45, parseInt(p.l2y) || 5, sz * aspectRatio, sz);
-}
-}
-docPDF.setFont(p.font_t4 || 'helvetica', "bold");
-docPDF.setFontSize(p.t4s || 14);
-docPDF.setTextColor(p.color_t4 || '#000000');
-docPDF.text(p.t4txt || '¡Felicitaciones!', p.t4x || 40, p.t4y || 45, { align: "center" });
-docPDF.setFont(p.font_t1 || 'helvetica', "bold");
-docPDF.setFontSize(p.t1s || 22);
-docPDF.setTextColor(p.color_t1 || '#000000');
-const nombreLines = docPDF.splitTextToSize((nombre || "Ganador").toUpperCase(), 70);
-const lineHeightNombre = (p.t1s || 22) * 0.35;
-const startYNombre = p.t1y || 70;
-nombreLines.forEach((line, index) => {
-docPDF.text(line, p.t1x || 40, startYNombre + (index * lineHeightNombre), { align: "center" });
-});
-docPDF.setFont(p.font_t2 || 'helvetica', "normal");
-docPDF.setFontSize(p.t2s || 16);
-docPDF.setTextColor(p.color_t2 || '#000000');
-docPDF.text(premio || "Premio", p.t2x || 40, p.t2y || 90, { align: "center" });
-docPDF.setFont(p.font_t6 || 'helvetica', "normal");
-docPDF.setFontSize(p.t6s || 12);
-docPDF.setTextColor(p.color_t6 || '#000000');
-const descLines = docPDF.splitTextToSize(descripcion || premio || "", 70);
-const lineHeightDesc = (p.t6s || 12) * 0.35;
-const startYDesc = p.t6y || 105;
-descLines.forEach((line, index) => {
-docPDF.text(line, p.t6x || 40, startYDesc + (index * lineHeightDesc), { align: "center" });
-});
-docPDF.setFont(p.font_t3 || 'helvetica', "normal");
-docPDF.setFontSize(p.t3s || 14);
-docPDF.setTextColor(p.color_t3 || '#000000');
-docPDF.text(comercio || "Comercio", p.t3x || 40, p.t3y || 118, { align: "center" });
-docPDF.setFont(p.font_t5 || 'helvetica', "normal");
-docPDF.setFontSize(p.t5s || 8);
-docPDF.setTextColor(p.color_t5 || '#666666');
-docPDF.text(`${p.t5txt || 'Hábitat-Car'} • ${new Date().toLocaleDateString()}`, p.t5x || 40, p.t5y || 148, { align: "center" });
-docPDF.save(`Ticket_${(nombre || 'Ganador').replace(/\s+/g, '_')}.pdf`);
-if (telefono) {
-const num = window.normalizarTelefonoAR(telefono);
-if (num) {
-setTimeout(() => window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeWA)}`, '_blank'), 1200);
-mostrarToast("✅ PDF descargado — WhatsApp abierto.\nAdjuntá el PDF desde tu galería.", "success");
-return;
-}
-}
-mostrarToast("✅ Ticket PDF descargado", "success");
-};
-window.normalizarTelefonoAR = n => {
-if (!n) return null;
-let s = n.toString().replace(/\D/g,'');
-if (s.length===10) return '549'+s;
-if (s.startsWith('54')&&!s.startsWith('549')) return '549'+s.substring(2);
-return s.startsWith('549')?s:'549'+s;
-};
-// ============================================
-// UTILIDADES
-// ============================================
-function mostrarToast(msg, tipo = "success") {
-const d = document.createElement('div');
-d.className = `toast ${tipo}`;
-d.innerText = msg;
-document.body.appendChild(d);
-setTimeout(() => d.remove(), 3500);
-}
-function formatearFechaHora(fechaISO) {
-if (!fechaISO) return null;
-try {
-const [fp, hp] = fechaISO.split('T');
-const [a, m, d] = fp.split('-');
-const [h, min] = hp.split(':');
-return { fecha: `${d}/${m}/${a}`, hora: `${h}:${min} Hs.` };
-} catch (e) {
-return null;
-}
-}
+
 // ============================================
 // INICIALIZACIÓN
 // ============================================
 document.getElementById('btn-activos').onclick = cargarActivos;
 document.getElementById('btn-historial').onclick = () => { mostrarHistorial(); actualizarEstadisticas(); };
+
 document.addEventListener('DOMContentLoaded', () => {
-cargarActivos();
-iniciarRelojes();
-actualizarEstadisticas();
-programarSorteosPendientes();
-// Verificar cada 30 segundos si hay sorteos que ejecutar
-setInterval(programarSorteosPendientes, 30000);
+    cargarActivos();
+    iniciarRelojes();
+    actualizarEstadisticas();
+    programarSorteosPendientes();
+    setInterval(programarSorteosPendientes, 30000);
 });
-document.getElementById('modalPDF').addEventListener('click', e => { if (e.target.id === 'modalPDF') cerrarModales(); });
-document.getElementById('modalWA').addEventListener('click', e => { if (e.target.id === 'modalWA') cerrarModales(); });
-document.getElementById('modal-clave').addEventListener('click', e => { if (e.target.id === 'modal-clave') cerrarModalClave(); });
-window.mostrarHistorial = mostrarHistorial;
-window.mostrarToast = mostrarToast;
-window.mostrarConfirmacionSorteo = mostrarConfirmacionSorteo;
-window.cerrarModalSorteo = cerrarModalSorteo;
-window.irAlHistorial = irAlHistorial;
-window.toggleSeleccion = toggleSeleccion;
-window.toggleSelectAll = toggleSelectAll;
-window.eliminarSeleccionados = eliminarSeleccionados;
-window.eliminarSeleccionadosActivos = eliminarSeleccionadosActivos;
-window.desmarcarTodos = desmarcarTodos;
-window.eliminarIndividual = eliminarIndividual;
-window.actualizarBulkActions = actualizarBulkActions;
-window.intentarSorteo = intentarSorteo;
-window.intentarEliminarSorteo = intentarEliminarSorteo;
-window.validarAccionSegura = validarAccionSegura;
-window.enviarTicketElite = enviarTicketElite;
-window.clickEnviarTicket = clickEnviarTicket;
-window.abrirEditorPDF = abrirEditorPDF;
-window.abrirEditorWA = abrirEditorWA;
-window.actualizarPrevia = actualizarPrevia;
-window.guardarConfigPDF = guardarConfigPDF;
-window.guardarConfigWA = guardarConfigWA;
-window.cerrarModales = cerrarModales;
-window.iniciarRelojes = iniciarRelojes;
-window.toggleDarkMode = toggleDarkMode;
-window.cargarPlantilla = cargarPlantilla;
-window.subirImagenFondo = subirImagenFondo;
-window.procesarImagenSubida = procesarImagenSubida;
-window.ejecutarSorteoAutomatico = ejecutarSorteoAutomatico;
-window.abrirModalClave = abrirModalClave;
-window.cerrarModalClave = cerrarModalClave;
-window.validarClaveModal = validarClaveModal;
-window.enviarEmailGanador = enviarEmailGanador;
+
+// Cerrar modales al hacer click fuera
+['modalPDF', 'modalWA', 'modal-clave'].forEach(id => {
+    document.getElementById(id)?.addEventListener('click', e => {
+        if (e.target.id === id) {
+            if (id === 'modal-clave') cerrarModalClave();
+            else cerrarModales();
+        }
+    });
+});
 </script>
 </body>
 </html>
