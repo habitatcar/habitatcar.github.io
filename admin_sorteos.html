@@ -1114,13 +1114,11 @@ fecha: serverTimestamp(),
 mailComercio: mailC || 'habitatcar@gmail.com',
 timestampProgramado: Date.now(),
 tipo_sorteo: esAutomatico ? 'automático' : 'manual',
-// Guardamos referencia al ID del comercio para futuras consultas
 comercioId: idCom
 });
 
 // ✅ NO ELIMINAMOS LOS CAMPOS DEL COMERCIO
 // Los dejamos para que sigan apareciendo en la lista de sorteos activos
-// Pero el historial determinará si ya fue ejecutado
 
 // LIMPIAR PARTICIPANTES (esto sí debe hacerse)
 await limpiarParticipantesSorteo(nomCom);
@@ -1147,7 +1145,7 @@ window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, 
 mostrarToast(`✅ Sorteo exitoso - ${ganadores.length} ganador(es)`, "success");
 mostrarConfirmacionSorteo(participantes.length, ganadoresConNumero, nomCom);
 actualizarEstadisticas();
-cargarActivos(); // Recargar la tabla para mostrar el estado actualizado
+cargarActivos();
 
 } catch (e) {
 console.error("Error en sorteo:", e);
@@ -1198,7 +1196,7 @@ return false;
 };
 
 // ============================================
-// CARGAR SORTEOS ACTIVOS (VERSIÓN CORREGIDA)
+// CARGAR SORTEOS ACTIVOS (VERSIÓN DEFINITIVA - CORREGIDA)
 // ============================================
 const cargarActivos = () => {
 window.vistaActual = 'activos';
@@ -1229,7 +1227,10 @@ const historialSnap = await getDocs(collection(db, "historial_sorteos"));
 const sorteosEjecutados = new Set();
 historialSnap.docs.forEach(doc => {
 const h = doc.data();
+// Solo considerar como ejecutado si tiene ganadores (ya se realizó)
+if (h.ganadores && h.ganadores.length > 0) {
 sorteosEjecutados.add(`${h.comercio}|${h.premio}`);
+}
 });
 
 // ORDENAR: activos (no ejecutados) primero, luego ejecutados
@@ -1259,8 +1260,12 @@ const fechaISO = c.fecha_sorteo || "";
 const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
 const mailC = c.emailDueno || '';
 
-// Verificar si ya fue ejecutado por su presencia en historial
-const ejecutado = sorteosEjecutados.has(`${nomCom}|${premio}`);
+// ✅ NUEVA LÓGICA: Un sorteo está finalizado SOLO si:
+// 1. Está en el historial (ya se ejecutó)
+// 2. Y además su fecha ya pasó (para evitar falsos positivos)
+const enHistorial = sorteosEjecutados.has(`${nomCom}|${premio}`);
+const fechaPasada = ts < ahora;
+const ejecutado = enHistorial && fechaPasada;
 
 // Contar participantes
 let cL = 0, cV = 0;
