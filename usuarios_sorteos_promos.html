@@ -1,7 +1,7 @@
 <!-- ========================================
      ARCHIVO: usuarios_sorteos_promos.html
      SORTEOS Y PROMOCIONES | HÁBITAT-CAR
-     Versión: CON GANADORES (provincia y localidad completas)
+     Versión: CON GANADORES (provincia y localidad optimizadas)
      ======================================== -->
 
 <!DOCTYPE html>
@@ -250,26 +250,22 @@
             font-weight: bold;
             color: var(--dorado-ganador);
             margin-bottom: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
         }
-        .ganador-provincia {
+        /* ✅ NUEVO: Estilo para ubicación combinada */
+        .ganador-ubicacion {
             font-size: 0.95em;
             color: #ccc;
+            display: flex;
+            align-items: center;
+            gap: 6px;
             margin-top: 5px;
         }
-        .ganador-provincia i {
+        .ganador-ubicacion i {
             color: var(--oro);
-            margin-right: 5px;
             width: 18px;
-        }
-        .ganador-localidad {
-            font-size: 0.95em;
-            color: #ccc;
-            margin-top: 3px;
-        }
-        .ganador-localidad i {
-            color: var(--oro);
-            margin-right: 5px;
-            width: 18px;
+            text-align: center;
         }
         .btn-cerrar-ganadores {
             background: var(--dorado-ganador);
@@ -545,7 +541,7 @@
             }
         }
 
-        // ✅ FUNCIÓN CORREGIDA: Ahora muestra provincia y localidad
+        // ✅ FUNCIÓN MEJORADA: Ubicación combinada (provincia + localidad)
         window.verGanadores = () => {
             const btnGanador = document.getElementById('btn-ganador');
             const ganadores = window.ganadoresDelSorteo || [];
@@ -563,22 +559,30 @@
             
             ganadores.forEach((g, index) => {
                 const nombreParcial = obtenerNombreParcial(g.nombreMostrar || g.nombre || "Participante");
-                
-                // ✅ TOMAR provincia Y localidad DEL OBJETO GANADOR
-                const provincia = g.provincia || "No especificada";
-                const localidad = g.localidad || "No especificada";
-                
+                const provincia = g.provincia?.trim() || "";
+                const localidad = g.localidad?.trim() || "";
                 const numeroPremio = g.numeroPremio || (ganadores.length === 1 ? "Ganador" : `${index + 1}º Premio`);
+                
+                // ✅ Construir ubicación combinada de forma inteligente
+                let ubicacionHTML = '';
+                if (provincia && localidad) {
+                    // Ambos datos disponibles: mostrar "Localidad, Provincia"
+                    ubicacionHTML = `<div class="ganador-ubicacion"><i class="fas fa-map-pin"></i> ${localidad}, ${provincia}</div>`;
+                } else if (provincia) {
+                    // Solo provincia
+                    ubicacionHTML = `<div class="ganador-ubicacion"><i class="fas fa-map-marker-alt"></i> ${provincia}</div>`;
+                } else if (localidad) {
+                    // Solo localidad
+                    ubicacionHTML = `<div class="ganador-ubicacion"><i class="fas fa-city"></i> ${localidad}</div>`;
+                } else {
+                    // Sin datos de ubicación
+                    ubicacionHTML = `<div class="ganador-ubicacion"><i class="fas fa-question-circle"></i> Ubicación no especificada</div>`;
+                }
                 
                 lista.innerHTML += `
                     <div class="ganador-item">
                         <div class="ganador-nombre">${numeroPremio}: ${nombreParcial}</div>
-                        <div class="ganador-provincia">
-                            <i class="fas fa-map-marker-alt"></i> ${provincia}
-                        </div>
-                        <div class="ganador-localidad">
-                            <i class="fas fa-city"></i> ${localidad}
-                        </div>
+                        ${ubicacionHTML}
                     </div>
                 `;
             });
@@ -657,8 +661,6 @@
                 const nombreFinal = (nombreReal + " " + apellidoReal).trim() || "Usuario Sorteo";
                 const whatsappFinal = u ? (u.whatsapp || u.celular || "S/D") : "S/D";
                 const emailFinal = u ? (u.email || "S/D") : "S/D";
-                
-                // ✅ GUARDAR PROVINCIA Y LOCALIDAD
                 const provinciaFinal = u ? (u.provincia || "") : "";
                 const localidadFinal = u ? (u.localidad || "") : "";
 
@@ -781,6 +783,8 @@
         window.abrirPopupExito = abrirPopupExito;
         window.cerrarPopup = cerrarPopup;
         window.notificarGoogleCalendar = notificarGoogleCalendar;
+        window.verGanadores = verGanadores;
+        window.cerrarModalGanadores = cerrarModalGanadores;
     </script>
 </body>
 </html>
