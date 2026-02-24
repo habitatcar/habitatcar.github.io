@@ -766,43 +766,6 @@ console.error(`❌ Error enviando email a ${g.email}:`, e);
 };
 
 // ============================================
-// ELIMINAR MÚLTIPLES SORTEOS ACTIVOS
-// ============================================
-window.eliminarSeleccionadosActivos = async () => {
-if (!window.itemsSeleccionados.size) {
-mostrarToast("⚠️ No hay items seleccionados", "warning");
-return;
-}
-if (!confirm(`¿Eliminar ${window.itemsSeleccionados.size} sorteo(s) seleccionado(s)?`)) return;
-mostrarToast("🗑️ Eliminando...", "warning");
-let exitosos = 0;
-let errores = 0;
-for (const id of window.itemsSeleccionados) {
-try {
-const docSnap = await getDoc(doc(db, "comercios", id));
-if (docSnap.exists()) {
-await updateDoc(doc(db, "comercios", id), {
-titulo_sorteo: null,
-descripcion_sorteo: null,
-fecha_sorteo: null,
-cantidad_premios: null,
-sorteo_finalizado: null,
-timestamp_finalizacion: null
-});
-exitosos++;
-}
-} catch (e) {
-console.error("Error eliminando sorteo:", e);
-errores++;
-}
-}
-window.itemsSeleccionados.clear();
-actualizarBulkActions();
-mostrarToast(`✅ ${exitosos} eliminados, ${errores} errores`, exitosos > 0 ? "success" : "error");
-cargarActivos();
-};
-
-// ============================================
 // LIMPIAR PARTICIPANTES DESPUÉS DEL SORTEO
 // ============================================
 const limpiarParticipantesSorteo = async (nombreComercio) => {
@@ -830,38 +793,23 @@ const verificarSorteosAutomaticos = async () => {
 try {
 const ahora = Date.now();
 const q = query(
-collection(db, "comercios"),
-where("titulo_sorteo", "!=", null)
+collection(db, "sorteos_activos"),
+where("estado", "==", "activo")
 );
 const snap = await getDocs(q);
 for (const doc of snap.docs) {
-const c = doc.data();
-if (!c.fecha_sorteo) continue;
+const sorteo = doc.data();
+if (!sorteo.fecha_sorteo) continue;
 
-// ⚠️ IMPORTANTE: No usar sorteo_finalizado para determinar si ejecutar
-// Solo usar la fecha
-const ts = new Date(c.fecha_sorteo).getTime();
+const ts = sorteo.fecha_sorteo.toDate ? sorteo.fecha_sorteo.toDate().getTime() : new Date(sorteo.fecha_sorteo).getTime();
 
-// Si la fecha ya pasó (con margen de 1 minuto) 
+// Si la fecha ya pasó (con margen de 1 minuto)
 if (ts <= ahora + 60000) {
-// Verificar si ya existe en el historial para evitar duplicados
-const historialQuery = query(
-collection(db, "historial_sorteos"),
-where("comercio", "==", c.nombre),
-where("premio", "==", c.titulo_sorteo)
-);
-const historialSnap = await getDocs(historialQuery);
-
-// Si no hay registro en historial, ejecutar sorteo
-if (historialSnap.empty) {
-console.log(`⏰ Ejecutando sorteo automático de ${c.nombre}`);
-await ejecutarSorteo(doc.id, c.nombre, c.titulo_sorteo, 
-parseInt(c.cantidad_premios) || 1, 
-c.email || '', 
-c.logoUrl || '', 
-c.descripcion_sorteo || '', 
+console.log(`⏰ Ejecutando sorteo automático: ${sorteo.titulo} de ${sorteo.comercioNombre}`);
+await ejecutarSorteo(doc.id, sorteo.comercioId, sorteo.comercioNombre, sorteo.titulo, 
+sorteo.cantidad_premios || 1, 
+sorteo.descripcion || '', 
 true); // true = automático
-}
 }
 }
 } catch (e) {
@@ -957,6 +905,33 @@ catch(e) { mostrarToast("❌ Error","error"); btn.disabled=false; btn.innerHTML=
 };
 
 // ============================================
+// ELIMINAR MÚLTIPLES SORTEOS ACTIVOS (AHORA DE SORTEOS_ACTIVOS)
+// ============================================
+window.eliminarSeleccionadosActivos = async () => {
+if (!window.itemsSeleccionados.size) {
+mostrarToast("⚠️ No hay items seleccionados", "warning");
+return;
+}
+if (!confirm(`¿Eliminar ${window.itemsSeleccionados.size} sorteo(s) seleccionado(s)?`)) return;
+mostrarToast("🗑️ Eliminando...", "warning");
+let exitosos = 0;
+let errores = 0;
+for (const id of window.itemsSeleccionados) {
+try {
+await deleteDoc(doc(db, "sorteos_activos", id));
+exitosos++;
+} catch (e) {
+console.error("Error eliminando sorteo:", e);
+errores++;
+}
+}
+window.itemsSeleccionados.clear();
+actualizarBulkActions();
+mostrarToast(`✅ ${exitosos} eliminados, ${errores} errores`, exitosos > 0 ? "success" : "error");
+cargarActivos();
+};
+
+// ============================================
 // RELOJES - SOLO VISUAL, NO ACCIÓN
 // ============================================
 window.iniciarRelojes = () => {
@@ -1004,36 +979,30 @@ return;
 
 // Si es el botón azul (SORTEAR AHORA), ejecutar
 if (btn.classList.contains('btn-primary')) {
-const idComercio = btn.dataset.id;
+const idSorteo = btn.dataset.id;
+const idComercio = btn.dataset.comercioId;
 const nombreComercio = btn.dataset.nombre;
 const premio = btn.dataset.premio;
 const cant = parseInt(btn.dataset.cant);
-const mailC = btn.dataset.mail;
-const logoUrl = btn.dataset.logo;
 const desc = btn.dataset.desc;
-await ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc, false);
+await ejecutarSorteo(idSorteo, idComercio, nombreComercio, premio, cant, desc, false);
 }
 };
 
 // ============================================
 // EJECUTAR SORTEO (VERSIÓN ÚNICA - MANUAL O AUTOMÁTICO)
 // ============================================
-const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc, esAutomatico = false) => {
+const ejecutarSorteo = async (idSorteo, idComercio, nomCom, premio, cant, desc, esAutomatico = false) => {
 mostrarToast(`🎲 Procesando sorteo ${esAutomatico ? 'automático' : 'manual'} para ${nomCom}...`, "warning");
 
 try {
-// 1. Verificar que no esté ya en el historial (para evitar duplicados)
-const historialQuery = query(
-collection(db, "historial_sorteos"),
-where("comercio", "==", nomCom),
-where("premio", "==", premio)
-);
-const historialSnap = await getDocs(historialQuery);
-
-if (!historialSnap.empty) {
-mostrarToast("🔒 Este sorteo ya fue realizado", "warning");
+// 1. Obtener datos del comercio
+const comercioSnap = await getDoc(doc(db, "comercios", idComercio));
+if (!comercioSnap.exists()) {
+mostrarToast("❌ Comercio no encontrado", "error");
 return;
 }
+const comercio = comercioSnap.data();
 
 // 2. Obtener participantes
 const snapP = await getDocs(query(
@@ -1090,18 +1059,18 @@ return { ...g, numeroPremio };
 // 4. Guardar en historial
 await addDoc(collection(db, "historial_sorteos"), {
 comercio: nomCom,
-premio,
+premio: premio,
 descripcion_sorteo: desc || "",
-logoUrl: logoUrl || "",
+logoUrl: comercio.logoUrl || "",
 ganadores: ganadoresConNumero,
 fecha: serverTimestamp(),
-mailComercio: mailC || 'habitatcar@gmail.com',
+mailComercio: comercio.email || 'habitatcar@gmail.com',
 timestampProgramado: Date.now(),
 tipo_sorteo: esAutomatico ? 'automático' : 'manual'
 });
 
-// 5. NO marcar como finalizado en comercios - mantener para futuros sorteos
-// Simplemente registramos en historial y limpiamos participantes
+// 5. ELIMINAR EL SORTEO DE ACTIVOS (ya se realizó)
+await deleteDoc(doc(db, "sorteos_activos", idSorteo));
 
 // 6. LIMPIAR PARTICIPANTES para el próximo sorteo
 await limpiarParticipantesSorteo(nomCom);
@@ -1110,17 +1079,14 @@ await limpiarParticipantesSorteo(nomCom);
 await enviarEmailAutomatico(ganadoresConNumero, nomCom, premio);
 
 // 8. Notificar al comercio por WhatsApp si tiene teléfono
-const comercioSnap = await getDoc(doc(db, "comercios", idCom));
-if (comercioSnap.exists()) {
-const comercio = comercioSnap.data();
 if (comercio.telefono) {
 const mensajeComercio = `🎉 Sorteo ${esAutomatico ? 'AUTOMÁTICO' : 'MANUAL'} realizado para ${comercio.nombre}
 Ganadores: ${ganadores.length}
+🏆 Premio: ${premio}
 📱 Los participantes han sido limpiados para el próximo sorteo.`;
 const num = window.normalizarTelefonoAR(comercio.telefono);
 if (num) {
 window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, '_blank');
-}
 }
 }
 
@@ -1130,7 +1096,7 @@ mostrarConfirmacionSorteo(participantes.length, ganadoresConNumero, nomCom);
 
 // 10. Actualizar todo
 actualizarEstadisticas();
-cargarActivos(); // Recargar la tabla para mostrar los cambios
+cargarActivos(); // Recargar la tabla
 
 } catch (e) {
 console.error("Error en sorteo:", e);
@@ -1139,18 +1105,31 @@ mostrarToast("❌ Error en el sorteo", "error");
 };
 
 // ============================================
-// INTENTAR ELIMINAR SORTEO (CON CLAVE)
+// INTENTAR ELIMINAR SORTEO ACTIVO (CON CLAVE)
 // ============================================
-window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
-const dh = (new Date(fechaSorteoISO).getTime() - Date.now()) / 3600000;
+window.intentarEliminarSorteo = async (idSorteo, fechaSorteo) => {
+const ts = fechaSorteo ? new Date(fechaSorteo).getTime() : Date.now();
+const dh = (ts - Date.now()) / 3600000;
+
 let mensaje;
 if (dh < 24 && dh > 0) {
 mensaje = "⚠️ ZONA CRÍTICA: Faltan menos de 24hs\nSolo la CLAVE MAESTRA puede cancelar este sorteo.\nIngrese la clave:";
 } else {
 mensaje = "Ingrese CLAVE DE COMERCIO o MAESTRA para eliminar:";
 }
+
 abrirModalClave(mensaje, async (clave) => {
 if (!clave) return false;
+
+// Para eliminar un sorteo activo, necesitamos obtener el comercioId primero
+const sorteoSnap = await getDoc(doc(db, "sorteos_activos", idSorteo));
+if (!sorteoSnap.exists()) {
+mostrarToast("❌ Sorteo no encontrado", "error");
+return false;
+}
+const sorteo = sorteoSnap.data();
+const idComercio = sorteo.comercioId;
+
 const valida = await validarAccionSegura(idComercio, clave);
 if (!valida) {
 mostrarToast("❌ Contraseña incorrecta", "error");
@@ -1161,15 +1140,7 @@ mostrarToast("❌ Solo Admin puede cancelar sorteos inminentes", "error");
 return false;
 }
 try {
-await updateDoc(doc(db, "comercios", idComercio), {
-titulo_sorteo: null,
-descripcion_sorteo: null,
-fecha_sorteo: null,
-cantidad_premios: null,
-logoUrl: null,
-sorteo_finalizado: null,
-timestamp_finalizacion: null
-});
+await deleteDoc(doc(db, "sorteos_activos", idSorteo));
 mostrarToast("🗑️ Sorteo cancelado", "success");
 cargarActivos();
 return true;
@@ -1211,7 +1182,7 @@ return false;
 };
 
 // ============================================
-// CARGAR ACTIVOS (VERSIÓN DEFINITIVA - SOLO USA FECHA Y HISTORIAL)
+// CARGAR SORTEOS ACTIVOS (NUEVA VERSIÓN)
 // ============================================
 const cargarActivos = () => {
 window.vistaActual = 'activos';
@@ -1224,62 +1195,49 @@ tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">�
 
 if (listenerActivos) listenerActivos();
 
-listenerActivos = onSnapshot(collection(db, "comercios"), async (snap) => {
+listenerActivos = onSnapshot(collection(db, "sorteos_activos"), async (snap) => {
 tabla.innerHTML = "";
 const ahora = Date.now();
-const comerciosArray = [];
+const sorteosArray = [];
 
 snap.forEach(doc => {
 const data = doc.data();
-// Solo mostrar si tiene título de sorteo
-if (data.titulo_sorteo) {
-comerciosArray.push({ id: doc.id, data: data });
-}
+sorteosArray.push({ id: doc.id, data: data });
 });
 
-// Obtener todos los sorteos del historial para saber cuáles ya se ejecutaron
-const historialSnap = await getDocs(collection(db, "historial_sorteos"));
-const sorteosEjecutados = new Set();
-historialSnap.docs.forEach(doc => {
-const h = doc.data();
-sorteosEjecutados.add(`${h.comercio}|${h.premio}`);
-});
-
-// ORDENAR: 
-// 1. Sorteos NO ejecutados (fecha futura) - por fecha ascendente
-// 2. Sorteos NO ejecutados (fecha pasada) - por fecha ascendente
-// 3. Sorteos ejecutados - por fecha descendente
-comerciosArray.sort((a, b) => {
-const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
-const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
-
-const ejecutadoA = sorteosEjecutados.has(`${a.data.nombre}|${a.data.titulo_sorteo}`);
-const ejecutadoB = sorteosEjecutados.has(`${b.data.nombre}|${b.data.titulo_sorteo}`);
-
-if (!ejecutadoA && !ejecutadoB) {
+// ORDENAR por fecha ascendente (más próximos primero)
+sorteosArray.sort((a, b) => {
+const fechaA = a.data.fecha_sorteo ? (a.data.fecha_sorteo.toDate ? a.data.fecha_sorteo.toDate().getTime() : new Date(a.data.fecha_sorteo).getTime()) : 0;
+const fechaB = b.data.fecha_sorteo ? (b.data.fecha_sorteo.toDate ? b.data.fecha_sorteo.toDate().getTime() : new Date(b.data.fecha_sorteo).getTime()) : 0;
 return fechaA - fechaB;
-}
-if (!ejecutadoA && ejecutadoB) return -1;
-if (ejecutadoA && !ejecutadoB) return 1;
-return fechaB - fechaA;
 });
 
-if (comerciosArray.length === 0) {
+if (sorteosArray.length === 0) {
 tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#666;">📭 No hay sorteos activos</td></tr>';
 return;
 }
 
-for (const { id: docId, data: c } of comerciosArray) {
-const nomCom = c.nombre || "Sin nombre";
-const premio = c.titulo_sorteo;
-const descPremio = c.descripcion_sorteo || "";
-const cant = parseInt(c.cantidad_premios) || 1;
-const fechaISO = c.fecha_sorteo || "";
-const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
+for (const { id: docId, data: sorteo } of sorteosArray) {
+const nomCom = sorteo.comercioNombre || "Sin nombre";
+const premio = sorteo.titulo;
+const descPremio = sorteo.descripcion || "";
+const cant = sorteo.cantidad_premios || 1;
+const fechaObj = sorteo.fecha_sorteo;
+const ts = fechaObj ? (fechaObj.toDate ? fechaObj.toDate().getTime() : new Date(fechaObj).getTime()) : Date.now();
+const fechaISO = fechaObj ? (fechaObj.toDate ? fechaObj.toDate().toISOString() : new Date(fechaObj).toISOString()) : "";
 
-// ⚠️ IMPORTANTE: El estado finalizado se determina por la presencia en historial
-const ejecutado = sorteosEjecutados.has(`${nomCom}|${premio}`);
+// Obtener logo del comercio
+let logoUrl = LOGO_DEFAULT;
+try {
+const comercioSnap = await getDoc(doc(db, "comercios", sorteo.comercioId));
+if (comercioSnap.exists()) {
+logoUrl = comercioSnap.data().logoUrl || LOGO_DEFAULT;
+}
+} catch (e) {
+console.error("Error obteniendo logo:", e);
+}
 
+// Contar participantes
 let cL = 0, cV = 0;
 try {
 const snapP = await getDocs(query(
@@ -1305,11 +1263,8 @@ console.error("Error contando participantes:", e);
 
 const f = formatearFechaHora(fechaISO) || { fecha: 'A definir', hora: '' };
 let badge = '';
-let estadoClase = ejecutado ? 'finalizado' : '';
 
-if (ejecutado) {
-badge = `<span class="badge badge-finalizado">✅ SORTEO FINALIZADO</span>`;
-} else if (ts > ahora) {
+if (ts > ahora) {
 badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`;
 } else {
 badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
@@ -1317,40 +1272,34 @@ badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
 
 // CONSTRUIR BOTÓN DE SORTEO
 let botonSorteo;
-if (ejecutado) {
-botonSorteo = `<button class="btn btn-secondary btn-sm" disabled style="opacity:0.5">✅ FINALIZADO</button>`;
-} else {
-// Si la fecha es futura, botón negro (solo visual)
 if (ts > ahora) {
+// Fecha futura: botón negro (solo visual)
 botonSorteo = `<button class="btn btn-dark btn-sortear-accion"
 data-id="${docId}"
+data-comercio-id="${sorteo.comercioId}"
 data-nombre="${nomCom}"
 data-premio="${premio}"
 data-cant="${cant}"
-data-mail="${c.email || ''}"
-data-logo="${c.logoUrl || ''}"
 data-desc="${descPremio}"
 data-timestamp="${ts}"
 onclick="intentarSorteo(this)">⏳ Calculando...</button>`;
 } else {
-// Si la fecha ya pasó y no está ejecutado, botón azul (SORTEAR AHORA)
+// Fecha pasada: botón azul (SORTEAR AHORA)
 botonSorteo = `<button class="btn btn-primary btn-sortear-accion"
 data-id="${docId}"
+data-comercio-id="${sorteo.comercioId}"
 data-nombre="${nomCom}"
 data-premio="${premio}"
 data-cant="${cant}"
-data-mail="${c.email || ''}"
-data-logo="${c.logoUrl || ''}"
 data-desc="${descPremio}"
 data-timestamp="${ts}"
 onclick="intentarSorteo(this)">🎲 SORTEAR AHORA</button>`;
 }
-}
 
-tabla.innerHTML += `<tr class="${estadoClase}">
+tabla.innerHTML += `<tr>
 <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docId}" onchange="toggleSeleccion('${docId}',this)"></td>
 <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div></td>
-<td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+<td><img src="${logoUrl}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
 <td>
 <span class="badge badge-comercio">${nomCom}</span><br>
 <span class="badge badge-premio">🎁 ${premio}</span>
@@ -1374,7 +1323,7 @@ ${botonSorteo}
 };
 
 // ============================================
-// HISTORIAL
+// HISTORIAL (sin cambios)
 // ============================================
 window.mostrarHistorial = () => {
 window.vistaActual = 'historial';
@@ -1466,7 +1415,7 @@ onclick="navigator.clipboard.writeText(this.dataset.texto);mostrarToast('📋 Co
 };
 
 // ============================================
-// ENVIAR TICKET
+// ENVIAR TICKET (sin cambios)
 // ============================================
 window.clickEnviarTicket = btn => {
 window.enviarTicketElite(
