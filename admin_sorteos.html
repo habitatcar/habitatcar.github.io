@@ -1200,7 +1200,7 @@ return false;
 };
 
 // ============================================
-// CARGAR ACTIVOS (VERSIÓN CORREGIDA - SIN BLOQUEAR ACTIVOS FUTUROS)
+// CARGAR ACTIVOS (VERSIÓN CORREGIDA - SOLO USA FECHA PARA ESTADO)
 // ============================================
 const cargarActivos = () => {
 window.vistaActual = 'activos';
@@ -1226,19 +1226,29 @@ comerciosArray.push({ id: doc.id, data: data });
 }
 });
 
-// ORDENAR: activos primero (fecha próxima), finalizados después
+// ORDENAR: 
+// 1. Sorteos NO finalizados (fecha futura o pasada sin ejecutar) - por fecha ascendente
+// 2. Sorteos finalizados (con flag true) - por fecha descendente
 comerciosArray.sort((a, b) => {
 const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
 const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
 
-// Determinar si están finalizados (por flag o por fecha pasada)
 const finalizadoA = a.data.sorteo_finalizado === true;
 const finalizadoB = b.data.sorteo_finalizado === true;
 
-if (!finalizadoA && finalizadoB) return -1;
-if (finalizadoA && !finalizadoB) return 1;
-if (finalizadoA && finalizadoB) return fechaB - fechaA;
+// Si ambos no están finalizados, ordenar por fecha ascendente
+if (!finalizadoA && !finalizadoB) {
 return fechaA - fechaB;
+}
+
+// Si A no está finalizado y B sí, A va primero
+if (!finalizadoA && finalizadoB) return -1;
+
+// Si A está finalizado y B no, B va primero
+if (finalizadoA && !finalizadoB) return 1;
+
+// Si ambos están finalizados, ordenar por fecha descendente
+return fechaB - fechaA;
 });
 
 if (comerciosArray.length === 0) {
@@ -1254,8 +1264,8 @@ const cant = parseInt(c.cantidad_premios) || 1;
 const fechaISO = c.fecha_sorteo || "";
 const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
 
-// ⚠️ IMPORTANTE: Solo considerar finalizado si tiene el flag en true
-// Los sorteos con fecha futura NO deben marcarse como finalizados
+// ⚠️ IMPORTANTE: El estado finalizado SOLO depende del flag en Firestore
+// NO usar la fecha para determinar si está finalizado
 const finalizado = c.sorteo_finalizado === true;
 
 let cL = 0, cV = 0;
