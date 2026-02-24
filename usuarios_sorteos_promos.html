@@ -1,7 +1,7 @@
 <!-- ========================================
      ARCHIVO: usuarios_sorteos_promos.html
      SORTEOS Y PROMOCIONES | HÁBITAT-CAR
-     Versión: CON GANADORES (provincia y localidad optimizadas)
+     Versión: CORREGIDA (colección participaciones_sorteos)
      ======================================== -->
 
 <!DOCTYPE html>
@@ -250,22 +250,26 @@
             font-weight: bold;
             color: var(--dorado-ganador);
             margin-bottom: 8px;
-            padding-bottom: 8px;
-            border-bottom: 1px solid rgba(212, 175, 55, 0.3);
         }
-        /* ✅ NUEVO: Estilo para ubicación combinada */
-        .ganador-ubicacion {
+        .ganador-provincia {
             font-size: 0.95em;
             color: #ccc;
-            display: flex;
-            align-items: center;
-            gap: 6px;
             margin-top: 5px;
         }
-        .ganador-ubicacion i {
+        .ganador-provincia i {
             color: var(--oro);
+            margin-right: 5px;
             width: 18px;
-            text-align: center;
+        }
+        .ganador-localidad {
+            font-size: 0.95em;
+            color: #ccc;
+            margin-top: 3px;
+        }
+        .ganador-localidad i {
+            color: var(--oro);
+            margin-right: 5px;
+            width: 18px;
         }
         .btn-cerrar-ganadores {
             background: var(--dorado-ganador);
@@ -541,7 +545,6 @@
             }
         }
 
-        // ✅ FUNCIÓN MEJORADA: Ubicación combinada (provincia + localidad)
         window.verGanadores = () => {
             const btnGanador = document.getElementById('btn-ganador');
             const ganadores = window.ganadoresDelSorteo || [];
@@ -559,30 +562,21 @@
             
             ganadores.forEach((g, index) => {
                 const nombreParcial = obtenerNombreParcial(g.nombreMostrar || g.nombre || "Participante");
-                const provincia = g.provincia?.trim() || "";
-                const localidad = g.localidad?.trim() || "";
-                const numeroPremio = g.numeroPremio || (ganadores.length === 1 ? "Ganador" : `${index + 1}º Premio`);
                 
-                // ✅ Construir ubicación combinada de forma inteligente
-                let ubicacionHTML = '';
-                if (provincia && localidad) {
-                    // Ambos datos disponibles: mostrar "Localidad, Provincia"
-                    ubicacionHTML = `<div class="ganador-ubicacion"><i class="fas fa-map-pin"></i> ${localidad}, ${provincia}</div>`;
-                } else if (provincia) {
-                    // Solo provincia
-                    ubicacionHTML = `<div class="ganador-ubicacion"><i class="fas fa-map-marker-alt"></i> ${provincia}</div>`;
-                } else if (localidad) {
-                    // Solo localidad
-                    ubicacionHTML = `<div class="ganador-ubicacion"><i class="fas fa-city"></i> ${localidad}</div>`;
-                } else {
-                    // Sin datos de ubicación
-                    ubicacionHTML = `<div class="ganador-ubicacion"><i class="fas fa-question-circle"></i> Ubicación no especificada</div>`;
-                }
+                const provincia = g.provincia || "No especificada";
+                const localidad = g.localidad || "No especificada";
+                
+                const numeroPremio = g.numeroPremio || (ganadores.length === 1 ? "Ganador" : `${index + 1}º Premio`);
                 
                 lista.innerHTML += `
                     <div class="ganador-item">
                         <div class="ganador-nombre">${numeroPremio}: ${nombreParcial}</div>
-                        ${ubicacionHTML}
+                        <div class="ganador-provincia">
+                            <i class="fas fa-map-marker-alt"></i> ${provincia}
+                        </div>
+                        <div class="ganador-localidad">
+                            <i class="fas fa-city"></i> ${localidad}
+                        </div>
                     </div>
                 `;
             });
@@ -603,7 +597,8 @@
                 return;
             }
             try {
-                const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nombreComercio), where("usuarioId", "==", idFinal));
+                // ✅ CORREGIDO: Ahora usa "participaciones_sorteos"
+                const q = query(collection(db, "participaciones_sorteos"), where("comercio", "==", nombreComercio), where("usuarioId", "==", idFinal));
                 const snap = await getDocs(q);
                 if (!snap.empty) {
                     localStorage.setItem(participacionKey, 'true');
@@ -661,10 +656,12 @@
                 const nombreFinal = (nombreReal + " " + apellidoReal).trim() || "Usuario Sorteo";
                 const whatsappFinal = u ? (u.whatsapp || u.celular || "S/D") : "S/D";
                 const emailFinal = u ? (u.email || "S/D") : "S/D";
+                
                 const provinciaFinal = u ? (u.provincia || "") : "";
                 const localidadFinal = u ? (u.localidad || "") : "";
 
-                await addDoc(collection(db, "admin_participantes_sorteos"), {
+                // ✅ CORREGIDO: Ahora guarda en "participaciones_sorteos"
+                await addDoc(collection(db, "participaciones_sorteos"), {
                     usuarioId: idFinal,
                     nombre: nombreFinal,
                     nombres: nombreReal,
@@ -748,7 +745,8 @@
                 }
             });
 
-            onSnapshot(query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nombreComercio)), (snap) => {
+            // ✅ CORREGIDO: Ahora lee de "participaciones_sorteos" para el contador
+            onSnapshot(query(collection(db, "participaciones_sorteos"), where("comercio", "==", nombreComercio)), (snap) => {
                 document.getElementById('contador-transparencia').style.display = 'block';
                 document.getElementById('texto-contador').innerHTML = `Ya hay <b style="color:#28a745">${snap.size}</b> personas participando 🎉`;
             });
@@ -783,8 +781,6 @@
         window.abrirPopupExito = abrirPopupExito;
         window.cerrarPopup = cerrarPopup;
         window.notificarGoogleCalendar = notificarGoogleCalendar;
-        window.verGanadores = verGanadores;
-        window.cerrarModalGanadores = cerrarModalGanadores;
     </script>
 </body>
 </html>
