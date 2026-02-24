@@ -1,7 +1,7 @@
 <!-- ========================================
      ARCHIVO: usuarios_sorteos_promos.html
      SORTEOS Y PROMOCIONES | HÁBITAT-CAR
-     Versión: CORREGIDA (colección participaciones_sorteos)
+     Versión: CORREGIDA (contador solo en sorteos)
      ======================================== -->
 
 <!DOCTYPE html>
@@ -333,6 +333,8 @@
             font-size: 0.95em;
         }
         .fecha-item i, .hora-item i { color: var(--oro); width: 20px; }
+        
+        /* ✅ CONTADOR - solo visible cuando hay sorteo */
         #contador-transparencia {
             display: none;
             background: rgba(255,193,7,0.1);
@@ -347,6 +349,7 @@
         }
         #contador-transparencia i { margin-right: 8px; color: var(--verde); }
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
+        
         .btn-calendar {
             background: #4285F4;
             color: white;
@@ -389,6 +392,7 @@
             <p class="leyenda-ecosistema">✨ Este es un espacio Válido para todos los miembros del Ecosistema Habitat-Car. ✨</p>
         </div>
 
+        <!-- ✅ CONTADOR - AHORA SOLO APARECE CUANDO HAY SORTEO -->
         <div id="contador-transparencia" style="display:none;">
             <i class="fas fa-users"></i> <span id="texto-contador">Cargando participantes...</span>
         </div>
@@ -597,7 +601,6 @@
                 return;
             }
             try {
-                // ✅ CORREGIDO: Ahora usa "participaciones_sorteos"
                 const q = query(collection(db, "participaciones_sorteos"), where("comercio", "==", nombreComercio), where("usuarioId", "==", idFinal));
                 const snap = await getDocs(q);
                 if (!snap.empty) {
@@ -660,7 +663,6 @@
                 const provinciaFinal = u ? (u.provincia || "") : "";
                 const localidadFinal = u ? (u.localidad || "") : "";
 
-                // ✅ CORREGIDO: Ahora guarda en "participaciones_sorteos"
                 await addDoc(collection(db, "participaciones_sorteos"), {
                     usuarioId: idFinal,
                     nombre: nombreFinal,
@@ -725,7 +727,16 @@
                             fechaSorteoData = `${f.fecha} ${f.hora}`;
                         }
                         
+                        // ✅ ACTIVAR CONTADOR SOLO SI HAY SORTEO
+                        onSnapshot(query(collection(db, "participaciones_sorteos"), where("comercio", "==", nombreComercio)), (snap) => {
+                            document.getElementById('contador-transparencia').style.display = 'block';
+                            document.getElementById('texto-contador').innerHTML = `Ya hay <b style="color:#28a745">${snap.size}</b> personas participando 🎉`;
+                        });
+                        
                         verificarSorteoFinalizado();
+                    } else {
+                        // ✅ SI NO HAY SORTEO, ASEGURAR QUE EL CONTADOR NO APAREZCA
+                        document.getElementById('contador-transparencia').style.display = 'none';
                     }
                     
                     if (datosComercioGlobal.titulo_promo) {
@@ -743,12 +754,6 @@
                         }
                     }
                 }
-            });
-
-            // ✅ CORREGIDO: Ahora lee de "participaciones_sorteos" para el contador
-            onSnapshot(query(collection(db, "participaciones_sorteos"), where("comercio", "==", nombreComercio)), (snap) => {
-                document.getElementById('contador-transparencia').style.display = 'block';
-                document.getElementById('texto-contador').innerHTML = `Ya hay <b style="color:#28a745">${snap.size}</b> personas participando 🎉`;
             });
 
             verificarParticipacion();
