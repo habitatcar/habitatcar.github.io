@@ -1,7 +1,7 @@
 <!-- ========================================
      ARCHIVO: usuarios_sorteos_promos.html
      SORTEOS Y PROMOCIONES | HÁBITAT-CAR
-     Versión: CON GANADORES (CORREGIDO)
+     Versión: CON GANADORES (CORREGIDA)
      ======================================== -->
 
 <!DOCTYPE html>
@@ -115,7 +115,6 @@
         }
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
         
-        /* ✅ ANIMACIONES PARA BOTÓN DE GANADOR */
         @keyframes destello-ganador {
             0% { 
                 box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.9);
@@ -185,7 +184,6 @@
             margin-top: 20px;
         }
         
-        /* ✅ MODAL DE GANADORES */
         #overlay-ganadores {
             display: none;
             position: fixed;
@@ -369,10 +367,7 @@
                 <div class="hora-item"><i class="fas fa-clock"></i><span id="hora-sorteo"></span></div>
             </div>
             
-            <!-- Botón para participar (se muestra si el sorteo está activo) -->
             <button class="btn-participar" id="btn-participar" onclick="abrirPopupExito()">QUIERO PARTICIPAR</button>
-            
-            <!-- Botón para ver ganadores (se muestra si el sorteo ya finalizó) -->
             <button class="btn-ganador" id="btn-ganador" style="display: none;" onclick="verGanadores()">🏆 VER GANADOR(ES)</button>
             
             <div class="participacion-info" id="participacionInfo">
@@ -399,7 +394,6 @@
         </a>
     </div>
 
-    <!-- Popup de participación exitosa (SIN MODIFICACIONES) -->
     <div id="overlay">
         <div class="popup">
             <i class="fas fa-check-circle"></i>
@@ -412,7 +406,6 @@
         </div>
     </div>
 
-    <!-- Modal para mostrar ganadores -->
     <div id="overlay-ganadores">
         <div class="popup-ganadores">
             <h2>🏆 GANADOR(ES)</h2>
@@ -453,7 +446,6 @@
             } catch (e) { return null; }
         }
 
-        // ✅ Función para obtener nombre parcial
         function obtenerNombreParcial(nombreCompleto) {
             if (!nombreCompleto) return "Anónimo";
             const partes = nombreCompleto.split(' ');
@@ -471,7 +463,6 @@
             return nombreCorto;
         }
 
-        // ✅ Verificar si el sorteo ya finalizó y mostrar botón de ganador
         async function verificarSorteoFinalizado() {
             if (!idComercio || !datosComercioGlobal || !datosComercioGlobal.titulo_sorteo) return;
             
@@ -479,7 +470,6 @@
             const btnGanador = document.getElementById('btn-ganador');
             const cartelVerde = document.getElementById('participacionInfo');
             
-            // Buscar en historial_sorteos
             const q = query(
                 collection(db, "historial_sorteos"),
                 where("comercio", "==", nombreComercio),
@@ -489,19 +479,14 @@
             const snap = await getDocs(q);
             
             if (!snap.empty) {
-                // El sorteo ya finalizó
                 const historial = snap.docs[0].data();
                 const ganadores = historial.ganadores || [];
-                
-                // Guardar los ganadores en una variable global para usarlos después
                 window.ganadoresDelSorteo = ganadores;
                 
-                // Ocultar botón participar y cartel verde
                 btnParticipar.style.display = 'none';
                 cartelVerde.classList.remove('visible');
                 cartelVerde.style.display = 'none';
                 
-                // Verificar si ya vio los ganadores
                 const yaVio = localStorage.getItem(`visto_ganadores_${idComercio}_${datosComercioGlobal.titulo_sorteo}`);
                 
                 if (yaVio) {
@@ -513,16 +498,12 @@
                 
                 btnGanador.style.display = 'block';
             } else {
-                // Sorteo activo
                 btnGanador.style.display = 'none';
                 btnParticipar.style.display = 'block';
-                
-                // Verificar participación normalmente
                 verificarParticipacion();
             }
         }
 
-        // ✅ Función para mostrar ganadores
         window.verGanadores = () => {
             const btnGanador = document.getElementById('btn-ganador');
             const ganadores = window.ganadoresDelSorteo || [];
@@ -532,20 +513,16 @@
                 return;
             }
             
-            // Marcar como visto
             localStorage.setItem(`visto_ganadores_${idComercio}_${datosComercioGlobal.titulo_sorteo}`, 'true');
             btnGanador.classList.add('ya-visto');
             
-            // Renderizar lista de ganadores
             const lista = document.getElementById('lista-ganadores-modal');
             lista.innerHTML = '';
             
             ganadores.forEach((g, index) => {
                 const nombreParcial = obtenerNombreParcial(g.nombreMostrar || g.nombre || "Participante");
-                // ✅ AHORA SÍ: Tomar provincia y localidad del ganador
                 const provincia = g.provincia || "No especificada";
                 const localidad = g.localidad || "No especificada";
-                
                 const numeroPremio = g.numeroPremio || (ganadores.length === 1 ? "Ganador" : `${index + 1}º Premio`);
                 
                 lista.innerHTML += `
@@ -635,6 +612,8 @@
                 const nombreFinal = (nombreReal + " " + apellidoReal).trim() || "Usuario Sorteo";
                 const whatsappFinal = u ? (u.whatsapp || u.celular || "S/D") : "S/D";
                 const emailFinal = u ? (u.email || "S/D") : "S/D";
+                
+                // ✅ GUARDAR PROVINCIA Y LOCALIDAD
                 const provinciaFinal = u ? (u.provincia || "") : "";
                 const localidadFinal = u ? (u.localidad || "") : "";
 
@@ -669,7 +648,6 @@
             }
         };
 
-        // Carga de Datos Principal
         if (nombreComercio) {
             onSnapshot(query(collection(db, "comercios"), where("nombre", "==", nombreComercio), limit(1)), (snap) => {
                 if (!snap.empty) {
@@ -703,7 +681,6 @@
                             fechaSorteoData = `${f.fecha} ${f.hora}`;
                         }
                         
-                        // Verificar si el sorteo ya finalizó
                         verificarSorteoFinalizado();
                     }
                     
