@@ -7,6 +7,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
+/* (mismos estilos que antes - los omito por brevedad pero van todos) */
 :root {
 --azul-habitat: #003d80;
 --rojo-cupon: #e60000;
@@ -426,6 +427,68 @@ let estadisticas = { totalSorteos: 0, totalGanadores: 0, topComercio: '-', parti
 let listenerActivos = null;
 let listenerHistorial = null;
 let intervalSorteos = null;
+let migracionRealizada = false;
+
+// ============================================
+// FUNCIÓN AUTOMÁTICA DE MIGRACIÓN (SOLO UNA VEZ)
+// ============================================
+const migrarSorteosAntiguos = async () => {
+// Evitar ejecutar múltiples veces
+if (migracionRealizada) return;
+migracionRealizada = true;
+
+try {
+console.log("🔄 Verificando si hay sorteos para migrar...");
+const migradoFlag = localStorage.getItem('sorteos_migrados_v2');
+if (migradoFlag === 'true') {
+console.log("✅ Migración ya realizada anteriormente");
+return;
+}
+
+// Verificar si hay sorteos en el formato antiguo
+const comerciosSnap = await getDocs(collection(db, "comercios"));
+let migrados = 0;
+
+for (const doc of comerciosSnap.docs) {
+const data = doc.data();
+// Si tiene sorteo y NO está finalizado
+if (data.titulo_sorteo && !data.sorteo_finalizado) {
+// Verificar si ya existe en sorteos_activos para evitar duplicados
+const existentes = await getDocs(query(
+collection(db, "sorteos_activos"),
+where("comercioId", "==", doc.id),
+where("titulo", "==", data.titulo_sorteo)
+));
+
+if (existentes.empty) {
+await addDoc(collection(db, "sorteos_activos"), {
+comercioId: doc.id,
+comercioNombre: data.nombre,
+titulo: data.titulo_sorteo,
+descripcion: data.descripcion_sorteo || "",
+fecha_sorteo: data.fecha_sorteo ? new Date(data.fecha_sorteo) : null,
+cantidad_premios: data.cantidad_premios || 1,
+fechaCreacion: new Date(),
+estado: "activo"
+});
+migrados++;
+console.log(`✅ Sorteo migrado: ${data.nombre} - ${data.titulo_sorteo}`);
+}
+}
+}
+
+if (migrados > 0) {
+console.log(`🎉 Migración completada. ${migrados} sorteos migrados a sorteos_activos`);
+// Marcar como migrado para no volver a ejecutar
+localStorage.setItem('sorteos_migrados_v2', 'true');
+} else {
+console.log("📭 No se encontraron sorteos para migrar");
+localStorage.setItem('sorteos_migrados_v2', 'true');
+}
+} catch (error) {
+console.error("Error en migración:", error);
+}
+};
 
 // ============================================
 // MODO OSCURO
@@ -793,8 +856,7 @@ const verificarSorteosAutomaticos = async () => {
 try {
 const ahora = Date.now();
 const q = query(
-collection(db, "sorteos_activos"),
-where("estado", "==", "activo")
+collection(db, "sorteos_activos")
 );
 const snap = await getDocs(q);
 for (const doc of snap.docs) {
@@ -1070,7 +1132,11 @@ tipo_sorteo: esAutomatico ? 'automático' : 'manual'
 });
 
 // 5. ELIMINAR EL SORTEO DE ACTIVOS (ya se realizó)
+try {
 await deleteDoc(doc(db, "sorteos_activos", idSorteo));
+} catch (e) {
+console.warn("El sorteo ya no existe en activos:", e);
+}
 
 // 6. LIMPIAR PARTICIPANTES para el próximo sorteo
 await limpiarParticipantesSorteo(nomCom);
@@ -1570,7 +1636,10 @@ return null;
 document.getElementById('btn-activos').onclick = cargarActivos;
 document.getElementById('btn-historial').onclick = () => { mostrarHistorial(); actualizarEstadisticas(); };
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
+// Ejecutar migración automática al cargar
+await migrarSorteosAntiguos();
+
 cargarActivos();
 iniciarRelojes();
 actualizarEstadisticas();
