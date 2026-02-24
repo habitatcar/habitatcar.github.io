@@ -838,13 +838,22 @@ for (const doc of snap.docs) {
 const c = doc.data();
 if (!c.fecha_sorteo) continue;
 
-// Si ya está finalizado, no hacer nada
-if (c.sorteo_finalizado === true) continue;
-
+// ⚠️ IMPORTANTE: No usar sorteo_finalizado para determinar si ejecutar
+// Solo usar la fecha
 const ts = new Date(c.fecha_sorteo).getTime();
 
-// Si la fecha ya pasó (con margen de 1 minuto) y NO está finalizado
-if (ts <= ahora + 60000 && !c.sorteo_finalizado) {
+// Si la fecha ya pasó (con margen de 1 minuto) 
+if (ts <= ahora + 60000) {
+// Verificar si ya existe en el historial para evitar duplicados
+const historialQuery = query(
+collection(db, "historial_sorteos"),
+where("comercio", "==", c.nombre),
+where("premio", "==", c.titulo_sorteo)
+);
+const historialSnap = await getDocs(historialQuery);
+
+// Si no hay registro en historial, ejecutar sorteo
+if (historialSnap.empty) {
 console.log(`⏰ Ejecutando sorteo automático de ${c.nombre}`);
 await ejecutarSorteo(doc.id, c.nombre, c.titulo_sorteo, 
 parseInt(c.cantidad_premios) || 1, 
@@ -852,6 +861,7 @@ c.email || '',
 c.logoUrl || '', 
 c.descripcion_sorteo || '', 
 true); // true = automático
+}
 }
 }
 } catch (e) {
@@ -1012,15 +1022,15 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
 mostrarToast(`🎲 Procesando sorteo ${esAutomatico ? 'automático' : 'manual'} para ${nomCom}...`, "warning");
 
 try {
-// 1. Verificar que no esté ya finalizado
-const comercioRef = doc(db, "comercios", idCom);
-const comercioSnap = await getDoc(comercioRef);
-if (!comercioSnap.exists()) {
-mostrarToast("❌ Comercio no encontrado", "error");
-return;
-}
-const comercio = comercioSnap.data();
-if (comercio.sorteo_finalizado) {
+// 1. Verificar que no esté ya en el historial (para evitar duplicados)
+const historialQuery = query(
+collection(db, "historial_sorteos"),
+where("comercio", "==", nomCom),
+where("premio", "==", premio)
+);
+const historialSnap = await getDocs(historialQuery);
+
+if (!historialSnap.empty) {
 mostrarToast("🔒 Este sorteo ya fue realizado", "warning");
 return;
 }
@@ -1090,11 +1100,8 @@ timestampProgramado: Date.now(),
 tipo_sorteo: esAutomatico ? 'automático' : 'manual'
 });
 
-// 5. MARCAR COMO FINALIZADO (esto deshabilita el botón)
-await updateDoc(comercioRef, {
-sorteo_finalizado: true,
-timestamp_finalizacion: serverTimestamp()
-});
+// 5. NO marcar como finalizado en comercios - mantener para futuros sorteos
+// Simplemente registramos en historial y limpiamos participantes
 
 // 6. LIMPIAR PARTICIPANTES para el próximo sorteo
 await limpiarParticipantesSorteo(nomCom);
@@ -1103,6 +1110,9 @@ await limpiarParticipantesSorteo(nomCom);
 await enviarEmailAutomatico(ganadoresConNumero, nomCom, premio);
 
 // 8. Notificar al comercio por WhatsApp si tiene teléfono
+const comercioSnap = await getDoc(doc(db, "comercios", idCom));
+if (comercioSnap.exists()) {
+const comercio = comercioSnap.data();
 if (comercio.telefono) {
 const mensajeComercio = `🎉 Sorteo ${esAutomatico ? 'AUTOMÁTICO' : 'MANUAL'} realizado para ${comercio.nombre}
 Ganadores: ${ganadores.length}
@@ -1112,6 +1122,7 @@ if (num) {
 window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, '_blank');
 }
 }
+}
 
 // 9. Mostrar resultados
 mostrarToast(`✅ Sorteo exitoso - ${ganadores.length} ganador(es)`, "success");
@@ -1119,7 +1130,7 @@ mostrarConfirmacionSorteo(participantes.length, ganadoresConNumero, nomCom);
 
 // 10. Actualizar todo
 actualizarEstadisticas();
-cargarActivos(); // Recargar la tabla para reflejar el estado finalizado
+cargarActivos(); // Recargar la tabla para mostrar los cambios
 
 } catch (e) {
 console.error("Error en sorteo:", e);
@@ -1200,7 +1211,7 @@ return false;
 };
 
 // ============================================
-// CARGAR ACTIVOS (VERSIÓN CORREGIDA - SOLO USA FECHA PARA ESTADO)
+// CARGAR ACTIVOS (VERSIÓN DEFINITIVA - SOLO USA FECHA Y HISTORIAL)
 // ============================================
 const cargarActivos = () => {
 window.vistaActual = 'activos';
@@ -1226,28 +1237,30 @@ comerciosArray.push({ id: doc.id, data: data });
 }
 });
 
+// Obtener todos los sorteos del historial para saber cuáles ya se ejecutaron
+const historialSnap = await getDocs(collection(db, "historial_sorteos"));
+const sorteosEjecutados = new Set();
+historialSnap.docs.forEach(doc => {
+const h = doc.data();
+sorteosEjecutados.add(`${h.comercio}|${h.premio}`);
+});
+
 // ORDENAR: 
-// 1. Sorteos NO finalizados (fecha futura o pasada sin ejecutar) - por fecha ascendente
-// 2. Sorteos finalizados (con flag true) - por fecha descendente
+// 1. Sorteos NO ejecutados (fecha futura) - por fecha ascendente
+// 2. Sorteos NO ejecutados (fecha pasada) - por fecha ascendente
+// 3. Sorteos ejecutados - por fecha descendente
 comerciosArray.sort((a, b) => {
 const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
 const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
 
-const finalizadoA = a.data.sorteo_finalizado === true;
-const finalizadoB = b.data.sorteo_finalizado === true;
+const ejecutadoA = sorteosEjecutados.has(`${a.data.nombre}|${a.data.titulo_sorteo}`);
+const ejecutadoB = sorteosEjecutados.has(`${b.data.nombre}|${b.data.titulo_sorteo}`);
 
-// Si ambos no están finalizados, ordenar por fecha ascendente
-if (!finalizadoA && !finalizadoB) {
+if (!ejecutadoA && !ejecutadoB) {
 return fechaA - fechaB;
 }
-
-// Si A no está finalizado y B sí, A va primero
-if (!finalizadoA && finalizadoB) return -1;
-
-// Si A está finalizado y B no, B va primero
-if (finalizadoA && !finalizadoB) return 1;
-
-// Si ambos están finalizados, ordenar por fecha descendente
+if (!ejecutadoA && ejecutadoB) return -1;
+if (ejecutadoA && !ejecutadoB) return 1;
 return fechaB - fechaA;
 });
 
@@ -1264,9 +1277,8 @@ const cant = parseInt(c.cantidad_premios) || 1;
 const fechaISO = c.fecha_sorteo || "";
 const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
 
-// ⚠️ IMPORTANTE: El estado finalizado SOLO depende del flag en Firestore
-// NO usar la fecha para determinar si está finalizado
-const finalizado = c.sorteo_finalizado === true;
+// ⚠️ IMPORTANTE: El estado finalizado se determina por la presencia en historial
+const ejecutado = sorteosEjecutados.has(`${nomCom}|${premio}`);
 
 let cL = 0, cV = 0;
 try {
@@ -1293,9 +1305,9 @@ console.error("Error contando participantes:", e);
 
 const f = formatearFechaHora(fechaISO) || { fecha: 'A definir', hora: '' };
 let badge = '';
-let estadoClase = finalizado ? 'finalizado' : '';
+let estadoClase = ejecutado ? 'finalizado' : '';
 
-if (finalizado) {
+if (ejecutado) {
 badge = `<span class="badge badge-finalizado">✅ SORTEO FINALIZADO</span>`;
 } else if (ts > ahora) {
 badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`;
@@ -1305,7 +1317,7 @@ badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
 
 // CONSTRUIR BOTÓN DE SORTEO
 let botonSorteo;
-if (finalizado) {
+if (ejecutado) {
 botonSorteo = `<button class="btn btn-secondary btn-sm" disabled style="opacity:0.5">✅ FINALIZADO</button>`;
 } else {
 // Si la fecha es futura, botón negro (solo visual)
@@ -1321,7 +1333,7 @@ data-desc="${descPremio}"
 data-timestamp="${ts}"
 onclick="intentarSorteo(this)">⏳ Calculando...</button>`;
 } else {
-// Si la fecha ya pasó y no está finalizado, botón azul (SORTEAR AHORA)
+// Si la fecha ya pasó y no está ejecutado, botón azul (SORTEAR AHORA)
 botonSorteo = `<button class="btn btn-primary btn-sortear-accion"
 data-id="${docId}"
 data-nombre="${nomCom}"
