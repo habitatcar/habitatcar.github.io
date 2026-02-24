@@ -833,8 +833,8 @@ if (!c.fecha_sorteo) continue;
 
 const ts = new Date(c.fecha_sorteo).getTime();
 
-// Si la fecha ya pasó (con margen de 1 minuto)
-if (ts <= ahora + 60000) {
+// ✅ CORREGIDO: Sin margen de tiempo, solo cuando es exactamente >=
+if (ts <= ahora && !c.sorteo_realizado) { 
 // Verificar si ya existe en el historial para evitar duplicados
 const historialQuery = query(
 collection(db, "historial_sorteos"),
@@ -846,8 +846,9 @@ const historialSnap = await getDocs(historialQuery);
 // Si no hay registro en historial, ejecutar sorteo
 if (historialSnap.empty) {
 console.log(`⏰ Ejecutando sorteo automático de ${c.nombre}`);
+const cantPremios = parseInt(c.cantidad_premios) || 1; // ✅ LEER CANTIDAD DE PREMIOS
 await ejecutarSorteo(doc.id, c.nombre, c.titulo_sorteo, 
-1, 
+cantPremios, 
 c.emailDueno || '', 
 c.logoUrl || '', 
 c.descripcion_sorteo || '', 
@@ -1027,7 +1028,10 @@ const premio = btn.dataset.premio;
 const desc = btn.dataset.desc;
 const logoUrl = btn.dataset.logo;
 const mailC = btn.dataset.mail;
-await ejecutarSorteo(idComercio, nombreComercio, premio, 1, mailC, logoUrl, desc, false);
+// ✅ LEER CANTIDAD DE PREMIOS DESDE EL COMERCIO
+const comercioSnap = await getDoc(doc(db, "comercios", idComercio));
+const cantPremios = comercioSnap.exists() ? parseInt(comercioSnap.data().cantidad_premios) || 1 : 1;
+await ejecutarSorteo(idComercio, nombreComercio, premio, cantPremios, mailC, logoUrl, desc, false);
 }
 };
 
@@ -1064,6 +1068,8 @@ let nom = p.nombre || "Participante";
 let cel = p.celular || p.whatsapp || "S/D";
 let tipo = p.tipo || "LEAD";
 let email = p.email || "";
+let provincia = p.provincia || "";
+let localidad = p.localidad || "";
 if (p.usuarioId && !p.usuarioId.startsWith('temp_')) {
 try {
 const ld = await getDoc(doc(db, "leads", p.usuarioId));
@@ -1073,10 +1079,20 @@ nom = `${l.nombres || ''} ${l.apellido || ''}`.trim() || nom;
 cel = l.whatsapp || l.celular || cel;
 tipo = (l.convertidoVIP || l.tipo === "VIP") ? "VIP" : "LEAD";
 email = l.email || email;
+provincia = l.provincia || provincia;
+localidad = l.localidad || localidad;
 }
 } catch (e) {}
 }
-participantes.push({ ...p, nombreMostrar: nom, celular: cel, tipo, email });
+participantes.push({ 
+...p, 
+nombreMostrar: nom, 
+celular: cel, 
+tipo, 
+email,
+provincia,
+localidad 
+});
 }
 
 if (!participantes.length) {
@@ -1259,6 +1275,7 @@ const descPremio = c.descripcion_sorteo || "";
 const fechaISO = c.fecha_sorteo || "";
 const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
 const mailC = c.emailDueno || '';
+const cantPremios = parseInt(c.cantidad_premios) || 1; // ✅ LEER CANTIDAD DE PREMIOS
 
 // ✅ NUEVA LÓGICA: Un sorteo está finalizado SOLO si:
 // 1. Está en el historial (ya se ejecutó)
@@ -1331,6 +1348,9 @@ onclick="intentarSorteo(this)">🎲 SORTEAR AHORA</button>`;
 }
 }
 
+// ✅ CORREGIDO: Mostrar cantidad de premios correctamente
+const textoPremios = cantPremios === 1 ? '🎁 1 premio' : `🎁 ${cantPremios} premios`;
+
 tabla.innerHTML += `<tr class="${estadoClase}">
 <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docId}" onchange="toggleSeleccion('${docId}',this)"></td>
 <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div></td>
@@ -1351,14 +1371,14 @@ ${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}
 ${botonSorteo}
 <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docId}','${fechaISO}')">🗑️ Cancelar</button>
 </td>
-<td style="text-align:center"><span class="badge badge-premios">🎁 1 premio</span></td>
+<td style="text-align:center"><span class="badge badge-premios">${textoPremios}</span></td>
 </tr>`;
 }
 });
 };
 
 // ============================================
-// HISTORIAL
+// HISTORIAL (CORREGIDO - Títulos de columnas)
 // ============================================
 window.mostrarHistorial = () => {
 window.vistaActual = 'historial';
@@ -1368,6 +1388,15 @@ document.getElementById('header-checkbox').style.display = 'table-cell';
 
 const tabla = document.getElementById('tabla-sorteos');
 tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando historial...</td></tr>';
+
+// ✅ ACTUALIZAR TÍTULOS DE COLUMNAS
+const headers = document.getElementById('tabla-headers');
+if (headers) {
+headers.innerHTML = `
+<th class="checkbox-cell" style="display:none;"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
+<th>FECHA</th><th>LOGO</th><th>COMERCIO / PREMIO</th><th>PARTICIPANTES</th><th>ACCIONES</th><th>NOTIFICACIONES MANUALES</th>
+`;
+}
 
 if (listenerHistorial) listenerHistorial();
 
@@ -1414,7 +1443,8 @@ ${descSorteo ? `<div class="premio-desc">${descSorteo}</div>` : ''}
 <td>
 <div style="font-size:0.85em;color:var(--verde);margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>
 ${emailG ? `<div style="font-size:0.8em;color:#666;word-break:break-all;"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}
-<div style="margin-top:8px; display:flex; gap:5px; flex-wrap:wrap;">
+</td>
+<td>
 <button class="btn-accion btn-wapdf"
 data-nombre="${esc(nombreG)}"
 data-premio="${esc(h.premio)}"
@@ -1424,16 +1454,13 @@ data-cel="${esc(celG)}"
 data-logo="${esc(logoC)}"
 onclick="clickEnviarTicket(this)"
 title="Genera PDF y abre WhatsApp">
-<i class="fab fa-whatsapp"></i> <i class="fas fa-file-pdf"></i>
+<i class="fab fa-whatsapp"></i> <i class="fas fa-file-pdf"></i> WA+PDF
 </button>
 <button class="btn-accion btn-email"
 onclick="enviarEmailGanador('${esc(nombreG)}', '${esc(h.premio)}', '${esc(h.comercio)}', '${esc(emailG)}')"
 title="Enviar email al ganador">
-<i class="fas fa-envelope"></i>
+<i class="fas fa-envelope"></i> EMAIL
 </button>
-</div>
-</td>
-<td>
 <button class="btn-accion" style="background:#6c757d"
 data-texto="${esc(nombreG + ' - WA: ' + celG + ' - Email: ' + emailG)}"
 onclick="navigator.clipboard.writeText(this.dataset.texto);mostrarToast('📋 Copiado','warning')">
