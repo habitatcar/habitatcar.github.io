@@ -1,8 +1,7 @@
 <!-- ========================================
      ARCHIVO: usuarios_sorteos_promos.html
      SORTEOS Y PROMOCIONES | HÁBITAT-CAR
-     Funciones: Participación, WhatsApp, Email, Google Calendar, Firebase
-     Última actualización: 2026
+     Versión: CON GANADORES
      ======================================== -->
 
 <!DOCTYPE html>
@@ -21,6 +20,7 @@
             --naranja: #ff8c00;
             --verde: #28a745;
             --gris: #6c757d;
+            --dorado-ganador: #d4af37;
         }
         body {
             font-family: 'Segoe UI', sans-serif;
@@ -114,13 +114,49 @@
             animation: pulse 2s infinite;
         }
         @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.05); } }
-        .vigencia-texto {
-            color: var(--naranja);
-            font-weight: bold;
-            margin-top: 10px;
-            font-size: 0.95em;
-            display: none;
+        
+        /* ✅ ANIMACIONES PARA BOTÓN DE GANADOR */
+        @keyframes destello-ganador {
+            0% { 
+                box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.9);
+                transform: scale(1);
+                border-color: var(--dorado-ganador);
+            }
+            50% {
+                box-shadow: 0 0 0 25px rgba(212, 175, 55, 0.4);
+                transform: scale(1.03);
+                border-color: #ffd966;
+            }
+            100% { 
+                box-shadow: 0 0 0 45px rgba(212, 175, 55, 0);
+                transform: scale(1);
+                border-color: var(--dorado-ganador);
+            }
         }
+        
+        .btn-ganador {
+            background: linear-gradient(145deg, #8B6B1D, #C5A028);
+            color: white;
+            padding: 18px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1.2em;
+            border: 3px solid var(--dorado-ganador);
+            cursor: pointer;
+            width: 100%;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+            animation: destello-ganador 1.5s infinite;
+            position: relative;
+            z-index: 1;
+        }
+        .btn-ganador.ya-visto {
+            animation: none;
+            box-shadow: none;
+            background: #4a4a4a;
+            border-color: #666;
+        }
+        
         .btn-participar {
             background: var(--naranja);
             color: white;
@@ -148,26 +184,69 @@
             cursor: pointer;
             margin-top: 20px;
         }
-        #overlay {
+        
+        /* ✅ MODAL DE GANADORES */
+        #overlay-ganadores {
             display: none;
             position: fixed;
             top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 2000;
+            background: rgba(0,0,0,0.95);
+            z-index: 3000;
             justify-content: center;
             align-items: center;
         }
-        .popup {
+        .popup-ganadores {
             background: var(--azul-medio);
-            padding: 40px 30px;
+            padding: 30px 20px;
             border-radius: 30px;
             text-align: center;
-            width: 85%;
-            max-width: 380px;
-            border: 2px solid var(--verde);
+            width: 90%;
+            max-width: 400px;
+            border: 3px solid var(--dorado-ganador);
+            max-height: 80vh;
+            overflow-y: auto;
         }
-        .popup i { font-size: 4.5em; color: var(--verde); margin-bottom: 20px; }
-        .popup h2 { color: white; margin: 0 0 10px 0; font-size: 1.8em; }
+        .popup-ganadores h2 {
+            color: var(--dorado-ganador);
+            font-size: 1.8em;
+            margin-top: 0;
+            margin-bottom: 20px;
+        }
+        .ganador-item {
+            background: rgba(0,0,0,0.3);
+            border-left: 5px solid var(--dorado-ganador);
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 10px;
+            text-align: left;
+        }
+        .ganador-nombre {
+            font-size: 1.3em;
+            font-weight: bold;
+            color: var(--dorado-ganador);
+            margin-bottom: 5px;
+        }
+        .ganador-localidad {
+            font-size: 1em;
+            color: #aaa;
+        }
+        .ganador-localidad i {
+            color: var(--oro);
+            margin-right: 5px;
+        }
+        .btn-cerrar-ganadores {
+            background: var(--dorado-ganador);
+            color: black;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1.1em;
+            cursor: pointer;
+            margin-top: 15px;
+            width: 100%;
+        }
+        
         .footer-link {
             margin: 40px 0;
             background: var(--oro);
@@ -230,7 +309,6 @@
             animation: pulse 2s infinite;
         }
         #contador-transparencia i { margin-right: 8px; color: var(--verde); }
-        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.85; } }
         .btn-calendar {
             background: #4285F4;
             color: white;
@@ -256,7 +334,7 @@
             body { padding-top: 0; }
             .promo-card { padding: 20px; }
             .promo-titulo { font-size: 1.3em; }
-            .btn-participar { font-size: 1em; padding: 14px; }
+            .btn-participar, .btn-ganador { font-size: 1em; padding: 14px; }
             .badge-premios { font-size: 0.9rem; padding: 5px 12px; }
         }
     </style>
@@ -291,7 +369,11 @@
                 <div class="hora-item"><i class="fas fa-clock"></i><span id="hora-sorteo"></span></div>
             </div>
             
+            <!-- Botón para participar (se muestra si el sorteo está activo) -->
             <button class="btn-participar" id="btn-participar" onclick="abrirPopupExito()">QUIERO PARTICIPAR</button>
+            
+            <!-- Botón para ver ganadores (se muestra si el sorteo ya finalizó) -->
+            <button class="btn-ganador" id="btn-ganador" style="display: none;" onclick="verGanadores()">🏆 VER GANADOR(ES)</button>
             
             <div class="participacion-info" id="participacionInfo">
                 <i class="fas fa-check-circle" style="color: var(--verde); font-size: 2em; margin-bottom: 10px;"></i>
@@ -329,6 +411,15 @@
         </div>
     </div>
 
+    <!-- Modal para mostrar ganadores -->
+    <div id="overlay-ganadores">
+        <div class="popup-ganadores">
+            <h2>🏆 GANADOR(ES)</h2>
+            <div id="lista-ganadores-modal"></div>
+            <button class="btn-cerrar-ganadores" onclick="cerrarModalGanadores()">CERRAR</button>
+        </div>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, query, where, onSnapshot, getDoc, getDocs, doc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -350,6 +441,7 @@
         
         let datosComercioGlobal = null;
         let fechaSorteoData = "";
+        let idComercio = "";
 
         function formatearFechaHoraArgentina(fechaISO) {
             if (!fechaISO) return null;
@@ -359,6 +451,118 @@
                 return { fecha: `${dia}/${mes}/${anio}`, hora: `${horaParte} Hs.` };
             } catch (e) { return null; }
         }
+
+        // ✅ Función para obtener nombre parcial
+        function obtenerNombreParcial(nombreCompleto) {
+            if (!nombreCompleto) return "Anónimo";
+            const partes = nombreCompleto.split(' ');
+            if (partes.length === 0) return "Anónimo";
+            
+            // Tomar primera parte del nombre (hasta 6 letras) + puntos suspensivos
+            const primerNombre = partes[0];
+            const nombreCorto = primerNombre.length > 6 ? primerNombre.substring(0, 6) + '...' : primerNombre;
+            
+            // Si hay apellido, tomar primera letra
+            if (partes.length > 1) {
+                const apellido = partes[partes.length - 1];
+                const letraApellido = apellido.charAt(0).toUpperCase();
+                return `${nombreCorto} ${letraApellido}.`;
+            }
+            
+            return nombreCorto;
+        }
+
+        // ✅ Verificar si el sorteo ya finalizó y mostrar botón de ganador
+        async function verificarSorteoFinalizado() {
+            if (!idComercio || !datosComercioGlobal || !datosComercioGlobal.titulo_sorteo) return;
+            
+            const btnParticipar = document.getElementById('btn-participar');
+            const btnGanador = document.getElementById('btn-ganador');
+            const cartelVerde = document.getElementById('participacionInfo');
+            
+            // Buscar en historial_sorteos
+            const q = query(
+                collection(db, "historial_sorteos"),
+                where("comercio", "==", nombreComercio),
+                where("premio", "==", datosComercioGlobal.titulo_sorteo)
+            );
+            
+            const snap = await getDocs(q);
+            
+            if (!snap.empty) {
+                // El sorteo ya finalizó
+                const historial = snap.docs[0].data();
+                const ganadores = historial.ganadores || [];
+                
+                // Guardar los ganadores en una variable global para usarlos después
+                window.ganadoresDelSorteo = ganadores;
+                
+                // Ocultar botón participar y cartel verde
+                btnParticipar.style.display = 'none';
+                cartelVerde.style.display = 'none';
+                
+                // Verificar si ya vio los ganadores
+                const yaVio = localStorage.getItem(`visto_ganadores_${idComercio}_${datosComercioGlobal.titulo_sorteo}`);
+                
+                if (yaVio) {
+                    btnGanador.classList.add('ya-visto');
+                    btnGanador.innerText = '🏆 VER GANADOR(ES)';
+                } else {
+                    btnGanador.classList.remove('ya-visto');
+                }
+                
+                btnGanador.style.display = 'block';
+            } else {
+                // Sorteo activo
+                btnGanador.style.display = 'none';
+                btnParticipar.style.display = 'block';
+                
+                // Verificar participación normalmente
+                verificarParticipacion();
+            }
+        }
+
+        // ✅ Función para mostrar ganadores
+        window.verGanadores = () => {
+            const btnGanador = document.getElementById('btn-ganador');
+            const ganadores = window.ganadoresDelSorteo || [];
+            
+            if (ganadores.length === 0) {
+                alert("No hay información de ganadores disponible.");
+                return;
+            }
+            
+            // Marcar como visto
+            localStorage.setItem(`visto_ganadores_${idComercio}_${datosComercioGlobal.titulo_sorteo}`, 'true');
+            btnGanador.classList.add('ya-visto');
+            
+            // Renderizar lista de ganadores
+            const lista = document.getElementById('lista-ganadores-modal');
+            lista.innerHTML = '';
+            
+            ganadores.forEach((g, index) => {
+                const nombreParcial = obtenerNombreParcial(g.nombreMostrar || g.nombre || "Participante");
+                const provincia = g.provincia || "No especificada";
+                const localidad = g.localidad || "No especificada";
+                
+                const numeroPremio = g.numeroPremio || (ganadores.length === 1 ? "Ganador" : `${index + 1}º Premio`);
+                
+                lista.innerHTML += `
+                    <div class="ganador-item">
+                        <div class="ganador-nombre">${numeroPremio}: ${nombreParcial}</div>
+                        <div class="ganador-localidad">
+                            <i class="fas fa-map-marker-alt"></i> ${localidad}, ${provincia}
+                        </div>
+                    </div>
+                `;
+            });
+            
+            document.getElementById('overlay-ganadores').style.display = 'flex';
+        };
+
+        window.cerrarModalGanadores = () => {
+            document.getElementById('overlay-ganadores').style.display = 'none';
+        };
 
         async function verificarParticipacion() {
             let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
@@ -385,14 +589,11 @@
             if (info) info.classList.add('visible');
         }
 
-        // ✅ FUNCIÓN CORREGIDA: Detección de usuario basada en convertidoVIP
         window.abrirPopupExito = async () => {
-            // 1️⃣ Prioridad absoluta a los IDs reales
             let idFinal = localStorage.getItem('leadId_habitat') || 
                           localStorage.getItem('leadId_v16') || 
                           localStorage.getItem('userId_vip');
             
-            // Si no hay ID, debemos mandarlo a registrarse o avisarle
             if (!idFinal || idFinal.startsWith('temp_')) {
                 alert("⚠️ Para participar debes estar registrado. Por favor, completa tus datos primero.");
                 window.location.href = "usuarios_registro_lead.html";
@@ -406,43 +607,33 @@
 
             try {
                 let u = null;
-                let tipoUsuario = "LEAD"; // Por defecto
+                let tipoUsuario = "LEAD";
 
-                // 1️⃣ Primero intentamos buscar en la colección de LEADS
                 const leadSnap = await getDoc(doc(db, "leads", idFinal));
                 
                 if (leadSnap.exists()) {
                     u = leadSnap.data();
-                    // 🔥 ESTA ES LA CLAVE: Si convertidoVIP es true, ES VIP.
                     if (u.convertidoVIP === true || u.tipo === "VIP") {
                         tipoUsuario = "VIP";
                     } else {
                         tipoUsuario = "LEAD";
                     }
-                    console.log("Detectado en leads como:", tipoUsuario);
                 } else {
-                    // 2️⃣ Si no existe en leads, buscamos en la colección de vips
                     const vipSnap = await getDoc(doc(db, "vips", idFinal));
                     if (vipSnap.exists()) {
                         u = vipSnap.data();
                         tipoUsuario = "VIP";
-                        console.log("Detectado en vips como: VIP");
                     }
                 }
                 
-                // Si después de ambas búsquedas no hay usuario, idFinal es temporal
-                if (!u) {
-                    tipoUsuario = "LEAD"; // O manejar como usuario no registrado
-                }
-
-                // 4️⃣ Construcción de datos con Fallbacks robustos
                 const nombreReal = u ? (u.nombres || u.nombre || "") : "";
                 const apellidoReal = u ? (u.apellido || "") : "";
                 const nombreFinal = (nombreReal + " " + apellidoReal).trim() || "Usuario Sorteo";
                 const whatsappFinal = u ? (u.whatsapp || u.celular || "S/D") : "S/D";
                 const emailFinal = u ? (u.email || "S/D") : "S/D";
+                const provinciaFinal = u ? (u.provincia || "") : "";
+                const localidadFinal = u ? (u.localidad || "") : "";
 
-                // 5️⃣ Guardar en la base de participación con tipo normalizado
                 await addDoc(collection(db, "admin_participantes_sorteos"), {
                     usuarioId: idFinal,
                     nombre: nombreFinal,
@@ -451,9 +642,11 @@
                     email: emailFinal,
                     celular: whatsappFinal,
                     whatsapp: whatsappFinal,
-                    tipo: tipoUsuario, // ✅ Aquí se guardará "VIP" si convertidoVIP era true
+                    provincia: provinciaFinal,
+                    localidad: localidadFinal,
+                    tipo: tipoUsuario,
                     comercio: nombreComercio,
-                    comercioId: datosComercioGlobal.id || "",
+                    comercioId: idComercio,
                     premio: datosComercioGlobal.titulo_sorteo || "Sorteo",
                     fecha_sorteo: fechaSorteoData,
                     timestamp: serverTimestamp()
@@ -476,7 +669,10 @@
         if (nombreComercio) {
             onSnapshot(query(collection(db, "comercios"), where("nombre", "==", nombreComercio), limit(1)), (snap) => {
                 if (!snap.empty) {
-                    datosComercioGlobal = { id: snap.docs[0].id, ...snap.docs[0].data() };
+                    const docSnap = snap.docs[0];
+                    datosComercioGlobal = { id: docSnap.id, ...docSnap.data() };
+                    idComercio = docSnap.id;
+                    
                     document.getElementById('nombre-comercio').innerText = datosComercioGlobal.nombre;
                     
                     if (datosComercioGlobal.titulo_sorteo) {
@@ -502,12 +698,24 @@
                             document.getElementById('fecha-sorteo-container').style.display = 'flex';
                             fechaSorteoData = `${f.fecha} ${f.hora}`;
                         }
+                        
+                        // Verificar si el sorteo ya finalizó
+                        verificarSorteoFinalizado();
                     }
                     
                     if (datosComercioGlobal.titulo_promo) {
                         document.getElementById("card-promo").style.display = 'flex';
                         document.getElementById("tit-promo").innerText = datosComercioGlobal.titulo_promo;
                         document.getElementById("desc-promo").innerText = datosComercioGlobal.descripcion_promo || "";
+                        
+                        if (datosComercioGlobal.promo_vence) {
+                            const f = formatearFechaHoraArgentina(datosComercioGlobal.promo_vence);
+                            if (f) {
+                                document.getElementById('vence-fecha').innerText = f.fecha;
+                                document.getElementById('vence-hora').innerText = f.hora;
+                                document.getElementById('vence-promo-container').style.display = 'flex';
+                            }
+                        }
                     }
                 }
             });
@@ -516,8 +724,6 @@
                 document.getElementById('contador-transparencia').style.display = 'block';
                 document.getElementById('texto-contador').innerHTML = `Ya hay <b style="color:#28a745">${snap.size}</b> personas participando 🎉`;
             });
-
-            verificarParticipacion();
         }
 
         window.cerrarPopup = () => document.getElementById('overlay').style.display = 'none';
