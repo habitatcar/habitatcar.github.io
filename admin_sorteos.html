@@ -188,23 +188,24 @@ padding: 4px 8px;
 font-size: 0.8rem;
 }
 .table-container {
-overflow-y: auto;
+overflow-x: auto;
 max-height: calc(100vh - 280px);
 border-radius: 12px;
 box-shadow: 0 2px 10px rgba(0,0,0,0.08);
 background: var(--blanco-puro);
-position: relative;
-border: 1px solid var(--azul-claro-borde);
 }
 table {
 width: 100%;
 border-collapse: collapse;
 background: var(--blanco-puro);
+border-radius: 12px;
+overflow: hidden;
 }
 thead {
 position: sticky;
 top: 0;
 z-index: 100;
+background: var(--azul-principal);
 }
 th {
 background: var(--azul-principal);
@@ -212,8 +213,6 @@ color: white;
 padding: 14px 12px;
 text-align: left;
 white-space: nowrap;
-font-weight: 600;
-font-size: 0.85rem;
 }
 td {
 padding: 12px;
@@ -239,7 +238,7 @@ margin: 2px;
 border: none;
 border-radius: 6px;
 cursor: pointer;
-font-size: 0.8rem;
+font-size: 0.85rem;
 color: white;
 display: inline-flex;
 align-items: center;
@@ -265,18 +264,11 @@ background: var(--rojo-boton);
 .btn-delete:hover {
 background: #c82333;
 }
-.btn-email {
-background: #4285F4;
-font-weight: 700;
-}
-.btn-email:hover {
-background: #3367D6;
-}
 .badge {
 display: inline-block;
 padding: 4px 10px;
 border-radius: 20px;
-font-size: 0.75rem;
+font-size: 0.8rem;
 font-weight: 600;
 }
 .badge-premio {
@@ -1089,14 +1081,6 @@ if (resultado) {
 cerrarModalClave();
 }
 };
-window.validarAccionSegura = async (idComercio, claveIngresada) => {
-if (claveIngresada === CLAVE_MAESTRA) return true;
-try {
-const s = await getDoc(doc(db, "comercios", idComercio));
-if (s.exists() && claveIngresada === s.data().password) return true;
-} catch(e) {}
-return false;
-};
 window.enviarEmailGanador = async (nombre, premio, comercio, email) => {
 if (!email) {
 mostrarToast("⚠️ Este ganador no tiene email registrado", "warning");
@@ -1406,18 +1390,20 @@ btn.innerHTML=`⏳ ${d}d ${h}h ${m}m ${s}s`; btn.classList.add('btn-dark'); btn.
 });
 },1000);
 };
+window.validarAccionSegura = async (idComercio, claveIngresada) => {
+if (claveIngresada === CLAVE_MAESTRA) return true;
+try {
+const s = await getDoc(doc(db, "comercios", idComercio));
+if (s.exists() && claveIngresada === s.data().password) return true;
+} catch(e) {}
+return false;
+};
 window.intentarSorteo = async (btn) => {
 if (btn.closest('tr')?.classList.contains('finalizado')) {
 mostrarToast("🔒 Sorteo ya finalizado", "warning");
 return;
 }
 const ts = parseInt(btn.dataset.timestamp);
-const ahora = Date.now();
-if (btn.classList.contains('btn-dark')) {
-mostrarToast("⏳ El sorteo aún no está disponible. Esperá a que termine la cuenta regresiva.", "warning");
-return;
-}
-if (btn.classList.contains('btn-primary')) {
 const idComercio = btn.dataset.id;
 const nombreComercio = btn.dataset.nombre;
 const premio = btn.dataset.premio;
@@ -1425,6 +1411,22 @@ const cant = parseInt(btn.dataset.cant);
 const mailC = btn.dataset.mail;
 const logoUrl = btn.dataset.logo;
 const desc = btn.dataset.desc;
+if (Date.now() < ts) {
+const mensaje = `🔒 Sorteo programado para ${new Date(ts).toLocaleString()}
+Ingrese clave de comercio o maestra para realizar el sorteo AHORA`;
+abrirModalClave(mensaje, async (clave) => {
+if (!clave) return false;
+const valida = await validarAccionSegura(idComercio, clave);
+if (valida) {
+mostrarToast("🔓 Acceso autorizado - Realizando sorteo", "warning");
+ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
+return true;
+} else {
+mostrarToast("❌ Contraseña incorrecta", "error");
+return false;
+}
+});
+} else {
 ejecutarSorteo(idComercio, nombreComercio, premio, cant, mailC, logoUrl, desc);
 }
 };
@@ -1480,7 +1482,7 @@ const comerciosArray = [];
 snap.forEach(doc => {
 const data = doc.data();
 if (data.titulo_sorteo) {
-comerciosArray.push({ id: doc.id,  data });
+comerciosArray.push({ id: doc.id, data: data });
 }
 });
 const ahora = Date.now();
@@ -1500,7 +1502,7 @@ if (comerciosArray.length === 0) {
 tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#666;">📭 No hay sorteos activos</td></tr>';
 return;
 }
-for (const { id: docId,  c } of comerciosArray) {
+for (const { id: docId, data: c } of comerciosArray) {
 const nomCom = c.nombre || "Sin nombre";
 const premio = c.titulo_sorteo;
 const descPremio = c.descripcion_sorteo || "";
@@ -1540,18 +1542,6 @@ badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</sp
 } else {
 badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
 }
-const botonSorteo = finalizado
-? `<button class="btn btn-secondary btn-sm" disabled style="opacity:0.5">✅ FINALIZADO</button>`
-: `<button class="btn btn-sortear-accion ${ts > ahora ? 'btn-dark' : 'btn-primary'}"
-data-id="${docId}"
-data-nombre="${nomCom}"
-data-premio="${premio}"
-data-cant="${cant}"
-data-mail="${c.email || ''}"
-data-logo="${c.logoUrl || ''}"
-data-desc="${descPremio}"
-data-timestamp="${ts}"
-onclick="intentarSorteo(this)">${ts > ahora ? '⏳ Calculando...' : '🎲 SORTEAR AHORA'}</button>`;
 tabla.innerHTML += `<tr class="${estadoClase}">
 <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docId}" onchange="toggleSeleccion('${docId}',this)"></td>
 <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div></td>
@@ -1569,7 +1559,20 @@ ${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}
 </div>
 </td>
 <td>
-${botonSorteo}
+${finalizado ?
+`<button class="btn btn-secondary btn-sm" disabled style="opacity:0.5">✅ FINALIZADO</button>` :
+`<button class="btn btn-sortear-accion"
+data-id="${docId}"
+data-nombre="${nomCom}"
+data-premio="${premio}"
+data-cant="${cant}"
+data-mail="${c.email || ''}"
+data-logo="${c.logoUrl || ''}"
+data-desc="${descPremio}"
+data-timestamp="${ts}"
+data-clave-comercio="${c.password || ''}"
+onclick="intentarSorteo(this)">Calculando...</button>`
+}
 <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docId}','${fechaISO}')">🗑️ Cancelar</button>
 </td>
 <td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant > 1 ? 's' : ''}</span></td>
