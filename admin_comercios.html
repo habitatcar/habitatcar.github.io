@@ -103,9 +103,9 @@ table { width: 100%; border-collapse: collapse; background: var(--table-bg); bor
 thead { position: sticky; top: 0; z-index: 100; background: #667eea; }
 th { background: #667eea; color: white; padding: 14px 12px; text-align: left; white-space: nowrap; }
 td { padding: 12px; border-bottom: 1px solid var(--border-color); vertical-align: middle; }
-tr.finalizado { opacity: 0.6; background-color: rgba(128, 128, 128, 0.15); }
+tr.finalizado { opacity: 0.7; background-color: rgba(128, 128, 128, 0.1); }
 tr.finalizado td { border-bottom-color: #999; }
-tr.finalizado .btn-sortear-accion { opacity: 0.4; pointer-events: none; background: #6c757d !important; }
+tr.finalizado .btn-sortear-accion { opacity: 0.5; pointer-events: none; }
 .btn-accion { padding: 6px 12px; margin: 2px; border: none; border-radius: 6px; cursor: pointer; font-size: 0.85rem; color: white; display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .btn-wa { background: #25D366; }
 .btn-wapdf { background: #20a37f; font-weight: 700; }
@@ -876,7 +876,6 @@ fecha: serverTimestamp(),
 mailComercio: comercio.email || 'habitatcar@gmail.com',
 timestampProgramado: Date.now()
 });
-// ✅ MARCAR COMO FINALIZADO
 await updateDoc(comercioRef, {
 sorteo_finalizado: true,
 timestamp_finalizacion: serverTimestamp()
@@ -891,7 +890,7 @@ if (num) {
 window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, '_blank');
 }
 }
-// ✅ ELIMINAR PARTICIPANTES DEL SORTEO FINALIZADO
+// ✅ ELIMINAR TODOS LOS PARTICIPANTES DE ESTE COMERCIO
 try {
 const participantesAEliminar = await getDocs(query(
 collection(db, "admin_participantes_sorteos"),
@@ -921,15 +920,15 @@ try {
 const ahora = Date.now();
 const q = query(
 collection(db, "comercios"),
-where("titulo_sorteo", "!=", null),
-where("sorteo_finalizado", "!=", true)
+where("titulo_sorteo", "!=", null)
 );
 const snap = await getDocs(q);
 snap.forEach(doc => {
 const c = doc.data();
 if (!c.fecha_sorteo) return;
 const ts = new Date(c.fecha_sorteo).getTime();
-if (ts <= ahora) {
+// Solo ejecutar si NO está finalizado
+if (ts <= ahora && !c.sorteo_finalizado) {
 console.log(`⏰ Ejecutando sorteo de ${c.nombre} ahora mismo`);
 window.ejecutarSorteoAutomatico(doc.id);
 }
@@ -1084,7 +1083,9 @@ window.intentarEliminarSorteo = async (idComercio, fechaSorteoISO) => {
 const dh = (new Date(fechaSorteoISO).getTime() - Date.now()) / 3600000;
 let mensaje;
 if (dh < 24 && dh > 0) {
-mensaje = "⚠️ ZONA CRÍTICA: Faltan menos de 24hs\nSolo la CLAVE MAESTRA puede cancelar este sorteo.\nIngrese la clave:";
+mensaje = "⚠️ ZONA CRÍTICA: Faltan menos de 24hs
+Solo la CLAVE MAESTRA puede cancelar este sorteo.
+Ingrese la clave:";
 } else {
 mensaje = "Ingrese CLAVE DE COMERCIO o MAESTRA para eliminar:";
 }
@@ -1119,7 +1120,7 @@ return false;
 });
 };
 // ============================================
-// CARGAR ACTIVOS - CORREGIDO
+// CARGAR ACTIVOS (VERSIÓN DEFINITIVA - SOLO USA FECHA)
 // ============================================
 const cargarActivos = () => {
 window.vistaActual = 'activos';
@@ -1129,21 +1130,33 @@ document.getElementById('header-checkbox').style.display = 'table-cell';
 const tabla = document.getElementById('tabla-sorteos');
 tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando sorteos...</td></tr>';
 if (listenerActivos) listenerActivos();
-// ✅ FILTRAR SOLO SORTEOS NO FINALIZADOS
-listenerActivos = onSnapshot(query(collection(db, "comercios"), where("sorteo_finalizado", "!=", true)), async (snap) => {
+listenerActivos = onSnapshot(collection(db, "comercios"), async (snap) => {
 tabla.innerHTML = "";
 const comerciosArray = [];
 snap.forEach(doc => {
 const data = doc.data();
+// ✅ SOLO FILTRAMOS POR TITULO_SORTEO
 if (data.titulo_sorteo) {
 comerciosArray.push({ id: doc.id, data: data });
 }
 });
-// Ordenar por fecha
+// ORDEN: Primero los más próximos, luego los finalizados
 const ahora = Date.now();
 comerciosArray.sort((a, b) => {
 const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
 const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
+// ✅ SOLO USAMOS LA FECHA PARA DETERMINAR SI ESTÁ FINALIZADO
+const finalizadoA = fechaA < ahora - 3600000;
+const finalizadoB = fechaB < ahora - 3600000;
+// Si ambos están finalizados, ordenar por fecha descendente
+if (finalizadoA && finalizadoB) {
+return fechaB - fechaA;
+}
+// Si solo A está finalizado, A va después
+if (finalizadoA && !finalizadoB) return 1;
+// Si solo B está finalizado, B va después
+if (!finalizadoA && finalizadoB) return -1;
+// Ambos activos: ordenar por fecha ascendente (más próximos primero)
 return fechaA - fechaB;
 });
 if (comerciosArray.length === 0) {
@@ -1157,6 +1170,9 @@ const descPremio = c.descripcion_sorteo || "";
 const cant = parseInt(c.cantidad_premios) || 1;
 const fechaISO = c.fecha_sorteo || "";
 const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
+// ✅ IGNORAMOS COMPLETAMENTE c.sorteo_finalizado
+// Solo usamos la fecha para determinar si está finalizado
+const finalizado = ts < ahora - 3600000; // 1 hora después de la fecha
 let cL = 0, cV = 0;
 try {
 const snapP = await getDocs(query(
@@ -1181,12 +1197,15 @@ console.error("Error contando participantes:", e);
 }
 const f = formatearFechaHora(fechaISO) || { fecha: 'A definir', hora: '' };
 let badge = '';
-if (ts > ahora) {
+let estadoClase = finalizado ? 'finalizado' : '';
+if (finalizado) {
+badge = `<span class="badge badge-finalizado">✅ SORTEO FINALIZADO</span>`;
+} else if (ts > ahora) {
 badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`;
 } else {
 badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
 }
-tabla.innerHTML += `<tr>
+tabla.innerHTML += `<tr class="${estadoClase}">
 <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docId}" onchange="toggleSeleccion('${docId}',this)"></td>
 <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div></td>
 <td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
@@ -1203,7 +1222,9 @@ ${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}
 </div>
 </td>
 <td>
-<button class="btn btn-sortear-accion ${ts > ahora ? 'btn-dark' : 'btn-primary'}"
+${finalizado ?
+`<button class="btn btn-secondary btn-sm" disabled style="opacity:0.5">✅ FINALIZADO</button>` :
+`<button class="btn btn-sortear-accion"
 data-id="${docId}"
 data-nombre="${nomCom}"
 data-premio="${premio}"
@@ -1213,7 +1234,8 @@ data-logo="${c.logoUrl || ''}"
 data-desc="${descPremio}"
 data-timestamp="${ts}"
 data-clave-comercio="${c.password || ''}"
-onclick="intentarSorteo(this)">${ts > ahora ? '⏳ Calculando...' : '🎲 SORTEAR AHORA'}</button>
+onclick="intentarSorteo(this)">Calculando...</button>`
+}
 <br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docId}','${fechaISO}')">🗑️ Cancelar</button>
 </td>
 <td style="text-align:center"><span class="badge badge-premios">🎁 ${cant} premio${cant > 1 ? 's' : ''}</span></td>
@@ -1222,7 +1244,7 @@ onclick="intentarSorteo(this)">${ts > ahora ? '⏳ Calculando...' : '🎲 SORTEA
 });
 };
 // ============================================
-// EJECUTAR SORTEO - CON ELIMINACIÓN DE PARTICIPANTES
+// EJECUTAR SORTEO
 // ============================================
 const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc) => {
 mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
@@ -1279,7 +1301,6 @@ fecha: serverTimestamp(),
 mailComercio: mailC || 'habitatcar@gmail.com',
 timestampProgramado: Date.now()
 });
-// ✅ MARCAR COMO FINALIZADO
 try {
 await updateDoc(doc(db, "comercios", idCom), {
 sorteo_finalizado: true,
@@ -1293,7 +1314,9 @@ try {
 const comercioSnap = await getDoc(doc(db, "comercios", idCom));
 const comercio = comercioSnap.data();
 if (comercio && comercio.telefono) {
-const mensajeComercio = `🎉 Sorteo MANUAL realizado para ${comercio.nombre}\nGanadores: ${ganadores.length}\n📱 Revisa el historial en el panel.`;
+const mensajeComercio = `🎉 Sorteo MANUAL realizado para ${comercio.nombre}
+Ganadores: ${ganadores.length}
+📱 Revisa el historial en el panel.`;
 const num = window.normalizarTelefonoAR(comercio.telefono);
 if (num) {
 window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, '_blank');
@@ -1302,7 +1325,7 @@ window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, 
 } catch (e) {
 console.error("Error notificando al comercio:", e);
 }
-// ✅ ELIMINAR PARTICIPANTES
+// ✅ ELIMINAR TODOS LOS PARTICIPANTES DE ESTE COMERCIO
 try {
 const participantesAEliminar = await getDocs(query(
 collection(db, "admin_participantes_sorteos"),
@@ -1506,7 +1529,8 @@ if (telefono) {
 const num = window.normalizarTelefonoAR(telefono);
 if (num) {
 setTimeout(() => window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeWA)}`, '_blank'), 1200);
-mostrarToast("✅ PDF descargado — WhatsApp abierto.\nAdjuntá el PDF desde tu galería.", "success");
+mostrarToast("✅ PDF descargado — WhatsApp abierto.
+Adjuntá el PDF desde tu galería.", "success");
 return;
 }
 }
@@ -1550,12 +1574,12 @@ cargarActivos();
 iniciarRelojes();
 actualizarEstadisticas();
 programarSorteosPendientes();
+// Verificar cada 30 segundos si hay sorteos que ejecutar
 setInterval(programarSorteosPendientes, 30000);
 });
 document.getElementById('modalPDF').addEventListener('click', e => { if (e.target.id === 'modalPDF') cerrarModales(); });
 document.getElementById('modalWA').addEventListener('click', e => { if (e.target.id === 'modalWA') cerrarModales(); });
 document.getElementById('modal-clave').addEventListener('click', e => { if (e.target.id === 'modal-clave') cerrarModalClave(); });
-// Exponer funciones al scope global
 window.mostrarHistorial = mostrarHistorial;
 window.mostrarToast = mostrarToast;
 window.mostrarConfirmacionSorteo = mostrarConfirmacionSorteo;
