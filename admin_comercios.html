@@ -212,6 +212,26 @@ justify-content: center;
 gap: 5px;
 }
 .btn-copiar-link:hover { background: var(--verde); }
+
+/* ✅ NUEVO BOTÓN PREVISUALIZAR SORTEOS */
+.btn-preview-sorteos {
+background: var(--naranja);
+color: white;
+border: none;
+padding: 8px 10px;
+border-radius: 8px;
+font-size: 10px;
+font-weight: bold;
+cursor: pointer;
+text-transform: uppercase;
+width: 120px;
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 5px;
+}
+.btn-preview-sorteos:hover { background: #e67e22; }
+
 .social-box { display: flex; align-items: center; gap: 10px; border-left: 1px solid rgba(255,255,255,0.1); padding-left: 15px; }
 .social-link {
 width: 38px; height: 38px; display: flex; align-items: center; justify-content: center;
@@ -303,6 +323,8 @@ min-height: 60px;
 <a href="admin_tutoriales.html" class="nav-link">TUTORIALES</a>
 <a href="index.html" class="nav-link">PANEL DE INGRESO</a>
 <a href="admin_legales.html" class="nav-link">LEGALES</a>
+<!-- ✅ NUEVO BOTÓN SORTEOS -->
+<a href="admin_sorteos.html" class="nav-link">SORTEOS</a>
 </nav>
 </header>
 <div class="tools-faja" id="faja-herramientas">
@@ -463,6 +485,7 @@ min-height: 60px;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
 const firebaseConfig = {
 apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
 authDomain: "habitatcar-pro.firebaseapp.com",
@@ -471,9 +494,11 @@ storageBucket: "habitatcar-pro.firebasestorage.app",
 messagingSenderId: "311691258694",
 appId: "1:311691258694:web:17a09051dcea7707af9347"
 };
+
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
+
 async function subirLogoAFirebase(archivo) {
 if (!archivo) return null;
 const nombreArchivo = `logos/${Date.now()}_${archivo.name}`;
@@ -482,10 +507,12 @@ const snapshot = await uploadBytes(storageRef, archivo);
 const url = await getDownloadURL(snapshot.ref);
 return url;
 }
+
 const urlParams = new URLSearchParams(window.location.search);
 const idForzado = urlParams.get('id');
 let COMERCIOS = [];
 let FILTRO_ESTADO = 'todos';
+
 // ✅ FUNCIÓN PARA ESTABLECER FECHA MÍNIMA EN SELECTORES
 function configurarFechaMinima() {
 const ahora = new Date();
@@ -494,6 +521,7 @@ const minISO = ahora.toISOString().slice(0, 16);
 document.getElementById('fecha_sorteo').min = minISO;
 document.getElementById('promo_vence').min = minISO;
 }
+
 window.actualizarLocalidades = async (seleccionada = "") => {
 const prov = document.getElementById('provincia-input').value;
 const ciudadSelect = document.getElementById('ciudad-input');
@@ -529,6 +557,7 @@ console.error("Error cargando localidades:", error);
 ciudadSelect.innerHTML = '<option value="">Error al cargar</option>';
 }
 };
+
 window.addEventListener('load', () => {
 if (idForzado) {
 const token = sessionStorage.getItem('token_habitat_' + idForzado);
@@ -547,6 +576,7 @@ if(capa) capa.style.display = 'none';
 // ✅ Configurar fecha mínima al cargar
 configurarFechaMinima();
 });
+
 const formatearFecha = (ts) => {
 if (!ts) return "Sin envíos";
 try {
@@ -555,6 +585,7 @@ let fecha = ts.toDate ? ts.toDate() : new Date(Number(ts));
 return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 } catch (e) { return "---"; }
 };
+
 onSnapshot(collection(db, "comercios"), (snap) => {
 COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
 window.render();
@@ -563,6 +594,7 @@ const comActual = COMERCIOS.find(x => x.idComercio === idForzado);
 if(comActual) window.edit(null, comActual.fbId);
 }
 });
+
 window.render = () => {
 const masterSearchInput = document.getElementById('masterSearch');
 const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
@@ -583,6 +615,7 @@ const displayID = c.idComercio || c.id || "SIN-ID";
 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
 const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
 const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
+
 box.innerHTML += `
 <div class="comercio-card ${estaActivo ? '' : 'inactive'}">
 <div class="visual-side">
@@ -592,6 +625,10 @@ ${!idForzado ? `
 <a href="admin_ingreso_duenos.html?id=${displayID}&admin=true" target="_blank" class="btn-directo">VER PANEL</a>
 <button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayID}')">
 <i class="fas fa-link"></i> COPIAR LINK
+</button>
+<!-- ✅ NUEVO BOTÓN PREVISUALIZAR SORTEOS Y PROMOS -->
+<button class="btn-preview-sorteos" onclick="window.previsualizarSorteos('${displayID}', '${c.nombre}')">
+<i class="fas fa-eye"></i> PREVISUALIZAR
 </button>
 ` : ''}
 </div>
@@ -668,6 +705,13 @@ document.getElementById('count-total').innerText = COMERCIOS.length;
 document.getElementById('count-act').innerText = COMERCIOS.filter(x => x.estado === 'activo').length;
 document.getElementById('count-inact').innerText = COMERCIOS.filter(x => x.estado !== 'activo').length;
 };
+
+// ✅ FUNCIÓN PARA PREVISUALIZAR SORTEOS Y PROMOS
+window.previsualizarSorteos = (id, nombre) => {
+// Abrir la página de sorteos con el ID del comercio
+window.open(`usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`, '_blank');
+};
+
 // ✅ FUNCIÓN COPIAR LINK CORREGIDA - Toast notification auto-desaparecible (2s)
 window.copiarLinkDirecto = (id) => {
 const urlBase = window.location.origin + window.location.pathname.replace('admin_comercios.html', '');
@@ -680,6 +724,7 @@ document.body.appendChild(toast);
 setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2000);
 });
 };
+
 window.edit = (event, id) => {
 if(event) event.preventDefault();
 const c = COMERCIOS.find(x => x.fbId === id);
@@ -729,6 +774,7 @@ document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal
 document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
 document.getElementById('btn-cancel-edit').style.display = 'block';
 };
+
 // ✅ FUNCIÓN GUARDAR CORREGIDA - Toast notifications de 3 segundos
 window.guardar = async () => {
 const passValue = document.getElementById('password-input').value.trim();
@@ -742,7 +788,9 @@ if (!nombre || !telefono) {
 alert("⚠️ Completa Nombre y WhatsApp.");
 return;
 }
+
 const eid = document.getElementById('edit-id').value;
+
 // ✅ OBJETO DATA CORREGIDO (FORMATO ACORDADO)
 const data = {
 nombre: nombre,
@@ -757,6 +805,7 @@ usosLead: document.getElementById('usos-lead').value,
 vigenciaLead: document.getElementById('vigencia-lead').value,
 usosVip: document.getElementById('usos-vip').value,
 vigenciaVip: document.getElementById('vigencia-vip').value,
+
 titulo_sorteo: document.getElementById('titulo_sorteo').value.trim(),
 descripcion_sorteo: document.getElementById('descripcion_sorteo').value.trim(),
 // ✅ NUEVO CAMPO: cantidad_premios
@@ -766,6 +815,7 @@ fecha_sorteo: document.getElementById('fecha_sorteo').value,
 titulo_promo: document.getElementById('titulo_promo').value.trim(),
 descripcion_promo: document.getElementById('descripcion_promo').value.trim(),
 promo_vence: document.getElementById('promo_vence').value,
+
 direccion: document.getElementById('direccion-input').value,
 provincia: document.getElementById('provincia-input').value,
 ciudad: document.getElementById('ciudad-input').value,
@@ -779,6 +829,7 @@ emailDueno: document.getElementById('email-input').value,
 password: passValue,
 frecuenciaReporte: document.getElementById('reporte-input').value
 };
+
 try {
 let docRef;
 if (eid) {
@@ -802,6 +853,7 @@ toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;col
 document.body.appendChild(toast);
 setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 }
+
 const file = document.getElementById('logo-file').files[0];
 if (file) {
 const logoUrl = await subirLogoAFirebase(file);
@@ -813,6 +865,7 @@ console.error("Error al guardar:", e);
 alert("❌ Error al guardar");
 }
 };
+
 window.clear = () => {
 document.getElementById('edit-id').value = "";
 document.querySelectorAll('.sidebar input, .sidebar textarea').forEach(i => {
@@ -840,6 +893,7 @@ document.getElementById('btn-cancel-edit').style.display = 'none';
 // ✅ Reconfigurar fecha mínima al limpiar
 configurarFechaMinima();
 };
+
 window.genID = () => {
 if(document.getElementById('edit-id').value) return;
 const n = document.getElementById('nombre-input').value;
@@ -847,13 +901,17 @@ const id = n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").repl
 document.getElementById('id-input').value = id;
 document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000 + Math.random() * 899999) : "";
 };
+
 window.toggleEstado = async (e, id, est) => {
 await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' });
 };
+
 window.del = async (e, id) => {
 if(confirm("¿Borrar comercio?")) await deleteDoc(doc(db, "comercios", id));
 };
+
 window.zoom = (u) => { document.getElementById('modal-img').src = u; document.getElementById('modal').style.display='flex'; };
+
 window.cambiarFiltro = (f, id) => {
 FILTRO_ESTADO = f;
 document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
