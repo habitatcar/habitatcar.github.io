@@ -830,6 +830,12 @@ let estadisticas = { totalSorteos: 0, totalGanadores: 0, topComercio: '-', parti
 let listenerActivos = null;
 let listenerHistorial = null;
 let intervalSorteos = null;
+let ultimaEjecucion = {}; // Para controlar que no se ejecute múltiples veces
+
+// ============================================
+// MODO OSCURO (eliminado, pero dejamos la función vacía)
+// ============================================
+window.toggleDarkMode = () => {};
 
 // ============================================
 // FUNCIONES DE ESTADÍSTICAS
@@ -1207,7 +1213,7 @@ console.error("Error limpiando participantes:", error);
 };
 
 // ============================================
-// VERIFICAR SORTEOS AUTOMÁTICOS (CADA SEGUNDO)
+// VERIFICAR SORTEOS AUTOMÁTICOS (CADA SEGUNDO) - VERSIÓN CORREGIDA
 // ============================================
 const verificarSorteosAutomaticos = async () => {
 try {
@@ -1217,13 +1223,20 @@ collection(db, "comercios"),
 where("titulo_sorteo", "!=", null)
 );
 const snap = await getDocs(q);
+
 for (const doc of snap.docs) {
 const c = doc.data();
+const comercioId = doc.id;
+
+// Verificar que el comercio tenga título de sorteo (por si acaso)
+if (!c.titulo_sorteo) continue;
 if (!c.fecha_sorteo) continue;
 
 const ts = new Date(c.fecha_sorteo).getTime();
 
-if (ts <= ahora && !c.sorteo_realizado) { 
+// Si la fecha ya pasó
+if (ts <= ahora) {
+// Verificar si ya existe en el historial para evitar duplicados
 const historialQuery = query(
 collection(db, "historial_sorteos"),
 where("comercio", "==", c.nombre),
@@ -1231,7 +1244,9 @@ where("premio", "==", c.titulo_sorteo)
 );
 const historialSnap = await getDocs(historialQuery);
 
-if (historialSnap.empty) {
+// Si no hay registro en historial y no se está ejecutando ahora mismo
+if (historialSnap.empty && !ultimaEjecucion[comercioId]) {
+ultimaEjecucion[comercioId] = true;
 console.log(`⏰ Ejecutando sorteo automático de ${c.nombre}`);
 const cantPremios = parseInt(c.cantidad_premios) || 1;
 await ejecutarSorteo(doc.id, c.nombre, c.titulo_sorteo, 
@@ -1240,6 +1255,11 @@ c.emailDueno || '',
 c.logoUrl || '', 
 c.descripcion_sorteo || '', 
 true);
+
+// Limpiar después de 5 segundos para permitir futuras ejecuciones si es necesario
+setTimeout(() => {
+delete ultimaEjecucion[comercioId];
+}, 5000);
 }
 }
 }
