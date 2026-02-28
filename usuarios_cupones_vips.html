@@ -675,4 +675,184 @@
             if (btn) {
                 btn.classList.remove('animar-pulso');
                 btn.classList.add('sin-pulso');
-                localStorage.setItem('t
+                localStorage.setItem('toco_sorteo_' + id, 'true');
+            }
+            window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`;
+        };
+
+        window.verRedes = (id) => {
+            const c = listaComercios.find(x => x.id === id);
+            if (!c) return;
+            
+            const overlay = document.createElement('div');
+            overlay.className = 'redes-overlay';
+            overlay.onclick = () => overlay.remove();
+            
+            let btns = "";
+            if(c.facebook) btns += `<a href="${c.facebook}" target="_blank" class="btn-red" style="background:var(--facebook)">Facebook</a>`;
+            if(c.instagram) btns += `<a href="${c.instagram}" target="_blank" class="btn-red" style="background:var(--instagram)">Instagram</a>`;
+            if(c.web) btns += `<a href="${c.web}" target="_blank" class="btn-red" style="background:var(--tiktok); border:1px solid white;">TikTok</a>`;
+            if(c.sitioWeb) btns += `<a href="${c.sitioWeb}" target="_blank" class="btn-red" style="background:var(--azul-web)">Sitio Web</a>`;
+            
+            overlay.innerHTML = `<div class="redes-box" onclick="event.stopPropagation()">
+                <h3 style="color:var(--dorado); margin-top:0;">${c.nombre}</h3>
+                ${btns}
+                <button onclick="this.closest('.redes-overlay').remove()" style="margin-top:15px; background:none; border:none; color:gray; font-weight:bold;">CERRAR</button>
+            </div>`;
+            document.body.appendChild(overlay);
+        };
+
+        window.abrirQR = (id, token) => {
+            document.getElementById('modal-qr').style.display = 'flex';
+            scanner = new Html5Qrcode("reader");
+            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+                if (text.trim() === token.trim()) {
+                    cerrarScanner();
+                    document.getElementById(`btn-usar-${id}`).classList.add('activo');
+                    document.getElementById(`btn-val-${id}`).style.display = 'none';
+                    
+                    const overlay = document.createElement('div');
+                    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:flex;justify-content:center;align-items:center;z-index:9000;";
+                    overlay.innerHTML = `
+                        <div style="background:white;padding:30px;border-radius:20px;text-align:center;max-width:80%; border:5px solid var(--dorado);">
+                            <div style="font-size:60px; margin-bottom:15px;">✅</div>
+                            <b style="color:black;font-size:24px;display:block;margin-bottom:10px;">QR VALIDADO</b>
+                            <p style="color:#333;font-size:18px;margin:0;font-weight:600;">Ahora pulse el botón "USAR BENEFICIO"</p>
+                        </div>`;
+                    document.body.appendChild(overlay);
+                    setTimeout(() => overlay.remove(), 4000);
+                } else {
+                    cerrarScanner();
+                    document.getElementById('overlay-error-vip').style.display = 'flex';
+                }
+            }).catch(e => console.error(e));
+        };
+
+        window.cerrarScanner = () => {
+            document.getElementById('modal-qr').style.display = 'none';
+            if(scanner) scanner.stop().then(() => scanner.clear());
+        };
+
+        window.cerrarErrorVIP = () => {
+            document.getElementById('overlay-error-vip').style.display = 'none';
+        };
+
+        window.preguntarCajeroVIP = (id, nombre, beneficio) => {
+            const btn = document.getElementById(`btn-usar-${id}`);
+            if (!btn || !btn.classList.contains('activo')) return;
+            const alerta = document.createElement('div');
+            alerta.className = 'advertencia-overlay';
+            alerta.id = 'alerta-cajero';
+            alerta.innerHTML = `
+                <div class="advertencia-contenido">
+                    <h3 style="color:red;">⚠️ ATENCIÓN</h3>
+                    <p>¿Avisaste al cajero que usarás el cupón <b>VIP</b>?<br><br><b>Si no avisaste, perderás el beneficio.</b></p>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn-si" onclick="finalizarVIP('${id}', '${nombre}', '${beneficio}')">SÍ</button>
+                        <button class="btn-no" onclick="document.getElementById('alerta-cajero').remove()">NO</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(alerta);
+        };
+
+        window.finalizarVIP = async (id, nom, ben) => {
+            document.getElementById('alerta-cajero').remove();
+            
+            try {
+                const ahora = Date.now();
+                const fechaLegible = new Date().toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
+                const comercioRef = doc(db, "comercios", id);
+                
+                const snapComercio = await getDoc(comercioRef);
+                const dataCom = snapComercio.data();
+                const proximoNro = (dataCom.totalVips || 0) + 1;
+                const codigoIdentidad = "VIP-" + proximoNro.toString().padStart(4, '0');
+
+                await updateDoc(comercioRef, {
+                    totalVips: increment(1),
+                    vipsHoy: increment(1),
+                    vipsSemana: increment(1),
+                    vipsMes: increment(1),
+                    vipsAnio: increment(1),
+                    lastSubmission: fechaLegible 
+                });
+
+                const leadId = localStorage.getItem('leadId_v16');
+                if (leadId) {
+                    const idComercioLimpio = nom.replace(/\s+/g, '_');
+                    const horaL = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+                    const nUso = new Date().toLocaleDateString();
+
+                    await updateDoc(doc(db, "leads", leadId), {
+                        [`canjes_por_comercio.${idComercioLimpio}`]: {
+                            comercio: nom,
+                            codigo: codigoIdentidad,
+                            fecha: nUso,
+                            hora: horaL,
+                            cantidad_usos: increment(1)
+                        },
+                        usos_count: increment(1)
+                    });
+                }
+
+                JsBarcode("#barcodeVIP", codigoIdentidad, {
+                    format: "CODE128",
+                    lineColor: "#000",
+                    width: 2.2,
+                    height: 45,
+                    displayValue: true,
+                    fontSize: 18,
+                    fontOptions: "bold" 
+                });
+
+                document.getElementById('exito-comercio').innerText = nom;
+                document.getElementById('exito-beneficio').innerText = ben;
+                document.getElementById('pantalla-exito').style.display = 'flex';
+
+                const nUsoLocal = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
+                
+                await addDoc(collection(db, "logs_actividad"), {
+                    timestamp: ahora,
+                    tipo: "canje",
+                    accion: "CANJE VIP",
+                    nombre: `${codigoIdentidad} canjeó ${ben} en ${nom}`,
+                    comercioId: id,
+                    modulo: "VIPS"
+                });
+
+                await addDoc(collection(db, "logs_vip"), { 
+                    comercio: nom, 
+                    comercioId: id,
+                    fecha: serverTimestamp(), 
+                    uso_nro: nUsoLocal,
+                    tipo: "VIP",
+                    beneficio: ben,
+                    codigoGenerado: codigoIdentidad
+                });
+
+                localStorage.setItem('uso_vip_' + id, nUsoLocal);
+
+                let s = 30;
+                const t = setInterval(() => {
+                    s--;
+                    document.getElementById('countdown').innerText = s;
+                    if(s <= 0) { 
+                        clearInterval(t); 
+                        location.reload(); 
+                    }
+                }, 1000);
+            } catch(e) { 
+                console.error("Error al registrar en Log:", e);
+                alert("Error de conexión con el servidor de Logs.");
+            }
+        };
+
+        window.filtrar = () => {
+            const texto = document.getElementById('filtroNombre').value.toLowerCase();
+            document.querySelectorAll('.card-vip').forEach(c => {
+                c.style.display = c.dataset.nombre.includes(texto) ? 'block' : 'none';
+            });
+        };
+    </script>
+</body>
+</html>
