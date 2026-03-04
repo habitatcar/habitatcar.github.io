@@ -125,51 +125,6 @@
             100% { background-color: white; }
         }
 
-        /* ✅ ANIMACIONES MEJORADAS PARA EL BOTÓN SORTEOS */
-        @keyframes brillo-elegante {
-            0% { 
-                box-shadow: 0 0 5px rgba(245, 124, 0, 0.5);
-                transform: scale(1);
-            }
-            50% {
-                box-shadow: 0 0 20px rgba(245, 124, 0, 0.8);
-                transform: scale(1.02);
-            }
-            100% { 
-                box-shadow: 0 0 5px rgba(245, 124, 0, 0.5);
-                transform: scale(1);
-            }
-        }
-
-        @keyframes borde-dorado {
-            0%, 100% { 
-                border-color: var(--naranja-sorteo);
-            }
-            50% { 
-                border-color: var(--dorado-ganador);
-            }
-        }
-
-        .btn-sorteo {
-            background-color: var(--naranja-sorteo);
-            position: relative;
-            overflow: hidden;
-            transition: all 0.3s ease;
-        }
-        
-        .btn-sorteo.animar-pulso {
-            animation: 
-                brillo-elegante 3s infinite ease-in-out,
-                borde-dorado 3s infinite ease-in-out;
-            border-width: 2px;
-            border-style: solid;
-        }
-        
-        .btn-sorteo.sin-pulso {
-            animation: none !important;
-            border-color: var(--naranja-sorteo) !important;
-        }
-
         .btn-conozca { background: var(--azul-lindo); }
         .btn-llegar { background: var(--verde); }
         .btn-validar { background: var(--rosa); }
@@ -298,6 +253,78 @@
             font-weight: bold;
             margin-left: 5px;
             display: inline-block;
+        }
+
+        /* ✅ ANIMACIONES DEL BOTÓN SORTEOS (COPIADAS DE VIP) */
+        @keyframes destello-centrifugo {
+            0% { 
+                box-shadow: 0 0 0 0 rgba(245, 124, 0, 0.9);
+                transform: scale(1);
+            }
+            50% {
+                box-shadow: 0 0 0 25px rgba(245, 124, 0, 0.4);
+                transform: scale(1.03);
+            }
+            100% { 
+                box-shadow: 0 0 0 45px rgba(245, 124, 0, 0);
+                transform: scale(1);
+            }
+        }
+
+        @keyframes borde-brillante {
+            0%, 100% { 
+                border-color: var(--naranja-sorteo);
+                box-shadow: 0 0 10px var(--naranja-sorteo), 0 0 20px rgba(245, 124, 0, 0.5);
+            }
+            50% { 
+                border-color: #ff9800;
+                box-shadow: 0 0 25px var(--naranja-sorteo), 0 0 50px rgba(245, 124, 0, 0.8);
+            }
+        }
+
+        @keyframes onda-expansiva {
+            0% {
+                width: 100%;
+                height: 100%;
+                opacity: 1;
+            }
+            100% {
+                width: 140%;
+                height: 140%;
+                opacity: 0;
+            }
+        }
+
+        .btn-sorteo {
+            background-color: var(--naranja-sorteo);
+            position: relative;
+            overflow: visible;
+        }
+        .btn-sorteo.animar-pulso {
+            animation: 
+                destello-centrifugo 1.5s infinite,
+                borde-brillante 1.5s infinite;
+            position: relative;
+            z-index: 1;
+        }
+        .btn-sorteo.animar-pulso::before {
+            content: '';
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            width: 100%;
+            height: 100%;
+            border-radius: 10px;
+            background: rgba(245, 124, 0, 0.3);
+            animation: onda-expansiva 1.5s infinite;
+            z-index: -1;
+        }
+        .btn-sorteo.sin-pulso {
+            animation: none !important;
+        }
+        .btn-sorteo.sin-pulso::before {
+            display: none !important;
         }
     </style>
 </head>
@@ -497,66 +524,11 @@
             return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
         };
 
-        let intervalosAlternancia = {};
-
-        // ✅ FUNCIÓN PARA INICIAR ALTERNANCIA DE TEXTO
-        function iniciarAlternanciaTexto(btn, tieneSorteo, tienePromo, cantidadPremios, comercioId, nombreComercio) {
-            // Determinar textos según disponibilidad
-            let textoOpcion1 = '';
-            let textoOpcion2 = '';
-            
-            if (tieneSorteo && tienePromo) {
-                textoOpcion1 = '🎁 SORTEOS';
-                textoOpcion2 = '⭐ PROMOS';
-            } else if (tieneSorteo && !tienePromo) {
-                if (cantidadPremios > 1) {
-                    textoOpcion1 = '🎁 SORTEOS';
-                    textoOpcion2 = '🎁 SORTEOS';
-                } else {
-                    textoOpcion1 = '🎁 SORTEO';
-                    textoOpcion2 = '🎁 SORTEO';
-                }
-            } else if (!tieneSorteo && tienePromo) {
-                textoOpcion1 = '⭐ PROMO';
-                textoOpcion2 = '⭐ PROMO';
-            } else {
-                textoOpcion1 = '🎁 SORTEOS';
-                textoOpcion2 = '⭐ PROMOS';
-            }
-            
-            // Si solo hay uno, no alterna
-            if (textoOpcion1 === textoOpcion2) {
-                btn.innerHTML = textoOpcion1;
-                return;
-            }
-            
-            let alternando = true;
-            btn.innerHTML = textoOpcion1;
-            
-            // Limpiar intervalo anterior si existe
-            if (intervalosAlternancia[comercioId]) {
-                clearInterval(intervalosAlternancia[comercioId]);
-            }
-            
-            intervalosAlternancia[comercioId] = setInterval(() => {
-                if (alternando) {
-                    btn.innerHTML = textoOpcion2;
-                } else {
-                    btn.innerHTML = textoOpcion1;
-                }
-                alternando = !alternando;
-            }, 3000);
-            
-            // Guardar para poder detener después
-            btn.dataset.comercioId = comercioId;
-            btn.dataset.nombreComercio = nombreComercio;
-        }
-
-        // ✅ FUNCIÓN PARA VERIFICAR SI EL USUARIO YA VIO GANADORES
-        async function verificarGanadoresVistos(comercioId, comercioNombre, tituloSorteo) {
+        // ✅ SOLO ESTA FUNCIÓN NUEVA SE AGREGA - RESTO TODO IGUAL
+        async function verificarSiYaVioGanadores(comercioId, comercioNombre, tituloSorteo) {
             if (!tituloSorteo) return false;
             
-            // Verificar en localStorage primero
+            // Verificar en localStorage
             const yaVio = localStorage.getItem(`visto_ganadores_${comercioId}_${tituloSorteo}`);
             if (yaVio) return true;
             
@@ -570,8 +542,7 @@
                 const snap = await getDocs(q);
                 
                 if (!snap.empty) {
-                    // Hay ganadores, pero el usuario no los ha visto
-                    return false;
+                    return false; // Hay ganadores pero no los ha visto
                 }
             } catch (e) {
                 console.error("Error verificando ganadores:", e);
@@ -610,7 +581,7 @@
                     diasRestantes = vigenciaTotal - diasPasados;
                 }
 
-                if (mostrarReloj && diasRestantes < 0) continue;
+                if (mostrarReloj && diasRestantes < 0) return;
 
                 let htmlLogo = "";
                 if (c.logoUrl && c.logoUrl.trim() !== "") {
@@ -637,10 +608,9 @@
                 const tieneSorteo = c.titulo_sorteo ? true : false;
                 const tienePromo = c.titulo_promo ? true : false;
                 const tieneSorteoOPromo = tieneSorteo || tienePromo;
-                const cantidadPremios = parseInt(c.cantidad_premios) || 1;
                 
-                // ✅ VERIFICAR SI YA VIO GANADORES
-                const yaVioGanadores = await verificarGanadoresVistos(id, nombre, c.titulo_sorteo);
+                // ✅ NUEVA VERIFICACIÓN: SI YA VIO GANADORES, EL BOTÓN DESAPARECE
+                const yaVioGanadores = await verificarSiYaVioGanadores(id, nombre, c.titulo_sorteo);
                 
                 // ✅ SOLO GENERAR BOTÓN SI HAY CONTENIDO Y NO HA VISTO GANADORES
                 let botonSorteo = '';
@@ -656,9 +626,8 @@
                                 data-nombre="${nombre.replace(/'/g, "&apos;")}"
                                 data-tiene-sorteo="${tieneSorteo}"
                                 data-tiene-promo="${tienePromo}"
-                                data-cantidad-premios="${cantidadPremios}"
-                                onclick="irASorteosPromos('${id}', '${nombre.replace(/'/g, "\\'")}')">
-                            🎁 CARGANDO...
+                                onclick="tocarSorteo('${id}', '${nombre.replace(/'/g, "\\'")}')">
+                            🎁 SORTEOS y PROMOS
                         </button>`;
                 }
 
@@ -694,19 +663,6 @@
                 localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
             }
             contenedor.innerHTML = html;
-            
-            // ✅ INICIAR ALTERNANCIA PARA CADA BOTÓN SORTEO
-            setTimeout(() => {
-                document.querySelectorAll('.btn-sorteo').forEach(btn => {
-                    const comercioId = btn.dataset.comercioId;
-                    const nombreComercio = btn.dataset.nombre;
-                    const tieneSorteo = btn.dataset.tieneSorteo === 'true';
-                    const tienePromo = btn.dataset.tienePromo === 'true';
-                    const cantidadPremios = parseInt(btn.dataset.cantidadPremios) || 1;
-                    
-                    iniciarAlternanciaTexto(btn, tieneSorteo, tienePromo, cantidadPremios, comercioId, nombreComercio);
-                });
-            }, 100);
         });
 
         const syncUsados = async () => {
@@ -761,19 +717,12 @@
             document.getElementById('popup-redes').style.display = 'none';
         };
 
-        // ✅ FUNCIÓN PARA IR A SORTEOS/PROMOS
-        window.irASorteosPromos = (id, nombre) => {
+        window.tocarSorteo = (id, nombre) => {
             const btn = document.getElementById(`btn-sorteo-${id}`);
             if (btn) {
                 btn.classList.remove('animar-pulso');
                 btn.classList.add('sin-pulso');
                 localStorage.setItem('toco_sorteo_' + id, 'true');
-                
-                // Detener la alternancia
-                if (intervalosAlternancia[id]) {
-                    clearInterval(intervalosAlternancia[id]);
-                    delete intervalosAlternancia[id];
-                }
             }
             window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`;
         };
