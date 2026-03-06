@@ -597,40 +597,57 @@
         };
 
         // ==================================================
-        // ✅ FUNCIÓN MODIFICADA: Ahora bloquea el botón
+        // ✅ FUNCIÓN CORREGIDA: Ahora MUESTRA EL CARTEL VERDE al recargar
         // ==================================================
         async function verificarParticipacion() {
             const btn = document.getElementById('btn-participar');
+            const info = document.getElementById('participacionInfo');
+            
             if (btn) btn.disabled = true; // Bloqueamos mientras verificamos
             
             try {
                 let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
                 if(!idFinal) return;
                 
+                // PRIMERO: Verificamos en localStorage (es más rápido)
                 const participacionKey = `participo_sorteo_${nombreComercio}_${idFinal}`;
                 if (localStorage.getItem(participacionKey) === 'true') {
+                    console.log("✅ Ya participó (localStorage)");
                     mostrarSoloCartelVerde();
                     return;
                 }
                 
-                const q = query(collection(db, "participaciones_sorteos"), where("comercio", "==", nombreComercio), where("usuarioId", "==", idFinal));
+                // SEGUNDO: Verificamos en Firebase
+                const q = query(
+                    collection(db, "participaciones_sorteos"), 
+                    where("comercio", "==", nombreComercio), 
+                    where("usuarioId", "==", idFinal)
+                );
                 const snap = await getDocs(q);
                 
                 if (!snap.empty) {
+                    console.log("✅ Ya participó (Firebase)");
                     localStorage.setItem(participacionKey, 'true');
                     mostrarSoloCartelVerde();
+                } else {
+                    console.log("❌ No participó todavía");
+                    // Si no participó, aseguramos que el botón esté visible y habilitado
+                    if (btn) {
+                        btn.style.display = 'block';
+                        btn.disabled = false;
+                    }
+                    if (info) info.classList.remove('visible');
                 }
             } catch (e) { 
                 console.error("Error verificando:", e); 
-            } finally {
-                // Si NO se mostró el cartel verde, reactivamos el botón
-                const info = document.getElementById('participacionInfo');
-                if (!info.classList.contains('visible')) {
-                    document.getElementById('btn-participar').disabled = false;
-                }
+                // Si hay error, habilitamos el botón por las dudas
+                if (btn) btn.disabled = false;
             }
         }
 
+        // ==================================================
+        // ✅ FUNCIÓN mostrarSoloCartelVerde (sin cambios, pero la dejo igual)
+        // ==================================================
         function mostrarSoloCartelVerde() {
             const btn = document.getElementById('btn-participar');
             const info = document.getElementById('participacionInfo');
@@ -642,7 +659,7 @@
         }
 
         // ==================================================
-        // ✅ FUNCIÓN MODIFICADA: Ahora evita doble clic
+        // ✅ FUNCIÓN abrirPopupExito (sin cambios, la dejo igual)
         // ==================================================
         window.abrirPopupExito = async () => {
             // BLOQUEO INMEDIATO - Evita doble clic
