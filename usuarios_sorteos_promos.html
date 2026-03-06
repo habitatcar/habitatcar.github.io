@@ -1,7 +1,7 @@
 <!-- ========================================
      ARCHIVO: usuarios_sorteos_promos.html
      SORTEOS Y PROMOCIONES | HÁBITAT-CAR
-     Versión: CON MARCADOR DE VISTO PARA BOTÓN
+     Versión: CON PERSISTENCIA CORREGIDA POR SORTEO
      ======================================== -->
 
 <!DOCTYPE html>
@@ -10,7 +10,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Sorteos y Promociones | Hábitat-Car</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css    ">
     <style>
         :root {
             --oro: #ffc107;
@@ -382,7 +382,7 @@
 </head>
 <body>
     <header class="header">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo" alt="Hábitat-Car">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true    " class="logo" alt="Hábitat-Car">
     </header>
 
     <div class="container">
@@ -460,8 +460,8 @@
     </div>
 
     <script type="module">
-        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, query, where, onSnapshot, getDoc, getDocs, doc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js    ";
+        import { getFirestore, collection, addDoc, query, where, onSnapshot, getDoc, getDocs, doc, serverTimestamp, limit } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js    ";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -600,11 +600,20 @@
         // ✅ FUNCIÓN CORREGIDA DEFINITIVAMENTE
         // ==================================================
         async function verificarParticipacion() {
+            // 🔥 GUARD: Esperar a que carguen los datos del comercio y el título del sorteo
+            if (!datosComercioGlobal || !datosComercioGlobal.titulo_sorteo) {
+                return;
+            }
+            
             const btn = document.getElementById('btn-participar');
             const info = document.getElementById('participacionInfo');
             
             try {
-                let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
+                // 🔥 CORRECCIÓN: Misma lógica de búsqueda de ID que en abrirPopupExito()
+                let idFinal = localStorage.getItem('leadId_habitat') || 
+                              localStorage.getItem('leadId_v16') || 
+                              localStorage.getItem('userId_vip');
+                              
                 if(!idFinal) {
                     // Si no hay ID, mostramos el botón
                     if (btn) {
@@ -615,8 +624,8 @@
                     return;
                 }
                 
-                // 🔥 PASO 1: Verificamos en localStorage (es instantáneo)
-                const participacionKey = `participo_sorteo_${nombreComercio}_${idFinal}`;
+                // 🔥 CORRECCIÓN CLAVE: Incluir titulo_sorteo en la clave para diferenciar sorteos
+                const participacionKey = `participo_sorteo_${nombreComercio}_${datosComercioGlobal.titulo_sorteo}_${idFinal}`;
                 const yaParticipioLocal = localStorage.getItem(participacionKey);
                 
                 if (yaParticipioLocal === 'true') {
@@ -772,7 +781,8 @@
                         timestamp: serverTimestamp()
                     });
 
-                    localStorage.setItem(`participo_sorteo_${nombreComercio}_${idFinal}`, 'true');
+                    // 🔥 CORRECCIÓN CLAVE: Incluir titulo_sorteo en la clave para diferenciar sorteos
+                    localStorage.setItem(`participo_sorteo_${nombreComercio}_${datosComercioGlobal.titulo_sorteo}_${idFinal}`, 'true');
                     
                     const saludo = nombreReal.split(' ')[0] || "¡Listo!";
                     document.getElementById('txt-exito-dinamico').innerText = `¡Excelente ${saludo}! Ya estás participando.`;
@@ -832,6 +842,9 @@
                         });
                         
                         verificarSorteoFinalizado();
+                        
+                        // 🔥 CORRECCIÓN: Llamar a verificarParticipacion() DESPUÉS de cargar los datos
+                        verificarParticipacion();
                     } else {
                         // ✅ SI NO HAY SORTEO, ASEGURAR QUE EL CONTADOR NO APAREZCA
                         document.getElementById('contador-transparencia').style.display = 'none';
@@ -853,8 +866,6 @@
                     }
                 }
             });
-
-            verificarParticipacion();
         }
 
         window.cerrarPopup = () => document.getElementById('overlay').style.display = 'none';
@@ -873,7 +884,7 @@
                 const titulo = encodeURIComponent(`🎁 SORTEO: ${datosComercioGlobal.titulo_sorteo} - ${nombreComercio}`);
                 const detalles = encodeURIComponent(`No te pierdas el sorteo de Hábitat-Car en ${nombreComercio}.\n\n🏆 Premio: ${datosComercioGlobal.titulo_sorteo}\n📍 Comercio: ${nombreComercio}\n\n¡Mucha suerte! 🍀`);
                 const ubicacion = encodeURIComponent(nombreComercio);
-                const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=${titulo}&dates=${fechaRecordatorio}/${fechaInicio}&details=${detalles}&location=${ubicacion}&sf=true&output=xml`;
+                const url = `https://www.google.com/calendar/render?action=TEMPLATE&text=    ${titulo}&dates=${fechaRecordatorio}/${fechaInicio}&details=${detalles}&location=${ubicacion}&sf=true&output=xml`;
                 window.open(url, '_blank');
             } catch (e) {
                 console.error("Error al generar evento:", e);
