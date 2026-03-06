@@ -597,7 +597,7 @@
         };
 
         // ==================================================
-        // ✅ FUNCIÓN CORREGIDA: Ahora OCULTA EL BOTÓN y MUESTRA EL CARTEL VERDE
+        // ✅ FUNCIÓN CORREGIDA DEFINITIVAMENTE
         // ==================================================
         async function verificarParticipacion() {
             const btn = document.getElementById('btn-participar');
@@ -606,22 +606,36 @@
             try {
                 let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
                 if(!idFinal) {
-                    if (btn) btn.disabled = false;
+                    // Si no hay ID, mostramos el botón
+                    if (btn) {
+                        btn.style.display = 'block';
+                        btn.disabled = false;
+                    }
+                    if (info) info.classList.remove('visible');
                     return;
                 }
                 
-                // PRIMERO: Verificamos en localStorage (es más rápido)
+                // 🔥 PASO 1: Verificamos en localStorage (es instantáneo)
                 const participacionKey = `participo_sorteo_${nombreComercio}_${idFinal}`;
-                if (localStorage.getItem(participacionKey) === 'true') {
-                    console.log("✅ Ya participó (localStorage)");
+                const yaParticipioLocal = localStorage.getItem(participacionKey);
+                
+                if (yaParticipioLocal === 'true') {
+                    console.log("✅ Ya participó (localStorage) - Mostrando cartel verde");
                     
                     // 🟢 OCULTAR BOTÓN y MOSTRAR CARTEL VERDE
-                    if (btn) btn.style.display = 'none';
-                    if (info) info.classList.add('visible');
-                    return;
+                    if (btn) {
+                        btn.style.display = 'none';
+                        btn.disabled = false; // Por si acaso
+                    }
+                    if (info) {
+                        info.classList.add('visible');
+                        info.style.display = 'block';
+                    }
+                    return; // 🟢 SALIMOS, ya mostramos el cartel
                 }
                 
-                // SEGUNDO: Verificamos en Firebase
+                // 🔥 PASO 2: Si no está en localStorage, verificamos en Firebase
+                console.log("🔍 Verificando en Firebase...");
                 const q = query(
                     collection(db, "participaciones_sorteos"), 
                     where("comercio", "==", nombreComercio), 
@@ -630,48 +644,63 @@
                 const snap = await getDocs(q);
                 
                 if (!snap.empty) {
-                    console.log("✅ Ya participó (Firebase)");
+                    console.log("✅ Ya participó (Firebase) - Guardando en localStorage y mostrando cartel");
+                    
+                    // 💾 Guardamos en localStorage para futuras recargas
                     localStorage.setItem(participacionKey, 'true');
                     
                     // 🟢 OCULTAR BOTÓN y MOSTRAR CARTEL VERDE
-                    if (btn) btn.style.display = 'none';
-                    if (info) info.classList.add('visible');
+                    if (btn) {
+                        btn.style.display = 'none';
+                        btn.disabled = false;
+                    }
+                    if (info) {
+                        info.classList.add('visible');
+                        info.style.display = 'block';
+                    }
                 } else {
-                    console.log("❌ No participó todavía");
-                    // 🔴 Si no participó, aseguramos que el botón esté visible y habilitado
+                    console.log("❌ No participó todavía - Mostrando botón");
+                    
+                    // 🔴 Mostrar botón y ocultar cartel
                     if (btn) {
                         btn.style.display = 'block';
                         btn.disabled = false;
                     }
-                    if (info) info.classList.remove('visible');
+                    if (info) {
+                        info.classList.remove('visible');
+                        info.style.display = 'none';
+                    }
                 }
             } catch (e) { 
                 console.error("Error verificando:", e); 
-                // Si hay error, habilitamos el botón por las dudas
+                // Si hay error, mostramos el botón por las dudas
                 if (btn) {
                     btn.style.display = 'block';
                     btn.disabled = false;
                 }
+                if (info) info.classList.remove('visible');
             }
         }
 
         // ==================================================
-        // ✅ FUNCIÓN mostrarSoloCartelVerde (actualizada para OCULTAR botón)
+        // ✅ FUNCIÓN mostrarSoloCartelVerde (sin cambios)
         // ==================================================
         function mostrarSoloCartelVerde() {
             const btn = document.getElementById('btn-participar');
             const info = document.getElementById('participacionInfo');
             
-            // 🟢 OCULTAR BOTÓN y MOSTRAR CARTEL VERDE
             if (btn) {
                 btn.style.display = 'none';
-                btn.disabled = false; // Por si acaso, lo dejamos habilitado para cuando vuelva a aparecer
+                btn.disabled = false;
             }
-            if (info) info.classList.add('visible');
+            if (info) {
+                info.classList.add('visible');
+                info.style.display = 'block';
+            }
         }
 
         // ==================================================
-        // ✅ FUNCIÓN abrirPopupExito (sin cambios, la dejo igual)
+        // ✅ FUNCIÓN abrirPopupExito (sin cambios)
         // ==================================================
         window.abrirPopupExito = async () => {
             // BLOQUEO INMEDIATO - Evita doble clic
