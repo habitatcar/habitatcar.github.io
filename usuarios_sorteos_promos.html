@@ -596,105 +596,141 @@
             document.getElementById('overlay-ganadores').style.display = 'none';
         };
 
+        // ==================================================
+        // ✅ FUNCIÓN MODIFICADA: Ahora bloquea el botón
+        // ==================================================
         async function verificarParticipacion() {
-            let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
-            if(!idFinal) return;
-            const participacionKey = `participo_sorteo_${nombreComercio}_${idFinal}`;
-            if (localStorage.getItem(participacionKey) === 'true') {
-                mostrarSoloCartelVerde();
-                return;
-            }
+            const btn = document.getElementById('btn-participar');
+            if (btn) btn.disabled = true; // Bloqueamos mientras verificamos
+            
             try {
+                let idFinal = localStorage.getItem('leadId_v16') || localStorage.getItem('userId_vip');
+                if(!idFinal) return;
+                
+                const participacionKey = `participo_sorteo_${nombreComercio}_${idFinal}`;
+                if (localStorage.getItem(participacionKey) === 'true') {
+                    mostrarSoloCartelVerde();
+                    return;
+                }
+                
                 const q = query(collection(db, "participaciones_sorteos"), where("comercio", "==", nombreComercio), where("usuarioId", "==", idFinal));
                 const snap = await getDocs(q);
+                
                 if (!snap.empty) {
                     localStorage.setItem(participacionKey, 'true');
                     mostrarSoloCartelVerde();
                 }
-            } catch (e) { console.error("Error verificando:", e); }
+            } catch (e) { 
+                console.error("Error verificando:", e); 
+            } finally {
+                // Si NO se mostró el cartel verde, reactivamos el botón
+                const info = document.getElementById('participacionInfo');
+                if (!info.classList.contains('visible')) {
+                    document.getElementById('btn-participar').disabled = false;
+                }
+            }
         }
 
         function mostrarSoloCartelVerde() {
             const btn = document.getElementById('btn-participar');
             const info = document.getElementById('participacionInfo');
-            if (btn) btn.style.display = 'none';
+            if (btn) {
+                btn.style.display = 'none';
+                btn.disabled = false; // Por si acaso, lo dejamos habilitado para cuando vuelva a aparecer
+            }
             if (info) info.classList.add('visible');
         }
 
+        // ==================================================
+        // ✅ FUNCIÓN MODIFICADA: Ahora evita doble clic
+        // ==================================================
         window.abrirPopupExito = async () => {
-            let idFinal = localStorage.getItem('leadId_habitat') || 
-                          localStorage.getItem('leadId_v16') || 
-                          localStorage.getItem('userId_vip');
+            // BLOQUEO INMEDIATO - Evita doble clic
+            const btn = document.getElementById('btn-participar');
+            if (btn.disabled) return; // Ya está procesando
+            btn.disabled = true;
             
-            if (!idFinal || idFinal.startsWith('temp_')) {
-                alert("⚠️ Para participar debes estar registrado. Por favor, completa tus datos primero.");
-                window.location.href = "usuarios_registro_lead.html";
-                return;
-            }
-
-            if (!datosComercioGlobal) {
-                alert("⚠️ Los datos del comercio aún no cargaron.");
-                return;
-            }
-
             try {
-                let u = null;
-                let tipoUsuario = "LEAD";
-
-                const leadSnap = await getDoc(doc(db, "leads", idFinal));
+                let idFinal = localStorage.getItem('leadId_habitat') || 
+                              localStorage.getItem('leadId_v16') || 
+                              localStorage.getItem('userId_vip');
                 
-                if (leadSnap.exists()) {
-                    u = leadSnap.data();
-                    if (u.convertidoVIP === true || u.tipo === "VIP") {
-                        tipoUsuario = "VIP";
-                    } else {
-                        tipoUsuario = "LEAD";
-                    }
-                } else {
-                    const vipSnap = await getDoc(doc(db, "vips", idFinal));
-                    if (vipSnap.exists()) {
-                        u = vipSnap.data();
-                        tipoUsuario = "VIP";
-                    }
+                if (!idFinal || idFinal.startsWith('temp_')) {
+                    alert("⚠️ Para participar debes estar registrado. Por favor, completa tus datos primero.");
+                    window.location.href = "usuarios_registro_lead.html";
+                    return;
                 }
-                
-                const nombreReal = u ? (u.nombres || u.nombre || "") : "";
-                const apellidoReal = u ? (u.apellido || "") : "";
-                const nombreFinal = (nombreReal + " " + apellidoReal).trim() || "Usuario Sorteo";
-                const whatsappFinal = u ? (u.whatsapp || u.celular || "S/D") : "S/D";
-                const emailFinal = u ? (u.email || "S/D") : "S/D";
-                
-                const provinciaFinal = u ? (u.provincia || "") : "";
-                const localidadFinal = u ? (u.localidad || "") : "";
 
-                await addDoc(collection(db, "participaciones_sorteos"), {
-                    usuarioId: idFinal,
-                    nombre: nombreFinal,
-                    nombres: nombreReal,
-                    apellido: apellidoReal,
-                    email: emailFinal,
-                    celular: whatsappFinal,
-                    whatsapp: whatsappFinal,
-                    provincia: provinciaFinal,
-                    localidad: localidadFinal,
-                    tipo: tipoUsuario,
-                    comercio: nombreComercio,
-                    comercioId: idComercio,
-                    premio: datosComercioGlobal.titulo_sorteo || "Sorteo",
-                    fecha_sorteo: fechaSorteoData,
-                    timestamp: serverTimestamp()
-                });
+                if (!datosComercioGlobal) {
+                    alert("⚠️ Los datos del comercio aún no cargaron.");
+                    return;
+                }
 
-                localStorage.setItem(`participo_sorteo_${nombreComercio}_${idFinal}`, 'true');
-                
-                const saludo = nombreReal.split(' ')[0] || "¡Listo!";
-                document.getElementById('txt-exito-dinamico').innerText = `¡Excelente ${saludo}! Ya estás participando.`;
-                document.getElementById('overlay').style.display = 'flex';
-                mostrarSoloCartelVerde();
+                try {
+                    let u = null;
+                    let tipoUsuario = "LEAD";
 
+                    const leadSnap = await getDoc(doc(db, "leads", idFinal));
+                    
+                    if (leadSnap.exists()) {
+                        u = leadSnap.data();
+                        if (u.convertidoVIP === true || u.tipo === "VIP") {
+                            tipoUsuario = "VIP";
+                        } else {
+                            tipoUsuario = "LEAD";
+                        }
+                    } else {
+                        const vipSnap = await getDoc(doc(db, "vips", idFinal));
+                        if (vipSnap.exists()) {
+                            u = vipSnap.data();
+                            tipoUsuario = "VIP";
+                        }
+                    }
+                    
+                    const nombreReal = u ? (u.nombres || u.nombre || "") : "";
+                    const apellidoReal = u ? (u.apellido || "") : "";
+                    const nombreFinal = (nombreReal + " " + apellidoReal).trim() || "Usuario Sorteo";
+                    const whatsappFinal = u ? (u.whatsapp || u.celular || "S/D") : "S/D";
+                    const emailFinal = u ? (u.email || "S/D") : "S/D";
+                    
+                    const provinciaFinal = u ? (u.provincia || "") : "";
+                    const localidadFinal = u ? (u.localidad || "") : "";
+
+                    await addDoc(collection(db, "participaciones_sorteos"), {
+                        usuarioId: idFinal,
+                        nombre: nombreFinal,
+                        nombres: nombreReal,
+                        apellido: apellidoReal,
+                        email: emailFinal,
+                        celular: whatsappFinal,
+                        whatsapp: whatsappFinal,
+                        provincia: provinciaFinal,
+                        localidad: localidadFinal,
+                        tipo: tipoUsuario,
+                        comercio: nombreComercio,
+                        comercioId: idComercio,
+                        premio: datosComercioGlobal.titulo_sorteo || "Sorteo",
+                        fecha_sorteo: fechaSorteoData,
+                        timestamp: serverTimestamp()
+                    });
+
+                    localStorage.setItem(`participo_sorteo_${nombreComercio}_${idFinal}`, 'true');
+                    
+                    const saludo = nombreReal.split(' ')[0] || "¡Listo!";
+                    document.getElementById('txt-exito-dinamico').innerText = `¡Excelente ${saludo}! Ya estás participando.`;
+                    document.getElementById('overlay').style.display = 'flex';
+                    mostrarSoloCartelVerde();
+
+                } catch (e) {
+                    console.error("❌ Error al participar:", e);
+                    alert("Error de conexión: " + e.message);
+                    
+                    // Solo reactivamos si hubo error
+                    btn.disabled = false;
+                }
             } catch (e) {
-                console.error("❌ Error al participar:", e);
-                alert("Error de conexión: " + e.message);
+                console.error("Error general:", e);
+                btn.disabled = false;
             }
         };
 
