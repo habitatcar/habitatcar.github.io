@@ -13,18 +13,23 @@
         }
         body {
             font-family: 'Segoe UI', sans-serif;
-            background: var(--gris-fondo);
+            background: var(--azul-habitat); /* Fondo azul Habitat-Car */
             margin: 0;
             padding: 20px;
             padding-bottom: 50px;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         .container {
-            max-width: 600px;
+            max-width: 650px;
             margin: 0 auto;
             background: white;
-            border-radius: 20px;
-            padding: 25px;
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            border-radius: 30px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3), 0 0 0 3px var(--dorado), 0 0 0 6px rgba(255,255,255,0.3);
+            border: 1px solid rgba(255,255,255,0.5);
         }
         .logo {
             width: 100%;
@@ -36,6 +41,8 @@
             color: var(--azul-habitat);
             text-align: center;
             margin-bottom: 25px;
+            font-size: 1.8em;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
         }
         .campo {
             margin-bottom: 20px;
@@ -53,10 +60,12 @@
             border-radius: 10px;
             font-size: 16px;
             box-sizing: border-box;
+            transition: border-color 0.3s;
         }
         input:focus, select:focus {
             border-color: var(--azul-habitat);
             outline: none;
+            box-shadow: 0 0 0 3px rgba(0,74,153,0.2);
         }
         .nota {
             font-size: 0.85em;
@@ -69,14 +78,18 @@
             background: var(--azul-lindo);
             color: white;
             border: none;
-            border-radius: 12px;
+            border-radius: 50px;
             font-weight: bold;
             font-size: 1.2em;
             cursor: pointer;
             margin-top: 20px;
+            transition: background 0.3s, transform 0.2s;
+            box-shadow: 0 5px 15px rgba(0,86,179,0.4);
         }
         .btn-submit:hover {
             background: var(--azul-habitat);
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,74,153,0.5);
         }
         .btn-volver {
             display: block;
@@ -85,6 +98,9 @@
             color: var(--azul-habitat);
             text-decoration: none;
             font-weight: bold;
+        }
+        .btn-volver:hover {
+            text-decoration: underline;
         }
         #mensaje {
             display: none;
@@ -99,11 +115,88 @@
             content: " *";
             color: red;
         }
+        .campo-oculto {
+            display: none;
+            margin-top: 10px;
+        }
+        .campo-visible {
+            display: block;
+        }
+        
+        /* POPUP DE FELICITACIONES */
+        .popup-felicitaciones {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+        }
+        .popup-contenido {
+            background: white;
+            border-radius: 40px;
+            padding: 40px 30px;
+            text-align: center;
+            max-width: 400px;
+            width: 90%;
+            border: 5px solid var(--dorado);
+            box-shadow: 0 0 30px rgba(212,175,55,0.5);
+            animation: aparecer 0.5s ease-out;
+        }
+        .popup-contenido h2 {
+            color: var(--azul-habitat);
+            font-size: 2.2em;
+            margin: 15px 0 10px;
+        }
+        .popup-contenido p {
+            font-size: 1.2em;
+            color: #333;
+            margin: 10px 0;
+            line-height: 1.5;
+        }
+        .popup-contenido .check-icon {
+            font-size: 80px;
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        .popup-contenido button {
+            background: var(--azul-lindo);
+            color: white;
+            border: none;
+            padding: 15px 40px;
+            border-radius: 50px;
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-top: 20px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .popup-contenido button:hover {
+            background: var(--azul-habitat);
+        }
+        @keyframes aparecer {
+            from { transform: scale(0.8); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
     </style>
 </head>
 <body>
+    <div class="popup-felicitaciones" id="popupFelicitaciones">
+        <div class="popup-contenido">
+            <div class="check-icon">✅</div>
+            <h2>¡FELICITACIONES!</h2>
+            <p>Su formulario fue enviado exitosamente.</p>
+            <p>En breve tendrá la respuesta a su solicitud.</p>
+            <p style="font-size: 1.1em; color: var(--azul-habitat); font-weight: bold;">¡Que tenga un buen día!</p>
+            <button onclick="cerrarPopup()">CONTINUAR</button>
+        </div>
+    </div>
+
     <div class="container">
-        <!-- 🔴 CORREGIDO: URL del logo con raw.githubusercontent.com -->
         <img src="https://raw.githubusercontent.com/habitatcar/habitatcar.github.io/main/logo.png" class="logo">
         <h1>🏪 POSTULACIÓN DE COMERCIO</h1>
         
@@ -122,7 +215,7 @@
             
             <div class="campo">
                 <label class="requerido">Rubro</label>
-                <select id="rubro" required>
+                <select id="rubro" required onchange="mostrarRubroOtro()">
                     <option value="">Seleccionar rubro</option>
                     <option value="Gastronomía">Gastronomía</option>
                     <option value="Indumentaria">Indumentaria</option>
@@ -130,8 +223,14 @@
                     <option value="Tecnología">Tecnología</option>
                     <option value="Salud">Salud</option>
                     <option value="Educación">Educación</option>
-                    <option value="Otros">Otros</option>
+                    <option value="Construcción">Construcción</option>
+                    <option value="Inmobiliario">Inmobiliario</option>
+                    <option value="Automotor">Automotor</option>
+                    <option value="Otros">Otros (especificar)</option>
                 </select>
+                <div id="campoRubroOtro" class="campo-oculto">
+                    <input type="text" id="rubroOtro" placeholder="Especificar rubro">
+                </div>
             </div>
             
             <div class="campo">
@@ -185,6 +284,19 @@
             <div class="campo">
                 <label class="requerido">Email</label>
                 <input type="email" id="email" required placeholder="comercio@email.com">
+            </div>
+            
+            <!-- NUEVOS CAMPOS PARA VERIFICACIÓN -->
+            <div class="campo">
+                <label>TikTok (opcional)</label>
+                <input type="url" id="tiktok" placeholder="https://tiktok.com/@usuario">
+                <div class="nota">Ayuda a verificar la autenticidad del comercio</div>
+            </div>
+            
+            <div class="campo">
+                <label>Sitio Web (opcional)</label>
+                <input type="url" id="sitioWeb" placeholder="https://www.tusitio.com">
+                <div class="nota">Si tenés página web oficial</div>
             </div>
             
             <div class="campo">
@@ -247,6 +359,20 @@
         const db = getFirestore(app);
         const storage = getStorage(app);
 
+        window.mostrarRubroOtro = () => {
+            const rubroSelect = document.getElementById('rubro');
+            const campoOtro = document.getElementById('campoRubroOtro');
+            if (rubroSelect.value === 'Otros') {
+                campoOtro.classList.add('campo-visible');
+                campoOtro.classList.remove('campo-oculto');
+                document.getElementById('rubroOtro').setAttribute('required', 'required');
+            } else {
+                campoOtro.classList.remove('campo-visible');
+                campoOtro.classList.add('campo-oculto');
+                document.getElementById('rubroOtro').removeAttribute('required');
+            }
+        };
+
         window.cargarLocalidades = async () => {
             const prov = document.getElementById('provincia').value;
             const locSelect = document.getElementById('localidad');
@@ -291,6 +417,11 @@
             return await getDownloadURL(storageRef);
         }
 
+        window.cerrarPopup = () => {
+            document.getElementById('popupFelicitaciones').style.display = 'none';
+            window.location.href = 'usuarios_cupones_leads.html';
+        };
+
         document.getElementById('formPostulacion').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -316,15 +447,23 @@
                 const constanciaUrl = await subirArchivo(constanciaFile, 'constancias');
                 const fotoDniUrl = await subirArchivo(fotoDniFile, 'dni');
                 
+                // Determinar el rubro final
+                let rubroFinal = document.getElementById('rubro').value;
+                if (rubroFinal === 'Otros') {
+                    rubroFinal = document.getElementById('rubroOtro').value;
+                }
+                
                 await addDoc(collection(db, "postulaciones_comercios"), {
                     nombre_comercio: document.getElementById('nombreComercio').value,
                     cuit: cuit,
-                    rubro: document.getElementById('rubro').value,
+                    rubro: rubroFinal,
                     provincia: document.getElementById('provincia').value,
                     localidad: document.getElementById('localidad').value,
                     direccion: document.getElementById('direccion').value,
                     telefono: document.getElementById('telefono').value,
                     email: document.getElementById('email').value,
+                    tiktok: document.getElementById('tiktok').value || '',
+                    sitioWeb: document.getElementById('sitioWeb').value || '',
                     instagram: document.getElementById('instagram').value || '',
                     facebook: document.getElementById('facebook').value || '',
                     mapsUrl: document.getElementById('mapsUrl').value || '',
@@ -338,15 +477,8 @@
                     user_agent: navigator.userAgent
                 });
                 
-                const mensajeDiv = document.getElementById('mensaje');
-                mensajeDiv.style.display = 'block';
-                mensajeDiv.innerHTML = '✅ Postulación enviada con éxito. En breve nos contactaremos.';
-                
-                document.getElementById('formPostulacion').reset();
-                
-                setTimeout(() => {
-                    window.location.href = 'usuarios_cupones_leads.html';
-                }, 3000);
+                // Mostrar popup de felicitaciones
+                document.getElementById('popupFelicitaciones').style.display = 'flex';
                 
             } catch (error) {
                 console.error(error);
