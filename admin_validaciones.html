@@ -1,0 +1,658 @@
+<!-- admin_validaciones.html -->
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Validaciones Pendientes - Habitat-Car</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --azul-oscuro: #0a192f;
+            --azul-medio: #1e2a47;
+            --dorado: #d4af37;
+            --verde: #28a745;
+            --rojo: #dc3545;
+            --naranja: #ff8c00;
+        }
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: var(--azul-oscuro);
+            color: white;
+            margin: 0;
+            padding: 20px;
+        }
+        .header {
+            background: var(--azul-medio);
+            padding: 15px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 4px solid var(--dorado);
+            margin-bottom: 30px;
+        }
+        .logo { height: 60px; }
+        .nav-menu {
+            display: flex;
+            gap: 15px;
+        }
+        .nav-link {
+            color: white;
+            text-decoration: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            background: #334766;
+            font-weight: bold;
+            font-size: 14px;
+        }
+        .nav-link.active {
+            background: var(--dorado);
+            color: var(--azul-oscuro);
+        }
+        h1 {
+            color: var(--dorado);
+            margin-bottom: 30px;
+        }
+        .columnas-container {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 25px;
+            margin-top: 20px;
+        }
+        .columna {
+            background: var(--azul-medio);
+            border-radius: 15px;
+            padding: 20px;
+            border: 1px solid #334766;
+        }
+        .columna h2 {
+            color: var(--dorado);
+            border-bottom: 2px solid var(--dorado);
+            padding-bottom: 10px;
+            margin-top: 0;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .tarjeta-postulacion {
+            background: #1f2a3f;
+            border-radius: 12px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 5px solid var(--naranja);
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .tarjeta-postulacion:hover {
+            transform: translateX(5px);
+            border-left-color: var(--dorado);
+        }
+        .tarjeta-titulo {
+            font-weight: bold;
+            font-size: 1.2em;
+            margin-bottom: 5px;
+        }
+        .tarjeta-subtitulo {
+            color: #aaa;
+            font-size: 0.9em;
+            margin-bottom: 10px;
+        }
+        .tarjeta-badge {
+            background: var(--naranja);
+            color: black;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 0.8em;
+            font-weight: bold;
+            display: inline-block;
+        }
+        .badge-pendiente {
+            background: var(--naranja);
+        }
+        
+        /* MODAL DE VALIDACIÓN */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 10000;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-contenido {
+            background: var(--azul-medio);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            border: 2px solid var(--dorado);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        .modal-titulo {
+            color: var(--dorado);
+            font-size: 1.5em;
+            margin: 0;
+        }
+        .btn-cerrar {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2em;
+            cursor: pointer;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .info-item {
+            background: #1f2a3f;
+            padding: 12px;
+            border-radius: 8px;
+        }
+        .info-label {
+            color: #aaa;
+            font-size: 0.8em;
+            text-transform: uppercase;
+        }
+        .info-valor {
+            font-size: 1.1em;
+            font-weight: bold;
+            margin-top: 5px;
+            word-break: break-word;
+        }
+        .documentos-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+        .documento-card {
+            background: #1f2a3f;
+            padding: 15px;
+            border-radius: 10px;
+            text-align: center;
+        }
+        .documento-card a {
+            color: var(--dorado);
+            text-decoration: none;
+            display: block;
+            margin-top: 10px;
+        }
+        .documento-card img {
+            max-width: 100%;
+            max-height: 150px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .acciones-container {
+            display: flex;
+            gap: 15px;
+            margin-top: 25px;
+            flex-wrap: wrap;
+        }
+        .btn {
+            padding: 15px 25px;
+            border: none;
+            border-radius: 10px;
+            font-weight: bold;
+            cursor: pointer;
+            font-size: 1em;
+            flex: 1;
+        }
+        .btn-aprobar {
+            background: var(--verde);
+            color: white;
+        }
+        .btn-rechazar {
+            background: var(--rojo);
+            color: white;
+        }
+        .btn-contactar {
+            background: var(--dorado);
+            color: black;
+        }
+        .btn-volver {
+            background: #666;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
+        <nav class="nav-menu">
+            <a href="admin_validaciones.html" class="nav-link active">VALIDACIONES</a>
+            <a href="admin_comercios.html" class="nav-link">COMERCIOS</a>
+            <a href="admin_leads.html" class="nav-link">LEADS</a>
+            <a href="admin_vips.html" class="nav-link">VIPS</a>
+            <a href="admin_estadisticas.html" class="nav-link">ESTADÍSTICAS</a>
+        </nav>
+    </header>
+
+    <h1>📋 VALIDACIONES PENDIENTES</h1>
+
+    <div class="columnas-container" id="columnas-container">
+        <!-- COLUMNA 1: COMERCIOS -->
+        <div class="columna" id="columna-comercios">
+            <h2><i class="fas fa-store"></i> COMERCIOS</h2>
+            <div id="lista-comercios-pendientes">
+                <!-- Se carga dinámicamente -->
+                <p>Cargando...</p>
+            </div>
+        </div>
+
+        <!-- COLUMNA 2: MARTILLEROS -->
+        <div class="columna" id="columna-martilleros">
+            <h2><i class="fas fa-gavel"></i> MARTILLEROS</h2>
+            <div id="lista-martilleros-pendientes">
+                <!-- Se carga dinámicamente -->
+                <p>Próximamente</p>
+            </div>
+        </div>
+
+        <!-- COLUMNA 3: COLABORADORES -->
+        <div class="columna" id="columna-colaboradores">
+            <h2><i class="fas fa-handshake"></i> COLABORADORES</h2>
+            <div id="lista-colaboradores-pendientes">
+                <!-- Se carga dinámicamente -->
+                <p>Próximamente</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL DE VALIDACIÓN (DETALLE DE POSTULACIÓN) -->
+    <div id="modalValidacion" class="modal">
+        <div class="modal-contenido">
+            <div class="modal-header">
+                <h2 class="modal-titulo" id="modal-titulo">Validar Comercio</h2>
+                <button class="btn-cerrar" onclick="cerrarModal()">&times;</button>
+            </div>
+            
+            <div id="modal-contenido-dinamico">
+                <!-- Se llena con JS -->
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, getDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getStorage, ref, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+            authDomain: "habitatcar-pro.firebaseapp.com",
+            projectId: "habitatcar-pro",
+            storageBucket: "habitatcar-pro.firebasestorage.app",
+            messagingSenderId: "311691258694",
+            appId: "1:311691258694:web:17a09051dcea7707af9347"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const storage = getStorage(app);
+
+        let postulacionActual = null;
+        let tipoActual = null;
+
+        // ===========================================
+        // 1. CARGAR POSTULACIONES PENDIENTES
+        // ===========================================
+        function cargarPostulaciones() {
+            // COMERCIOS pendientes
+            const qComercios = query(collection(db, "postulaciones_comercios"), where("estado", "==", "pendiente"));
+            onSnapshot(qComercios, (snapshot) => {
+                const container = document.getElementById('lista-comercios-pendientes');
+                container.innerHTML = '';
+                
+                if (snapshot.empty) {
+                    container.innerHTML = '<p style="color:#aaa;">No hay comercios pendientes</p>';
+                    return;
+                }
+                
+                snapshot.forEach(doc => {
+                    const data = doc.data();
+                    container.innerHTML += `
+                        <div class="tarjeta-postulacion" onclick="abrirModalValidacion('${doc.id}', 'comercio')">
+                            <div class="tarjeta-titulo">${data.nombre_comercio || 'Sin nombre'}</div>
+                            <div class="tarjeta-subtitulo">${data.provincia || ''} • ${data.localidad || ''}</div>
+                            <div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div>
+                        </div>
+                    `;
+                });
+            });
+            
+            // MARTILLEROS pendientes (para futuro)
+            const qMartilleros = query(collection(db, "postulaciones_martilleros"), where("estado", "==", "pendiente"));
+            onSnapshot(qMartilleros, (snapshot) => {
+                const container = document.getElementById('lista-martilleros-pendientes');
+                container.innerHTML = '';
+                if (snapshot.empty) {
+                    container.innerHTML = '<p style="color:#aaa;">No hay martilleros pendientes</p>';
+                } else {
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        container.innerHTML += `
+                            <div class="tarjeta-postulacion" onclick="abrirModalValidacion('${doc.id}', 'martillero')">
+                                <div class="tarjeta-titulo">${data.nombre || ''}</div>
+                                <div class="tarjeta-subtitulo">MP: ${data.matricula || ''}</div>
+                                <div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div>
+                            </div>
+                        `;
+                    });
+                }
+            });
+            
+            // COLABORADORES pendientes (para futuro)
+            const qColaboradores = query(collection(db, "postulaciones_colaboradores"), where("estado", "==", "pendiente"));
+            onSnapshot(qColaboradores, (snapshot) => {
+                const container = document.getElementById('lista-colaboradores-pendientes');
+                container.innerHTML = '';
+                if (snapshot.empty) {
+                    container.innerHTML = '<p style="color:#aaa;">No hay colaboradores pendientes</p>';
+                } else {
+                    snapshot.forEach(doc => {
+                        const data = doc.data();
+                        container.innerHTML += `
+                            <div class="tarjeta-postulacion" onclick="abrirModalValidacion('${doc.id}', 'colaborador')">
+                                <div class="tarjeta-titulo">${data.nombre || ''}</div>
+                                <div class="tarjeta-subtitulo">${data.tipo_colaboracion || ''}</div>
+                                <div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div>
+                            </div>
+                        `;
+                    });
+                }
+            });
+        }
+
+        // ===========================================
+        // 2. ABRIR MODAL DE VALIDACIÓN (DETALLE)
+        // ===========================================
+        window.abrirModalValidacion = async (id, tipo) => {
+            tipoActual = tipo;
+            
+            // Obtener datos de la postulación
+            const docRef = doc(db, `postulaciones_${tipo}s`, id);
+            const docSnap = await getDoc(docRef);
+            
+            if (!docSnap.exists()) {
+                alert("No se encontró la postulación");
+                return;
+            }
+            
+            postulacionActual = { id, ...docSnap.data() };
+            
+            // Renderizar según el tipo
+            let html = '';
+            
+            if (tipo === 'comercio') {
+                html = generarHTMLComercio(postulacionActual);
+            } else if (tipo === 'martillero') {
+                html = generarHTMLMartillero(postulacionActual);
+            } else if (tipo === 'colaborador') {
+                html = generarHTMLColaborador(postulacionActual);
+            }
+            
+            document.getElementById('modal-contenido-dinamico').innerHTML = html;
+            document.getElementById('modalValidacion').style.display = 'flex';
+        };
+
+        // ===========================================
+        // 3. GENERAR HTML PARA COMERCIO (DETALLE)
+        // ===========================================
+        function generarHTMLComercio(data) {
+            return `
+                <div class="info-grid">
+                    <div class="info-item">
+                        <div class="info-label">Comercio</div>
+                        <div class="info-valor">${data.nombre_comercio || '-'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">CUIT</div>
+                        <div class="info-valor">${data.cuit || '-'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Rubro</div>
+                        <div class="info-valor">${data.rubro || '-'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Ubicación</div>
+                        <div class="info-valor">${data.provincia || ''} - ${data.localidad || ''}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Dirección</div>
+                        <div class="info-valor">${data.direccion || '-'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Teléfono</div>
+                        <div class="info-valor">${data.telefono || '-'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Email</div>
+                        <div class="info-valor">${data.email || '-'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Instagram</div>
+                        <div class="info-valor">${data.instagram || '-'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">Titular</div>
+                        <div class="info-valor">${data.nombre_titular || '-'}</div>
+                    </div>
+                    <div class="info-item">
+                        <div class="info-label">DNI Titular</div>
+                        <div class="info-valor">${data.dni || '-'}</div>
+                    </div>
+                </div>
+                
+                <h3 style="color: var(--dorado); margin: 20px 0 10px;">📸 Documentación</h3>
+                <div class="documentos-container">
+                    ${data.foto_fachada_url ? `
+                        <div class="documento-card">
+                            <img src="${data.foto_fachada_url}" alt="Fachada" onclick="window.open('${data.foto_fachada_url}')">
+                            <a href="${data.foto_fachada_url}" target="_blank">Ver Fachada</a>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.foto_dni_url ? `
+                        <div class="documento-card">
+                            <img src="${data.foto_dni_url}" alt="DNI" onclick="window.open('${data.foto_dni_url}')">
+                            <a href="${data.foto_dni_url}" target="_blank">Ver DNI</a>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.constancia_afip_url ? `
+                        <div class="documento-card">
+                            <i class="fas fa-file-pdf" style="font-size: 48px; color: var(--rojo);"></i>
+                            <a href="${data.constancia_afip_url}" target="_blank">Ver Constancia AFIP</a>
+                        </div>
+                    ` : ''}
+                </div>
+                
+                ${data.coordenadas ? `
+                    <div class="info-item" style="grid-column: span 2;">
+                        <div class="info-label">📍 Geolocalización</div>
+                        <div class="info-valor">
+                            Lat: ${data.coordenadas.lat}, Lng: ${data.coordenadas.lng}<br>
+                            <a href="https://www.google.com/maps?q=${data.coordenadas.lat},${data.coordenadas.lng}" target="_blank" style="color: var(--dorado);">Ver en Google Maps</a>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                <div class="acciones-container">
+                    <button class="btn btn-aprobar" onclick="aprobarComercio()">
+                        ✅ APROBAR COMERCIO
+                    </button>
+                    <button class="btn btn-rechazar" onclick="rechazarPostulacion()">
+                        ❌ RECHAZAR
+                    </button>
+                    <button class="btn btn-contactar" onclick="contactarWhatsApp()">
+                        📞 CONTACTAR
+                    </button>
+                </div>
+                <button class="btn btn-volver" onclick="cerrarModal()" style="margin-top: 10px;">
+                    VOLVER
+                </button>
+            `;
+        }
+
+        // ===========================================
+        // 4. APROBAR COMERCIO (ACCIÓN PRINCIPAL)
+        // ===========================================
+        window.aprobarComercio = async () => {
+            if (!postulacionActual || !tipoActual === 'comercio') return;
+            
+            if (!confirm("¿Confirmás que los datos son correctos y querés aprobar este comercio?")) return;
+            
+            try {
+                // 1. Generar ID único para el comercio
+                const idBase = postulacionActual.nombre_comercio
+                    .toLowerCase()
+                    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                    .replace(/[^a-z0-9]/g, "_");
+                
+                const idComercio = `${idBase}_${Math.floor(1000 + Math.random() * 9000)}`;
+                
+                // 2. Generar token QR único
+                const tokenQR = `token_${idBase}_${Math.floor(100000 + Math.random() * 899999)}`;
+                
+                // 3. Crear el comercio en la colección principal "comercios"
+                const comercioRef = await addDoc(collection(db, "comercios"), {
+                    // Datos básicos
+                    idComercio: idComercio,
+                    nombre: postulacionActual.nombre_comercio,
+                    rubro: postulacionActual.rubro,
+                    provincia: postulacionActual.provincia,
+                    localidad: postulacionActual.localidad,
+                    direccion: postulacionActual.direccion,
+                    telefono: postulacionActual.telefono,
+                    emailDueno: postulacionActual.email,
+                    instagram: postulacionActual.instagram || "",
+                    mapsUrl: postulacionActual.google_maps || "",
+                    
+                    // Token QR
+                    tokenQR: tokenQR,
+                    
+                    // Beneficios (vacíos, los cargará el dueño después)
+                    descLead: "",
+                    detalleLead: "",
+                    usosLead: 1,
+                    vigenciaLead: 30,
+                    
+                    descVip: "",
+                    detalleVip: "",
+                    usosVip: 0,
+                    vigenciaVip: 30,
+                    
+                    // Estado
+                    estado: "activo_pendiente_password", // Esperando que el dueño configure
+                    
+                    // Sistema de confianza
+                    nivel_confianza: 0,
+                    usos_cupones: 0,
+                    
+                    // Referencia a la postulación original
+                    postulacion_id: postulacionActual.id,
+                    
+                    // Fechas
+                    fecha_alta: new Date().toISOString(),
+                    
+                    // URLs de documentos (para referencia)
+                    foto_fachada_url: postulacionActual.foto_fachada_url,
+                    foto_dni_url: postulacionActual.foto_dni_url,
+                    constancia_afip_url: postulacionActual.constancia_afip_url
+                });
+                
+                // 4. Actualizar la postulación como "validada"
+                const postulacionRef = doc(db, "postulaciones_comercios", postulacionActual.id);
+                await updateDoc(postulacionRef, {
+                    estado: "validado",
+                    fecha_validacion: new Date().toISOString(),
+                    validado_por: "admin@habitatcar.com",
+                    id_comercio_generado: idComercio,
+                    token_qr_generado: tokenQR
+                });
+                
+                // 5. ENVIAR EMAIL AL COMERCIO (simulado - después implementamos Cloud Function)
+                console.log("📧 Email enviado a:", postulacionActual.email);
+                console.log("🔗 Link de configuración: https://habitatcar.com/admin_ingreso_duenos.html?setup=1&id=" + idComercio);
+                
+                alert(`✅ Comercio aprobado correctamente\n\nID: ${idComercio}\nToken QR: ${tokenQR}\n\nSe envió email al comercio con instrucciones.`);
+                
+                cerrarModal();
+                
+            } catch (error) {
+                console.error("Error al aprobar:", error);
+                alert("❌ Error al aprobar el comercio");
+            }
+        };
+
+        // ===========================================
+        // 5. RECHAZAR POSTULACIÓN
+        // ===========================================
+        window.rechazarPostulacion = async () => {
+            const motivo = prompt("Motivo del rechazo (opcional):");
+            
+            if (!confirm("¿Estás seguro de rechazar esta postulación?")) return;
+            
+            try {
+                const postulacionRef = doc(db, `postulaciones_${tipoActual}s`, postulacionActual.id);
+                await updateDoc(postulacionRef, {
+                    estado: "rechazado",
+                    fecha_rechazo: new Date().toISOString(),
+                    motivo_rechazo: motivo || "No especificado"
+                });
+                
+                alert("❌ Postulación rechazada");
+                cerrarModal();
+            } catch (error) {
+                console.error("Error al rechazar:", error);
+            }
+        };
+
+        // ===========================================
+        // 6. CONTACTAR POR WHATSAPP
+        // ===========================================
+        window.contactarWhatsApp = () => {
+            if (!postulacionActual) return;
+            
+            let telefono = postulacionActual.telefono || '';
+            telefono = telefono.replace(/\D/g, '');
+            
+            if (!telefono) {
+                alert("No hay número de teléfono");
+                return;
+            }
+            
+            const mensaje = `Hola ${postulacionActual.nombre_titular || ''}, soy Maximiliano, Martillero Público de Habitat-Car (MP 279). Recibí tu postulación para ${postulacionActual.nombre_comercio || 'el comercio'}. ¿Podemos coordinar una breve llamada para validar los datos?`;
+            
+            window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
+        };
+
+        // ===========================================
+        // 7. CERRAR MODAL
+        // ===========================================
+        window.cerrarModal = () => {
+            document.getElementById('modalValidacion').style.display = 'none';
+            postulacionActual = null;
+            tipoActual = null;
+        };
+
+        // Inicializar
+        cargarPostulaciones();
+    </script>
+</body>
+</html>
