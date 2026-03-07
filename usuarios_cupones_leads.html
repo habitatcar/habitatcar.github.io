@@ -27,7 +27,6 @@
             --rosa: #c2185b;
             --negro: #000000;
             --azul-validar: #0d124a;
-            /* ✅ COLORES ACTUALIZADOS (IGUALES A VIP) */
             --azul-lindo: #0056b3;
         }
 
@@ -125,7 +124,6 @@
             100% { background-color: white; }
         }
 
-        /* ✅ ANIMACIONES DEL BOTÓN SORTEOS (COPIADAS DE VIP) */
         @keyframes destello-centrifugo {
             0% { 
                 box-shadow: 0 0 0 0 rgba(245, 124, 0, 0.9);
@@ -197,7 +195,6 @@
             padding: 15px; border-radius: 10px; border: none; 
             font-weight: bold; font-size: 16px; color: white; cursor: pointer;
         }
-        /* ✅ COLORES ACTUALIZADOS IGUALES A VIP */
         .btn-conozca { background: var(--azul-lindo); }
         .btn-sorteo { 
             background-color: var(--naranja-sorteo);
@@ -267,7 +264,6 @@
         }
         #reader { width: 300px; background: white; border-radius: 10px; overflow: hidden; }
 
-        /* ✅ CSS PARA EL POPUP */
         .popup-redes {
             display: none;
             position: fixed;
@@ -413,7 +409,6 @@
         </div>
     </div>
 
-    <!-- ✅ POPUP DE REDES SOCIALES (SIN BOTÓN SORTEOS - SE MOVIÓ AFUERA) -->
     <div id="popup-redes" class="popup-redes">
         <h3 id="pop-nombre" style="margin:0 0 15px 0; color:var(--negro); text-align:center;"></h3>
         
@@ -453,6 +448,13 @@
     </div>
 
     <footer class="footer-identificacion">
+        <!-- NUEVO BOTÓN POSTULACIONES -->
+        <div class="footer-row" style="margin-bottom: 8px;">
+            <button class="btn-footer" style="background: var(--azul-lindo); width: 200px; margin: 0 auto;" onclick="abrirPopupPostulaciones()">
+                📋 POSTULACIONES
+            </button>
+        </div>
+        
         <div class="footer-row">
             <a href="soy_curioso.html" class="btn-footer" style="background: var(--celeste);">SOY CURIOSO</a>
             <a href="tutorial.html" class="btn-footer" style="background: var(--naranja);">TUTORIAL</a>
@@ -473,7 +475,7 @@
         localStorage.setItem('habitat_auth', 'true');
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -558,22 +560,16 @@
             return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
         };
 
-        // ✅ ÚNICA FUNCIÓN NUEVA AGREGADA - SOLO ESTO CAMBIÉ
-        async function verificarSiYaVioGanadores(comercioId, tituloSorteo) {
-            if (!tituloSorteo) return false;
-            return localStorage.getItem(`visto_ganadores_${comercioId}_${tituloSorteo}`) === 'true';
-        }
-
-        onSnapshot(collection(db, "comercios"), async (snap) => {
+        onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-cupones');
             const inicios = getInicios();
             let html = "";
             let huboCambioInicio = false;
 
-            for (const docSnap of snap.docs) {
+            snap.forEach(docSnap => {
                 const c = docSnap.data();
                 const id = docSnap.id;
-                if (c.estado === "inactivo") continue;
+                if (c.estado === "inactivo") return;
 
                 const nUso = getUsosLocales(id);
                 const esUsado = nUso > 0;
@@ -617,20 +613,12 @@
                     btnConozcaHTML = `<button class="btn-act btn-conozca" onclick="abrirPopup('${escapeAttr(nombre)}', '${escapeAttr(ig)}', '${escapeAttr(sitioWeb)}', '${escapeAttr(fb)}', '${escapeAttr(tk)}')">Conozca el comercio</button>`;
                 }
 
-                // ✅ VERIFICACIÓN DE CONTENIDO DE SORTEOS/PROMOS (COPIADO DE VIP)
                 const tieneSorteoOPromo = (c.titulo_sorteo || c.titulo_promo);
                 
-                // ✅ VERIFICAR SI YA TOCÓ EL BOTÓN EN ESTA SESIÓN
                 const yaTocado = localStorage.getItem('toco_sorteo_' + id) === 'true';
+                const claseAnimacion = yaTocado ? 'sin-pulso' : 'animar-pulso';
                 
-                // ✅ VERIFICAR SI YA VIO GANADORES - NUEVA LÍNEA
-                const yaVioGanadores = await verificarSiYaVioGanadores(id, c.titulo_sorteo);
-                
-                // ✅ DETERMINAR CLASE DE ANIMACIÓN
-                const claseAnimacion = (yaTocado || yaVioGanadores) ? 'sin-pulso' : 'animar-pulso';
-                
-                // ✅ SOLO GENERAR BOTÓN SI HAY CONTENIDO Y NO HA VISTO GANADORES
-                const botonSorteo = (tieneSorteoOPromo && !yaVioGanadores) ? 
+                const botonSorteo = tieneSorteoOPromo ? 
                     `<button class="btn-act btn-sorteo ${claseAnimacion}" 
                              id="btn-sorteo-${id}" 
                              onclick="tocarSorteo('${id}', '${nombre.replace(/'/g, "\\'")}')">
@@ -657,215 +645,4 @@
                             ${btnConozcaHTML}
                             ${botonSorteo}
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
-                            <button class="btn-act btn-usar ${esUsado ? 'usado' : ''}" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre.replace(/'/g, "\\'")}')">
-                                Usar Beneficio <span class="contador-nube">${nUso}</span>
-                            </button>
-                        </div>
-                    </div>`;
-            }
-
-            if (huboCambioInicio) {
-                localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
-            }
-            contenedor.innerHTML = html;
-        });
-
-        const syncUsados = async () => {
-            try {
-                const lSnap = await getDoc(doc(db, "leads", leadId));
-                if (lSnap.exists()) {
-                    const deFirebase = lSnap.data().cupones_usados || [];
-                    const locales = getUsadosLocal();
-                    const combinados = [...new Set([...locales, ...deFirebase])];
-                    localStorage.setItem('usados_v16_ok', JSON.stringify(combinados));
-                }
-            } catch(e) {}
-        };
-        syncUsados();
-
-        window.cerrarValidado = () => { document.getElementById('overlay-validado').style.display = 'none'; };
-        window.cerrarErrorQR = () => { document.getElementById('overlay-error-qr').style.display = 'none'; };
-        window.cerrarAtencion = () => { document.getElementById('overlay-atencion').style.display = 'none'; };
-
-        window.confirmarAtencion = (id, nom) => {
-            document.getElementById('overlay-atencion').style.display = 'flex';
-            document.getElementById('btn-confirmar-final').onclick = () => {
-                document.getElementById('overlay-atencion').style.display = 'none';
-                finalizar(id, nom);
-            };
-        };
-
-        // ✅ FUNCIÓN abrirPopup ACTUALIZADA (SIN SORTEOS - SE MOVIÓ AFUERA)
-        window.abrirPopup = (nom, ig, web, fb, tk) => {
-            document.getElementById('pop-nombre').innerText = nom;
-            
-            const configurarBoton = (id, link) => {
-                const el = document.getElementById(id);
-                if (link && link.trim() !== "" && link !== "#") {
-                    el.href = link.startsWith('http') ? link : `https://${link}`;
-                    el.style.display = "block";
-                    return true;
-                } else {
-                    el.style.display = "none";
-                    return false;
-                }
-            };
-
-            configurarBoton('lnk-ig', ig);
-            configurarBoton('lnk-fb', fb);
-            configurarBoton('lnk-tk', tk);
-            configurarBoton('lnk-web', web);
-
-            document.getElementById('popup-redes').style.display = 'flex';
-        };
-
-        window.cerrarPopup = () => {
-            document.getElementById('popup-redes').style.display = 'none';
-        };
-
-        // ✅ NUEVA FUNCIÓN: TOCAR SORTEO (COPIADA DE VIP)
-        window.tocarSorteo = (id, nombre) => {
-            const btn = document.getElementById(`btn-sorteo-${id}`);
-            if (btn) {
-                btn.classList.remove('animar-pulso');
-                btn.classList.add('sin-pulso');
-                localStorage.setItem('toco_sorteo_' + id, 'true');
-            }
-            window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`;
-        };
-        
-        window.abrirQR = (id, token) => {
-            idEnProceso = id; tokenEsperado = token;
-            document.getElementById('modal-qr').style.display = 'flex';
-            scanner = new Html5Qrcode("reader");
-            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
-                if (text.trim() === tokenEsperado.trim()) {
-                    cerrarScanner();
-                    document.getElementById('overlay-validado').style.display = 'flex';
-                    const btn = document.getElementById(`btn-usar-${idEnProceso}`);
-                    if(btn) { btn.classList.add('activo'); btn.innerText = "USAR BENEFICIO"; }
-                } else { 
-                    cerrarScanner();
-                    document.getElementById('overlay-error-qr').style.display = 'flex'; 
-                }
-            }).catch(e => console.error(e));
-        };
-        
-        window.cerrarScanner = () => {
-            document.getElementById('modal-qr').style.display = 'none';
-            if(scanner) { scanner.stop().then(() => scanner.clear()).catch(err => console.log(err)); }
-        };
-
-        window.copiarID = () => {
-            const idTexto = document.getElementById('exito-id-texto').innerText;
-            navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
-        };
-
-        window.finalizar = async (id, nom) => {
-            try {
-                if (!leadId || leadId.startsWith('invitado_')) {
-                    alert("Error: No se detectó una sesión válida. Por favor, regístrese nuevamente.");
-                    window.location.replace("usuarios_registro_lead.html");
-                    return;
-                }
-
-                const ahora = new Date();
-                const fechaLegible = ahora.toLocaleDateString();
-                const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                const timestamp = ahora.getTime();
-
-                const refComercio = doc(db, "comercios", id);
-                const snapCom = await getDoc(refComercio);
-                const totalActual = (snapCom.data().totalUsos || 0) + 1;
-                const idManual = "HAB-" + String(totalActual).padStart(4, '0');
-
-                await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
-
-                try {
-                    await addDoc(collection(db, "logs_actividad"), {
-                        timestamp: timestamp,
-                        tipo: "canje",
-                        accion: "CANJE LEADS",
-                        nombreComercio: nom,
-                        usuarioId: leadId,
-                        idValidacion: idManual
-                    });
-                } catch(eLog) { console.error("Error Log:", eLog); }
-
-                const idComercioLimpio = nom.replace(/\s+/g, '_');
-                const horaL = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-
-                await updateDoc(doc(db, "leads", leadId), {
-                    [`canjes_por_comercio.${idComercioLimpio}`]: {
-                        comercio: nom,
-                        codigo: idManual,
-                        fecha: fechaLegible,
-                        hora: horaL,
-                        cantidad_usos: increment(1)
-                    },
-                    usos_count: increment(1),
-                    cupones_detallados: arrayUnion({
-                        comercio: nom,
-                        fecha: fechaLegible,
-                        hora: horaLegible,
-                        codigo: idManual,
-                        timestamp: timestamp
-                    }),
-                    lastSubmission: timestamp
-                });
-
-                const nuevosUsos = getUsosLocales(id) + 1;
-                localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
-
-                const btnUsar = document.getElementById(`btn-usar-${id}`);
-                if (btnUsar) {
-                    const contadorSpan = btnUsar.querySelector('.contador-nube');
-                    if (contadorSpan) {
-                        contadorSpan.textContent = nuevosUsos;
-                    }
-                    btnUsar.classList.add('usado');
-                    btnUsar.classList.remove('activo');
-                    btnUsar.innerText = "USADO";
-                }
-
-                document.getElementById('exito-comercio').innerText = nom;
-                document.getElementById('exito-id-texto').innerText = idManual;
-                JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
-                document.getElementById('pantalla-exito').style.display = 'flex';
-                
-                let s = 30;
-                const t = setInterval(() => {
-                    s--; 
-                    document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { 
-                        clearInterval(t); 
-                        const usadosLocales = getUsadosLocal();
-                        usadosLocales.push(id);
-                        localStorage.setItem('usados_v16_ok', JSON.stringify(usadosLocales));
-                        location.reload(); 
-                    }
-                }, 1000);
-
-            } catch(e) { 
-                console.error("Error de Validación:", e);
-                alert("Error crítico: " + e.message); 
-            }
-        };
-
-        window.filtrar = () => {
-            const texto = document.getElementById('filtroNombre').value.toLowerCase();
-            const vencimiento = document.getElementById('filtroVence').value;
-            document.querySelectorAll('.card').forEach(c => {
-                const nombreMatch = c.dataset.nombre.includes(texto);
-                const dias = parseInt(c.dataset.vence);
-                let venceMatch = true;
-                if (vencimiento !== "todos") {
-                    venceMatch = (dias >= 0 && dias <= parseInt(vencimiento));
-                }
-                c.style.display = (nombreMatch && venceMatch) ? 'block' : 'none';
-            });
-        };
-    </script>
-</body>
-</html>
+                            <button class="btn-act btn-validar" onclick="abrirQR('${id
