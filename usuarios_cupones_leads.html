@@ -645,4 +645,255 @@
                             ${btnConozcaHTML}
                             ${botonSorteo}
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar" onclick="abrirQR('${id
+                            <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
+                            <button class="btn-act btn-usar ${esUsado ? 'usado' : ''}" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre.replace(/'/g, "\\'")}')">
+                                Usar Beneficio <span class="contador-nube">${nUso}</span>
+                            </button>
+                        </div>
+                    </div>`;
+            });
+
+            if (huboCambioInicio) {
+                localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
+            }
+            contenedor.innerHTML = html;
+        });
+
+        const syncUsados = async () => {
+            try {
+                const lSnap = await getDoc(doc(db, "leads", leadId));
+                if (lSnap.exists()) {
+                    const deFirebase = lSnap.data().cupones_usados || [];
+                    const locales = getUsadosLocal();
+                    const combinados = [...new Set([...locales, ...deFirebase])];
+                    localStorage.setItem('usados_v16_ok', JSON.stringify(combinados));
+                }
+            } catch(e) {}
+        };
+        syncUsados();
+
+        window.cerrarValidado = () => { document.getElementById('overlay-validado').style.display = 'none'; };
+        window.cerrarErrorQR = () => { document.getElementById('overlay-error-qr').style.display = 'none'; };
+        window.cerrarAtencion = () => { document.getElementById('overlay-atencion').style.display = 'none'; };
+
+        window.confirmarAtencion = (id, nom) => {
+            document.getElementById('overlay-atencion').style.display = 'flex';
+            document.getElementById('btn-confirmar-final').onclick = () => {
+                document.getElementById('overlay-atencion').style.display = 'none';
+                finalizar(id, nom);
+            };
+        };
+
+        window.abrirPopup = (nom, ig, web, fb, tk) => {
+            document.getElementById('pop-nombre').innerText = nom;
+            
+            const configurarBoton = (id, link) => {
+                const el = document.getElementById(id);
+                if (link && link.trim() !== "" && link !== "#") {
+                    el.href = link.startsWith('http') ? link : `https://${link}`;
+                    el.style.display = "block";
+                    return true;
+                } else {
+                    el.style.display = "none";
+                    return false;
+                }
+            };
+
+            configurarBoton('lnk-ig', ig);
+            configurarBoton('lnk-fb', fb);
+            configurarBoton('lnk-tk', tk);
+            configurarBoton('lnk-web', web);
+
+            document.getElementById('popup-redes').style.display = 'flex';
+        };
+
+        window.cerrarPopup = () => {
+            document.getElementById('popup-redes').style.display = 'none';
+        };
+
+        window.tocarSorteo = (id, nombre) => {
+            const btn = document.getElementById(`btn-sorteo-${id}`);
+            if (btn) {
+                btn.classList.remove('animar-pulso');
+                btn.classList.add('sin-pulso');
+                localStorage.setItem('toco_sorteo_' + id, 'true');
+            }
+            window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`;
+        };
+        
+        window.abrirQR = (id, token) => {
+            idEnProceso = id; tokenEsperado = token;
+            document.getElementById('modal-qr').style.display = 'flex';
+            scanner = new Html5Qrcode("reader");
+            scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+                if (text.trim() === tokenEsperado.trim()) {
+                    cerrarScanner();
+                    document.getElementById('overlay-validado').style.display = 'flex';
+                    const btn = document.getElementById(`btn-usar-${idEnProceso}`);
+                    if(btn) { btn.classList.add('activo'); btn.innerText = "USAR BENEFICIO"; }
+                } else { 
+                    cerrarScanner();
+                    document.getElementById('overlay-error-qr').style.display = 'flex'; 
+                }
+            }).catch(e => console.error(e));
+        };
+        
+        window.cerrarScanner = () => {
+            document.getElementById('modal-qr').style.display = 'none';
+            if(scanner) { scanner.stop().then(() => scanner.clear()).catch(err => console.log(err)); }
+        };
+
+        window.copiarID = () => {
+            const idTexto = document.getElementById('exito-id-texto').innerText;
+            navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
+        };
+
+        window.finalizar = async (id, nom) => {
+            try {
+                if (!leadId || leadId.startsWith('invitado_')) {
+                    alert("Error: No se detectó una sesión válida. Por favor, regístrese nuevamente.");
+                    window.location.replace("usuarios_registro_lead.html");
+                    return;
+                }
+
+                const ahora = new Date();
+                const fechaLegible = ahora.toLocaleDateString();
+                const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                const timestamp = ahora.getTime();
+
+                const refComercio = doc(db, "comercios", id);
+                const snapCom = await getDoc(refComercio);
+                const totalActual = (snapCom.data().totalUsos || 0) + 1;
+                const idManual = "HAB-" + String(totalActual).padStart(4, '0');
+
+                await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
+
+                try {
+                    await addDoc(collection(db, "logs_actividad"), {
+                        timestamp: timestamp,
+                        tipo: "canje",
+                        accion: "CANJE LEADS",
+                        nombreComercio: nom,
+                        usuarioId: leadId,
+                        idValidacion: idManual
+                    });
+                } catch(eLog) { console.error("Error Log:", eLog); }
+
+                const idComercioLimpio = nom.replace(/\s+/g, '_');
+                const horaL = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
+
+                await updateDoc(doc(db, "leads", leadId), {
+                    [`canjes_por_comercio.${idComercioLimpio}`]: {
+                        comercio: nom,
+                        codigo: idManual,
+                        fecha: fechaLegible,
+                        hora: horaL,
+                        cantidad_usos: increment(1)
+                    },
+                    usos_count: increment(1),
+                    cupones_detallados: arrayUnion({
+                        comercio: nom,
+                        fecha: fechaLegible,
+                        hora: horaLegible,
+                        codigo: idManual,
+                        timestamp: timestamp
+                    }),
+                    lastSubmission: timestamp
+                });
+
+                const nuevosUsos = getUsosLocales(id) + 1;
+                localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
+
+                const btnUsar = document.getElementById(`btn-usar-${id}`);
+                if (btnUsar) {
+                    const contadorSpan = btnUsar.querySelector('.contador-nube');
+                    if (contadorSpan) {
+                        contadorSpan.textContent = nuevosUsos;
+                    }
+                    btnUsar.classList.add('usado');
+                    btnUsar.classList.remove('activo');
+                    btnUsar.innerText = "USADO";
+                }
+
+                document.getElementById('exito-comercio').innerText = nom;
+                document.getElementById('exito-id-texto').innerText = idManual;
+                JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
+                document.getElementById('pantalla-exito').style.display = 'flex';
+                
+                let s = 30;
+                const t = setInterval(() => {
+                    s--; 
+                    document.getElementById('countdown').innerText = s;
+                    if(s <= 0) { 
+                        clearInterval(t); 
+                        const usadosLocales = getUsadosLocal();
+                        usadosLocales.push(id);
+                        localStorage.setItem('usados_v16_ok', JSON.stringify(usadosLocales));
+                        location.reload(); 
+                    }
+                }, 1000);
+
+            } catch(e) { 
+                console.error("Error de Validación:", e);
+                alert("Error crítico: " + e.message); 
+            }
+        };
+
+        window.filtrar = () => {
+            const texto = document.getElementById('filtroNombre').value.toLowerCase();
+            const vencimiento = document.getElementById('filtroVence').value;
+            document.querySelectorAll('.card').forEach(c => {
+                const nombreMatch = c.dataset.nombre.includes(texto);
+                const dias = parseInt(c.dataset.vence);
+                let venceMatch = true;
+                if (vencimiento !== "todos") {
+                    venceMatch = (dias >= 0 && dias <= parseInt(vencimiento));
+                }
+                c.style.display = (nombreMatch && venceMatch) ? 'block' : 'none';
+            });
+        };
+
+        // NUEVA FUNCIÓN: Popup de postulaciones
+        window.abrirPopupPostulaciones = () => {
+            const overlay = document.createElement('div');
+            overlay.style.cssText = `
+                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+                background: rgba(0,0,0,0.9); display: flex; justify-content: center;
+                align-items: center; z-index: 10000;
+            `;
+            
+            overlay.innerHTML = `
+                <div style="background: white; border-radius: 20px; padding: 25px; width: 85%; max-width: 300px; text-align: center; border: 4px solid var(--azul-habitat);">
+                    <h3 style="color: var(--azul-habitat); margin-top: 0; font-size: 1.5em;">¿QUÉ DESEAS POSTULAR?</h3>
+                    
+                    <button onclick="window.location.href='usuarios_comercios_postulacion.html'" 
+                            style="width: 100%; padding: 18px; margin: 8px 0; background: var(--azul-lindo); color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 1.2em; cursor: pointer;">
+                        🏪 COMERCIO
+                    </button>
+                    
+                    <button onclick="alert('Próximamente podrás postularte como MARTILLERO')" 
+                            style="width: 100%; padding: 18px; margin: 8px 0; background: #8e8e93; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 1.2em; cursor: pointer;">
+                        🔑 MARTILLERO (próximamente)
+                    </button>
+                    
+                    <button onclick="alert('Próximamente podrás postularte como COLABORADOR')" 
+                            style="width: 100%; padding: 18px; margin: 8px 0; background: #8e8e93; color: white; border: none; border-radius: 12px; font-weight: bold; font-size: 1.2em; cursor: pointer;">
+                        👥 COLABORADOR (próximamente)
+                    </button>
+                    
+                    <button onclick="this.closest('div').closest('div').remove()" 
+                            style="width: 100%; padding: 12px; margin-top: 15px; background: #ccc; color: #333; border: none; border-radius: 10px; font-weight: bold; cursor: pointer;">
+                        CERRAR
+                    </button>
+                </div>
+            `;
+            
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) overlay.remove();
+            });
+            
+            document.body.appendChild(overlay);
+        };
+    </script>
+</body>
+</html>
