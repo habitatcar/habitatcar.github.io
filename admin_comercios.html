@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.5</title>
+<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.4</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -597,19 +597,13 @@ await updateDoc(doc(db, "comercios", fbId), { publicado: nuevoEstado });
 };
 
 onSnapshot(collection(db, "comercios"), (snap) => {
-    COMERCIOS = [];
-    
-    snap.docs.forEach(d => {
-        COMERCIOS.push({ ...d.data(), fbId: d.id });
-    });
-    
-    console.log("Comercios cargados:", COMERCIOS.length);
-    window.render();
-    
-    if(idForzado && esModoAdmin && COMERCIOS.length > 0) {
-        const comActual = COMERCIOS.find(x => x.idComercio === idForzado);
-        if(comActual) window.edit(null, comActual.fbId);
-    }
+COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+window.render();
+
+if(idForzado && esModoAdmin && COMERCIOS.length > 0) {
+const comActual = COMERCIOS.find(x => x.idComercio === idForzado);
+if(comActual) window.edit(null, comActual.fbId);
+}
 });
 
 window.render = () => {
@@ -619,9 +613,10 @@ const box = document.getElementById('lista-comercios');
 if(!box) return;
 box.innerHTML = "";
 
+// Calcular contadores
 const totalComercios = COMERCIOS.length;
-const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
-const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
+const activos = COMERCIOS.filter(x => x.estado === 'activo' || x.estado === 'activo_pendiente_password').length;
+const inactivos = COMERCIOS.filter(x => x.estado !== 'activo' && x.estado !== 'activo_pendiente_password').length;
 const publicados = COMERCIOS.filter(x => x.publicado === true).length;
 
 document.getElementById('count-total').innerText = totalComercios;
@@ -629,27 +624,26 @@ document.getElementById('count-act').innerText = activos;
 document.getElementById('count-inact').innerText = inactivos;
 document.getElementById('count-pub').innerText = publicados;
 
+// Filtrar según selección
 let filtrados = COMERCIOS.filter(c => {
 const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const matchesSearch = term === "" || searchStr.includes(term);
 let matchesFiltro = true;
 
 if (FILTRO_ESTADO === 'inactivo') {
-    matchesFiltro = c.estado !== 'activo';
+matchesFiltro = c.estado !== 'activo' && c.estado !== 'activo_pendiente_password';
 } else if (FILTRO_ESTADO === 'publicado') {
-    // Si no tiene el campo publicado, se considera NO publicado
-    matchesFiltro = c.publicado === true;
+matchesFiltro = c.publicado === true;
 }
 
-// 👇 ESTO ES LO IMPORTANTE: SIEMPRE MOSTRAR TODOS EN ADMIN
-const matchesForzado = true;
+const matchesForzado = true; // Mostrar TODOS los comercios siempre
 
 return matchesSearch && matchesFiltro && matchesForzado;
 });
 
 filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
 filtrados.forEach(c => {
-const estaActivo = c.estado === 'activo';
+const estaActivo = c.estado === 'activo' || c.estado === 'activo_pendiente_password';
 const publicado = c.publicado === true;
 const displayID = c.idComercio || c.id || "SIN-ID";
 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
@@ -920,7 +914,8 @@ document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000
 };
 
 window.toggleEstado = async (e, id, est) => {
-await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' });
+const esActivo = est === 'activo' || est === 'activo_pendiente_password';
+await updateDoc(doc(db, "comercios", id), { estado: esActivo ? 'inactivo' : 'activo' });
 };
 
 window.del = async (e, id) => {
