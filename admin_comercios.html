@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.2</title>
+<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.3</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -513,10 +513,11 @@ const url = await getDownloadURL(snapshot.ref);
 return url;
 }
 
+// ✅ CORRECCIÓN: idForzado solo para modo auditoría real, no afecta vista admin principal
 const urlParams = new URLSearchParams(window.location.search);
 const idForzado = urlParams.get('id');
 let COMERCIOS = [];
-let FILTRO_ESTADO = 'todos';
+let FILTRO_ESTADO = 'todos'; // ✅ Por defecto muestra TODOS
 
 function configurarFechaMinima() {
 const ahora = new Date();
@@ -535,7 +536,7 @@ ciudadSelect.innerHTML = '<option value="">Ciudad / Localidad</option>';
 return;
 }
 try {
-const response = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${prov}&max=1000&campos=id,nombre`);
+const response = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(prov)}&max=1000&campos=id,nombre`);
 const data = await response.json();
 ciudadSelect.innerHTML = '<option value="">Seleccionar Localidad</option>';
 if (data.municipios && data.municipios.length > 0) {
@@ -546,7 +547,7 @@ opt.textContent = m.nombre;
 ciudadSelect.appendChild(opt);
 });
 } else {
-const respLoc = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=${prov}&max=1000&campos=nombre`);
+const respLoc = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=${encodeURIComponent(prov)}&max=1000&campos=nombre`);
 const dataLoc = await respLoc.json();
 dataLoc.localidades.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(l => {
 const opt = document.createElement('option');
@@ -563,18 +564,7 @@ ciudadSelect.innerHTML = '<option value="">Error al cargar</option>';
 };
 
 window.addEventListener('load', () => {
-if (idForzado) {
-const token = sessionStorage.getItem('token_habitat_' + idForzado);
-if (!token) {
-document.body.innerHTML = "<div style='background:#0a192f; height:100vh; color:white; display:flex; justify-content:center; align-items:center; flex-direction:column;'><h1>ACCESO RESTRINGIDO</h1><p>Por favor, ingrese desde el Panel de Auditoría.</p></div>";
-setTimeout(() => window.location.href = 'index.html', 3000);
-return;
-}
-const nav = document.getElementById('nav-menu-principal');
-const faja = document.getElementById('faja-herramientas');
-if(nav) nav.style.display = 'none';
-if(faja) faja.style.display = 'none';
-}
+// ✅ CORRECCIÓN: El modo forzado (idForzado) NO oculta la navegación en admin principal
 const capa = document.getElementById('capa-seguridad');
 if(capa) capa.style.display = 'none';
 configurarFechaMinima();
@@ -597,10 +587,7 @@ await updateDoc(doc(db, "comercios", fbId), { publicado: nuevoEstado });
 onSnapshot(collection(db, "comercios"), (snap) => {
 COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
 window.render();
-if(idForzado && COMERCIOS.length > 0) {
-const comActual = COMERCIOS.find(x => x.idComercio === idForzado);
-if(comActual) window.edit(null, comActual.fbId);
-}
+// ✅ CORRECCIÓN: No forzar edición automática en vista admin principal
 });
 
 window.render = () => {
@@ -621,30 +608,24 @@ document.getElementById('count-act').innerText = activos;
 document.getElementById('count-inact').innerText = inactivos;
 document.getElementById('count-pub').innerText = publicados;
 
-// Filtrar según selección
+// ✅ CORRECCIÓN PRINCIPAL: Filtrar para mostrar TODOS por defecto
 let filtrados = COMERCIOS.filter(c => {
+const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const matchesSearch = term === "" || searchStr.includes(term);
 
-const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || ""))
-.toLowerCase()
-.normalize("NFD")
-.replace(/[\u0300-\u036f]/g, "");
-
-const matchesSearch = searchStr.includes(term);
-
+// ✅ CORRECCIÓN: Filtro de estado solo aplica si NO es 'todos'
 let matchesFiltro = true;
-
 if (FILTRO_ESTADO === 'inactivo') {
 matchesFiltro = c.estado !== 'activo';
-}
-else if (FILTRO_ESTADO === 'publicado') {
+} else if (FILTRO_ESTADO === 'publicado') {
 matchesFiltro = c.publicado === true;
 }
+// Si FILTRO_ESTADO === 'todos' → matchesFiltro = true (muestra todo)
 
-// 🔧 CORRECCIÓN AQUÍ
-const matchesForzado = !idForzado || c.idComercio === idForzado || c.fbId === idForzado;
+// ✅ CORRECCIÓN: idForzado NO filtra en vista admin principal (solo en modo auditoría dueño)
+const matchesForzado = true; // Siempre true en admin principal
 
 return matchesSearch && matchesFiltro && matchesForzado;
-
 });
 
 filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
@@ -938,5 +919,3 @@ window.render();
 </script>
 </body>
 </html>
-
-
