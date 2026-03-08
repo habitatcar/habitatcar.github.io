@@ -495,60 +495,62 @@
         // ===========================================
         // VALIDACIÓN DE CUIT
         // ===========================================
-        document.getElementById('btnValidarCUIT').addEventListener('click', async () => {
-            const cuit = document.getElementById('cuit').value.replace(/\D/g, '');
-            const resultadoDiv = document.getElementById('resultadoValidacion');
-            const btnValidar = document.getElementById('btnValidarCUIT');
-            const inputRazonSocial = document.getElementById('razonSocial');
-            
-            if (cuit.length !== 11) {
-                resultadoDiv.className = 'validacion-resultado invalido';
-                resultadoDiv.innerHTML = '❌ El CUIT debe tener 11 números';
-                return;
-            }
-            
-            // Modo offline: simulación (mientras creamos la Cloud Function)
-            // Esto es temporal hasta que configuremos la función
-            resultadoDiv.className = 'validacion-resultado cargando';
-            resultadoDiv.innerHTML = '⏳ Validando CUIT...';
-            btnValidar.disabled = true;
-            
-            try {
-                // Simulación de validación (después reemplazar por Cloud Function real)
-                await new Promise(resolve => setTimeout(resolve, 1500));
-                
-                // Simulación de respuesta exitosa
-                const datosSimulados = {
-                    valido: true,
-                    razonSocial: "CAFÉ CENTRAL SRL",
-                    domicilio: "Av. Corrientes 1234, CABA"
-                };
-                
-                if (datosSimulados.valido) {
-                    resultadoDiv.className = 'validacion-resultado valido';
-                    resultadoDiv.innerHTML = '✅ CUIT válido - Datos cargados automáticamente';
-                    
-                    // Auto-completar campos
-                    inputRazonSocial.value = datosSimulados.razonSocial;
-                    document.getElementById('direccion').value = datosSimulados.domicilio;
-                    
-                    // Marcar como validado
-                    document.getElementById('cuitValidado').value = 'true';
-                } else {
-                    resultadoDiv.className = 'validacion-resultado invalido';
-                    resultadoDiv.innerHTML = '❌ CUIT no válido o inactivo';
-                    document.getElementById('cuitValidado').value = 'false';
-                }
-                
-            } catch (error) {
-                resultadoDiv.className = 'validacion-resultado invalido';
-                resultadoDiv.innerHTML = '❌ Error al validar CUIT';
-                console.error(error);
-            } finally {
-                btnValidar.disabled = false;
-            }
-        });
-
+        // ===========================================
+// VALIDACIÓN DE CUIT REAL (con Cloud Function actualizada)
+// ===========================================
+document.getElementById('btnValidarCUIT').addEventListener('click', async () => {
+  const cuit = document.getElementById('cuit').value.replace(/\D/g, '');
+  const resultadoDiv = document.getElementById('resultadoValidacion');
+  const btnValidar = document.getElementById('btnValidarCUIT');
+  const inputRazonSocial = document.getElementById('razonSocial');
+  const inputDireccion = document.getElementById('direccion');
+  
+  if (cuit.length !== 11) {
+    resultadoDiv.className = 'validacion-resultado invalido';
+    resultadoDiv.innerHTML = '❌ El CUIT debe tener 11 números';
+    return;
+  }
+  
+  resultadoDiv.className = 'validacion-resultado cargando';
+  resultadoDiv.innerHTML = '⏳ Consultando AFIP...';
+  btnValidar.disabled = true;
+  
+  try {
+    // Importar la Cloud Function
+    const { getFunctions, httpsCallable } = await import("https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js");
+    const functions = getFunctions(app);
+    const validarCUIT = httpsCallable(functions, 'validarCUIT');
+    
+    // Llamar a la función
+    const result = await validarCUIT({ cuit });
+    const data = result.data;
+    
+    if (data.valido) {
+      resultadoDiv.className = 'validacion-resultado valido';
+      resultadoDiv.innerHTML = `✅ CUIT válido - Datos de AFIP`;
+      
+      // Auto-completar campos
+      inputRazonSocial.value = data.razonSocial;
+      if (data.domicilio !== "No disponible") {
+        inputDireccion.value = data.domicilio;
+      }
+      
+      document.getElementById('cuitValidado').value = 'true';
+    } else {
+      resultadoDiv.className = 'validacion-resultado invalido';
+      resultadoDiv.innerHTML = '❌ ' + (data.error || 'CUIT no válido');
+      document.getElementById('cuitValidado').value = 'false';
+    }
+    
+  } catch (error) {
+    console.error("Error al validar:", error);
+    resultadoDiv.className = 'validacion-resultado invalido';
+    resultadoDiv.innerHTML = '❌ Error al conectar con AFIP';
+    document.getElementById('cuitValidado').value = 'false';
+  } finally {
+    btnValidar.disabled = false;
+  }
+});
         document.getElementById('formPostulacion').addEventListener('submit', async (e) => {
             e.preventDefault();
             
@@ -628,3 +630,4 @@
     </script>
 </body>
 </html>
+
