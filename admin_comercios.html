@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.4</title>
+<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.5</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -597,7 +597,6 @@ await updateDoc(doc(db, "comercios", fbId), { publicado: nuevoEstado });
 };
 
 onSnapshot(collection(db, "comercios"), (snap) => {
-    // Limpiar y cargar TODOS los comercios
     COMERCIOS = [];
     
     snap.docs.forEach(d => {
@@ -605,11 +604,8 @@ onSnapshot(collection(db, "comercios"), (snap) => {
     });
     
     console.log("Comercios cargados:", COMERCIOS.length);
-    
-    // Forzar renderizado
     window.render();
     
-    // Modo dueño (solo si aplica)
     if(idForzado && esModoAdmin && COMERCIOS.length > 0) {
         const comActual = COMERCIOS.find(x => x.idComercio === idForzado);
         if(comActual) window.edit(null, comActual.fbId);
@@ -623,7 +619,6 @@ const box = document.getElementById('lista-comercios');
 if(!box) return;
 box.innerHTML = "";
 
-// Calcular contadores
 const totalComercios = COMERCIOS.length;
 const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
 const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
@@ -634,19 +629,20 @@ document.getElementById('count-act').innerText = activos;
 document.getElementById('count-inact').innerText = inactivos;
 document.getElementById('count-pub').innerText = publicados;
 
-// Filtrar según selección
 let filtrados = COMERCIOS.filter(c => {
 const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
 const matchesSearch = term === "" || searchStr.includes(term);
 let matchesFiltro = true;
 
 if (FILTRO_ESTADO === 'inactivo') {
-matchesFiltro = c.estado !== 'activo';
+    matchesFiltro = c.estado !== 'activo';
 } else if (FILTRO_ESTADO === 'publicado') {
-matchesFiltro = c.publicado === true;
+    // Si no tiene el campo publicado, se considera NO publicado
+    matchesFiltro = c.publicado === true;
 }
 
-const matchesForzado = true; // Mostrar TODOS los comercios siempre
+// 👇 ESTO ES LO IMPORTANTE: SIEMPRE MOSTRAR TODOS EN ADMIN
+const matchesForzado = true;
 
 return matchesSearch && matchesFiltro && matchesForzado;
 });
