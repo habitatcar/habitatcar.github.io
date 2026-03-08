@@ -1,11 +1,138 @@
 <!DOCTYPE html>
-<html>
-<head><title>TEST</title></head>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.3</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+:root {
+--azul-oscuro: #0a192f;
+--azul-medio: #334766;
+--azul-claro: #415a77;
+--celeste-habitat: #004a99;
+--blanco-suave: #e6f1ff;
+--borravino: #800020;
+--verde: #28a745;
+--rojo: #dc3545;
+--oro: #ffc107;
+--naranja: #ff8c00;
+}
+body {
+font-family: 'Segoe UI', sans-serif;
+background-color: var(--azul-oscuro);
+color: var(--blanco-suave);
+margin: 0;
+padding: 0;
+}
+.header {
+background: var(--azul-medio);
+padding: 15px 30px;
+display: flex;
+justify-content: space-between;
+align-items: center;
+border-bottom: 4px solid var(--celeste-habitat);
+position: sticky;
+top: 0;
+z-index: 1100;
+}
+.logo { height: 90px; }
+.nav-menu { display: flex; gap: 8px; flex-wrap: wrap; }
+.nav-link {
+padding: 8px 15px;
+border-radius: 6px;
+text-decoration: none;
+color: white;
+font-weight: bold;
+background: var(--azul-claro);
+font-size: 12px;
+}
+.nav-link.active { background: var(--rojo); }
+.nav-link-validaciones {
+background: var(--naranja);
+color: var(--azul-oscuro);
+}
+.tools-faja {
+position: sticky;
+top: 124px;
+z-index: 1000;
+background: white;
+padding: 11px 30px;
+display: flex;
+justify-content: space-between;
+align-items: center;
+flex-wrap: wrap;
+gap: 15px;
+}
+.search-container { position: relative; flex: 1; max-width: 350px; }
+.search-input {
+width: 100%; padding: 10px 12px 10px 45px;
+border: 2px solid var(--borravino);
+border-radius: 25px;
+font-size: 1em;
+}
+.search-icon { position: absolute; left: 18px; top: 12px; color: var(--borravino); }
+.btn-tool {
+padding: 8px 12px; border: 2px solid var(--borravino);
+background: white; color: var(--borravino);
+cursor: pointer; border-radius: 8px; font-weight: bold;
+}
+.btn-tool.active { background: var(--borravino); color: white; }
+.stat-badge { padding: 6px 12px; border-radius: 20px; color: white; font-weight: bold; font-size: 0.8em; }
+.wrapper { max-width: 1600px; margin: 20px auto; padding: 0 25px; }
+.comercio-card {
+background: var(--azul-medio);
+border-radius: 20px;
+margin-bottom: 30px;
+border-left: 15px solid var(--borravino);
+display: flex;
+overflow: hidden;
+}
+.comercio-card.inactive { background: #121b29; border-left-color: #333; }
+.visual-side { width: 160px; padding: 25px; border-right: 1px solid rgba(255,255,255,0.05); }
+.img-preview { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; cursor: pointer; }
+.info-side { flex: 1; padding: 25px; }
+.comercio-title {
+font-size: 2.2em;
+color: var(--oro);
+margin: 0 0 15px 0;
+}
+.btn-group { margin-top: 25px; display: flex; gap: 15px; flex-wrap: wrap; }
+.btn-op { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; }
+.btn-publicar {
+padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold;
+background: var(--verde);
+}
+.btn-publicar.publicado { background: #6c757d; }
+</style>
+</head>
 <body>
-<div id="resultado"></div>
+<header class="header">
+<img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
+<nav class="nav-menu">
+<a href="admin_comercios.html" class="nav-link active">COMERCIOS</a>
+<a href="admin_leads.html" class="nav-link">LEADS</a>
+<a href="admin_vips.html" class="nav-link">VIPS</a>
+<a href="admin_validaciones.html" class="nav-link nav-link-validaciones">VALIDACIONES</a>
+</nav>
+</header>
+
+<div class="tools-faja">
+<div class="search-container">
+<input type="text" id="masterSearch" class="search-input" placeholder="Buscar..." oninput="filtrar()">
+</div>
+<div style="display: flex; gap: 10px;">
+<div class="stat-badge" style="background:#4a5568">TOTAL: <span id="count-total">0</span></div>
+<div class="stat-badge" style="background:var(--verde)">ACTIVOS: <span id="count-act">0</span></div>
+<div class="stat-badge" style="background:var(--rojo)">INACTIVOS: <span id="count-inact">0</span></div>
+</div>
+</div>
+
+<main id="lista-comercios" style="padding: 20px;"></main>
+
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -19,9 +146,61 @@ appId: "1:311691258694:web:17a09051dcea7707af9347"
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
-const snap = await getDocs(collection(db, "comercios"));
-document.getElementById('resultado').innerHTML = `<h2>Total: ${snap.size}</h2>` + 
-    snap.docs.map(d => `<p>${d.id} - ${d.data().nombre || 'sin nombre'}</p>`).join('');
+let todosLosComercios = [];
+
+// Cargar TODOS los comercios SIN FILTROS
+onSnapshot(collection(db, "comercios"), (snap) => {
+    todosLosComercios = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+    actualizarContadores();
+    mostrarComercios(todosLosComercios);
+});
+
+function actualizarContadores() {
+    document.getElementById('count-total').innerText = todosLosComercios.length;
+    document.getElementById('count-act').innerText = todosLosComercios.filter(x => x.estado === 'activo').length;
+    document.getElementById('count-inact').innerText = todosLosComercios.filter(x => x.estado !== 'activo').length;
+}
+
+function mostrarComercios(lista) {
+    const box = document.getElementById('lista-comercios');
+    box.innerHTML = '';
+    
+    lista.forEach(c => {
+        const publicado = c.publicado === true;
+        box.innerHTML += `
+        <div class="comercio-card">
+            <div class="info-side">
+                <h2 class="comercio-title">${c.nombre || 'Sin nombre'}</h2>
+                <p><b>ID:</b> ${c.idComercio || ''}</p>
+                <p><b>WhatsApp:</b> ${c.telefono || ''}</p>
+                <div class="btn-group">
+                    <button class="btn-op" style="background:#f39c12" onclick="editar('${c.fbId}')">EDITAR</button>
+                    <button class="btn-publicar ${publicado ? 'publicado' : ''}" onclick="togglePublicar('${c.fbId}', ${publicado})">
+                        ${publicado ? 'PUBLICADO ✓' : 'PUBLICAR'}
+                    </button>
+                </div>
+            </div>
+        </div>`;
+    });
+}
+
+window.togglePublicar = async (id, estadoActual) => {
+    await updateDoc(doc(db, "comercios", id), { publicado: !estadoActual });
+};
+
+window.filtrar = () => {
+    const texto = document.getElementById('masterSearch').value.toLowerCase();
+    const filtrados = todosLosComercios.filter(c => 
+        (c.nombre || '').toLowerCase().includes(texto) ||
+        (c.idComercio || '').toLowerCase().includes(texto)
+    );
+    mostrarComercios(filtrados);
+};
+
+window.editar = (id) => {
+    alert('Función editar para: ' + id);
+    // Acá podés redirigir o abrir modal
+};
 </script>
 </body>
 </html>
