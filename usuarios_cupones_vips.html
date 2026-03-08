@@ -1039,107 +1039,114 @@
 
     <script>
     // ===========================================
-    // SISTEMA DE INSTALACIÓN PWA - IGUAL QUE LEADS
-    // ===========================================
-    (function() {
-        let deferredPrompt;
-        const yaInstalado = localStorage.getItem('habitat_pwa_instalada') === 'true';
+// SISTEMA DE INSTALACIÓN PWA - COPIADO DE LEADS (FUNCIONA)
+// ===========================================
+(function() {
+    let deferredPrompt;
+    const yaInstalado = localStorage.getItem('habitat_pwa_instalada') === 'true';
+    
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        console.log('✅ Evento beforeinstallprompt capturado');
+    });
+
+    function mostrarMensajeInstalacion() {
+        // Eliminar cualquier popup anterior
+        const popupAnterior = document.querySelector('.popup-instalacion');
+        if (popupAnterior) popupAnterior.remove();
         
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            console.log('✅ Evento beforeinstallprompt capturado (VIP)');
-        });
-
-        function mostrarMensajeInstalacion() {
-            // Eliminar cualquier popup anterior
-            const popupAnterior = document.querySelector('.popup-instalacion');
-            if (popupAnterior) popupAnterior.remove();
-            
-            // Crear overlay personalizado
-            const overlay = document.createElement('div');
-            overlay.className = 'popup-instalacion';
-            
-            // Logo en SVG (no se comprime)
-            const logoSvg = `<svg width="70" height="70" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <rect width="100" height="100" rx="20" fill="#003D80"/>
-                <path d="M30 30H70V40H30V30Z" fill="white"/>
-                <path d="M30 45H60V55H30V45Z" fill="white"/>
-                <path d="M30 60H50V70H30V60Z" fill="white"/>
-                <circle cx="75" cy="75" r="15" fill="#FFD700"/>
-                <path d="M70 70L80 80M80 70L70 80" stroke="#003D80" stroke-width="3"/>
-            </svg>`;
-            
-            if (yaInstalado) {
-                // Mensaje para cuando ya está instalada
-                overlay.innerHTML = `
-                    <div class="popup-contenido">
-                        ${logoSvg}
-                        <h3>¡YA ESTÁ INSTALADA!</h3>
-                        <p><strong>Nuestra aplicación ya se encuentra en tu dispositivo.</strong><br>Buscá el ícono de Hábitat-Car entre tus aplicaciones.</p>
-                        <div class="popup-botones">
-                            <button class="btn-popup btn-popup-aceptar" style="flex: 1;" id="btn-ok-instalada">ACEPTAR</button>
-                        </div>
+        // Crear overlay personalizado
+        const overlay = document.createElement('div');
+        overlay.className = 'popup-instalacion';
+        
+        // Logo en SVG (no se comprime)
+        const logoSvg = `<svg width="70" height="70" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100" height="100" rx="20" fill="#003D80"/>
+            <path d="M30 30H70V40H30V30Z" fill="white"/>
+            <path d="M30 45H60V55H30V45Z" fill="white"/>
+            <path d="M30 60H50V70H30V60Z" fill="white"/>
+            <circle cx="75" cy="75" r="15" fill="#FFD700"/>
+            <path d="M70 70L80 80M80 70L70 80" stroke="#003D80" stroke-width="3"/>
+        </svg>`;
+        
+        if (yaInstalado) {
+            // Mensaje para cuando ya está instalada
+            overlay.innerHTML = `
+                <div class="popup-contenido">
+                    ${logoSvg}
+                    <h3>¡YA ESTÁ INSTALADA!</h3>
+                    <p><strong>Nuestra aplicación ya se encuentra en tu dispositivo.</strong><br>Buscá el ícono de Hábitat-Car entre tus aplicaciones.</p>
+                    <div class="popup-botones">
+                        <button class="btn-popup btn-popup-aceptar" style="flex: 1;" id="btn-ok-instalada">ACEPTAR</button>
                     </div>
-                `;
-            } else if (!deferredPrompt) {
-                // Mensaje para cuando no soporta instalación
-                overlay.innerHTML = `
-                    <div class="popup-contenido">
-                        ${logoSvg}
-                        <h3>INSTALACIÓN</h3>
-                        <p>Para instalar la aplicación, buscá en el menú de tu navegador la opción <strong>"Agregar a pantalla de inicio"</strong>.</p>
-                        <div class="popup-botones">
-                            <button class="btn-popup btn-popup-aceptar" style="flex: 1;" id="btn-ok-soporte">ENTENDIDO</button>
-                        </div>
+                </div>
+            `;
+        } else if (!deferredPrompt) {
+            // Mensaje para cuando no soporta instalación
+            overlay.innerHTML = `
+                <div class="popup-contenido">
+                    ${logoSvg}
+                    <h3>INSTALACIÓN</h3>
+                    <p>Para instalar la aplicación, buscá en el menú de tu navegador la opción <strong>"Agregar a pantalla de inicio"</strong>.</p>
+                    <div class="popup-botones">
+                        <button class="btn-popup btn-popup-aceptar" style="flex: 1;" id="btn-ok-soporte">ENTENDIDO</button>
                     </div>
-                `;
-            } else {
-                // Mensaje para instalar
-                overlay.innerHTML = `
-                    <div class="popup-contenido">
-                        ${logoSvg}
-                        <h3>¡INSTALÁ LA APLICACIÓN!</h3>
-                        <p><strong>Para no perderte los beneficios VIP</strong> y tener acceso rápido desde tu pantalla de inicio.</p>
-                        <div class="popup-botones">
-                            <button class="btn-popup btn-popup-aceptar" id="btn-instalar-confirmar">INSTALAR</button>
-                            <button class="btn-popup btn-popup-cancelar" id="btn-instalar-cancelar">RECHAZAR</button>
-                        </div>
+                </div>
+            `;
+        } else {
+            // Mensaje para instalar (con el prompt REAL)
+            overlay.innerHTML = `
+                <div class="popup-contenido">
+                    ${logoSvg}
+                    <h3>¡INSTALÁ LA APLICACIÓN!</h3>
+                    <p><strong>Para no perderte los beneficios</strong> y tener acceso rápido desde tu pantalla de inicio.</p>
+                    <div class="popup-botones">
+                        <button class="btn-popup btn-popup-aceptar" id="btn-instalar-confirmar">INSTALAR</button>
+                        <button class="btn-popup btn-popup-cancelar" id="btn-instalar-cancelar">RECHAZAR</button>
                     </div>
-                `;
-            }
-            
-            document.body.appendChild(overlay);
-            
-            // Manejadores de eventos
-            if (yaInstalado) {
-                document.getElementById('btn-ok-instalada')?.addEventListener('click', () => overlay.remove());
-            } else if (!deferredPrompt) {
-                document.getElementById('btn-ok-soporte')?.addEventListener('click', () => overlay.remove());
-            } else {
-                document.getElementById('btn-instalar-confirmar')?.addEventListener('click', function() {
-                    overlay.remove();
-                    // SIMULAMOS INSTALACIÓN SIN CARTEL FEO
-                    localStorage.setItem('habitat_pwa_instalada', 'true');
-                    alert('✅ Aplicación instalada correctamente. Buscá el ícono en tu pantalla de inicio.');
-                });
-                
-                document.getElementById('btn-instalar-cancelar')?.addEventListener('click', function() {
-                    overlay.remove();
-                });
-            }
+                </div>
+            `;
         }
+        
+        document.body.appendChild(overlay);
+        
+        // Manejadores de eventos
+        if (yaInstalado) {
+            document.getElementById('btn-ok-instalada')?.addEventListener('click', () => overlay.remove());
+        } else if (!deferredPrompt) {
+            document.getElementById('btn-ok-soporte')?.addEventListener('click', () => overlay.remove());
+        } else {
+            document.getElementById('btn-instalar-confirmar')?.addEventListener('click', function() {
+                overlay.remove();
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        if (choiceResult.outcome === 'accepted') {
+                            localStorage.setItem('habitat_pwa_instalada', 'true');
+                        }
+                        deferredPrompt = null;
+                    });
+                }
+            });
+            
+            document.getElementById('btn-instalar-cancelar')?.addEventListener('click', function() {
+                overlay.remove();
+            });
+        }
+    }
 
-        // Configurar botón del footer
-        document.addEventListener('DOMContentLoaded', function() {
-            const btnInstalar = document.getElementById('btn-instalar-footer');
-            if (btnInstalar) {
-                btnInstalar.addEventListener('click', mostrarMensajeInstalacion);
-            }
-        });
-    })();
+    // Configurar botón del footer
+    document.addEventListener('DOMContentLoaded', function() {
+        const btnInstalar = document.getElementById('btn-instalar-footer');
+        if (btnInstalar) {
+            btnInstalar.addEventListener('click', mostrarMensajeInstalacion);
+        }
+    });
+})();
     </script>
 </body>
 </html>
+
 
 
