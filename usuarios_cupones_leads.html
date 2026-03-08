@@ -641,7 +641,6 @@
 
                 const nUso = getUsosLocales(id);
                 const esUsado = nUso > 0;
-
                 const nombre = c.nombre || "Local";
                 const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
                 
@@ -649,51 +648,32 @@
                 let mostrarReloj = vigenciaTotal > 0;
 
                 if (mostrarReloj) {
-                    if (!inicios[id]) {
-                        inicios[id] = Date.now();
-                        huboCambioInicio = true;
-                    }
+                    if (!inicios[id]) { inicios[id] = Date.now(); huboCambioInicio = true; }
                     const transcurrido = Date.now() - inicios[id];
-                    const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
-                    diasRestantes = vigenciaTotal - diasPasados;
+                    diasRestantes = vigenciaTotal - Math.floor(transcurrido / (1000 * 60 * 60 * 24));
                 }
-
                 if (mostrarReloj && diasRestantes < 0) continue;
 
-                let htmlLogo = "";
-                if (c.logoUrl && c.logoUrl.trim() !== "") {
-                    htmlLogo = `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>`;
-                }
+                let htmlLogo = c.logoUrl && c.logoUrl.trim()
+                    ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : "";
 
-                // Beneficio correcto: descLead + detalleLead (sin doble % ni OFF)
-                const beneficio = (c.descLead || c.valLead)
-                    ? `${c.descLead || c.valLead}${c.detalleLead ? ' ' + c.detalleLead : (c.txtLead ? ' ' + c.txtLead : '')}`
-                    : "Consultar";
+                const descVal = c.descLead || c.valLead || "";
+                const descDet = c.detalleLead || c.txtLead || "";
+                const beneficio = descVal ? `${descVal}${descDet ? ' ' + descDet : ''}` : "Consultar";
 
                 const token = c.tokenQR || "";
-                
                 const ig = c.instagram || "";
                 const fb = c.facebook || "";
-                const tk = c.web || ""; 
+                const tk = c.web || "";
                 const sitioWeb = c.sitioWeb || "";
-                const tieneRedes = (ig !== "" || fb !== "" || tk !== "" || sitioWeb !== "");
+                const tieneRedes = ig || fb || tk || sitioWeb;
 
-                let btnConozcaHTML = "";
-                if (tieneRedes) {
-                    const escapeAttr = (str) => str.replace(/'/g, "\\'").replace(/"/g, "&quot;");
-                    btnConozcaHTML = `<button class="btn-act btn-conozca" onclick="abrirPopup('${escapeAttr(nombre)}', '${escapeAttr(ig)}', '${escapeAttr(sitioWeb)}', '${escapeAttr(fb)}', '${escapeAttr(tk)}')">Conozca el comercio</button>`;
-                }
-
-                // Botón sorteos/promos
-                const tieneSorteoOPromo = (c.titulo_sorteo || c.titulo_promo);
+                const tieneSorteoOPromo = c.titulo_sorteo || c.titulo_promo;
                 const yaTocado = localStorage.getItem('toco_sorteo_' + id) === 'true';
-                const yaVioGanadores = c.titulo_sorteo 
-                    ? localStorage.getItem(`visto_ganadores_${id}_${c.titulo_sorteo}`) === 'true'
+                const yaVioGanadores = c.titulo_sorteo
+                    ? localStorage.getItem('visto_ganadores_' + id + '_' + c.titulo_sorteo) === 'true'
                     : false;
-                const claseAnimacion = (yaTocado || yaVioGanadores) ? 'sin-pulso' : 'animar-pulso';
-                const botonSorteo = (tieneSorteoOPromo && !yaVioGanadores)
-                    ? `<button class="btn-act btn-sorteo ${claseAnimacion}" id="btn-sorteo-${id}" onclick="tocarSorteo('${id}', '${nombre.replace(/'/g, "\\'")}')">🎁 SORTEOS y PROMOS</button>`
-                    : '';
+                const claseAnim = (yaTocado || yaVioGanadores) ? 'sin-pulso' : 'animar-pulso';
 
                 let infoVencimiento = "";
                 if (!mostrarReloj) {
@@ -704,29 +684,52 @@
                     infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
                 }
 
+                const mapsUrl = c.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion||'')+' '+(c.ciudad||'')+' '+(c.provincia||''))}`;
+
+                // Usar data-attributes para evitar problemas de escape en onclick
                 html += `
-                    <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
+                    <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}" data-id="${id}" data-token="${token}" data-nom="${nombre.replace(/"/g,'&quot;')}" data-ig="${ig}" data-fb="${fb}" data-tk="${tk}" data-web="${sitioWeb}" data-maps="${mapsUrl}" data-sorteo-id="${id}" data-sorteo-nom="${nombre.replace(/"/g,'&quot;')}">
                         ${htmlLogo}
                         <div class="nombre-c">${nombre}</div>
                         <div class="beneficio-c">${beneficio}</div>
                         <span class="info-txt">${infoVencimiento}</span>
                         ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
                         <div class="btn-stack">
-                            ${btnConozcaHTML}
-                            ${botonSorteo}
-                            <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
-                            <button class="btn-act btn-usar ${esUsado ? 'usado' : ''}" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre.replace(/'/g, "\\'")}')">
+                            ${tieneRedes ? `<button class="btn-act btn-conozca btn-redes">Conozca el comercio</button>` : ""}
+                            ${(tieneSorteoOPromo && !yaVioGanadores) ? `<button class="btn-act btn-sorteo ${claseAnim} btn-ir-sorteo" id="btn-sorteo-${id}">🎁 SORTEOS y PROMOS</button>` : ""}
+                            <button class="btn-act btn-llegar btn-maps">Cómo llegar</button>
+                            <button class="btn-act btn-validar btn-qr">Validar Cupón con QR</button>
+                            <button class="btn-act btn-usar ${esUsado ? 'usado' : ''}" id="btn-usar-${id}">
                                 Usar Beneficio <span class="contador-nube">${nUso}</span>
                             </button>
                         </div>
                     </div>`;
             }
 
-            if (huboCambioInicio) {
-                localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
-            }
+            if (huboCambioInicio) localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
             contenedor.innerHTML = html;
+
+            // Asignar eventos por delegación después de renderizar
+            contenedor.addEventListener('click', (e) => {
+                const card = e.target.closest('.card');
+                if (!card) return;
+                const cId = card.dataset.id;
+                const cNom = card.dataset.nom;
+
+                if (e.target.classList.contains('btn-redes')) {
+                    abrirPopup(cNom, card.dataset.ig, card.dataset.web, card.dataset.fb, card.dataset.tk);
+                } else if (e.target.classList.contains('btn-ir-sorteo')) {
+                    tocarSorteo(card.dataset.sorteoId, card.dataset.sorteoNom);
+                } else if (e.target.classList.contains('btn-maps')) {
+                    window.open(card.dataset.maps);
+                } else if (e.target.classList.contains('btn-qr')) {
+                    abrirQR(cId, card.dataset.token);
+                } else if (e.target.classList.contains('btn-usar') || e.target.classList.contains('contador-nube')) {
+                    if (!e.target.closest('.btn-usar').classList.contains('usado')) {
+                        confirmarAtencion(cId, cNom);
+                    }
+                }
+            }, { once: true });
         });
 
         const syncUsados = async () => {
