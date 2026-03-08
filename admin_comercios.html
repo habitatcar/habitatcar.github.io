@@ -606,6 +606,8 @@ if(comActual) window.edit(null, comActual.fbId);
 }
 });
 
+const escAttr = (s) => (s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+
 window.render = () => {
 const masterSearchInput = document.getElementById('masterSearch');
 const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
@@ -649,18 +651,23 @@ const displayID = c.idComercio || c.id || "SIN-ID";
 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
 const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
 const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
+const nombreSafe = escAttr(c.nombre);
+const fbIdSafe = escAttr(c.fbId);
+const displayIDSafe = escAttr(displayID);
+const logoSafe = escAttr(c.logoUrl);
+const qrSafe = escAttr(qr);
 
 box.innerHTML += `
 <div class="comercio-card ${estaActivo ? '' : 'inactive'}">
 <div class="visual-side">
-<img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
-<img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
+<img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${logoSafe}')">
+<img src="${qr}" class="img-preview" onclick="window.zoom('${qrSafe}')">
 ${!idForzado || !esModoAdmin ? `
-<a href="admin_ingreso_duenos.html?id=${displayID}&admin=true" target="_blank" class="btn-directo">VER PANEL</a>
-<button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayID}')">
+<a href="admin_ingreso_duenos.html?id=${displayIDSafe}&admin=true" target="_blank" class="btn-directo">VER PANEL</a>
+<button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayIDSafe}')">
 <i class="fas fa-link"></i> COPIAR LINK
 </button>
-<button class="btn-preview-sorteos" onclick="window.previsualizarSorteos('${displayID}', '${c.nombre}')">
+<button class="btn-preview-sorteos" onclick="window.previsualizarSorteos('${displayIDSafe}', '${nombreSafe}')">
 <i class="fas fa-eye"></i> PREVISUALIZAR SORTEOS Y PROMOS
 </button>
 ` : ''}
@@ -708,15 +715,15 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 </div>
 </div>
 <div class="btn-group">
-<button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
+<button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${fbIdSafe}')">EDITAR</button>
 ${!idForzado || !esModoAdmin ? `
-<button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
+<button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${fbIdSafe}', '${escAttr(c.estado)}', '${nombreSafe}')">
 ${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
 </button>
-<button class="btn-publicar ${publicado ? 'publicado' : ''}" onclick="window.togglePublicar('${c.fbId}', ${publicado})">
+<button class="btn-publicar ${publicado ? 'publicado' : ''}" onclick="window.togglePublicar('${fbIdSafe}', ${publicado})">
 ${publicado ? 'PUBLICADO ✓' : 'PUBLICAR'}
 </button>
-<button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
+<button class="btn-op" style="background:#333" onclick="window.del(event, '${fbIdSafe}', '${nombreSafe}')">BORRAR</button>
 `: ''}
 <div class="social-box">
 ${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
