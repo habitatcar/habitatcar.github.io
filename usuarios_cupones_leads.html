@@ -485,7 +485,7 @@
         });
 
         function abrirPopupPWA() {
-            if (!deferredPrompt) return;
+            // Mostrar popup SIEMPRE — el prompt se intenta al tocar ACEPTAR
             var overlay = document.createElement('div');
             overlay.id = 'overlay-pwa';
             overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.92);display:flex;justify-content:center;align-items:center;z-index:20000;';
@@ -501,20 +501,22 @@
             document.body.appendChild(overlay);
             document.getElementById('btn-aceptar-pwa').addEventListener('click', function() {
                 overlay.remove();
-                deferredPrompt.prompt();
-                deferredPrompt.userChoice.then(function(result) {
-                    if (result.outcome === 'accepted') {
-                        localStorage.setItem('habitat_pwa_instalada', 'true');
-                        var btn = document.getElementById('btn-instalar-pwa');
-                        if (btn) btn.style.display = 'none';
-                    }
-                    deferredPrompt = null;
-                });
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then(function(result) {
+                        if (result.outcome === 'accepted') {
+                            localStorage.setItem('habitat_pwa_instalada', 'true');
+                            var btn = document.getElementById('btn-instalar-pwa');
+                            if (btn) btn.style.display = 'none';
+                        }
+                        deferredPrompt = null;
+                    });
+                }
             });
             document.getElementById('btn-rechazar-pwa').addEventListener('click', function() {
                 overlay.remove();
             });
-        }
+        }}
     </script>
     <script type="module">
         if (localStorage.getItem('habitat_vip_auth') === 'true') {
