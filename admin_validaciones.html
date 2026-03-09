@@ -82,6 +82,7 @@
             border-left: 5px solid var(--naranja);
             cursor: pointer;
             transition: transform 0.2s;
+            position: relative;
         }
         .tarjeta-postulacion:hover {
             transform: translateX(5px);
@@ -91,11 +92,13 @@
             font-weight: bold;
             font-size: 1.2em;
             margin-bottom: 5px;
+            padding-right: 60px;
         }
         .tarjeta-subtitulo {
             color: #aaa;
             font-size: 0.9em;
             margin-bottom: 10px;
+            padding-right: 60px;
         }
         .tarjeta-badge {
             background: var(--naranja);
@@ -108,6 +111,28 @@
         }
         .badge-pendiente {
             background: var(--naranja);
+        }
+        .btn-eliminar-tarjeta {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: var(--rojo);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+            z-index: 10;
+        }
+        .btn-eliminar-tarjeta:hover {
+            opacity: 1;
         }
         
         /* MODAL DE VALIDACIÓN */
@@ -224,6 +249,10 @@
             background: var(--dorado);
             color: black;
         }
+        .btn-eliminar-modal {
+            background: #8b0000;
+            color: white;
+        }
         .btn-volver {
             background: #666;
             color: white;
@@ -289,8 +318,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, getDoc, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getStorage, ref, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+        import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, getDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getStorage, ref, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -326,10 +355,11 @@
                 snapshot.forEach(doc => {
                     const data = doc.data();
                     container.innerHTML += `
-                        <div class="tarjeta-postulacion" onclick="abrirModalValidacion('${doc.id}', 'comercio')">
+                        <div class="tarjeta-postulacion" data-id="${doc.id}" data-tipo="comercio">
                             <div class="tarjeta-titulo">${data.nombre_comercio || 'Sin nombre'}</div>
                             <div class="tarjeta-subtitulo">${data.provincia || ''} • ${data.localidad || ''}</div>
                             <div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div>
+                            <button class="btn-eliminar-tarjeta" onclick="event.stopPropagation(); eliminarPostulacion('${doc.id}', 'comercio')">🗑️</button>
                         </div>
                     `;
                 });
@@ -346,10 +376,11 @@
                     snapshot.forEach(doc => {
                         const data = doc.data();
                         container.innerHTML += `
-                            <div class="tarjeta-postulacion" onclick="abrirModalValidacion('${doc.id}', 'martillero')">
+                            <div class="tarjeta-postulacion" data-id="${doc.id}" data-tipo="martillero">
                                 <div class="tarjeta-titulo">${data.nombre || ''}</div>
                                 <div class="tarjeta-subtitulo">MP: ${data.matricula || ''}</div>
                                 <div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div>
+                                <button class="btn-eliminar-tarjeta" onclick="event.stopPropagation(); eliminarPostulacion('${doc.id}', 'martillero')">🗑️</button>
                             </div>
                         `;
                     });
@@ -367,10 +398,11 @@
                     snapshot.forEach(doc => {
                         const data = doc.data();
                         container.innerHTML += `
-                            <div class="tarjeta-postulacion" onclick="abrirModalValidacion('${doc.id}', 'colaborador')">
+                            <div class="tarjeta-postulacion" data-id="${doc.id}" data-tipo="colaborador">
                                 <div class="tarjeta-titulo">${data.nombre || ''}</div>
                                 <div class="tarjeta-subtitulo">${data.tipo_colaboracion || ''}</div>
                                 <div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div>
+                                <button class="btn-eliminar-tarjeta" onclick="event.stopPropagation(); eliminarPostulacion('${doc.id}', 'colaborador')">🗑️</button>
                             </div>
                         `;
                     });
@@ -379,7 +411,23 @@
         }
 
         // ===========================================
-        // 2. ABRIR MODAL DE VALIDACIÓN (DETALLE)
+        // 2. ELIMINAR POSTULACIÓN (NUEVA FUNCIÓN)
+        // ===========================================
+        window.eliminarPostulacion = async (id, tipo) => {
+            if (!confirm(`¿Estás seguro de eliminar esta postulación de ${tipo}?`)) return;
+            
+            try {
+                const docRef = doc(db, `postulaciones_${tipo}s`, id);
+                await deleteDoc(docRef);
+                alert(`✅ Postulación de ${tipo} eliminada`);
+            } catch (error) {
+                console.error("Error al eliminar:", error);
+                alert("❌ Error al eliminar");
+            }
+        };
+
+        // ===========================================
+        // 3. ABRIR MODAL DE VALIDACIÓN (DETALLE)
         // ===========================================
         window.abrirModalValidacion = async (id, tipo) => {
             tipoActual = tipo;
@@ -411,7 +459,7 @@
         };
 
         // ===========================================
-        // 3. GENERAR HTML PARA COMERCIO (DETALLE)
+        // 4. GENERAR HTML PARA COMERCIO (DETALLE ACTUALIZADO)
         // ===========================================
         function generarHTMLComercio(data) {
             return `
@@ -448,7 +496,6 @@
                         <div class="info-label">Instagram</div>
                         <div class="info-valor">${data.instagram || '-'}</div>
                     </div>
-                    <!-- NUEVOS CAMPOS DE REDES SOCIALES -->
                     <div class="info-item">
                         <div class="info-label">TikTok</div>
                         <div class="info-valor">${data.tiktok || '-'}</div>
@@ -465,14 +512,13 @@
                         <div class="info-label">Google Maps</div>
                         <div class="info-valor">${data.mapsUrl || '-'}</div>
                     </div>
-                    <!-- FIN NUEVOS CAMPOS -->
                     <div class="info-item">
-                        <div class="info-label">Titular</div>
+                        <div class="info-label">Nombre Titular</div>
                         <div class="info-valor">${data.nombre_titular || '-'}</div>
                     </div>
                     <div class="info-item">
-                        <div class="info-label">DNI Titular</div>
-                        <div class="info-valor">${data.dni || '-'}</div>
+                        <div class="info-label">Apellido Titular</div>
+                        <div class="info-valor">${data.apellido_titular || '-'}</div>
                     </div>
                 </div>
                 
@@ -489,6 +535,13 @@
                         <div class="documento-card">
                             <img src="${data.foto_dni_url}" alt="DNI" onclick="window.open('${data.foto_dni_url}')">
                             <a href="${data.foto_dni_url}" target="_blank">Ver DNI</a>
+                        </div>
+                    ` : ''}
+                    
+                    ${data.foto_selfie_url ? `
+                        <div class="documento-card">
+                            <img src="${data.foto_selfie_url}" alt="Selfie" onclick="window.open('${data.foto_selfie_url}')">
+                            <a href="${data.foto_selfie_url}" target="_blank">Ver Selfie con DNI</a>
                         </div>
                     ` : ''}
                     
@@ -512,13 +565,16 @@
                 
                 <div class="acciones-container">
                     <button class="btn btn-aprobar" onclick="aprobarComercio()">
-                        ✅ APROBAR COMERCIO
+                        ✅ APROBAR
                     </button>
                     <button class="btn btn-rechazar" onclick="rechazarPostulacion()">
                         ❌ RECHAZAR
                     </button>
                     <button class="btn btn-contactar" onclick="contactarWhatsApp()">
                         📞 CONTACTAR
+                    </button>
+                    <button class="btn btn-eliminar-modal" onclick="eliminarPostulacionDesdeModal()">
+                        🗑️ ELIMINAR
                     </button>
                 </div>
                 <button class="btn btn-volver" onclick="cerrarModal()" style="margin-top: 10px;">
@@ -527,8 +583,16 @@
             `;
         }
 
+        function generarHTMLMartillero(data) {
+            return `<p style="text-align:center; padding:20px;">Próximamente - Validación de martilleros</p>`;
+        }
+
+        function generarHTMLColaborador(data) {
+            return `<p style="text-align:center; padding:20px;">Próximamente - Validación de colaboradores</p>`;
+        }
+
         // ===========================================
-        // 4. APROBAR COMERCIO (ACCIÓN PRINCIPAL)
+        // 5. APROBAR COMERCIO (ACCIÓN PRINCIPAL)
         // ===========================================
         window.aprobarComercio = async () => {
             if (!postulacionActual || !tipoActual === 'comercio') return;
@@ -579,7 +643,7 @@
                     vigenciaVip: 30,
                     
                     // Estado
-                    estado: "activo_pendiente_password", // Esperando que el dueño configure
+                    estado: "activo_pendiente_password",
                     
                     // Sistema de confianza
                     nivel_confianza: 0,
@@ -594,6 +658,7 @@
                     // URLs de documentos (para referencia)
                     foto_fachada_url: postulacionActual.foto_fachada_url,
                     foto_dni_url: postulacionActual.foto_dni_url,
+                    foto_selfie_url: postulacionActual.foto_selfie_url,
                     constancia_afip_url: postulacionActual.constancia_afip_url
                 });
                 
@@ -607,11 +672,7 @@
                     token_qr_generado: tokenQR
                 });
                 
-                // 5. ENVIAR EMAIL AL COMERCIO (simulado - después implementamos Cloud Function)
-                console.log("📧 Email enviado a:", postulacionActual.email);
-                console.log("🔗 Link de configuración: https://habitatcar.com/admin_ingreso_duenos.html?setup=1&id=" + idComercio);
-                
-                alert(`✅ Comercio aprobado correctamente\n\nID: ${idComercio}\nToken QR: ${tokenQR}\n\nSe envió email al comercio con instrucciones.`);
+                alert(`✅ Comercio aprobado correctamente\n\nID: ${idComercio}\nToken QR: ${tokenQR}`);
                 
                 cerrarModal();
                 
@@ -622,7 +683,7 @@
         };
 
         // ===========================================
-        // 5. RECHAZAR POSTULACIÓN
+        // 6. RECHAZAR POSTULACIÓN
         // ===========================================
         window.rechazarPostulacion = async () => {
             const motivo = prompt("Motivo del rechazo (opcional):");
@@ -645,7 +706,16 @@
         };
 
         // ===========================================
-        // 6. CONTACTAR POR WHATSAPP
+        // 7. ELIMINAR DESDE MODAL
+        // ===========================================
+        window.eliminarPostulacionDesdeModal = async () => {
+            if (!postulacionActual) return;
+            await eliminarPostulacion(postulacionActual.id, tipoActual);
+            cerrarModal();
+        };
+
+        // ===========================================
+        // 8. CONTACTAR POR WHATSAPP
         // ===========================================
         window.contactarWhatsApp = () => {
             if (!postulacionActual) return;
@@ -658,13 +728,14 @@
                 return;
             }
             
-            const mensaje = `Hola ${postulacionActual.nombre_titular || ''}, soy Maximiliano, Martillero Público de Habitat-Car (MP 279). Recibí tu postulación para ${postulacionActual.nombre_comercio || 'el comercio'}. ¿Podemos coordinar una breve llamada para validar los datos?`;
+            const nombreCompleto = `${postulacionActual.nombre_titular || ''} ${postulacionActual.apellido_titular || ''}`.trim();
+            const mensaje = `Hola ${nombreCompleto || ''}, soy Maximiliano, Martillero Público de Habitat-Car (MP 279). Recibí tu postulación para ${postulacionActual.nombre_comercio || 'el comercio'}. ¿Podemos coordinar una breve llamada para validar los datos?`;
             
             window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
         };
 
         // ===========================================
-        // 7. CERRAR MODAL
+        // 9. CERRAR MODAL
         // ===========================================
         window.cerrarModal = () => {
             document.getElementById('modalValidacion').style.display = 'none';
