@@ -198,6 +198,19 @@
             margin-top: 5px;
             word-break: break-word;
         }
+        .info-valor a {
+            color: var(--dorado);
+            text-decoration: none;
+            display: inline-block;
+            padding: 4px 8px;
+            background: rgba(212, 175, 55, 0.1);
+            border-radius: 6px;
+            transition: background 0.2s;
+        }
+        .info-valor a:hover {
+            background: var(--dorado);
+            color: var(--azul-oscuro);
+        }
         .documentos-container {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -337,6 +350,49 @@
         let postulacionActual = null;
         let tipoActual = null;
 
+        function formatearEnlace(tipo, valor) {
+            if (!valor) return '-';
+            
+            switch(tipo) {
+                case 'cuit':
+                    return `<a href="https://seti.afip.gob.ar/padron-puc-constancia/consultaCuit?cuit=${valor}" target="_blank">🔍 ${valor}</a>`;
+                case 'email':
+                    return `<a href="mailto:${valor}">📧 ${valor}</a>`;
+                case 'telefono':
+                    const tel = valor.replace(/\D/g, '');
+                    return `<a href="https://wa.me/${tel}" target="_blank">📱 ${valor}</a>`;
+                case 'instagram':
+                    if (valor.includes('instagram.com')) {
+                        return `<a href="${valor}" target="_blank">📷 Instagram</a>`;
+                    } else if (valor.startsWith('@')) {
+                        return `<a href="https://instagram.com/${valor.substring(1)}" target="_blank">📷 ${valor}</a>`;
+                    }
+                    return `<a href="https://instagram.com/${valor}" target="_blank">📷 ${valor}</a>`;
+                case 'facebook':
+                    if (valor.includes('facebook.com')) {
+                        return `<a href="${valor}" target="_blank">📘 Facebook</a>`;
+                    }
+                    return `<a href="https://facebook.com/${valor}" target="_blank">📘 ${valor}</a>`;
+                case 'tiktok':
+                    if (valor.includes('tiktok.com')) {
+                        return `<a href="${valor}" target="_blank">🎵 TikTok</a>`;
+                    } else if (valor.startsWith('@')) {
+                        return `<a href="https://tiktok.com/${valor}" target="_blank">🎵 ${valor}</a>`;
+                    }
+                    return `<a href="https://tiktok.com/@${valor}" target="_blank">🎵 ${valor}</a>`;
+                case 'sitioWeb':
+                    let url = valor;
+                    if (!url.startsWith('http')) {
+                        url = 'https://' + url;
+                    }
+                    return `<a href="${url}" target="_blank">🌐 Sitio Web</a>`;
+                case 'maps':
+                    return `<a href="${valor}" target="_blank">📍 Ver en Maps</a>`;
+                default:
+                    return valor;
+            }
+        }
+
         // ===========================================
         // 1. CARGAR POSTULACIONES PENDIENTES
         // ===========================================
@@ -364,7 +420,6 @@
                     `;
                 });
                 
-                // Agregar evento click a las nuevas tarjetas
                 document.querySelectorAll('#lista-comercios-pendientes .tarjeta-postulacion').forEach(tarjeta => {
                     tarjeta.addEventListener('click', function(e) {
                         if (e.target.classList.contains('btn-eliminar-tarjeta')) return;
@@ -439,7 +494,7 @@
         }
 
         // ===========================================
-        // 2. ELIMINAR POSTULACIÓN (NUEVA FUNCIÓN)
+        // 2. ELIMINAR POSTULACIÓN
         // ===========================================
         window.eliminarPostulacion = async (id, tipo) => {
             if (!confirm(`¿Estás seguro de eliminar esta postulación de ${tipo}?`)) return;
@@ -460,7 +515,6 @@
         window.abrirModalValidacion = async (id, tipo) => {
             tipoActual = tipo;
             
-            // Obtener datos de la postulación
             const docRef = doc(db, `postulaciones_${tipo}s`, id);
             const docSnap = await getDoc(docRef);
             
@@ -471,7 +525,6 @@
             
             postulacionActual = { id, ...docSnap.data() };
             
-            // Renderizar según el tipo
             let html = '';
             
             if (tipo === 'comercio') {
@@ -487,7 +540,7 @@
         };
 
         // ===========================================
-        // 4. GENERAR HTML PARA COMERCIO (DETALLE ACTUALIZADO)
+        // 4. GENERAR HTML PARA COMERCIO (CON VÍNCULOS)
         // ===========================================
         function generarHTMLComercio(data) {
             return `
@@ -498,7 +551,7 @@
                     </div>
                     <div class="info-item">
                         <div class="info-label">CUIT</div>
-                        <div class="info-valor">${data.cuit || '-'}</div>
+                        <div class="info-valor">${formatearEnlace('cuit', data.cuit)}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Rubro</div>
@@ -514,31 +567,31 @@
                     </div>
                     <div class="info-item">
                         <div class="info-label">Teléfono</div>
-                        <div class="info-valor">${data.telefono || '-'}</div>
+                        <div class="info-valor">${formatearEnlace('telefono', data.telefono)}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Email</div>
-                        <div class="info-valor">${data.email || '-'}</div>
+                        <div class="info-valor">${formatearEnlace('email', data.email)}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Instagram</div>
-                        <div class="info-valor">${data.instagram || '-'}</div>
+                        <div class="info-valor">${formatearEnlace('instagram', data.instagram)}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">TikTok</div>
-                        <div class="info-valor">${data.tiktok || '-'}</div>
+                        <div class="info-valor">${formatearEnlace('tiktok', data.tiktok)}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Sitio Web</div>
-                        <div class="info-valor">${data.sitioWeb || '-'}</div>
+                        <div class="info-valor">${formatearEnlace('sitioWeb', data.sitioWeb)}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Facebook</div>
-                        <div class="info-valor">${data.facebook || '-'}</div>
+                        <div class="info-valor">${formatearEnlace('facebook', data.facebook)}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Google Maps</div>
-                        <div class="info-valor">${data.mapsUrl || '-'}</div>
+                        <div class="info-valor">${formatearEnlace('maps', data.mapsUrl)}</div>
                     </div>
                     <div class="info-item">
                         <div class="info-label">Nombre Titular</div>
@@ -620,7 +673,7 @@
         }
 
         // ===========================================
-        // 5. APROBAR COMERCIO (ACCIÓN PRINCIPAL)
+        // 5. APROBAR COMERCIO
         // ===========================================
         window.aprobarComercio = async () => {
             if (!postulacionActual || !tipoActual === 'comercio') return;
@@ -628,20 +681,15 @@
             if (!confirm("¿Confirmás que los datos son correctos y querés aprobar este comercio?")) return;
             
             try {
-                // 1. Generar ID único para el comercio
                 const idBase = postulacionActual.nombre_comercio
                     .toLowerCase()
                     .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
                     .replace(/[^a-z0-9]/g, "_");
                 
                 const idComercio = `${idBase}_${Math.floor(1000 + Math.random() * 9000)}`;
-                
-                // 2. Generar token QR único
                 const tokenQR = `token_${idBase}_${Math.floor(100000 + Math.random() * 899999)}`;
                 
-                // 3. Crear el comercio en la colección principal "comercios"
-                const comercioRef = await addDoc(collection(db, "comercios"), {
-                    // Datos básicos
+                await addDoc(collection(db, "comercios"), {
                     idComercio: idComercio,
                     nombre: postulacionActual.nombre_comercio,
                     rubro: postulacionActual.rubro,
@@ -655,42 +703,26 @@
                     sitioWeb: postulacionActual.sitioWeb || "",
                     facebook: postulacionActual.facebook || "",
                     mapsUrl: postulacionActual.mapsUrl || "",
-                    
-                    // Token QR
                     tokenQR: tokenQR,
-                    
-                    // Beneficios (vacíos, los cargará el dueño después)
                     descLead: "",
                     detalleLead: "",
                     usosLead: 1,
                     vigenciaLead: 30,
-                    
                     descVip: "",
                     detalleVip: "",
                     usosVip: 0,
                     vigenciaVip: 30,
-                    
-                    // Estado
                     estado: "activo_pendiente_password",
-                    
-                    // Sistema de confianza
                     nivel_confianza: 0,
                     usos_cupones: 0,
-                    
-                    // Referencia a la postulación original
                     postulacion_id: postulacionActual.id,
-                    
-                    // Fechas
                     fecha_alta: new Date().toISOString(),
-                    
-                    // URLs de documentos (para referencia)
                     foto_fachada_url: postulacionActual.foto_fachada_url,
                     foto_dni_url: postulacionActual.foto_dni_url,
                     foto_selfie_url: postulacionActual.foto_selfie_url,
                     constancia_afip_url: postulacionActual.constancia_afip_url
                 });
                 
-                // 4. Actualizar la postulación como "validada"
                 const postulacionRef = doc(db, "postulaciones_comercios", postulacionActual.id);
                 await updateDoc(postulacionRef, {
                     estado: "validado",
@@ -701,7 +733,6 @@
                 });
                 
                 alert(`✅ Comercio aprobado correctamente\n\nID: ${idComercio}\nToken QR: ${tokenQR}`);
-                
                 cerrarModal();
                 
             } catch (error) {
@@ -715,7 +746,6 @@
         // ===========================================
         window.rechazarPostulacion = async () => {
             const motivo = prompt("Motivo del rechazo (opcional):");
-            
             if (!confirm("¿Estás seguro de rechazar esta postulación?")) return;
             
             try {
