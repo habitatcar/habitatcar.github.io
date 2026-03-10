@@ -551,6 +551,7 @@
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, getDoc, addDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getStorage, ref, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
+    import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -564,6 +565,7 @@
     const app = initializeApp(firebaseConfig);
     const db = getFirestore(app);
     const storage = getStorage(app);
+    const functions = getFunctions(app);
 
     let postulacionActual = null;
     let tipoActual = null;
@@ -739,7 +741,7 @@
     };
     
     // ===========================================
-    // CONFIRMAR RECHAZO
+    // CONFIRMAR RECHAZO (CON EMAIL)
     // ===========================================
     window.confirmarRechazo = async () => {
         if (!postulacionActual) return;
@@ -773,8 +775,20 @@
             });
             
             if (enviarEmail) {
-                console.log("📧 Email enviado a:", postulacionActual.email, "Motivo:", motivoFinal);
-                // Acá después conectamos con el sistema de emails
+                try {
+                    const enviarEmailRechazo = httpsCallable(functions, 'enviarEmailRechazo');
+                    
+                    await enviarEmailRechazo({
+                        email: postulacionActual.email,
+                        nombreComercio: postulacionActual.nombre_comercio,
+                        motivo: motivoFinal,
+                        permitirReintento: permitirReintento
+                    });
+                    
+                    console.log("✅ Email de rechazo enviado");
+                } catch (emailError) {
+                    console.error("❌ Error al enviar email:", emailError);
+                }
             }
             
             alert("❌ Postulación rechazada correctamente");
