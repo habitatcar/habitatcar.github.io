@@ -1193,7 +1193,7 @@
     }
 
     // ===========================================
-    // 5. APROBAR COMERCIO
+    // 5. APROBAR COMERCIO (CON EMAIL DE BIENVENIDA)
     // ===========================================
     window.aprobarComercio = async () => {
         if (!postulacionActual || tipoActual !== 'comercio') return;
@@ -1251,6 +1251,19 @@
                 id_comercio_generado: idComercio,
                 token_qr_generado: tokenQR
             });
+            
+            // Enviar email de bienvenida
+            try {
+                const enviarEmailSetup = httpsCallable(functions, 'enviarEmailSetup');
+                await enviarEmailSetup({
+                    email: postulacionActual.email,
+                    nombreComercio: postulacionActual.nombre_comercio,
+                    idComercio: idComercio
+                });
+                console.log("✅ Email de bienvenida enviado");
+            } catch (emailError) {
+                console.error("❌ Error al enviar email de bienvenida:", emailError);
+            }
             
             alert(`✅ Comercio aprobado correctamente\n\nID: ${idComercio}\nToken QR: ${tokenQR}`);
             cerrarModal();
