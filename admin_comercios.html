@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.4</title>
+<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.5</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -136,9 +136,22 @@ font-weight: bold;
 border: 2px solid var(--oro) !important;
 text-align: center;
 }
+.read-only-comerciante {
+background: #1a2639 !important;
+color: #cccccc !important;
+font-weight: bold;
+border: 2px solid #444 !important;
+text-align: center;
+cursor: not-allowed;
+}
 .btn-submit {
 width: 100%; background: var(--verde); color: white; border: none; padding: 18px;
 border-radius: 10px; cursor: pointer; font-weight: bold; font-size: 1.1em; margin-top: 20px;
+}
+.btn-submit:disabled {
+background: #666;
+cursor: not-allowed;
+opacity: 0.5;
 }
 .comercio-card {
 background: var(--azul-medio);
@@ -335,7 +348,7 @@ min-height: 60px;
 <a href="admin_sorteos.html" class="nav-link">SORTEOS</a>
 </nav>
 </header>
-<div class="tools-faja" id="faja-herramientas">
+<div class="tools-faja" id="faja-herramientas" style="display: none;">
 <div class="search-container">
 <span class="search-icon">🔍</span>
 <input type="text" id="masterSearch" class="search-input" placeholder="Buscar comercio..." oninput="window.render()">
@@ -477,7 +490,7 @@ min-height: 60px;
 <option value="Mensual">Reporte Mensual</option>
 </select>
 </div>
-<button class="btn-submit" onclick="guardar()">GUARDAR COMERCIO ✅</button>
+<button class="btn-submit" onclick="guardar()" id="btn-guardar">GUARDAR COMERCIO ✅</button>
 <button id="btn-cancel-edit" class="btn-op" style="display:none; width:100%; margin-top:10px; background:#666" onclick="window.clear()">CANCELAR EDICIÓN</button>
 </div>
 </aside>
@@ -518,6 +531,7 @@ const idForzado = urlParams.get('id');
 const esModoAdmin = urlParams.get('admin') === 'true';
 let COMERCIOS = [];
 let FILTRO_ESTADO = 'todos';
+let esComerciante = idForzado && esModoAdmin; // TRUE si es un dueño de comercio
 
 function configurarFechaMinima() {
 const ahora = new Date();
@@ -564,20 +578,18 @@ ciudadSelect.innerHTML = '<option value="">Error al cargar</option>';
 };
 
 window.addEventListener('load', () => {
-if (idForzado && esModoAdmin) {
-const token = sessionStorage.getItem('token_habitat_' + idForzado);
-if (!token) {
-document.body.innerHTML = "<div style='background:#0a192f; height:100vh; color:white; display:flex; justify-content:center; align-items:center; flex-direction:column;'><h1>ACCESO RESTRINGIDO</h1><p>Por favor, ingrese desde el Panel de Auditoría.</p></div>";
-setTimeout(() => window.location.href = 'index.html', 3000);
-return;
-}
+if (esComerciante) {
+// Ocultar herramientas de admin para comerciantes
 const nav = document.getElementById('nav-menu-principal');
 const faja = document.getElementById('faja-herramientas');
 if(nav) nav.style.display = 'none';
 if(faja) faja.style.display = 'none';
 } else {
+// Mostrar todo para admin
 const capa = document.getElementById('capa-seguridad');
 if(capa) capa.style.display = 'none';
+const faja = document.getElementById('faja-herramientas');
+if(faja) faja.style.display = 'flex';
 }
 configurarFechaMinima();
 });
@@ -592,6 +604,7 @@ return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '
 };
 
 window.togglePublicar = async (fbId, publicadoActual) => {
+if (esComerciante) return; // Los comerciantes no pueden publicar
 const nuevoEstado = publicadoActual ? false : true;
 await updateDoc(doc(db, "comercios", fbId), { publicado: nuevoEstado });
 };
@@ -600,7 +613,7 @@ onSnapshot(collection(db, "comercios"), (snap) => {
 COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
 window.render();
 
-if(idForzado && esModoAdmin && COMERCIOS.length > 0) {
+if(esComerciante && COMERCIOS.length > 0) {
 const comActual = COMERCIOS.find(x => x.idComercio === idForzado);
 if(comActual) window.edit(null, comActual.fbId);
 }
@@ -636,7 +649,8 @@ matchesFiltro = c.estado !== 'activo';
 matchesFiltro = c.publicado === true;
 }
 
-const matchesForzado = true; // Mostrar TODOS los comercios siempre
+// Si es comerciante, SOLO ve su propio comercio
+const matchesForzado = esComerciante ? (c.idComercio === idForzado) : true;
 
 return matchesSearch && matchesFiltro && matchesForzado;
 });
@@ -655,7 +669,7 @@ box.innerHTML += `
 <div class="visual-side">
 <img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
 <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
-${!idForzado || !esModoAdmin ? `
+${!esComerciante ? `
 <a href="admin_ingreso_duenos.html?id=${displayID}&admin=true" target="_blank" class="btn-directo">VER PANEL</a>
 <button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayID}')">
 <i class="fas fa-link"></i> COPIAR LINK
@@ -709,7 +723,7 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 </div>
 <div class="btn-group">
 <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
-${!idForzado || !esModoAdmin ? `
+${!esComerciante ? `
 <button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
 ${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
 </button>
@@ -752,6 +766,13 @@ window.edit = (event, id) => {
 if(event) event.preventDefault();
 const c = COMERCIOS.find(x => x.fbId === id);
 if(!c) return;
+
+// Si es comerciante, verificar que sea SU comercio
+if (esComerciante && c.idComercio !== idForzado) {
+alert("No tienes permiso para editar otros comercios");
+return;
+}
+
 document.getElementById('edit-id').value = id;
 document.getElementById('nombre-input').value = c.nombre || "";
 document.getElementById('rubro-input').value = c.rubro || "";
@@ -790,9 +811,40 @@ document.getElementById('maps-url').value = c.mapsUrl || "";
 document.getElementById('email-input').value = c.emailDueno || "";
 document.getElementById('password-input').value = c.password || "";
 document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
-document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
+
+// Configurar el formulario según el tipo de usuario
+configurarFormularioParaUsuario();
+
+document.getElementById('titulo-form').innerText = esComerciante ? "📝 EDITAR MI COMERCIO" : "📝 EDITANDO COMERCIO";
 document.getElementById('btn-cancel-edit').style.display = 'block';
 };
+
+function configurarFormularioParaUsuario() {
+if (esComerciante) {
+// Modo comerciante: solo puede editar ciertos campos
+document.getElementById('nombre-input').readOnly = true;
+document.getElementById('rubro-input').readOnly = true;
+document.getElementById('id-input').classList.remove('read-only');
+document.getElementById('id-input').classList.add('read-only-comerciante');
+document.getElementById('token-input').classList.remove('read-only');
+document.getElementById('token-input').classList.add('read-only-comerciante');
+document.getElementById('reporte-input').disabled = true;
+
+// Ocultar opciones de admin
+document.getElementById('btn-cancel-edit').style.display = 'block';
+
+// El título de la sección de sorteos podría mantenerse editable
+} else {
+// Modo admin: todo editable
+document.getElementById('nombre-input').readOnly = false;
+document.getElementById('rubro-input').readOnly = false;
+document.getElementById('id-input').classList.remove('read-only-comerciante');
+document.getElementById('id-input').classList.add('read-only');
+document.getElementById('token-input').classList.remove('read-only-comerciante');
+document.getElementById('token-input').classList.add('read-only');
+document.getElementById('reporte-input').disabled = false;
+}
+}
 
 window.guardar = async () => {
 const passValue = document.getElementById('password-input').value.trim();
@@ -855,6 +907,10 @@ toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;col
 document.body.appendChild(toast);
 setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 } else {
+if (esComerciante) {
+alert("No tienes permiso para crear nuevos comercios");
+return;
+}
 data.estado = "activo";
 data.fechaCarga = Date.now();
 data.lastSubmission = null;
@@ -902,11 +958,22 @@ document.getElementById('maps-url').value = "";
 document.getElementById('rubro-input').value = "";
 document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
 document.getElementById('btn-cancel-edit').style.display = 'none';
+
+// Restaurar permisos de edición (por si acaso)
+document.getElementById('nombre-input').readOnly = false;
+document.getElementById('rubro-input').readOnly = false;
+document.getElementById('id-input').classList.remove('read-only-comerciante');
+document.getElementById('id-input').classList.add('read-only');
+document.getElementById('token-input').classList.remove('read-only-comerciante');
+document.getElementById('token-input').classList.add('read-only');
+document.getElementById('reporte-input').disabled = false;
+
 configurarFechaMinima();
 };
 
 window.genID = () => {
 if(document.getElementById('edit-id').value) return;
+if (esComerciante) return; // Los comerciantes no pueden generar IDs
 const n = document.getElementById('nombre-input').value;
 const id = n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 document.getElementById('id-input').value = id;
@@ -914,16 +981,19 @@ document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000
 };
 
 window.toggleEstado = async (e, id, est) => {
+if (esComerciante) return; // Los comerciantes no pueden pausar/activar
 await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' });
 };
 
 window.del = async (e, id) => {
+if (esComerciante) return; // Los comerciantes no pueden borrar
 if(confirm("¿Borrar comercio?")) await deleteDoc(doc(db, "comercios", id));
 };
 
 window.zoom = (u) => { document.getElementById('modal-img').src = u; document.getElementById('modal').style.display='flex'; };
 
 window.cambiarFiltro = (f, id) => {
+if (esComerciante) return; // Los comerciantes no pueden filtrar
 FILTRO_ESTADO = f;
 document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
 document.getElementById(id).classList.add('active');
