@@ -1195,7 +1195,7 @@
     }
 
     // ===========================================
-    // 5. APROBAR COMERCIO (CON EMAIL DE BIENVENIDA Y CONTRASEÑA TEMPORAL)
+    // 5. APROBAR COMERCIO (VERSIÓN CORREGIDA - PRIMERO GUARDA, DESPUÉS AUTH)
     // ===========================================
     window.aprobarComercio = async () => {
         if (!postulacionActual || tipoActual !== 'comercio') return;
@@ -1211,20 +1211,10 @@
             const idComercio = `${idBase}_${Math.floor(1000 + Math.random() * 9000)}`;
             const tokenQR = `token_${idBase}_${Math.floor(100000 + Math.random() * 899999)}`;
             
-            // 1. Crear cuenta en Firebase Authentication
-            let userCredential;
-            try {
-                userCredential = await createUserWithEmailAndPassword(auth, postulacionActual.email, "123");
-                console.log("✅ Cuenta creada en Auth:", userCredential.user.uid);
-            } catch (authError) {
-                console.error("❌ Error al crear cuenta en Auth:", authError);
-                alert("❌ No se pudo crear la cuenta del usuario. Verificá que el email no esté ya registrado.");
-                return;
-            }
+            console.log("📝 PASO 1: Creando documento del comercio en Firestore...");
             
-            // 2. Guardar en Firestore con el UID
-            await addDoc(collection(db, "comercios"), {
-                uid: userCredential.user.uid, // 👈 NUEVO: UID de Firebase Auth
+            // 1. PRIMERO guardamos el comercio en Firestore (SIN UID)
+            const comercioData = {
                 idComercio: idComercio,
                 nombre: postulacionActual.nombre_comercio,
                 rubro: postulacionActual.rubro,
@@ -1256,12 +1246,43 @@
                 foto_dni_url: postulacionActual.foto_dni_url,
                 foto_selfie_url: postulacionActual.foto_selfie_url,
                 constancia_afip_url: postulacionActual.constancia_afip_url,
-                // 🔐 CONTRASEÑA TEMPORAL (solo para referencia, la real está en Auth)
                 password: "123",
-                // 👥 ROL DEL USUARIO (por defecto comerciante)
                 rol: "comerciante"
-            });
+                // 👈 SIN UID por ahora
+            };
             
+            // Guardamos el comercio y obtenemos su ID
+            const docRef = await addDoc(collection(db, "comercios"), comercioData);
+            console.log("✅ Comercio guardado en Firestore con ID:", docRef.id);
+            
+            // 2. AHORA intentamos crear la cuenta en Firebase Auth
+            console.log("📝 PASO 2: Creando cuenta en Firebase Auth para:", postulacionActual.email);
+            
+            try {
+                const userCredential = await createUserWithEmailAndPassword(auth, postulacionActual.email, "123");
+                console.log("✅ Cuenta creada en Auth. UID:", userCredential.user.uid);
+                
+                // 3. ACTUALIZAMOS el comercio con el UID
+                await updateDoc(docRef, {
+                    uid: userCredential.user.uid
+                });
+                console.log("✅ Comercio actualizado con UID");
+                
+            } catch (authError) {
+                // Si falla Auth, igual el comercio ya se creó en Firestore
+                console.error("⚠️ Error al crear cuenta en Auth (el comercio ya está guardado):", authError);
+                
+                // Guardamos el error en el comercio para referencia
+                await updateDoc(docRef, {
+                    error_auth: authError.code || "Error desconocido",
+                    fecha_error_auth: new Date().toISOString()
+                });
+                
+                // Mostramos advertencia pero NO cancelamos la operación
+                alert(`⚠️ El comercio se guardó correctamente, pero hubo un problema al crear su cuenta de acceso.\n\nEl dueño deberá usar el método tradicional de login (ID + contraseña).`);
+            }
+            
+            // 4. Actualizamos la postulación
             const postulacionRef = doc(db, "postulaciones_comercios", postulacionActual.id);
             await updateDoc(postulacionRef, {
                 estado: "validado",
@@ -1271,7 +1292,7 @@
                 token_qr_generado: tokenQR
             });
             
-            // Enviar email de bienvenida
+            // 5. Enviar email de bienvenida (siempre)
             try {
                 const enviarEmailSetup = httpsCallable(functions, 'enviarEmailSetup');
                 await enviarEmailSetup({
@@ -1288,8 +1309,8 @@
             cerrarModal();
             
         } catch (error) {
-            console.error("Error al aprobar:", error);
-            alert("❌ Error al aprobar el comercio");
+            console.error("❌ Error grave al aprobar:", error);
+            alert("❌ Error al aprobar el comercio. Revisá la consola.");
         }
     };
 
