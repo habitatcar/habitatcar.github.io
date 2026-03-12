@@ -552,6 +552,7 @@
     import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, getDoc, addDoc, deleteDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getStorage, ref, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
+    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -566,6 +567,7 @@
     const db = getFirestore(app);
     const storage = getStorage(app);
     const functions = getFunctions(app);
+    const auth = getAuth(app);
 
     let postulacionActual = null;
     let tipoActual = null;
@@ -1209,7 +1211,20 @@
             const idComercio = `${idBase}_${Math.floor(1000 + Math.random() * 9000)}`;
             const tokenQR = `token_${idBase}_${Math.floor(100000 + Math.random() * 899999)}`;
             
+            // 1. Crear cuenta en Firebase Authentication
+            let userCredential;
+            try {
+                userCredential = await createUserWithEmailAndPassword(auth, postulacionActual.email, "123");
+                console.log("✅ Cuenta creada en Auth:", userCredential.user.uid);
+            } catch (authError) {
+                console.error("❌ Error al crear cuenta en Auth:", authError);
+                alert("❌ No se pudo crear la cuenta del usuario. Verificá que el email no esté ya registrado.");
+                return;
+            }
+            
+            // 2. Guardar en Firestore con el UID
             await addDoc(collection(db, "comercios"), {
+                uid: userCredential.user.uid, // 👈 NUEVO: UID de Firebase Auth
                 idComercio: idComercio,
                 nombre: postulacionActual.nombre_comercio,
                 rubro: postulacionActual.rubro,
@@ -1241,7 +1256,7 @@
                 foto_dni_url: postulacionActual.foto_dni_url,
                 foto_selfie_url: postulacionActual.foto_selfie_url,
                 constancia_afip_url: postulacionActual.constancia_afip_url,
-                // 🔐 CONTRASEÑA TEMPORAL PARA EL COMERCIO
+                // 🔐 CONTRASEÑA TEMPORAL (solo para referencia, la real está en Auth)
                 password: "123",
                 // 👥 ROL DEL USUARIO (por defecto comerciante)
                 rol: "comerciante"
