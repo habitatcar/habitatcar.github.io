@@ -619,44 +619,8 @@ if(comActual) window.edit(null, comActual.fbId);
 }
 });
 
-window.render = () => {
-const masterSearchInput = document.getElementById('masterSearch');
-const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+function mostrarComercio(c) {
 const box = document.getElementById('lista-comercios');
-if(!box) return;
-box.innerHTML = "";
-
-// Calcular contadores
-const totalComercios = COMERCIOS.length;
-const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
-const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
-const publicados = COMERCIOS.filter(x => x.publicado === true).length;
-
-document.getElementById('count-total').innerText = totalComercios;
-document.getElementById('count-act').innerText = activos;
-document.getElementById('count-inact').innerText = inactivos;
-document.getElementById('count-pub').innerText = publicados;
-
-// Filtrar según selección
-let filtrados = COMERCIOS.filter(c => {
-const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-const matchesSearch = term === "" || searchStr.includes(term);
-let matchesFiltro = true;
-
-if (FILTRO_ESTADO === 'inactivo') {
-matchesFiltro = c.estado !== 'activo';
-} else if (FILTRO_ESTADO === 'publicado') {
-matchesFiltro = c.publicado === true;
-}
-
-// Si es comerciante, SOLO ve su propio comercio
-const matchesForzado = esComerciante ? (c.idComercio === idForzado) : true;
-
-return matchesSearch && matchesFiltro && matchesForzado;
-});
-
-filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
-filtrados.forEach(c => {
 const estaActivo = c.estado === 'activo';
 const publicado = c.publicado === true;
 const displayID = c.idComercio || c.id || "SIN-ID";
@@ -731,7 +695,7 @@ ${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
 ${publicado ? 'PUBLICADO ✓' : 'PUBLICAR'}
 </button>
 <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
-`: ''}
+` : ''}
 <div class="social-box">
 ${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
 ${c.facebook ? `<a href="${c.facebook}" target="_blank" class="social-link bg-fb"><i class="fab fa-facebook-f"></i></a>` : ''}
@@ -743,7 +707,54 @@ ${c.mapsUrl ? `<a href="${c.mapsUrl}" target="_blank" class="social-link" style=
 </div>
 </div>
 </div>`;
+}
+
+window.render = () => {
+const box = document.getElementById('lista-comercios');
+if(!box) return;
+box.innerHTML = "";
+
+// SI ES COMERCIANTE: solo muestra su comercio
+if (esComerciante) {
+const miComercio = COMERCIOS.find(c => c.idComercio === idForzado);
+if (miComercio) {
+mostrarComercio(miComercio);
+} else {
+box.innerHTML = '<p class="text-center p-8 text-gray-400">No se encontró tu comercio</p>';
+}
+return;
+}
+
+// SI ES ADMIN: calcula contadores y filtra
+const masterSearchInput = document.getElementById('masterSearch');
+const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+
+const totalComercios = COMERCIOS.length;
+const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
+const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
+const publicados = COMERCIOS.filter(x => x.publicado === true).length;
+
+document.getElementById('count-total').innerText = totalComercios;
+document.getElementById('count-act').innerText = activos;
+document.getElementById('count-inact').innerText = inactivos;
+document.getElementById('count-pub').innerText = publicados;
+
+let filtrados = COMERCIOS.filter(c => {
+const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const matchesSearch = term === "" || searchStr.includes(term);
+let matchesFiltro = true;
+
+if (FILTRO_ESTADO === 'inactivo') {
+matchesFiltro = c.estado !== 'activo';
+} else if (FILTRO_ESTADO === 'publicado') {
+matchesFiltro = c.publicado === true;
+}
+
+return matchesSearch && matchesFiltro;
 });
+
+filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
+filtrados.forEach(c => mostrarComercio(c));
 };
 
 window.previsualizarSorteos = (id, nombre) => {
@@ -813,13 +824,6 @@ document.getElementById('password-input').value = c.password || "";
 document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
 
 // Configurar el formulario según el tipo de usuario
-configurarFormularioParaUsuario();
-
-document.getElementById('titulo-form').innerText = esComerciante ? "📝 EDITAR MI COMERCIO" : "📝 EDITANDO COMERCIO";
-document.getElementById('btn-cancel-edit').style.display = 'block';
-};
-
-function configurarFormularioParaUsuario() {
 if (esComerciante) {
 // Modo comerciante: solo puede editar ciertos campos
 document.getElementById('nombre-input').readOnly = true;
@@ -829,11 +833,7 @@ document.getElementById('id-input').classList.add('read-only-comerciante');
 document.getElementById('token-input').classList.remove('read-only');
 document.getElementById('token-input').classList.add('read-only-comerciante');
 document.getElementById('reporte-input').disabled = true;
-
-// Ocultar opciones de admin
-document.getElementById('btn-cancel-edit').style.display = 'block';
-
-// El título de la sección de sorteos podría mantenerse editable
+document.getElementById('titulo-form').innerText = "📝 EDITAR MI COMERCIO";
 } else {
 // Modo admin: todo editable
 document.getElementById('nombre-input').readOnly = false;
@@ -843,8 +843,11 @@ document.getElementById('id-input').classList.add('read-only');
 document.getElementById('token-input').classList.remove('read-only-comerciante');
 document.getElementById('token-input').classList.add('read-only');
 document.getElementById('reporte-input').disabled = false;
+document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
 }
-}
+
+document.getElementById('btn-cancel-edit').style.display = 'block';
+};
 
 window.guardar = async () => {
 const passValue = document.getElementById('password-input').value.trim();
