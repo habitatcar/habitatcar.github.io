@@ -14,10 +14,10 @@
         .bg-dorado { background-color: var(--dorado); }
         .border-dorado { border-color: var(--dorado); }
         
-        .titulo-especial {
-            color: #0033ff; 
-            -webkit-text-stroke: 2px white;
-            text-shadow: 0 0 10px rgba(0, 51, 255, 0.3);
+        .titulo-blanco {
+            color: white;
+            font-weight: 900;
+            letter-spacing: -0.02em;
         }
 
         .contenedor-tabla {
@@ -64,22 +64,35 @@
 <div id="customAlert"></div>
 
     <div id="pdf-content" class="max-w-5xl mx-auto">
-        <header class="text-center mb-8">
-            <div class="border-b-2 border-dorado pb-6 mb-4">
-                <h1 class="text-4xl font-black tracking-tighter italic titulo-especial">HABITAT-CAR</h1>
+        <header class="flex items-center gap-4 mb-8 border-b-2 border-dorado pb-6">
+            <!-- LOGO A LA IZQUIERDA -->
+            <div class="w-20 h-20 bg-blue-600 rounded-full flex items-center justify-center text-white font-black text-2xl shadow-[0_0_15px_rgba(37,99,235,0.5)]">
+                HC
+            </div>
+            <div class="flex-1">
+                <h1 class="text-4xl font-black tracking-tighter italic titulo-blanco">HABITAT-CAR</h1>
                 <p class="text-dorado font-bold uppercase tracking-widest text-sm mt-1">NEGOCIOS INMOBILIARIOS y GESTIONES DEL AUTOMOTOR</p>
             </div>
+        </header>
+
+        <div class="text-center mb-4">
             <p id="nombreComercioDinamico" class="text-dorado font-bold uppercase tracking-widest text-lg mt-2"></p>
             <p class="text-gray-400 font-semibold uppercase tracking-widest text-xs">Acceso Privado para Propietarios</p>
-        </header>
+        </div>
 
         <div id="loginBox" class="bg-gray-900 p-6 rounded-2xl border border-dorado mb-8 shadow-2xl">
             <h2 class="text-dorado font-bold mb-4 uppercase text-center">Identificación de Comercio</h2>
-            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <input type="text" id="comercioId" placeholder="ID de Usuario (ej: opticaelmiron)" 
-                    class="bg-black border-2 border-gray-800 focus:border-dorado outline-none p-4 rounded-xl text-white transition-all text-sm">
+            <div class="grid grid-cols-1 gap-4">
+                <div>
+                    <input type="text" id="comercioId" placeholder="ID de Usuario (ej: opticaelmiron)" 
+                        class="w-full bg-black border-2 border-gray-800 focus:border-dorado outline-none p-4 rounded-xl text-white transition-all text-sm">
+                    <div class="flex items-center mt-2 ml-1">
+                        <input type="checkbox" id="recordarId" class="mr-2 w-4 h-4 accent-dorado">
+                        <label for="recordarId" class="text-gray-300 text-sm">Recordar mi ID en este equipo</label>
+                    </div>
+                </div>
                 <input type="password" id="comercioPass" placeholder="Contraseña" 
-                    class="bg-black border-2 border-gray-800 focus:border-dorado outline-none p-4 rounded-xl text-white transition-all text-sm">
+                    class="w-full bg-black border-2 border-gray-800 focus:border-dorado outline-none p-4 rounded-xl text-white transition-all text-sm">
             </div>
             <button onclick="validarYConsultar()" 
                 class="w-full mt-4 bg-dorado text-black font-black py-4 rounded-xl hover:bg-yellow-500 transition-all uppercase">
@@ -186,13 +199,30 @@
                 setTimeout(() => { box.style.display = 'none'; }, 3000);
             };
 
+            // === CARGAR ID GUARDADO AL INICIAR ===
+            window.addEventListener('DOMContentLoaded', () => {
+                const idGuardado = localStorage.getItem('habitatcar_id_recordado');
+                if (idGuardado) {
+                    document.getElementById('comercioId').value = idGuardado;
+                    document.getElementById('recordarId').checked = true;
+                }
+            });
+
             window.validarYConsultar = async () => {
                 const cid = document.getElementById('comercioId').value.trim();
                 const pass = document.getElementById('comercioPass').value.trim();
+                const recordar = document.getElementById('recordarId').checked;
                 
                 if(!cid || !pass) {
                     mostrarErrorAuditor("⚠️ ACCESO DENEGADO: COMPLETE LAS CREDENCIALES");
                     return;
+                }
+
+                // Guardar ID si el checkbox está marcado
+                if (recordar) {
+                    localStorage.setItem('habitatcar_id_recordado', cid);
+                } else {
+                    localStorage.removeItem('habitatcar_id_recordado');
                 }
 
                 try {
