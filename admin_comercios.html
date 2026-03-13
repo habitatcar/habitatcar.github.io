@@ -410,13 +410,13 @@ min-height: 60px;
 </div>
 <input type="text" id="detalle-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
 
-<!-- NUEVO: REDES SOCIALES AGRUPADAS -->
-<details style="background: rgba(0,74,153,0.1); border: 1px solid var(--celeste-habitat); border-radius: 10px; margin-top: 15px; overflow: hidden;">
-<summary style="padding: 12px; cursor: pointer; font-weight: bold; color: var(--celeste-habitat); display: flex; justify-content: space-between; align-items: center; list-style: none;">
+<!-- REDES SOCIALES AGRUPADAS - COLOR CORREGIDO -->
+<details style="background: rgba(212, 175, 55, 0.15); border: 1px solid var(--dorado); border-radius: 10px; margin-top: 15px; overflow: hidden;">
+<summary style="padding: 12px; cursor: pointer; font-weight: bold; color: var(--dorado); display: flex; justify-content: space-between; align-items: center; list-style: none; background: rgba(0,0,0,0.3);">
 <span>🌐 REDES SOCIALES Y SITIO WEB</span>
-<i class="fas fa-chevron-down"></i>
+<i class="fas fa-chevron-down" style="color: var(--dorado);"></i>
 </summary>
-<div class="form-grid" style="padding: 15px; border-top: 1px solid rgba(0,74,153,0.2);">
+<div class="form-grid" style="padding: 15px; border-top: 1px solid rgba(212,175,55,0.2);">
 <div class="form-group">
 <label><i class="fab fa-facebook-f"></i> URL FACEBOOK</label>
 <input type="text" id="facebook-input" placeholder="https://facebook.com/tucomercio">
@@ -623,11 +623,9 @@ onAuthStateChanged(auth, (user) => {
 usuarioActual = user;
 autenticacionResuelta = true;
 if (user) {
-// Es un comerciante autenticado
-esAdmin = user.email === "lorenxi@gmail.com"; // Tu email de admin
+esAdmin = user.email === "lorenxi@gmail.com";
 console.log("Usuario autenticado:", user.email, "esAdmin:", esAdmin);
 } else {
-// No hay usuario autenticado
 console.log("No hay usuario autenticado");
 esAdmin = false;
 }
@@ -635,7 +633,7 @@ quitarCapaSeguridad();
 window.render();
 });
 
-// Si después de 3 segundos no hay auth, igual quitamos capa (modo legado)
+// Timeout de seguridad
 setTimeout(() => {
 if (!autenticacionResuelta) {
 console.log("Timeout de autenticación - modo legado");
@@ -663,9 +661,6 @@ const displayID = c.idComercio || c.id || "SIN-ID";
 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
 const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
 const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
-
-// Determinar el texto del botón de publicar según el estado
-const publicarTexto = publicado ? 'PUBLICADO ✓' : 'NO PUBLICADO';
 
 box.innerHTML += `
 <div class="comercio-card ${estaActivo ? '' : 'inactive'}">
@@ -727,10 +722,13 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 <div class="btn-group">
 <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
 ${!esAdmin ? '' : `
-<button class="btn-publicar ${publicado ? 'publicado' : ''}" onclick="window.togglePublicar('${c.fbId}', ${publicado})">
-${publicarTexto}
+<button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
+${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
 </button>
-<button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">ELIMINAR</button>
+<button class="btn-publicar ${publicado ? 'publicado' : ''}" onclick="window.togglePublicar('${c.fbId}', ${publicado})">
+${publicado ? 'PUBLICADO ✓' : 'PUBLICAR'}
+</button>
+<button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
 `}
 <div class="social-box">
 ${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
@@ -752,6 +750,10 @@ box.innerHTML = "";
 
 // SI HAY USUARIO AUTENTICADO Y NO ES ADMIN
 if (usuarioActual && !esAdmin && usuarioActual.uid !== "legacy") {
+// Ocultar menú y faja para comerciantes
+document.getElementById('nav-menu-principal').style.display = 'none';
+document.getElementById('faja-herramientas').style.display = 'none';
+
 // Comerciante: muestra SOLO sus comercios (por uid)
 const misComercios = COMERCIOS.filter(c => c.uid === usuarioActual.uid);
 if (misComercios.length > 0) {
@@ -763,6 +765,10 @@ return;
 }
 
 // SI ES ADMIN o modo legado: muestra todos con filtros
+// Asegurar que el menú y faja estén visibles para admin
+document.getElementById('nav-menu-principal').style.display = 'flex';
+document.getElementById('faja-herramientas').style.display = 'flex';
+
 const masterSearchInput = document.getElementById('masterSearch');
 const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 
@@ -815,7 +821,6 @@ if(event) event.preventDefault();
 const c = COMERCIOS.find(x => x.fbId === id);
 if(!c) return;
 
-// Si es comerciante, verificar que sea SU comercio
 if (usuarioActual && !esAdmin && c.uid !== usuarioActual.uid) {
 alert("No tienes permiso para editar otros comercios");
 return;
@@ -860,9 +865,7 @@ document.getElementById('email-input').value = c.emailDueno || "";
 document.getElementById('password-input').value = c.password || "";
 document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
 
-// Configurar el formulario según el tipo de usuario
 if (usuarioActual && !esAdmin) {
-// Modo comerciante: solo puede editar ciertos campos
 document.getElementById('nombre-input').readOnly = true;
 document.getElementById('rubro-input').readOnly = true;
 document.getElementById('id-input').classList.remove('read-only');
@@ -872,7 +875,6 @@ document.getElementById('token-input').classList.add('read-only-comerciante');
 document.getElementById('reporte-input').disabled = true;
 document.getElementById('titulo-form').innerText = "📝 EDITAR MI COMERCIO";
 } else {
-// Modo admin: todo editable
 document.getElementById('nombre-input').readOnly = false;
 document.getElementById('rubro-input').readOnly = false;
 document.getElementById('id-input').classList.remove('read-only-comerciante');
@@ -999,7 +1001,6 @@ document.getElementById('rubro-input').value = "";
 document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
 document.getElementById('btn-cancel-edit').style.display = 'none';
 
-// Restaurar permisos de edición (por si acaso)
 document.getElementById('nombre-input').readOnly = false;
 document.getElementById('rubro-input').readOnly = false;
 document.getElementById('id-input').classList.remove('read-only-comerciante');
@@ -1013,7 +1014,7 @@ configurarFechaMinima();
 
 window.genID = () => {
 if(document.getElementById('edit-id').value) return;
-if (usuarioActual && !esAdmin) return; // Los comerciantes no pueden generar IDs
+if (usuarioActual && !esAdmin) return;
 const n = document.getElementById('nombre-input').value;
 const id = n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 document.getElementById('id-input').value = id;
@@ -1021,20 +1022,25 @@ document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000
 };
 
 window.togglePublicar = async (fbId, publicadoActual) => {
-if (!esAdmin) return; // Solo admin puede publicar
+if (!esAdmin) return;
 const nuevoEstado = publicadoActual ? false : true;
 await updateDoc(doc(db, "comercios", fbId), { publicado: nuevoEstado });
 };
 
+window.toggleEstado = async (e, id, est) => {
+if (!esAdmin) return;
+await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' });
+};
+
 window.del = async (e, id) => {
-if (!esAdmin) return; // Solo admin puede borrar
-if(confirm("¿Eliminar comercio?")) await deleteDoc(doc(db, "comercios", id));
+if (!esAdmin) return;
+if(confirm("¿Borrar comercio?")) await deleteDoc(doc(db, "comercios", id));
 };
 
 window.zoom = (u) => { document.getElementById('modal-img').src = u; document.getElementById('modal').style.display='flex'; };
 
 window.cambiarFiltro = (f, id) => {
-if (!esAdmin) return; // Los comerciantes no pueden filtrar
+if (!esAdmin) return;
 FILTRO_ESTADO = f;
 document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
 document.getElementById(id).classList.add('active');
