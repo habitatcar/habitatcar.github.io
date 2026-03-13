@@ -533,7 +533,7 @@ min-height: 60px;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -551,9 +551,9 @@ const auth = getAuth(app);
 
 let COMERCIOS = [];
 let FILTRO_ESTADO = 'todos';
-let usuarioActual = null;
-let esAdmin = false;
-let autenticacionResuelta = false;
+
+// 🔥 MODO PRUEBA: Forzamos admin para que se vean todos los botones
+let esAdmin = true;
 
 async function subirLogoAFirebase(archivo) {
 if (!archivo) return null;
@@ -612,47 +612,16 @@ ciudadSelect.innerHTML = '<option value="">Error al cargar</option>';
 }
 };
 
-// Quitar capa de seguridad
+// Quitar capa de seguridad inmediatamente
 function quitarCapaSeguridad() {
 const capa = document.getElementById('capa-seguridad');
 if (capa) capa.style.display = 'none';
 }
-
-// Verificar autenticación
-onAuthStateChanged(auth, (user) => {
-usuarioActual = user;
-autenticacionResuelta = true;
-if (user) {
-// Lista de admins (podés agregar más emails separados por coma)
-const admins = ["lorenxi@gmail.com", "admin@habitatcar.com"];
-esAdmin = admins.includes(user.email);
-console.log("Usuario autenticado:", user.email, "esAdmin:", esAdmin);
-} else {
-console.log("No hay usuario autenticado");
-esAdmin = false;
-}
 quitarCapaSeguridad();
-window.render();
-});
-
-// Timeout de seguridad
-setTimeout(() => {
-if (!autenticacionResuelta) {
-console.log("Timeout de autenticación - modo legado");
-if (idForzado && esModoAdmin) {
-usuarioActual = { uid: "legacy" };
-esAdmin = true;
-}
-quitarCapaSeguridad();
-window.render();
-}
-}, 3000);
 
 onSnapshot(collection(db, "comercios"), (snap) => {
 COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
-if (autenticacionResuelta || idForzado) {
 window.render();
-}
 });
 
 function mostrarComercio(c) {
@@ -660,4 +629,365 @@ const box = document.getElementById('lista-comercios');
 const estaActivo = c.estado === 'activo';
 const publicado = c.publicado === true;
 const displayID = c.idComercio || c.id || "SIN-ID";
-const qr = `https://api.q
+const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
+const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
+const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
+
+box.innerHTML += `
+<div class="comercio-card ${estaActivo ? '' : 'inactive'}">
+<div class="visual-side">
+<img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
+<img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
+${!esAdmin ? '' : `
+<a href="admin_ingreso_duenos.html?id=${displayID}&admin=true" target="_blank" class="btn-directo">VER PANEL</a>
+<button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayID}')">
+<i class="fas fa-link"></i> COPIAR LINK
+</button>
+<button class="btn-preview-sorteos" onclick="window.previsualizarSorteos('${displayID}', '${c.nombre}')">
+<i class="fas fa-eye"></i> PREVISUALIZAR SORTEOS Y PROMOS
+</button>
+`}
+</div>
+<div class="info-side">
+<div class="comercio-header">
+<h2 class="comercio-title">${c.nombre || 'Sin Nombre'}</h2>
+${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
+</div>
+<div class="data-grid">
+<div class="data-box"><b>ID SISTEMA</b><span style="color: #a0d2ff; font-weight: 600;">${displayID}</span></div>
+<div class="data-box"><b>Token QR</b><span style="color: #a0d2ff; font-weight: 600;">${c.tokenQR || '-'}</span></div>
+<div class="data-box"><b>Reporte</b><span style="color: #a0d2ff; font-weight: 600;">${c.frecuenciaReporte || 'Semanal'}</span></div>
+<div style="display: flex; flex-direction: column; gap: 8px; justify-content: center;">
+<div style="font-size: 0.85em;">
+<b style="color: #ffffff;">WhatsApp:</b>
+<span style="color: #a0d2ff; font-weight: 600;">${c.telefono || '-'}</span>
+</div>
+<div style="font-size: 0.85em;">
+<b style="color: #ffffff;">Último Envío:</b>
+<span style="color: #a0d2ff; font-weight: 600;">${formatearFecha(c.lastSubmission)}</span>
+</div>
+</div>
+<div class="data-box benefit-box" style="grid-column: span 2;">
+<b>LEAD</b>
+<span class="highlight-ben">${descLeadDisplay} ${c.detalleLead || ''}</span>
+</div>
+<div class="data-box benefit-box" style="grid-column: span 2;">
+<b>VIP</b>
+<span class="highlight-ben" style="color:var(--oro)!important">${descVipDisplay} ${c.detalleVip || ''}</span>
+</div>
+<div style="grid-column: span 2; padding: 8px 12px; background: rgba(0,0,0,0.15); border-radius: 8px; margin-top: 4px; font-size: 0.85em; color: var(--blanco-suave); display: flex; align-items: center; gap: 10px;">
+<span><b style="color: #00d4ff;">USOS ASIGNADOS:</b> ${(c.usosLead == 0 || c.usosLead == null) ? 'ILIMITADO' : c.usosLead}</span>
+<span style="color: rgba(255,255,255,0.4);">|</span>
+<span><b style="color: #00d4ff;">VIGENCIA:</b> ${String(c.vigenciaLead || 'ilimitada').toLowerCase()}</span>
+</div>
+<div style="grid-column: span 2; padding: 8px 12px; background: rgba(0,0,0,0.15); border-radius: 8px; margin-top: 4px; font-size: 0.85em; color: var(--blanco-suave); display: flex; align-items: center; gap: 10px;">
+<span><b style="color: var(--oro);">USOS ASIGNADOS:</b> ${(c.usosVip == 0 || c.usosVip == null) ? 'ILIMITADO' : c.usosVip}</span>
+<span style="color: rgba(255,255,255,0.4);">|</span>
+<span><b style="color: var(--oro);">VIGENCIA:</b> ${String(c.vigenciaVip || 'ilimitada').toLowerCase()}</span>
+</div>
+<div style="grid-column: span 4; padding: 8px 12px; background: rgba(0,0,0,0); border-radius: 8px; margin-top: 4px; font-size: 0.85em; color: var(--blanco-suave); display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+<div><b style="color: #cbd5e0;">DIRECCIÓN:</b> <span>${c.direccion || '-'}</span></div>
+<div><b style="color: #cbd5e0;">UBICACIÓN:</b> <span>${c.ciudad || '-'} (${c.provincia || '-'})</span></div>
+</div>
+</div>
+<div class="btn-group">
+<button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
+${!esAdmin ? '' : `
+<button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
+${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
+</button>
+<button class="btn-publicar ${publicado ? 'publicado' : ''}" onclick="window.togglePublicar('${c.fbId}', ${publicado})">
+${publicado ? 'PUBLICADO ✓' : 'PUBLICAR'}
+</button>
+<button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
+`}
+<div class="social-box">
+${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
+${c.facebook ? `<a href="${c.facebook}" target="_blank" class="social-link bg-fb"><i class="fab fa-facebook-f"></i></a>` : ''}
+${c.instagram ? `<a href="${c.instagram}" target="_blank" class="social-link bg-ig"><i class="fab fa-instagram"></i></a>` : ''}
+${c.web ? `<a href="${c.web}" target="_blank" class="social-link bg-tk"><i class="fab fa-tiktok"></i></a>` : ''}
+${c.sitioWeb ? `<a href="${c.sitioWeb}" target="_blank" class="social-link bg-web"><i class="fas fa-globe"></i></a>` : ''}
+${c.mapsUrl ? `<a href="${c.mapsUrl}" target="_blank" class="social-link" style="background:#4CAF50;color:white;"><i class="fas fa-map-marker-alt"></i></a>` : ''}
+</div>
+</div>
+</div>
+</div>`;
+}
+
+window.render = () => {
+const box = document.getElementById('lista-comercios');
+if(!box) return;
+box.innerHTML = "";
+
+// Mostrar todos los comercios sin filtrar por usuario
+const masterSearchInput = document.getElementById('masterSearch');
+const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+
+const totalComercios = COMERCIOS.length;
+const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
+const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
+const publicados = COMERCIOS.filter(x => x.publicado === true).length;
+
+document.getElementById('count-total').innerText = totalComercios;
+document.getElementById('count-act').innerText = activos;
+document.getElementById('count-inact').innerText = inactivos;
+document.getElementById('count-pub').innerText = publicados;
+
+let filtrados = COMERCIOS.filter(c => {
+const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const matchesSearch = term === "" || searchStr.includes(term);
+let matchesFiltro = true;
+
+if (FILTRO_ESTADO === 'inactivo') {
+matchesFiltro = c.estado !== 'activo';
+} else if (FILTRO_ESTADO === 'publicado') {
+matchesFiltro = c.publicado === true;
+}
+
+return matchesSearch && matchesFiltro;
+});
+
+filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
+filtrados.forEach(c => mostrarComercio(c));
+};
+
+window.previsualizarSorteos = (id, nombre) => {
+window.open(`usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`, '_blank');
+};
+
+window.copiarLinkDirecto = (id) => {
+const urlBase = window.location.origin + window.location.pathname.replace('admin_comercios.html', '');
+const urlFinal = `${urlBase}admin_ingreso_duenos.html?id=${id}&admin=true`;
+navigator.clipboard.writeText(urlFinal).then(() => {
+const toast = document.createElement('div');
+toast.textContent = '✅ Link copiado';
+toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;font-size:0.9em;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:opacity 0.3s ease;';
+document.body.appendChild(toast);
+setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2000);
+});
+};
+
+window.edit = (event, id) => {
+if(event) event.preventDefault();
+const c = COMERCIOS.find(x => x.fbId === id);
+if(!c) return;
+
+document.getElementById('edit-id').value = id;
+document.getElementById('nombre-input').value = c.nombre || "";
+document.getElementById('rubro-input').value = c.rubro || "";
+document.getElementById('id-input').value = c.idComercio || "";
+document.getElementById('token-input').value = c.tokenQR || "";
+document.getElementById('logo-url-actual').value = c.logoUrl || "";
+document.getElementById('logo-file').value = "";
+document.getElementById('desc-lead').value = c.descLead || "";
+document.getElementById('detalle-lead').value = c.detalleLead || "";
+document.getElementById('desc-vip').value = c.descVip || "";
+document.getElementById('detalle-vip').value = c.detalleVip || "";
+document.getElementById('usos-lead').value = c.usosLead || 1;
+document.getElementById('vigencia-lead').value = c.vigenciaLead || "";
+document.getElementById('usos-vip').value = c.usosVip || 0;
+document.getElementById('vigencia-vip').value = c.vigenciaVip || "";
+document.getElementById('titulo_sorteo').value = c.titulo_sorteo || "";
+document.getElementById('descripcion_sorteo').value = c.descripcion_sorteo || "";
+document.getElementById('cantidad_premios').value = c.cantidad_premios || 1;
+if (c.fecha_sorteo) {
+document.getElementById('fecha_sorteo').value = c.fecha_sorteo;
+}
+document.getElementById('titulo_promo').value = c.titulo_promo || "";
+document.getElementById('descripcion_promo').value = c.descripcion_promo || "";
+if (c.promo_vence) {
+document.getElementById('promo_vence').value = c.promo_vence;
+}
+document.getElementById('direccion-input').value = c.direccion || "";
+document.getElementById('provincia-input').value = c.provincia || "";
+window.actualizarLocalidades(c.ciudad);
+document.getElementById('telefono-input').value = c.telefono || "";
+document.getElementById('facebook-input').value = c.facebook || "";
+document.getElementById('instagram-input').value = c.instagram || "";
+document.getElementById('web-input').value = c.web || "";
+document.getElementById('sitio-web-input').value = c.sitioWeb || "";
+document.getElementById('maps-url').value = c.mapsUrl || "";
+document.getElementById('email-input').value = c.emailDueno || "";
+document.getElementById('password-input').value = c.password || "";
+document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
+
+// Por ahora todo editable
+document.getElementById('nombre-input').readOnly = false;
+document.getElementById('rubro-input').readOnly = false;
+document.getElementById('id-input').classList.remove('read-only-comerciante');
+document.getElementById('id-input').classList.add('read-only');
+document.getElementById('token-input').classList.remove('read-only-comerciante');
+document.getElementById('token-input').classList.add('read-only');
+document.getElementById('reporte-input').disabled = false;
+document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
+
+document.getElementById('btn-cancel-edit').style.display = 'block';
+};
+
+window.guardar = async () => {
+const passValue = document.getElementById('password-input').value.trim();
+if (!passValue) {
+alert("⚠️ Debes ingresar una contraseña para el dueño.");
+return;
+}
+const nombre = document.getElementById('nombre-input').value.trim();
+const telefono = document.getElementById('telefono-input').value.trim();
+if (!nombre || !telefono) {
+alert("⚠️ Completa Nombre y WhatsApp.");
+return;
+}
+
+const eid = document.getElementById('edit-id').value;
+
+const data = {
+nombre: nombre,
+rubro: document.getElementById('rubro-input').value.trim(),
+idComercio: document.getElementById('id-input').value,
+tokenQR: document.getElementById('token-input').value,
+descLead: document.getElementById('desc-lead').value,
+detalleLead: document.getElementById('detalle-lead').value,
+descVip: document.getElementById('desc-vip').value,
+detalleVip: document.getElementById('detalle-vip').value,
+usosLead: document.getElementById('usos-lead').value,
+vigenciaLead: document.getElementById('vigencia-lead').value,
+usosVip: document.getElementById('usos-vip').value,
+vigenciaVip: document.getElementById('vigencia-vip').value,
+titulo_sorteo: document.getElementById('titulo_sorteo').value.trim(),
+descripcion_sorteo: document.getElementById('descripcion_sorteo').value.trim(),
+cantidad_premios: parseInt(document.getElementById('cantidad_premios').value) || 1,
+fecha_sorteo: document.getElementById('fecha_sorteo').value,
+titulo_promo: document.getElementById('titulo_promo').value.trim(),
+descripcion_promo: document.getElementById('descripcion_promo').value.trim(),
+promo_vence: document.getElementById('promo_vence').value,
+direccion: document.getElementById('direccion-input').value,
+provincia: document.getElementById('provincia-input').value,
+ciudad: document.getElementById('ciudad-input').value,
+telefono: telefono,
+facebook: document.getElementById('facebook-input').value,
+instagram: document.getElementById('instagram-input').value,
+web: document.getElementById('web-input').value,
+sitioWeb: document.getElementById('sitio-web-input').value,
+mapsUrl: document.getElementById('maps-url').value.trim(),
+emailDueno: document.getElementById('email-input').value,
+password: passValue,
+frecuenciaReporte: document.getElementById('reporte-input').value,
+publicado: false
+};
+
+try {
+let docRef;
+if (eid) {
+await updateDoc(doc(db, "comercios", eid), data);
+docRef = doc(db, "comercios", eid);
+const toast = document.createElement('div');
+toast.textContent = '✅ ¡Ficha actualizada!';
+toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;font-size:0.9em;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:opacity 0.3s ease;';
+document.body.appendChild(toast);
+setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+} else {
+data.estado = "activo";
+data.fechaCarga = Date.now();
+data.lastSubmission = null;
+docRef = await addDoc(collection(db, "comercios"), data);
+const toast = document.createElement('div');
+toast.textContent = '✅ Ficha creada con éxito';
+toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;font-size:0.9em;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.3);transition:opacity 0.3s ease;';
+document.body.appendChild(toast);
+setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
+}
+
+const file = document.getElementById('logo-file').files[0];
+if (file) {
+const logoUrl = await subirLogoAFirebase(file);
+if (logoUrl) await updateDoc(docRef, { logoUrl });
+}
+window.clear();
+} catch(e) {
+console.error("Error al guardar:", e);
+alert("❌ Error al guardar");
+}
+};
+
+window.clear = () => {
+document.getElementById('edit-id').value = "";
+document.querySelectorAll('.sidebar input, .sidebar textarea').forEach(i => {
+if (i.type !== 'file') i.value = "";
+});
+document.getElementById('logo-file').value = "";
+document.getElementById('provincia-input').value = "";
+document.getElementById('ciudad-input').innerHTML = '<option value="">Ciudad / Localidad</option>';
+document.getElementById('usos-lead').value = "1";
+document.getElementById('vigencia-lead').value = "";
+document.getElementById('usos-vip').value = "0";
+document.getElementById('vigencia-vip').value = "";
+document.getElementById('titulo_sorteo').value = "";
+document.getElementById('descripcion_sorteo').value = "";
+document.getElementById('cantidad_premios').value = "1";
+document.getElementById('fecha_sorteo').value = "";
+document.getElementById('titulo_promo').value = "";
+document.getElementById('descripcion_promo').value = "";
+document.getElementById('promo_vence').value = "";
+document.getElementById('direccion-input').value = "";
+document.getElementById('maps-url').value = "";
+document.getElementById('rubro-input').value = "";
+document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
+document.getElementById('btn-cancel-edit').style.display = 'none';
+
+document.getElementById('nombre-input').readOnly = false;
+document.getElementById('rubro-input').readOnly = false;
+document.getElementById('id-input').classList.remove('read-only-comerciante');
+document.getElementById('id-input').classList.add('read-only');
+document.getElementById('token-input').classList.remove('read-only-comerciante');
+document.getElementById('token-input').classList.add('read-only');
+document.getElementById('reporte-input').disabled = false;
+
+configurarFechaMinima();
+};
+
+window.genID = () => {
+if(document.getElementById('edit-id').value) return;
+const n = document.getElementById('nombre-input').value;
+const id = n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
+document.getElementById('id-input').value = id;
+document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000 + Math.random() * 899999) : "";
+};
+
+window.togglePublicar = async (fbId, publicadoActual) => {
+if (!esAdmin) return;
+const nuevoEstado = publicadoActual ? false : true;
+await updateDoc(doc(db, "comercios", fbId), { publicado: nuevoEstado });
+};
+
+window.toggleEstado = async (e, id, est) => {
+if (!esAdmin) return;
+await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' });
+};
+
+window.del = async (e, id) => {
+if (!esAdmin) return;
+if(confirm("¿Borrar comercio?")) await deleteDoc(doc(db, "comercios", id));
+};
+
+window.zoom = (u) => { document.getElementById('modal-img').src = u; document.getElementById('modal').style.display='flex'; };
+
+window.cambiarFiltro = (f, id) => {
+if (!esAdmin) return;
+FILTRO_ESTADO = f;
+document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
+document.getElementById(id).classList.add('active');
+window.render();
+};
+
+const formatearFecha = (ts) => {
+if (!ts) return "Sin envíos";
+try {
+if (typeof ts === 'string') return ts;
+let fecha = ts.toDate ? ts.toDate() : new Date(Number(ts));
+return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+} catch (e) { return "---"; }
+};
+
+window.addEventListener('load', configurarFechaMinima);
+</script>
+</body>
+</html>
