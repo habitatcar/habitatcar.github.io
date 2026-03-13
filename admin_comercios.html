@@ -533,7 +533,7 @@ min-height: 60px;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -551,9 +551,9 @@ const auth = getAuth(app);
 
 let COMERCIOS = [];
 let FILTRO_ESTADO = 'todos';
-
-// 🔥 MODO PRUEBA: Forzamos admin para que se vean todos los botones
-let esAdmin = true;
+let usuarioActual = null;
+let esAdmin = false;
+let autenticacionResuelta = false;
 
 async function subirLogoAFirebase(archivo) {
 if (!archivo) return null;
@@ -612,19 +612,48 @@ ciudadSelect.innerHTML = '<option value="">Error al cargar</option>';
 }
 };
 
-// Quitar capa de seguridad inmediatamente
+// Quitar capa de seguridad
 function quitarCapaSeguridad() {
 const capa = document.getElementById('capa-seguridad');
 if (capa) capa.style.display = 'none';
 }
-quitarCapaSeguridad();
 
-onSnapshot(collection(db, "comercios"), (snap) => {
-COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+// Verificar autenticación
+onAuthStateChanged(auth, (user) => {
+usuarioActual = user;
+autenticacionResuelta = true;
+if (user) {
+// Lista de admins
+const admins = ["lorenxi@gmail.com"];
+esAdmin = admins.includes(user.email);
+console.log("Usuario autenticado:", user.email, "esAdmin:", esAdmin);
+} else {
+console.log("No hay usuario autenticado - modo lectura");
+esAdmin = false;
+}
+quitarCapaSeguridad();
 window.render();
 });
 
-function mostrarComercio(c) {
+// Timeout de seguridad por si Auth tarda
+setTimeout(() => {
+if (!autenticacionResuelta) {
+console.log("Timeout de autenticación - mostrando sin restricciones");
+usuarioActual = null;
+esAdmin = false;
+quitarCapaSeguridad();
+window.render();
+}
+}, 2000);
+
+onSnapshot(collection(db, "comercios"), (snap) => {
+COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+if (autenticacionResuelta || !autenticacionResuelta) {
+window.render();
+}
+});
+
+function mostrarComercio(c, mostrarBotonesAdmin) {
 const box = document.getElementById('lista-comercios');
 const estaActivo = c.estado === 'activo';
 const publicado = c.publicado === true;
@@ -638,7 +667,7 @@ box.innerHTML += `
 <div class="visual-side">
 <img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
 <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
-${!esAdmin ? '' : `
+${mostrarBotonesAdmin ? `
 <a href="admin_ingreso_duenos.html?id=${displayID}&admin=true" target="_blank" class="btn-directo">VER PANEL</a>
 <button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayID}')">
 <i class="fas fa-link"></i> COPIAR LINK
@@ -646,7 +675,7 @@ ${!esAdmin ? '' : `
 <button class="btn-preview-sorteos" onclick="window.previsualizarSorteos('${displayID}', '${c.nombre}')">
 <i class="fas fa-eye"></i> PREVISUALIZAR SORTEOS Y PROMOS
 </button>
-`}
+` : ''}
 </div>
 <div class="info-side">
 <div class="comercio-header">
@@ -692,7 +721,7 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 </div>
 <div class="btn-group">
 <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
-${!esAdmin ? '' : `
+${mostrarBotonesAdmin ? `
 <button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
 ${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
 </button>
@@ -700,7 +729,7 @@ ${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
 ${publicado ? 'PUBLICADO ✓' : 'PUBLICAR'}
 </button>
 <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
-`}
+` : ''}
 <div class="social-box">
 ${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
 ${c.facebook ? `<a href="${c.facebook}" target="_blank" class="social-link bg-fb"><i class="fab fa-facebook-f"></i></a>` : ''}
@@ -719,7 +748,22 @@ const box = document.getElementById('lista-comercios');
 if(!box) return;
 box.innerHTML = "";
 
-// Mostrar todos los comercios sin filtrar por usuario
+// Determinar si el usuario es admin
+const mostrarBotonesAdmin = esAdmin;
+
+// Si hay usuario autenticado y NO es admin
+if (usuarioActual && !esAdmin) {
+// Comerciante: muestra SOLO sus comercios (por uid)
+const misComercios = COMERCIOS.filter(c => c.uid === usuarioActual.uid);
+if (misComercios.length > 0) {
+misComercios.forEach(c => mostrarComercio(c, false));
+} else {
+box.innerHTML = '<p class="text-center p-8 text-gray-400">No se encontró tu comercio</p>';
+}
+return;
+}
+
+// Si es admin o no hay usuario autenticado: muestra todos con filtros
 const masterSearchInput = document.getElementById('masterSearch');
 const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 
@@ -748,7 +792,7 @@ return matchesSearch && matchesFiltro;
 });
 
 filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
-filtrados.forEach(c => mostrarComercio(c));
+filtrados.forEach(c => mostrarComercio(c, mostrarBotonesAdmin));
 };
 
 window.previsualizarSorteos = (id, nombre) => {
@@ -771,6 +815,12 @@ window.edit = (event, id) => {
 if(event) event.preventDefault();
 const c = COMERCIOS.find(x => x.fbId === id);
 if(!c) return;
+
+// Si es comerciante, verificar que sea SU comercio
+if (usuarioActual && !esAdmin && c.uid !== usuarioActual.uid) {
+alert("No tienes permiso para editar otros comercios");
+return;
+}
 
 document.getElementById('edit-id').value = id;
 document.getElementById('nombre-input').value = c.nombre || "";
@@ -811,7 +861,19 @@ document.getElementById('email-input').value = c.emailDueno || "";
 document.getElementById('password-input').value = c.password || "";
 document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
 
-// Por ahora todo editable
+// Configurar el formulario según el tipo de usuario
+if (usuarioActual && !esAdmin) {
+// Modo comerciante: solo puede editar ciertos campos
+document.getElementById('nombre-input').readOnly = true;
+document.getElementById('rubro-input').readOnly = true;
+document.getElementById('id-input').classList.remove('read-only');
+document.getElementById('id-input').classList.add('read-only-comerciante');
+document.getElementById('token-input').classList.remove('read-only');
+document.getElementById('token-input').classList.add('read-only-comerciante');
+document.getElementById('reporte-input').disabled = true;
+document.getElementById('titulo-form').innerText = "📝 EDITAR MI COMERCIO";
+} else {
+// Modo admin: todo editable
 document.getElementById('nombre-input').readOnly = false;
 document.getElementById('rubro-input').readOnly = false;
 document.getElementById('id-input').classList.remove('read-only-comerciante');
@@ -820,6 +882,7 @@ document.getElementById('token-input').classList.remove('read-only-comerciante')
 document.getElementById('token-input').classList.add('read-only');
 document.getElementById('reporte-input').disabled = false;
 document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
+}
 
 document.getElementById('btn-cancel-edit').style.display = 'block';
 };
@@ -885,6 +948,10 @@ toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;col
 document.body.appendChild(toast);
 setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 } else {
+if (usuarioActual && !esAdmin) {
+alert("No tienes permiso para crear nuevos comercios");
+return;
+}
 data.estado = "activo";
 data.fechaCarga = Date.now();
 data.lastSubmission = null;
@@ -946,6 +1013,7 @@ configurarFechaMinima();
 
 window.genID = () => {
 if(document.getElementById('edit-id').value) return;
+if (usuarioActual && !esAdmin) return; // Los comerciantes no pueden generar IDs
 const n = document.getElementById('nombre-input').value;
 const id = n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 document.getElementById('id-input').value = id;
