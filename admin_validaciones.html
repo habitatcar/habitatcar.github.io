@@ -1195,124 +1195,132 @@
     }
 
     // ===========================================
-    // 5. APROBAR COMERCIO (VERSIÓN CORREGIDA - PRIMERO GUARDA, DESPUÉS AUTH)
-    // ===========================================
-    window.aprobarComercio = async () => {
-        if (!postulacionActual || tipoActual !== 'comercio') return;
+// 5. APROBAR COMERCIO (VERSIÓN CORREGIDA - CONTRASEÑA DE 6+ CARACTERES)
+// ===========================================
+window.aprobarComercio = async () => {
+    if (!postulacionActual || tipoActual !== 'comercio') return;
+    
+    if (!confirm("¿Confirmás que los datos son correctos y querés aprobar este comercio?")) return;
+    
+    try {
+        const idBase = postulacionActual.nombre_comercio
+            .toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+            .replace(/[^a-z0-9]/g, "_");
         
-        if (!confirm("¿Confirmás que los datos son correctos y querés aprobar este comercio?")) return;
+        const idComercio = `${idBase}_${Math.floor(1000 + Math.random() * 9000)}`;
+        const tokenQR = `token_${idBase}_${Math.floor(100000 + Math.random() * 899999)}`;
         
+        console.log("📝 Intentando crear cuenta en Firebase Auth para:", postulacionActual.email);
+        
+        // Intentar crear la cuenta con contraseña de 6+ caracteres
+        let uid = null;
         try {
-            const idBase = postulacionActual.nombre_comercio
-                .toLowerCase()
-                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                .replace(/[^a-z0-9]/g, "_");
-            
-            const idComercio = `${idBase}_${Math.floor(1000 + Math.random() * 9000)}`;
-            const tokenQR = `token_${idBase}_${Math.floor(100000 + Math.random() * 899999)}`;
-            
-            console.log("📝 PASO 1: Creando documento del comercio en Firestore...");
-            
-            // 1. PRIMERO guardamos el comercio en Firestore (SIN UID)
-            const comercioData = {
-                idComercio: idComercio,
-                nombre: postulacionActual.nombre_comercio,
-                rubro: postulacionActual.rubro,
-                provincia: postulacionActual.provincia,
-                localidad: postulacionActual.localidad,
-                direccion: postulacionActual.direccion,
-                telefono: postulacionActual.telefono,
-                emailDueno: postulacionActual.email,
-                instagram: postulacionActual.instagram || "",
-                tiktok: postulacionActual.tiktok || "",
-                sitioWeb: postulacionActual.sitioWeb || "",
-                facebook: postulacionActual.facebook || "",
-                mapsUrl: postulacionActual.mapsUrl || "",
-                tokenQR: tokenQR,
-                descLead: "",
-                detalleLead: "",
-                usosLead: 1,
-                vigenciaLead: 30,
-                descVip: "",
-                detalleVip: "",
-                usosVip: 0,
-                vigenciaVip: 30,
-                estado: "activo_pendiente_password",
-                nivel_confianza: 0,
-                usos_cupones: 0,
-                postulacion_id: postulacionActual.id,
-                fecha_alta: new Date().toISOString(),
-                foto_fachada_url: postulacionActual.foto_fachada_url,
-                foto_dni_url: postulacionActual.foto_dni_url,
-                foto_selfie_url: postulacionActual.foto_selfie_url,
-                constancia_afip_url: postulacionActual.constancia_afip_url,
-                password: "123",
-                rol: "comerciante"
-                // 👈 SIN UID por ahora
-            };
-            
-            // Guardamos el comercio y obtenemos su ID
-            const docRef = await addDoc(collection(db, "comercios"), comercioData);
-            console.log("✅ Comercio guardado en Firestore con ID:", docRef.id);
-            
-            // 2. AHORA intentamos crear la cuenta en Firebase Auth
-            console.log("📝 PASO 2: Creando cuenta en Firebase Auth para:", postulacionActual.email);
-            
-            try {
-                const userCredential = await createUserWithEmailAndPassword(auth, postulacionActual.email, "123");
-                console.log("✅ Cuenta creada en Auth. UID:", userCredential.user.uid);
-                
-                // 3. ACTUALIZAMOS el comercio con el UID
-                await updateDoc(docRef, {
-                    uid: userCredential.user.uid
-                });
-                console.log("✅ Comercio actualizado con UID");
-                
-            } catch (authError) {
-                // Si falla Auth, igual el comercio ya se creó en Firestore
-                console.error("⚠️ Error al crear cuenta en Auth (el comercio ya está guardado):", authError);
-                
-                // Guardamos el error en el comercio para referencia
-                await updateDoc(docRef, {
-                    error_auth: authError.code || "Error desconocido",
-                    fecha_error_auth: new Date().toISOString()
-                });
-                
-                // Mostramos advertencia pero NO cancelamos la operación
-                alert(`⚠️ El comercio se guardó correctamente, pero hubo un problema al crear su cuenta de acceso.\n\nEl dueño deberá usar el método tradicional de login (ID + contraseña).`);
-            }
-            
-            // 4. Actualizamos la postulación
-            const postulacionRef = doc(db, "postulaciones_comercios", postulacionActual.id);
-            await updateDoc(postulacionRef, {
-                estado: "validado",
-                fecha_validacion: new Date().toISOString(),
-                validado_por: "admin@habitatcar.com",
-                id_comercio_generado: idComercio,
-                token_qr_generado: tokenQR
+            // 🔐 CAMBIAMOS "123" POR "123456" (6 caracteres)
+            const userCredential = await createUserWithEmailAndPassword(auth, postulacionActual.email, "123456");
+            uid = userCredential.user.uid;
+            console.log("✅ Cuenta creada exitosamente. UID:", uid);
+        } catch (authError) {
+            console.error("❌ Error DETALLADO de Auth:", {
+                code: authError.code,
+                message: authError.message,
+                name: authError.name
             });
             
-            // 5. Enviar email de bienvenida (siempre)
-            try {
-                const enviarEmailSetup = httpsCallable(functions, 'enviarEmailSetup');
-                await enviarEmailSetup({
-                    email: postulacionActual.email,
-                    nombreComercio: postulacionActual.nombre_comercio,
-                    idComercio: idComercio
-                });
-                console.log("✅ Email de bienvenida enviado");
-            } catch (emailError) {
-                console.error("❌ Error al enviar email de bienvenida:", emailError);
+            // Si el error es "email ya en uso", obtenemos el UID existente
+            if (authError.code === 'auth/email-already-in-use') {
+                console.log("⚠️ El email ya está registrado. Buscando UID existente...");
+                
+                const q = query(collection(db, "comercios"), where("emailDueno", "==", postulacionActual.email));
+                const querySnapshot = await getDocs(q);
+                
+                if (!querySnapshot.empty) {
+                    uid = querySnapshot.docs[0].data().uid;
+                    console.log("✅ UID existente encontrado en Firestore:", uid);
+                } else {
+                    // Si no hay comercios previos, no podemos obtener el UID
+                    alert("❌ El email ya está registrado en Authentication pero no hay comercios vinculados. Revisá Firebase Console.");
+                    return;
+                }
+            } else {
+                // Otro error de Auth (como weak-password, etc)
+                alert(`❌ Error de Firebase Auth: ${authError.code} - ${authError.message}`);
+                return;
             }
-            
-            alert(`✅ Comercio aprobado correctamente\n\nID: ${idComercio}\nToken QR: ${tokenQR}\n\n🔐 Contraseña temporal: 123`);
-            cerrarModal();
-            
-        } catch (error) {
-            console.error("❌ Error grave al aprobar:", error);
-            alert("❌ Error al aprobar el comercio. Revisá la consola.");
         }
-    };
+        
+        // Guardar en Firestore con el UID (nuevo o existente)
+        console.log("📝 Guardando comercio en Firestore con UID:", uid);
+        
+        await addDoc(collection(db, "comercios"), {
+            uid: uid,
+            idComercio: idComercio,
+            nombre: postulacionActual.nombre_comercio,
+            rubro: postulacionActual.rubro,
+            provincia: postulacionActual.provincia,
+            localidad: postulacionActual.localidad,
+            direccion: postulacionActual.direccion,
+            telefono: postulacionActual.telefono,
+            emailDueno: postulacionActual.email,
+            instagram: postulacionActual.instagram || "",
+            tiktok: postulacionActual.tiktok || "",
+            sitioWeb: postulacionActual.sitioWeb || "",
+            facebook: postulacionActual.facebook || "",
+            mapsUrl: postulacionActual.mapsUrl || "",
+            tokenQR: tokenQR,
+            descLead: "",
+            detalleLead: "",
+            usosLead: 1,
+            vigenciaLead: 30,
+            descVip: "",
+            detalleVip: "",
+            usosVip: 0,
+            vigenciaVip: 30,
+            estado: "activo_pendiente_password",
+            nivel_confianza: 0,
+            usos_cupones: 0,
+            postulacion_id: postulacionActual.id,
+            fecha_alta: new Date().toISOString(),
+            foto_fachada_url: postulacionActual.foto_fachada_url,
+            foto_dni_url: postulacionActual.foto_dni_url,
+            foto_selfie_url: postulacionActual.foto_selfie_url,
+            constancia_afip_url: postulacionActual.constancia_afip_url,
+            // 🔐 CONTRASEÑA TEMPORAL (6+ caracteres)
+            password: "123456",
+            rol: "comerciante"
+        });
+        
+        // Actualizar la postulación
+        const postulacionRef = doc(db, "postulaciones_comercios", postulacionActual.id);
+        await updateDoc(postulacionRef, {
+            estado: "validado",
+            fecha_validacion: new Date().toISOString(),
+            validado_por: "admin@habitatcar.com",
+            id_comercio_generado: idComercio,
+            token_qr_generado: tokenQR
+        });
+        
+        // Enviar email de bienvenida
+        try {
+            const enviarEmailSetup = httpsCallable(functions, 'enviarEmailSetup');
+            await enviarEmailSetup({
+                email: postulacionActual.email,
+                nombreComercio: postulacionActual.nombre_comercio,
+                idComercio: idComercio
+            });
+            console.log("✅ Email de bienvenida enviado");
+        } catch (emailError) {
+            console.error("❌ Error al enviar email de bienvenida:", emailError);
+        }
+        
+        alert(`✅ Comercio aprobado correctamente\n\nID: ${idComercio}\nToken QR: ${tokenQR}\n\n🔐 Contraseña temporal: 123456`);
+        cerrarModal();
+        
+    } catch (error) {
+        console.error("❌ Error grave al aprobar:", error);
+        alert("❌ Error al aprobar el comercio. Revisá la consola.");
+    }
+};
 
     // ===========================================
     // 6. ELIMINAR DESDE MODAL
@@ -1361,3 +1369,4 @@
 </script>
 </body>
 </html>
+
