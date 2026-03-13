@@ -523,6 +523,7 @@ let COMERCIOS = [];
 let FILTRO_ESTADO = 'todos';
 let usuarioActual = null;
 let esAdmin = false;
+let autenticacionResuelta = false;
 
 async function subirLogoAFirebase(archivo) {
 if (!archivo) return null;
@@ -581,26 +582,47 @@ ciudadSelect.innerHTML = '<option value="">Error al cargar</option>';
 }
 };
 
+// Quitar capa de seguridad
+function quitarCapaSeguridad() {
+const capa = document.getElementById('capa-seguridad');
+if (capa) capa.style.display = 'none';
+}
+
 // Verificar autenticación
 onAuthStateChanged(auth, (user) => {
 usuarioActual = user;
+autenticacionResuelta = true;
 if (user) {
 // Es un comerciante autenticado
 esAdmin = user.email === "lorenxi@gmail.com"; // Tu email de admin
+console.log("Usuario autenticado:", user.email, "esAdmin:", esAdmin);
 } else {
-// No hay usuario autenticado, podría ser admin por URL antigua
-if (idForzado && esModoAdmin) {
-// Modo legado por URL
-usuarioActual = { uid: "legacy" };
-esAdmin = true;
+// No hay usuario autenticado
+console.log("No hay usuario autenticado");
+esAdmin = false;
 }
-}
+quitarCapaSeguridad();
 window.render();
 });
 
+// Si después de 3 segundos no hay auth, igual quitamos capa (modo legado)
+setTimeout(() => {
+if (!autenticacionResuelta) {
+console.log("Timeout de autenticación - modo legado");
+if (idForzado && esModoAdmin) {
+usuarioActual = { uid: "legacy" };
+esAdmin = true;
+}
+quitarCapaSeguridad();
+window.render();
+}
+}, 3000);
+
 onSnapshot(collection(db, "comercios"), (snap) => {
 COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+if (autenticacionResuelta || idForzado) {
 window.render();
+}
 });
 
 function mostrarComercio(c) {
