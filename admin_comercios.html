@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.5</title>
+<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.6</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -348,7 +348,7 @@ min-height: 60px;
 <a href="admin_sorteos.html" class="nav-link">SORTEOS</a>
 </nav>
 </header>
-<div class="tools-faja" id="faja-herramientas" style="display: none;">
+<div class="tools-faja" id="faja-herramientas">
 <div class="search-container">
 <span class="search-icon">🔍</span>
 <input type="text" id="masterSearch" class="search-input" placeholder="Buscar comercio..." oninput="window.render()">
@@ -409,6 +409,33 @@ min-height: 60px;
 </div>
 </div>
 <input type="text" id="detalle-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
+
+<!-- NUEVO: REDES SOCIALES AGRUPADAS -->
+<details style="background: rgba(0,74,153,0.1); border: 1px solid var(--celeste-habitat); border-radius: 10px; margin-top: 15px; overflow: hidden;">
+<summary style="padding: 12px; cursor: pointer; font-weight: bold; color: var(--celeste-habitat); display: flex; justify-content: space-between; align-items: center; list-style: none;">
+<span>🌐 REDES SOCIALES Y SITIO WEB</span>
+<i class="fas fa-chevron-down"></i>
+</summary>
+<div class="form-grid" style="padding: 15px; border-top: 1px solid rgba(0,74,153,0.2);">
+<div class="form-group">
+<label><i class="fab fa-facebook-f"></i> URL FACEBOOK</label>
+<input type="text" id="facebook-input" placeholder="https://facebook.com/tucomercio">
+</div>
+<div class="form-group">
+<label><i class="fab fa-instagram"></i> URL INSTAGRAM</label>
+<input type="text" id="instagram-input" placeholder="https://instagram.com/tucomercio">
+</div>
+<div class="form-group">
+<label><i class="fab fa-tiktok"></i> URL TIKTOK</label>
+<input type="text" id="web-input" placeholder="https://tiktok.com/@tucomercio">
+</div>
+<div class="form-group">
+<label><i class="fas fa-globe"></i> SITIO WEB</label>
+<input type="text" id="sitio-web-input" placeholder="https://tucomercio.com">
+</div>
+</div>
+</details>
+
 <details style="background: rgba(255,140,0,0.1); border: 1px solid var(--naranja); border-radius: 10px; margin-top: 15px; overflow: hidden;">
 <summary style="padding: 12px; cursor: pointer; font-weight: bold; color: var(--naranja); display: flex; justify-content: space-between; align-items: center; list-style: none;">
 <span>🎁 SORTEOS Y PROMOCIONES</span>
@@ -445,6 +472,7 @@ min-height: 60px;
 </div>
 </div>
 </details>
+
 <input type="text" id="direccion-input" class="full" placeholder="Dirección">
 <select id="provincia-input" onchange="window.actualizarLocalidades()">
 <option value="">Seleccionar Prov.</option>
@@ -477,13 +505,15 @@ min-height: 60px;
 <option value="">Ciudad / Localidad</option>
 </select>
 <input type="text" id="telefono-input" class="full" placeholder="WhatsApp (Número)">
-<input type="text" id="facebook-input" class="full" placeholder="URL FACEBOOK">
-<input type="text" id="instagram-input" class="full" placeholder="URL INSTAGRAM">
-<input type="text" id="web-input" class="full" placeholder="URL TIK TOK (Se guarda como 'web')">
-<input type="text" id="sitio-web-input" class="full" placeholder="Sitio Web (URL)">
+
+<!-- Los campos de redes sociales fueron movidos al details -->
+
 <input type="text" id="maps-url" class="full" placeholder="UBICACIÓN MAPS (URL de Google Maps)">
 <input type="email" id="email-input" class="full" placeholder="Email Dueño">
-<input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO (OBLIGATORIO)" style="border: 2px solid var(--oro)">
+<div style="position: relative; width: 100%;">
+<input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO (OBLIGATORIO)" style="border: 2px solid var(--oro);">
+<div style="position: absolute; bottom: -18px; left: 10px; font-size: 11px; color: var(--oro); font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 8px; border-radius: 12px;">🔐 Contraseña del Dueño</div>
+</div>
 <select id="reporte-input" class="full">
 <option value="Semanal">Reporte Semanal</option>
 <option value="Quincenal">Reporte Quincenal</option>
@@ -634,6 +664,9 @@ const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.to
 const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
 const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
 
+// Determinar el texto del botón de publicar según el estado
+const publicarTexto = publicado ? 'PUBLICADO ✓' : 'NO PUBLICADO';
+
 box.innerHTML += `
 <div class="comercio-card ${estaActivo ? '' : 'inactive'}">
 <div class="visual-side">
@@ -694,13 +727,10 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 <div class="btn-group">
 <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
 ${!esAdmin ? '' : `
-<button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
-${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
-</button>
 <button class="btn-publicar ${publicado ? 'publicado' : ''}" onclick="window.togglePublicar('${c.fbId}', ${publicado})">
-${publicado ? 'PUBLICADO ✓' : 'PUBLICAR'}
+${publicarTexto}
 </button>
-<button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
+<button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">ELIMINAR</button>
 `}
 <div class="social-box">
 ${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
@@ -996,14 +1026,9 @@ const nuevoEstado = publicadoActual ? false : true;
 await updateDoc(doc(db, "comercios", fbId), { publicado: nuevoEstado });
 };
 
-window.toggleEstado = async (e, id, est) => {
-if (!esAdmin) return; // Solo admin puede pausar/activar
-await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' });
-};
-
 window.del = async (e, id) => {
 if (!esAdmin) return; // Solo admin puede borrar
-if(confirm("¿Borrar comercio?")) await deleteDoc(doc(db, "comercios", id));
+if(confirm("¿Eliminar comercio?")) await deleteDoc(doc(db, "comercios", id));
 };
 
 window.zoom = (u) => { document.getElementById('modal-img').src = u; document.getElementById('modal').style.display='flex'; };
