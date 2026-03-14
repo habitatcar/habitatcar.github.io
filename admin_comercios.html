@@ -348,7 +348,11 @@ min-height: 60px;
 <a href="admin_sorteos.html" class="nav-link">SORTEOS</a>
 </nav>
 </header>
-<div class="tools-faja" id="faja-herramientas">
+
+<!-- ============================================ -->
+<!-- BARRA DE HERRAMIENTAS - SOLO VISIBLE EN MODO ADMIN GENERAL -->
+<!-- ============================================ -->
+<div id="faja-herramientas" class="tools-faja" style="display: none;">
 <div class="search-container">
 <span class="search-icon">🔍</span>
 <input type="text" id="masterSearch" class="search-input" placeholder="Buscar comercio..." oninput="window.render()">
@@ -365,6 +369,7 @@ min-height: 60px;
 <button id="fil-pub" class="btn-tool" onclick="window.cambiarFiltro('publicado', 'fil-pub')">Ver Publicados</button>
 </div>
 </div>
+
 <div class="wrapper">
 <aside class="sidebar">
 <div class="card-form">
@@ -528,9 +533,9 @@ min-height: 60px;
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -552,6 +557,22 @@ let usuarioActual = null;
 let esAdmin = false;
 let autenticacionResuelta = false;
 
+// ============================================
+// DETECTAR MODO DE EDICIÓN POR URL
+// ============================================
+const urlParams = new URLSearchParams(window.location.search);
+const idEdicion = urlParams.get('edit'); // Ej: ?edit=el_descanso_5371
+const esModoEdicionUnica = idEdicion !== null && idEdicion !== '';
+
+// Ocultar la barra de herramientas si estamos en modo edición única
+if (esModoEdicionUnica) {
+    document.getElementById('faja-herramientas').style.display = 'none';
+    // Cambiar el título del formulario
+    document.getElementById('titulo-form').innerText = "✏️ EDITANDO COMERCIO";
+} else {
+    document.getElementById('faja-herramientas').style.display = 'flex';
+}
+
 async function subirLogoAFirebase(archivo) {
 if (!archivo) return null;
 const nombreArchivo = `logos/${Date.now()}_${archivo.name}`;
@@ -560,10 +581,6 @@ const snapshot = await uploadBytes(storageRef, archivo);
 const url = await getDownloadURL(snapshot.ref);
 return url;
 }
-
-const urlParams = new URLSearchParams(window.location.search);
-const idForzado = urlParams.get('id');
-const esModoAdmin = urlParams.get('admin') === 'true';
 
 function configurarFechaMinima() {
 const ahora = new Date();
@@ -628,7 +645,7 @@ console.log("No hay usuario autenticado - modo lectura");
 esAdmin = false;
 }
 quitarCapaSeguridad();
-window.render();
+cargarComercios();
 });
 
 // Timeout de seguridad por si Auth tarda
@@ -638,16 +655,59 @@ console.log("Timeout de autenticación - mostrando sin restricciones");
 usuarioActual = null;
 esAdmin = false;
 quitarCapaSeguridad();
-window.render();
+cargarComercios();
 }
 }, 2000);
 
-onSnapshot(collection(db, "comercios"), (snap) => {
-COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
-if (autenticacionResuelta || !autenticacionResuelta) {
-window.render();
+// ============================================
+// CARGA DE COMERCIOS - CON FILTRO POR ID SI ESTAMOS EN MODO EDICIÓN
+// ============================================
+async function cargarComercios() {
+    try {
+        if (esModoEdicionUnica) {
+            // MODO EDICIÓN ÚNICA: buscar SOLO el comercio con ese ID
+            console.log("Modo edición única - buscando comercio con ID:", idEdicion);
+            
+            // Buscar por idComercio (el campo que almacena el ID visible)
+            const q = query(collection(db, "comercios"), where("idComercio", "==", idEdicion));
+            const querySnapshot = await getDocs(q);
+            
+            if (!querySnapshot.empty) {
+                COMERCIOS = querySnapshot.docs.map(d => ({ ...d.data(), fbId: d.id }));
+                console.log("Comercio encontrado:", COMERCIOS[0].nombre);
+                
+                // Auto-cargar el comercio en el formulario de edición
+                if (COMERCIOS.length > 0) {
+                    setTimeout(() => {
+                        window.edit(null, COMERCIOS[0].fbId);
+                    }, 500);
+                }
+            } else {
+                console.log("No se encontró comercio con ID:", idEdicion);
+                COMERCIOS = [];
+            }
+        } else {
+            // MODO ADMIN GENERAL: cargar TODOS los comercios
+            console.log("Modo admin general - cargando todos los comercios");
+            const snapshot = await getDocs(collection(db, "comercios"));
+            COMERCIOS = snapshot.docs.map(d => ({ ...d.data(), fbId: d.id }));
+        }
+        
+        // Renderizar la lista
+        window.render();
+    } catch (error) {
+        console.error("Error cargando comercios:", error);
+        mostrarErrorAuditor("Error al cargar comercios");
+    }
 }
-});
+
+function mostrarErrorAuditor(mensaje) {
+    const box = document.getElementById('customAlert');
+    if (!box) return;
+    box.innerText = mensaje;
+    box.style.display = 'block';
+    setTimeout(() => { box.style.display = 'none'; }, 3000);
+}
 
 function mostrarComercio(c, mostrarBotonesAdmin) {
 const box = document.getElementById('lista-comercios');
@@ -739,44 +799,64 @@ ${c.mapsUrl ? `<a href="${c.mapsUrl}" target="_blank" class="social-link" style=
 </div>`;
 }
 
+// ============================================
+// FUNCIÓN RENDER - MUESTRA COMERCIOS SEGÚN EL MODO
+// ============================================
 window.render = () => {
-const box = document.getElementById('lista-comercios');
-if(!box) return;
-box.innerHTML = "";
+    const box = document.getElementById('lista-comercios');
+    if(!box) return;
+    box.innerHTML = "";
 
-// ✅ IGNORAMOS FIREBASE AUTH PARA ADMIN - MOSTRAMOS TODOS LOS COMERCIOS
-console.log("Mostrando TODOS los comercios para admin");
+    console.log("Renderizando - modo edición única:", esModoEdicionUnica);
+    
+    // Si estamos en modo edición única, mostrar SOLO ese comercio (ya está filtrado en COMERCIOS)
+    if (esModoEdicionUnica) {
+        if (COMERCIOS.length === 0) {
+            box.innerHTML = '<div class="text-center p-8 bg-gray-800 rounded-2xl text-gray-400">No se encontró el comercio solicitado</div>';
+            return;
+        }
+        
+        // Mostrar el único comercio con botones de admin (true)
+        COMERCIOS.forEach(c => mostrarComercio(c, true));
+        return;
+    }
+    
+    // MODO ADMIN GENERAL - mostrar todos con filtros
+    const masterSearchInput = document.getElementById('masterSearch');
+    const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 
-const masterSearchInput = document.getElementById('masterSearch');
-const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+    const totalComercios = COMERCIOS.length;
+    const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
+    const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
+    const publicados = COMERCIOS.filter(x => x.publicado === true).length;
 
-const totalComercios = COMERCIOS.length;
-const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
-const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
-const publicados = COMERCIOS.filter(x => x.publicado === true).length;
+    document.getElementById('count-total').innerText = totalComercios;
+    document.getElementById('count-act').innerText = activos;
+    document.getElementById('count-inact').innerText = inactivos;
+    document.getElementById('count-pub').innerText = publicados;
 
-document.getElementById('count-total').innerText = totalComercios;
-document.getElementById('count-act').innerText = activos;
-document.getElementById('count-inact').innerText = inactivos;
-document.getElementById('count-pub').innerText = publicados;
+    // Filtrar según búsqueda y filtros
+    let filtrados = COMERCIOS.filter(c => {
+        const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const matchesSearch = term === "" || searchStr.includes(term);
+        let matchesFiltro = true;
 
-// Filtrar según búsqueda y filtros
-let filtrados = COMERCIOS.filter(c => {
-const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-const matchesSearch = term === "" || searchStr.includes(term);
-let matchesFiltro = true;
+        if (FILTRO_ESTADO === 'inactivo') {
+            matchesFiltro = c.estado !== 'activo';
+        } else if (FILTRO_ESTADO === 'publicado') {
+            matchesFiltro = c.publicado === true;
+        }
 
-if (FILTRO_ESTADO === 'inactivo') {
-matchesFiltro = c.estado !== 'activo';
-} else if (FILTRO_ESTADO === 'publicado') {
-matchesFiltro = c.publicado === true;
-}
+        return matchesSearch && matchesFiltro;
+    });
 
-return matchesSearch && matchesFiltro;
-});
-
-filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
-filtrados.forEach(c => mostrarComercio(c, true)); // true = mostrar botones de admin
+    filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
+    
+    if (filtrados.length === 0) {
+        box.innerHTML = '<div class="text-center p-8 bg-gray-800 rounded-2xl text-gray-400">No hay comercios para mostrar</div>';
+    } else {
+        filtrados.forEach(c => mostrarComercio(c, true)); // Admin ve todos los botones
+    }
 };
 
 window.previsualizarSorteos = (id, nombre) => {
@@ -921,6 +1001,11 @@ frecuenciaReporte: document.getElementById('reporte-input').value,
 publicado: false
 };
 
+// Si es un comerciante editando su propio comercio, mantener su UID
+if (usuarioActual && !esAdmin) {
+data.uid = usuarioActual.uid;
+}
+
 try {
 let docRef;
 if (eid) {
@@ -981,7 +1066,7 @@ document.getElementById('promo_vence').value = "";
 document.getElementById('direccion-input').value = "";
 document.getElementById('maps-url').value = "";
 document.getElementById('rubro-input').value = "";
-document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
+document.getElementById('titulo-form').innerText = esModoEdicionUnica ? "✏️ EDITANDO COMERCIO" : "➕ REGISTRAR COMERCIO";
 document.getElementById('btn-cancel-edit').style.display = 'none';
 
 document.getElementById('nombre-input').readOnly = false;
