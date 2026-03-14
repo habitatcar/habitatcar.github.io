@@ -530,7 +530,7 @@ min-height: 60px;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -551,6 +551,26 @@ let FILTRO_ESTADO = 'todos';
 let usuarioActual = null;
 let esAdmin = false;
 let autenticacionResuelta = false;
+
+// Agregar botón de logout en el header
+function agregarBotonLogout() {
+    const headerNav = document.getElementById('nav-menu-principal');
+    if (headerNav && !document.getElementById('btn-logout')) {
+        const logoutBtn = document.createElement('a');
+        logoutBtn.href = '#';
+        logoutBtn.id = 'btn-logout';
+        logoutBtn.className = 'nav-link';
+        logoutBtn.style.backgroundColor = '#dc3545';
+        logoutBtn.innerHTML = '🚪 SALIR';
+        logoutBtn.onclick = (e) => {
+            e.preventDefault();
+            signOut(auth).then(() => {
+                window.location.reload();
+            });
+        };
+        headerNav.appendChild(logoutBtn);
+    }
+}
 
 async function subirLogoAFirebase(archivo) {
 if (!archivo) return null;
@@ -623,6 +643,7 @@ if (user) {
 const admins = ["lorenxi@gmail.com"];
 esAdmin = admins.includes(user.email);
 console.log("Usuario autenticado:", user.email, "esAdmin:", esAdmin);
+agregarBotonLogout();
 } else {
 console.log("No hay usuario autenticado - modo lectura");
 esAdmin = false;
@@ -739,44 +760,71 @@ ${c.mapsUrl ? `<a href="${c.mapsUrl}" target="_blank" class="social-link" style=
 </div>`;
 }
 
+// ============================================
+// FUNCIÓN RENDER CORREGIDA - ESTA ES LA CLAVE
+// ============================================
 window.render = () => {
-const box = document.getElementById('lista-comercios');
-if(!box) return;
-box.innerHTML = "";
+    const box = document.getElementById('lista-comercios');
+    if(!box) return;
+    box.innerHTML = "";
 
-// ✅ IGNORAMOS FIREBASE AUTH PARA ADMIN - MOSTRAMOS TODOS LOS COMERCIOS
-console.log("Mostrando TODOS los comercios para admin");
+    console.log("Usuario actual:", usuarioActual?.email, "esAdmin:", esAdmin);
+    
+    const masterSearchInput = document.getElementById('masterSearch');
+    const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 
-const masterSearchInput = document.getElementById('masterSearch');
-const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+    // FILTRAR COMERCIOS SEGÚN EL ROL
+    let comerciosVisibles = [];
+    
+    if (esAdmin) {
+        // ADMIN: ve TODOS los comercios
+        comerciosVisibles = COMERCIOS;
+        console.log("Modo ADMIN: mostrando todos los comercios");
+    } else if (usuarioActual) {
+        // COMERCIANTE: ve SOLO su comercio (basado en uid)
+        comerciosVisibles = COMERCIOS.filter(c => c.uid === usuarioActual.uid);
+        console.log("Modo COMERCIANTE: mostrando solo su comercio");
+    } else {
+        // USUARIO NO AUTENTICADO: no ve nada
+        comerciosVisibles = [];
+        console.log("Usuario no autenticado");
+    }
 
-const totalComercios = COMERCIOS.length;
-const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
-const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
-const publicados = COMERCIOS.filter(x => x.publicado === true).length;
+    const totalComercios = COMERCIOS.length;
+    const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
+    const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
+    const publicados = COMERCIOS.filter(x => x.publicado === true).length;
 
-document.getElementById('count-total').innerText = totalComercios;
-document.getElementById('count-act').innerText = activos;
-document.getElementById('count-inact').innerText = inactivos;
-document.getElementById('count-pub').innerText = publicados;
+    document.getElementById('count-total').innerText = totalComercios;
+    document.getElementById('count-act').innerText = activos;
+    document.getElementById('count-inact').innerText = inactivos;
+    document.getElementById('count-pub').innerText = publicados;
 
-// Filtrar según búsqueda y filtros
-let filtrados = COMERCIOS.filter(c => {
-const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-const matchesSearch = term === "" || searchStr.includes(term);
-let matchesFiltro = true;
+    // Filtrar según búsqueda y filtros (solo aplica para admin)
+    let filtrados = comerciosVisibles.filter(c => {
+        const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const matchesSearch = term === "" || searchStr.includes(term);
+        let matchesFiltro = true;
 
-if (FILTRO_ESTADO === 'inactivo') {
-matchesFiltro = c.estado !== 'activo';
-} else if (FILTRO_ESTADO === 'publicado') {
-matchesFiltro = c.publicado === true;
-}
+        // Los filtros solo aplican para admin
+        if (esAdmin) {
+            if (FILTRO_ESTADO === 'inactivo') {
+                matchesFiltro = c.estado !== 'activo';
+            } else if (FILTRO_ESTADO === 'publicado') {
+                matchesFiltro = c.publicado === true;
+            }
+        }
 
-return matchesSearch && matchesFiltro;
-});
+        return matchesSearch && matchesFiltro;
+    });
 
-filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
-filtrados.forEach(c => mostrarComercio(c, true)); // true = mostrar botones de admin
+    filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
+    
+    if (filtrados.length === 0) {
+        box.innerHTML = '<div class="text-center p-8 bg-gray-800 rounded-2xl text-gray-400">No hay comercios para mostrar</div>';
+    } else {
+        filtrados.forEach(c => mostrarComercio(c, esAdmin)); // Solo admin ve botones administrativos
+    }
 };
 
 window.previsualizarSorteos = (id, nombre) => {
@@ -921,6 +969,11 @@ frecuenciaReporte: document.getElementById('reporte-input').value,
 publicado: false
 };
 
+// Si es un comerciante editando su propio comercio, mantener su UID
+if (usuarioActual && !esAdmin) {
+data.uid = usuarioActual.uid;
+}
+
 try {
 let docRef;
 if (eid) {
@@ -939,6 +992,7 @@ return;
 data.estado = "activo";
 data.fechaCarga = Date.now();
 data.lastSubmission = null;
+// Si el admin crea un comercio, necesita asignar un UID (deberías agregar un campo para seleccionar el dueño)
 docRef = await addDoc(collection(db, "comercios"), data);
 const toast = document.createElement('div');
 toast.textContent = '✅ Ficha creada con éxito';
