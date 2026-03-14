@@ -741,25 +741,44 @@ ${c.mapsUrl ? `<a href="${c.mapsUrl}" target="_blank" class="social-link" style=
 }
 
 window.render = () => {
-const box = document.getElementById('lista-comercios');
-if(!box) return;
-box.innerHTML = "";
+    const box = document.getElementById('lista-comercios');
+    if(!box) return;
+    box.innerHTML = "";
 
-// DETERMINAR SI EL USUARIO ES ADMIN
-const mostrarBotonesAdmin = esAdmin;
+    // ✅ IGNORAMOS FIREBASE AUTH - MOSTRAMOS TODOS LOS COMERCIOS
+    console.log("Mostrando TODOS los comercios para admin");
 
-// CASO 1: USUARIO LOGUEADO Y NO ES ADMIN → DUEÑO DE COMERCIO
-if (usuarioActual && !esAdmin) {
-    console.log("Mostrando vista de comerciante para:", usuarioActual.email);
-    const misComercios = COMERCIOS.filter(c => c.uid === usuarioActual.uid);
-    if (misComercios.length > 0) {
-        misComercios.forEach(c => mostrarComercio(c, false));
-    } else {
-        box.innerHTML = '<p style="text-align:center; padding:40px; color:#aaa;">No se encontró tu comercio</p>';
-    }
-    return; // ← IMPORTANTE: esto evita que el admin vea solo un comercio
-}
+    const masterSearchInput = document.getElementById('masterSearch');
+    const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 
+    const totalComercios = COMERCIOS.length;
+    const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
+    const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
+    const publicados = COMERCIOS.filter(x => x.publicado === true).length;
+
+    document.getElementById('count-total').innerText = totalComercios;
+    document.getElementById('count-act').innerText = activos;
+    document.getElementById('count-inact').innerText = inactivos;
+    document.getElementById('count-pub').innerText = publicados;
+
+    // Filtrar según búsqueda y filtros
+    let filtrados = COMERCIOS.filter(c => {
+        const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const matchesSearch = term === "" || searchStr.includes(term);
+        
+        let matchesFiltro = true;
+        if (FILTRO_ESTADO === 'inactivo') {
+            matchesFiltro = c.estado !== 'activo';
+        } else if (FILTRO_ESTADO === 'publicado') {
+            matchesFiltro = c.publicado === true;
+        }
+
+        return matchesSearch && matchesFiltro;
+    });
+
+    filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
+    filtrados.forEach(c => mostrarComercio(c, true)); // true = mostrar botones de admin
+};
 // CASO 2: ADMIN O NO LOGUEADO → VER TODOS LOS COMERCIOS
 console.log("Mostrando vista de admin - todos los comercios");
 const masterSearchInput = document.getElementById('masterSearch');
