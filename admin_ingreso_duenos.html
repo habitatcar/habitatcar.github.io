@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auditoría de Canjes | HABITAT-CAR</title>
+    <title>Panel del Comercio | HABITAT-CAR</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
@@ -56,6 +56,22 @@
             from { opacity: 0; transform: translate(-50%, -20px); }
             to { opacity: 1; transform: translate(-50%, 0); }
         }
+        
+        .btn-cerrar-sesion {
+            background-color: #dc3545;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 10px;
+            font-weight: bold;
+            font-size: 0.9rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .btn-cerrar-sesion:hover {
+            background-color: #bb2d3b;
+            transform: scale(1.02);
+        }
     </style>
 </head>
 <body class="p-4 pb-32">
@@ -68,6 +84,11 @@
             <div class="flex-1">
                 <h1 class="text-4xl font-black tracking-tighter italic titulo-blanco">HABITAT-CAR</h1>
                 <p class="text-dorado font-bold uppercase tracking-widest text-sm mt-1">NEGOCIOS INMOBILIARIOS y GESTIONES DEL AUTOMOTOR</p>
+            </div>
+            <div>
+                <button onclick="cerrarSesion()" class="btn-cerrar-sesion">
+                    🔒 CERRAR SESIÓN
+                </button>
             </div>
         </header>
 
@@ -187,6 +208,11 @@
             const registroUsuarios = {}; 
             let comercioActual = null;
             let uidComercio = null;
+            
+            // Detectar si es admin por URL
+            const urlParams = new URLSearchParams(window.location.search);
+            const esAdmin = urlParams.get('admin') === 'true';
+            const idForzado = urlParams.get('id');
 
             const mostrarErrorAuditor = (mensaje) => {
                 const box = document.getElementById('customAlert');
@@ -195,15 +221,33 @@
                 setTimeout(() => { box.style.display = 'none'; }, 3000);
             };
 
+            // Función para cerrar sesión
+            window.cerrarSesion = () => {
+                signOut(auth).then(() => {
+                    window.location.href = 'admin_ingreso_duenos.html';
+                });
+            };
+
             // Verificar si ya hay sesión activa
             onAuthStateChanged(auth, (user) => {
                 if (user) {
-                    // Ya está logueado, buscar su comercio
                     uidComercio = user.uid;
-                    buscarComercioPorUID(user.uid);
+                    
+                    // Si es admin con ID forzado, buscar por ID de comercio
+                    if (esAdmin && idForzado) {
+                        buscarComercioPorIdComercio(idForzado);
+                    } else {
+                        // Comerciante normal: buscar por UID
+                        buscarComercioPorUID(user.uid);
+                    }
+                } else {
+                    // No hay sesión, mostrar login
+                    document.getElementById('loginBox').classList.remove('hidden');
+                    document.getElementById('dashboard').classList.add('hidden');
                 }
             });
 
+            // Buscar comercio por UID (para comerciantes)
             async function buscarComercioPorUID(uid) {
                 try {
                     const q = query(collection(db, "comercios"), where("uid", "==", uid));
@@ -228,6 +272,30 @@
                 }
             }
 
+            // Buscar comercio por ID de comercio (para admin)
+            async function buscarComercioPorIdComercio(idComercio) {
+                try {
+                    const q = query(collection(db, "comercios"), where("idComercio", "==", idComercio));
+                    const querySnapshot = await getDocs(q);
+                    
+                    if (!querySnapshot.empty) {
+                        const docSnap = querySnapshot.docs[0];
+                        comercioActual = { id: docSnap.id, ...docSnap.data() };
+                        
+                        document.getElementById('nombreComercioDinamico').innerText = comercioActual.nombre || " [VISTA ADMIN]";
+                        document.getElementById('loginBox').classList.add('hidden');
+                        document.getElementById('dashboard').classList.remove('hidden');
+                        inicializarGrafico();
+                        iniciarSuscripciones(comercioActual.id);
+                    } else {
+                        mostrarErrorAuditor("❌ No se encontró el comercio con ID: " + idComercio);
+                    }
+                } catch (error) {
+                    console.error(error);
+                    mostrarErrorAuditor("⚠️ Error al buscar comercio");
+                }
+            }
+
             window.loginComerciante = async () => {
                 const email = document.getElementById('emailInput').value.trim();
                 const password = document.getElementById('passwordInput').value.trim();
@@ -238,11 +306,8 @@
                 }
 
                 try {
-                    const userCredential = await signInWithEmailAndPassword(auth, email, password);
-                    const user = userCredential.user;
-                    
+                    await signInWithEmailAndPassword(auth, email, password);
                     // El onAuthStateChanged se encargará de buscar el comercio
-                    
                 } catch (error) {
                     console.error(error);
                     mostrarErrorAuditor("🚫 CREDENCIALES NO VÁLIDAS");
@@ -373,7 +438,7 @@
 
             window.irAFicha = () => {
                 if (comercioActual) {
-                    window.location.href = `admin_comercios.html?id=${comercioActual.idComercio}`;
+                    window.location.href = `admin_comercios.html?id=${comercioActual.idComercio}&modo=editar`;
                 }
             };
 
