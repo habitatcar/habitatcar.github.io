@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.6</title>
+<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.7</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -410,7 +410,7 @@ min-height: 60px;
 </div>
 <input type="text" id="detalle-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
 
-<!-- REDES SOCIALES AGRUPADAS - COLOR CORREGIDO -->
+<!-- REDES SOCIALES AGRUPADAS -->
 <details style="background: rgba(212, 175, 55, 0.15); border: 1px solid var(--dorado); border-radius: 10px; margin-top: 15px; overflow: hidden;">
 <summary style="padding: 12px; cursor: pointer; font-weight: bold; color: var(--dorado); display: flex; justify-content: space-between; align-items: center; list-style: none; background: rgba(0,0,0,0.3);">
 <span>🌐 REDES SOCIALES Y SITIO WEB</span>
@@ -505,9 +505,6 @@ min-height: 60px;
 <option value="">Ciudad / Localidad</option>
 </select>
 <input type="text" id="telefono-input" class="full" placeholder="WhatsApp (Número)">
-
-<!-- Los campos de redes sociales fueron movidos al details -->
-
 <input type="text" id="maps-url" class="full" placeholder="UBICACIÓN MAPS (URL de Google Maps)">
 <input type="email" id="email-input" class="full" placeholder="Email Dueño">
 <div style="position: relative; width: 100%;">
@@ -748,22 +745,23 @@ const box = document.getElementById('lista-comercios');
 if(!box) return;
 box.innerHTML = "";
 
-// Determinar si el usuario es admin
+// DETERMINAR SI EL USUARIO ES ADMIN
 const mostrarBotonesAdmin = esAdmin;
 
-// Si hay usuario autenticado y NO es admin
+// CASO 1: USUARIO LOGUEADO Y NO ES ADMIN → DUEÑO DE COMERCIO
 if (usuarioActual && !esAdmin) {
-// Comerciante: muestra SOLO sus comercios (por uid)
-const misComercios = COMERCIOS.filter(c => c.uid === usuarioActual.uid);
-if (misComercios.length > 0) {
-misComercios.forEach(c => mostrarComercio(c, false));
-} else {
-box.innerHTML = '<p class="text-center p-8 text-gray-400">No se encontró tu comercio</p>';
-}
-return;
+    console.log("Mostrando vista de comerciante para:", usuarioActual.email);
+    const misComercios = COMERCIOS.filter(c => c.uid === usuarioActual.uid);
+    if (misComercios.length > 0) {
+        misComercios.forEach(c => mostrarComercio(c, false));
+    } else {
+        box.innerHTML = '<p style="text-align:center; padding:40px; color:#aaa;">No se encontró tu comercio</p>';
+    }
+    return; // ← IMPORTANTE: esto evita que el admin vea solo un comercio
 }
 
-// Si es admin o no hay usuario autenticado: muestra todos con filtros
+// CASO 2: ADMIN O NO LOGUEADO → VER TODOS LOS COMERCIOS
+console.log("Mostrando vista de admin - todos los comercios");
 const masterSearchInput = document.getElementById('masterSearch');
 const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 
