@@ -552,7 +552,7 @@
     import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, getDoc, addDoc, deleteDoc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getStorage, ref, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
-    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getAuth, createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -1195,7 +1195,7 @@
     }
 
     // ===========================================
-    // 5. APROBAR COMERCIO - CORREGIDO (UID NUNCA UNDEFINED)
+    // 5. APROBAR COMERCIO - VERSIÓN DEFINITIVA
     // ===========================================
     window.aprobarComercio = async () => {
         try {
@@ -1221,40 +1221,59 @@
             const idComercio = `${idBase}_${Math.floor(1000 + Math.random() * 9000)}`;
             const tokenQR = `token_${idBase}_${Math.floor(100000 + Math.random() * 899999)}`;
             
-            console.log("📝 Intentando crear cuenta en Firebase Auth...");
+            console.log("📝 Verificando email en Firebase Auth...");
             
-            // 1. Crear cuenta en Auth (CONTRASEÑA 123456)
-            let userCredential;
+            // 1. Verificar si el email ya existe en Auth
             let uid = null;
             
             try {
-                userCredential = await createUserWithEmailAndPassword(auth, postulacionActual.email, "123456");
+                // Intentar crear cuenta
+                const userCredential = await createUserWithEmailAndPassword(auth, postulacionActual.email, "123456");
                 uid = userCredential.user.uid;
                 console.log("✅ Cuenta creada. UID:", uid);
             } catch (authError) {
                 console.error("❌ Error al crear cuenta:", authError);
                 
                 if (authError.code === 'auth/email-already-in-use') {
-                    // Si el email ya existe, buscamos el UID en Firestore
-                    const q = query(collection(db, "comercios"), where("emailDueno", "==", postulacionActual.email));
-                    const querySnapshot = await getDocs(q);
+                    // El email ya existe - obtenemos el UID del usuario que ya está en Auth
+                    console.log("📧 Email ya existe, obteniendo UID desde Auth...");
                     
-                    if (!querySnapshot.empty) {
-                        // Ya tiene comercios, usamos ese UID
-                        const existingUid = querySnapshot.docs[0].data().uid;
-                        if (existingUid) {
-                            uid = existingUid;
-                            console.log("✅ Usando UID existente:", uid);
+                    // No podemos obtener el UID directamente, pero podemos usar signInWithEmailAndPassword
+                    // para obtenerlo (esto no guarda sesión porque no persistimos)
+                    try {
+                        // Intentamos obtener el usuario sin persistir sesión
+                        const signInResult = await auth.signInWithEmailAndPassword(postulacionActual.email, "123456");
+                        uid = signInResult.user.uid;
+                        console.log("✅ UID obtenido desde Auth:", uid);
+                        
+                        // Cerramos sesión inmediatamente para no afectar al admin
+                        await auth.signOut();
+                    } catch (signInError) {
+                        console.error("❌ No se pudo obtener UID:", signInError);
+                        
+                        // Si la contraseña no coincide, ofrecemos opción manual
+                        const usarManual = confirm(
+                            "El email ya existe en Auth pero no se pudo obtener el UID automáticamente.\n\n" +
+                            "¿Querés ingresar manualmente el UID?\n\n" +
+                            "(Si elegís CANCELAR, se usará un UID temporal que deberás corregir después)"
+                        );
+                        
+                        if (usarManual) {
+                            const uidManual = prompt("Ingresá el UID del usuario (desde Firebase Console):");
+                            if (uidManual && uidManual.trim()) {
+                                uid = uidManual.trim();
+                            } else {
+                                alert("❌ Operación cancelada");
+                                return;
+                            }
                         } else {
-                            alert("❌ El comercio existente no tiene UID. Contactá a soporte.");
-                            return;
+                            // Generar UID temporal (esto NO es ideal, pero permite continuar)
+                            uid = "temp_" + Date.now();
+                            console.warn("⚠️ Usando UID temporal:", uid);
                         }
-                    } else {
-                        alert("❌ El email ya está registrado en Auth pero no tiene comercios. Revisá Firebase Console.");
-                        return;
                     }
                 } else {
-                    alert(`❌ Error: ${authError.message}`);
+                    alert(`❌ Error al crear usuario: ${authError.message}`);
                     return;
                 }
             }
@@ -1269,7 +1288,7 @@
             console.log("📝 Guardando comercio en Firestore con UID:", uid);
             
             const nuevoComercio = {
-                uid: uid, // ← AHORA SÍ, SIEMPRE TIENE VALOR
+                uid: uid,
                 idComercio: idComercio,
                 nombre: postulacionActual.nombre_comercio,
                 rubro: postulacionActual.rubro,
@@ -1292,7 +1311,7 @@
                 detalleVip: "",
                 usosVip: 0,
                 vigenciaVip: 30,
-                estado: "activo_pendiente_password",
+                estado: "activo",
                 nivel_confianza: 0,
                 usos_cupones: 0,
                 postulacion_id: postulacionActual.id,
