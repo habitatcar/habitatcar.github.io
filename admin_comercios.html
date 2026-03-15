@@ -163,7 +163,17 @@ overflow: hidden;
 box-shadow: 0 8px 25px rgba(0,0,0,0.3);
 transition: 0.3s;
 }
-.comercio-card.inactive { background: #121b29; border-left-color: #333; }
+.comercio-card.inactive { 
+    background: #121b29; 
+    border-left-color: #333; 
+    opacity: 0.7;
+}
+.comercio-card.inactive .comercio-title {
+    color: #888;
+}
+.comercio-card.inactive .btn-op {
+    opacity: 0.8;
+}
 .visual-side { width: 160px; background: rgba(0,0,0,0.15); display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 25px; border-right: 1px solid rgba(255,255,255,0.05); }
 .img-preview { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; background: white; border: 3px solid var(--azul-claro); cursor: zoom-in; }
 .info-side { flex: 1; padding: 25px; }
@@ -668,14 +678,17 @@ function mostrarErrorAuditor(mensaje) {
 
 function mostrarComercio(c, mostrarBotonesAdmin) {
 const box = document.getElementById('lista-comercios');
-const estaPublicado = c.publicado === true; // ← AHORA USA PUBLICADO
+// ============================================
+// NUEVA LÓGICA: oscurecer si estado inactivo O publicado false
+// ============================================
+const estaOscuro = (c.estado !== 'activo') || (c.publicado === false);
 const displayID = c.idComercio || c.id || "SIN-ID";
 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
 const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
 const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
 
 box.innerHTML += `
-<div class="comercio-card">
+<div class="comercio-card ${estaOscuro ? 'inactive' : ''}">
 <div class="visual-side">
 <img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
 <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
@@ -734,9 +747,9 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 <div class="btn-group">
 <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
 
-<!-- BOTÓN PUBLICAR / NO PUBLICAR CORREGIDO -->
-<button class="btn-op" style="background:${estaPublicado ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.togglePublicar('${c.fbId}', ${estaPublicado})">
-${estaPublicado ? 'NO PUBLICAR' : 'PUBLICAR'}
+<!-- BOTÓN PUBLICAR / NO PUBLICAR -->
+<button class="btn-op" style="background:${c.publicado ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.togglePublicar('${c.fbId}', ${c.publicado})">
+${c.publicado ? 'NO PUBLICAR' : 'PUBLICAR'}
 </button>
 
 <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
@@ -988,7 +1001,7 @@ document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000
 };
 
 // ============================================
-// FUNCIÓN PUBLICAR / NO PUBLICAR (NUEVA)
+// FUNCIÓN PUBLICAR / NO PUBLICAR
 // ============================================
 window.togglePublicar = async (fbId, publicadoActual) => {
     try {
