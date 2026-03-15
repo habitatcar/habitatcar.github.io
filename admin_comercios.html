@@ -345,7 +345,7 @@ min-height: 60px;
 </header>
 
 <!-- ============================================ -->
-<!-- BARRA DE HERRAMIENTAS - SOLO VISIBLE EN MODO ADMIN GENERAL -->
+<!-- BARRA DE HERRAMIENTAS - SIN PUBLICADOS -->
 <!-- ============================================ -->
 <div id="faja-herramientas" class="tools-faja" style="display: none;">
 <div class="search-container">
@@ -356,12 +356,12 @@ min-height: 60px;
 <div class="stat-badge" style="background:#4a5568">TOTAL: <span id="count-total">0</span></div>
 <div class="stat-badge" style="background:var(--verde)">ACTIVOS: <span id="count-act">0</span></div>
 <div class="stat-badge" style="background:var(--rojo)">INACTIVOS: <span id="count-inact">0</span></div>
-<div class="stat-badge" style="background:var(--naranja)">PUBLICADOS: <span id="count-pub">0</span></div>
+<!-- ELIMINADO: PUBLICADOS -->
 </div>
 <div style="display: flex; gap: 8px;">
 <button id="fil-todos" class="btn-tool active" onclick="window.cambiarFiltro('todos', 'fil-todos')">Ver Todos</button>
 <button id="fil-inact" class="btn-tool" onclick="window.cambiarFiltro('inactivo', 'fil-inact')">Ver Inactivos</button>
-<button id="fil-pub" class="btn-tool" onclick="window.cambiarFiltro('publicado', 'fil-pub')">Ver Publicados</button>
+<!-- ELIMINADO: Ver Publicados -->
 </div>
 </div>
 
@@ -787,12 +787,12 @@ window.render = () => {
     const totalComercios = COMERCIOS.length;
     const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
     const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
-    const publicados = COMERCIOS.filter(x => x.publicado === true).length;
+    // ELIMINADO: publicados
 
     document.getElementById('count-total').innerText = totalComercios;
     document.getElementById('count-act').innerText = activos;
     document.getElementById('count-inact').innerText = inactivos;
-    document.getElementById('count-pub').innerText = publicados;
+    // ELIMINADO: count-pub
 
     let filtrados = COMERCIOS.filter(c => {
         const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -801,9 +801,8 @@ window.render = () => {
 
         if (FILTRO_ESTADO === 'inactivo') {
             matchesFiltro = c.estado !== 'activo';
-        } else if (FILTRO_ESTADO === 'publicado') {
-            matchesFiltro = c.publicado === true;
         }
+        // ELIMINADO: filtro por publicado
 
         return matchesSearch && matchesFiltro;
     });
@@ -1001,7 +1000,7 @@ document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000
 };
 
 // ============================================
-// FUNCIÓN PUBLICAR / NO PUBLICAR
+// FUNCIÓN PUBLICAR / NO PUBLICAR (CORREGIDA)
 // ============================================
 window.togglePublicar = async (fbId, publicadoActual) => {
     try {
@@ -1014,7 +1013,11 @@ window.togglePublicar = async (fbId, publicadoActual) => {
         document.body.appendChild(toast);
         setTimeout(() => toast.remove(), 2000);
         
-        cargarComercios();
+        // 🔥 FORZAR RECARGA COMPLETA DESDE FIRESTORE
+        const snapshot = await getDocs(collection(db, "comercios"));
+        COMERCIOS = snapshot.docs.map(d => ({ ...d.data(), fbId: d.id }));
+        window.render();
+        
     } catch (error) {
         console.error("Error al cambiar publicación:", error);
         alert("❌ Error al cambiar estado de publicación");
