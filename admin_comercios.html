@@ -520,7 +520,7 @@ min-height: 60px;
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -551,14 +551,10 @@ const esModoEdicionUnica = idEdicion !== null && idEdicion !== '';
 // ============================================
 const navMenu = document.getElementById('nav-menu-principal');
 if (esModoEdicionUnica) {
-    // Ocultar completamente la navegación admin
     navMenu.style.display = 'none';
-    // Ocultar la barra de herramientas
     document.getElementById('faja-herramientas').style.display = 'none';
-    // Cambiar el título del formulario
     document.getElementById('titulo-form').innerText = "✏️ EDITANDO MI COMERCIO";
 } else {
-    // Modo admin: mostrar navegación completa
     navMenu.style.display = 'block';
     navMenu.innerHTML = `
         <a href="admin_comercios.html" class="nav-link active">COMERCIOS</a>
@@ -630,52 +626,35 @@ ciudadSelect.innerHTML = '<option value="">Error al cargar</option>';
 }
 };
 
-// Quitar capa de seguridad al cargar la página
 function quitarCapaSeguridad() {
 const capa = document.getElementById('capa-seguridad');
 if (capa) capa.style.display = 'none';
 }
 quitarCapaSeguridad();
 
-// ============================================
-// CARGA DE COMERCIOS - CON FILTRO POR ID SI ESTAMOS EN MODO EDICIÓN
-// ============================================
 async function cargarComercios() {
     try {
         if (esModoEdicionUnica) {
-            // MODO EDICIÓN ÚNICA: buscar SOLO el comercio con ese ID
-            console.log("Modo edición única - buscando comercio con ID:", idEdicion);
-            
-            // Buscar por idComercio (el campo que almacena el ID visible)
             const q = query(collection(db, "comercios"), where("idComercio", "==", idEdicion));
             const querySnapshot = await getDocs(q);
             
             if (!querySnapshot.empty) {
                 COMERCIOS = querySnapshot.docs.map(d => ({ ...d.data(), fbId: d.id }));
-                console.log("Comercio encontrado:", COMERCIOS[0].nombre);
-                
-                // Auto-cargar el comercio en el formulario de edición
                 if (COMERCIOS.length > 0) {
                     setTimeout(() => {
                         window.edit(null, COMERCIOS[0].fbId);
                     }, 500);
                 }
             } else {
-                console.log("No se encontró comercio con ID:", idEdicion);
                 COMERCIOS = [];
             }
         } else {
-            // MODO ADMIN GENERAL: cargar TODOS los comercios
-            console.log("Modo admin general - cargando todos los comercios");
             const snapshot = await getDocs(collection(db, "comercios"));
             COMERCIOS = snapshot.docs.map(d => ({ ...d.data(), fbId: d.id }));
         }
-        
-        // Renderizar la lista
         window.render();
     } catch (error) {
         console.error("Error cargando comercios:", error);
-        mostrarErrorAuditor("Error al cargar comercios");
     }
 }
 
@@ -689,28 +668,25 @@ function mostrarErrorAuditor(mensaje) {
 
 function mostrarComercio(c, mostrarBotonesAdmin) {
 const box = document.getElementById('lista-comercios');
-const estaActivo = c.estado === 'activo';
+const estaPublicado = c.publicado === true; // ← AHORA USA PUBLICADO
 const displayID = c.idComercio || c.id || "SIN-ID";
 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
 const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
 const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
 
 box.innerHTML += `
-<div class="comercio-card ${estaActivo ? '' : 'inactive'}">
+<div class="comercio-card">
 <div class="visual-side">
 <img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
 <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
-<!-- Los botones de la columna izquierda (VER PANEL, COPIAR LINK, PREVISUALIZAR) 
-     solo los ve el admin, por eso están dentro de mostrarBotonesAdmin -->
 ${mostrarBotonesAdmin ? `
 <a href="admin_ingreso_duenos.html?id=${displayID}&admin=true" target="_blank" class="btn-directo">VER PANEL</a>
 <button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayID}')">
 <i class="fas fa-link"></i> COPIAR LINK
 </button>
 ` : ''}
-<!-- El botón PREVISUALIZAR SORTEOS lo ven TODOS (admin y comerciante) -->
 <button class="btn-preview-sorteos" onclick="window.previsualizarSorteos('${displayID}', '${c.nombre}')">
-<i class="fas fa-eye"></i> PREVISUALIZAR SORTEOS Y PROMOS
+<i class="fas fa-eye"></i> PREVISUALIZAR
 </button>
 </div>
 <div class="info-side">
@@ -756,15 +732,13 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 </div>
 </div>
 <div class="btn-group">
-<!-- EDITAR lo ve TODOS -->
 <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
 
-<!-- PUBLICAR/NO PUBLICAR lo ve TODOS -->
-<button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
-${estaActivo ? 'NO PUBLICAR' : 'PUBLICAR'}
+<!-- BOTÓN PUBLICAR / NO PUBLICAR CORREGIDO -->
+<button class="btn-op" style="background:${estaPublicado ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.togglePublicar('${c.fbId}', ${estaPublicado})">
+${estaPublicado ? 'NO PUBLICAR' : 'PUBLICAR'}
 </button>
 
-<!-- BORRAR lo ve TODOS -->
 <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
 
 <div class="social-box">
@@ -780,29 +754,20 @@ ${c.mapsUrl ? `<a href="${c.mapsUrl}" target="_blank" class="social-link" style=
 </div>`;
 }
 
-// ============================================
-// FUNCIÓN RENDER - MUESTRA COMERCIOS SEGÚN EL MODO
-// ============================================
 window.render = () => {
     const box = document.getElementById('lista-comercios');
     if(!box) return;
     box.innerHTML = "";
 
-    console.log("Renderizando - modo edición única:", esModoEdicionUnica);
-    
-    // Si estamos en modo edición única, mostrar SOLO ese comercio (ya está filtrado en COMERCIOS)
     if (esModoEdicionUnica) {
         if (COMERCIOS.length === 0) {
             box.innerHTML = '<div class="text-center p-8 bg-gray-800 rounded-2xl text-gray-400">No se encontró el comercio solicitado</div>';
             return;
         }
-        
-        // Mostrar el único comercio CON los botones que debe ver el comerciante
         COMERCIOS.forEach(c => mostrarComercio(c, false));
         return;
     }
     
-    // MODO ADMIN GENERAL - mostrar todos con filtros
     const masterSearchInput = document.getElementById('masterSearch');
     const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 
@@ -816,7 +781,6 @@ window.render = () => {
     document.getElementById('count-inact').innerText = inactivos;
     document.getElementById('count-pub').innerText = publicados;
 
-    // Filtrar según búsqueda y filtros
     let filtrados = COMERCIOS.filter(c => {
         const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
         const matchesSearch = term === "" || searchStr.includes(term);
@@ -836,7 +800,7 @@ window.render = () => {
     if (filtrados.length === 0) {
         box.innerHTML = '<div class="text-center p-8 bg-gray-800 rounded-2xl text-gray-400">No hay comercios para mostrar</div>';
     } else {
-        filtrados.forEach(c => mostrarComercio(c, true)); // Admin ve todos los botones
+        filtrados.forEach(c => mostrarComercio(c, true));
     }
 };
 
@@ -1023,8 +987,25 @@ document.getElementById('id-input').value = id;
 document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000 + Math.random() * 899999) : "";
 };
 
-window.toggleEstado = async (e, id, est) => {
-await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' });
+// ============================================
+// FUNCIÓN PUBLICAR / NO PUBLICAR (NUEVA)
+// ============================================
+window.togglePublicar = async (fbId, publicadoActual) => {
+    try {
+        const nuevoEstado = !publicadoActual;
+        await updateDoc(doc(db, "comercios", fbId), { publicado: nuevoEstado });
+        
+        const toast = document.createElement('div');
+        toast.textContent = nuevoEstado ? '✅ Comercio PUBLICADO' : '⏸️ Comercio NO PUBLICADO';
+        toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:10000;';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 2000);
+        
+        cargarComercios();
+    } catch (error) {
+        console.error("Error al cambiar publicación:", error);
+        alert("❌ Error al cambiar estado de publicación");
+    }
 };
 
 window.del = async (e, id) => {
@@ -1049,7 +1030,6 @@ return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '
 } catch (e) { return "---"; }
 };
 
-// Cargar comercios al inicio
 cargarComercios();
 window.addEventListener('load', configurarFechaMinima);
 </script>
