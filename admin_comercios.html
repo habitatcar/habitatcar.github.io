@@ -538,9 +538,6 @@ const auth = getAuth(app);
 
 let COMERCIOS = [];
 let FILTRO_ESTADO = 'todos';
-let usuarioActual = null;
-let esAdmin = false;
-let autenticacionResuelta = false;
 
 // ============================================
 // DETECTAR MODO DE EDICIÓN POR URL
@@ -638,33 +635,7 @@ function quitarCapaSeguridad() {
 const capa = document.getElementById('capa-seguridad');
 if (capa) capa.style.display = 'none';
 }
-
-// Verificar autenticación
-onAuthStateChanged(auth, (user) => {
-usuarioActual = user;
-autenticacionResuelta = true;
-if (user) {
-const admins = ["lorenxi@gmail.com"];
-esAdmin = admins.includes(user.email);
-console.log("Usuario autenticado:", user.email, "esAdmin:", esAdmin);
-} else {
-console.log("No hay usuario autenticado - modo lectura");
-esAdmin = false;
-}
 quitarCapaSeguridad();
-cargarComercios();
-});
-
-// Timeout de seguridad por si Auth tarda
-setTimeout(() => {
-if (!autenticacionResuelta) {
-console.log("Timeout de autenticación - mostrando sin restricciones");
-usuarioActual = null;
-esAdmin = false;
-quitarCapaSeguridad();
-cargarComercios();
-}
-}, 2000);
 
 // ============================================
 // CARGA DE COMERCIOS - CON FILTRO POR ID SI ESTAMOS EN MODO EDICIÓN
@@ -890,12 +861,6 @@ if(event) event.preventDefault();
 const c = COMERCIOS.find(x => x.fbId === id);
 if(!c) return;
 
-// Si es comerciante, verificar que sea SU comercio
-if (usuarioActual && !esAdmin && c.uid !== usuarioActual.uid) {
-alert("No tienes permiso para editar otros comercios");
-return;
-}
-
 document.getElementById('edit-id').value = id;
 document.getElementById('nombre-input').value = c.nombre || "";
 document.getElementById('rubro-input').value = c.rubro || "";
@@ -934,29 +899,6 @@ document.getElementById('maps-url').value = c.mapsUrl || "";
 document.getElementById('email-input').value = c.emailDueno || "";
 document.getElementById('password-input').value = c.password || "";
 document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
-
-// Configurar el formulario según el tipo de usuario
-if (usuarioActual && !esAdmin) {
-// Modo comerciante: solo puede editar ciertos campos
-document.getElementById('nombre-input').readOnly = true;
-document.getElementById('rubro-input').readOnly = true;
-document.getElementById('id-input').classList.remove('read-only');
-document.getElementById('id-input').classList.add('read-only-comerciante');
-document.getElementById('token-input').classList.remove('read-only');
-document.getElementById('token-input').classList.add('read-only-comerciante');
-document.getElementById('reporte-input').disabled = true;
-document.getElementById('titulo-form').innerText = "📝 EDITAR MI COMERCIO";
-} else {
-// Modo admin: todo editable
-document.getElementById('nombre-input').readOnly = false;
-document.getElementById('rubro-input').readOnly = false;
-document.getElementById('id-input').classList.remove('read-only-comerciante');
-document.getElementById('id-input').classList.add('read-only');
-document.getElementById('token-input').classList.remove('read-only-comerciante');
-document.getElementById('token-input').classList.add('read-only');
-document.getElementById('reporte-input').disabled = false;
-document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
-}
 
 document.getElementById('btn-cancel-edit').style.display = 'block';
 };
@@ -1011,11 +953,6 @@ frecuenciaReporte: document.getElementById('reporte-input').value,
 publicado: false
 };
 
-// Si es un comerciante editando su propio comercio, mantener su UID
-if (usuarioActual && !esAdmin) {
-data.uid = usuarioActual.uid;
-}
-
 try {
 let docRef;
 if (eid) {
@@ -1027,10 +964,6 @@ toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;col
 document.body.appendChild(toast);
 setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 } else {
-if (usuarioActual && !esAdmin) {
-alert("No tienes permiso para crear nuevos comercios");
-return;
-}
 data.estado = "activo";
 data.fechaCarga = Date.now();
 data.lastSubmission = null;
@@ -1079,46 +1012,28 @@ document.getElementById('rubro-input').value = "";
 document.getElementById('titulo-form').innerText = esModoEdicionUnica ? "✏️ EDITANDO MI COMERCIO" : "➕ REGISTRAR COMERCIO";
 document.getElementById('btn-cancel-edit').style.display = 'none';
 
-document.getElementById('nombre-input').readOnly = false;
-document.getElementById('rubro-input').readOnly = false;
-document.getElementById('id-input').classList.remove('read-only-comerciante');
-document.getElementById('id-input').classList.add('read-only');
-document.getElementById('token-input').classList.remove('read-only-comerciante');
-document.getElementById('token-input').classList.add('read-only');
-document.getElementById('reporte-input').disabled = false;
-
 configurarFechaMinima();
 };
 
 window.genID = () => {
 if(document.getElementById('edit-id').value) return;
-if (usuarioActual && !esAdmin) return; // Los comerciantes no pueden generar IDs
 const n = document.getElementById('nombre-input').value;
 const id = n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 document.getElementById('id-input').value = id;
 document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000 + Math.random() * 899999) : "";
 };
 
-window.togglePublicar = async (fbId, publicadoActual) => {
-if (!esAdmin) return;
-const nuevoEstado = publicadoActual ? false : true;
-await updateDoc(doc(db, "comercios", fbId), { publicado: nuevoEstado });
-};
-
 window.toggleEstado = async (e, id, est) => {
-if (!esAdmin) return;
 await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' });
 };
 
 window.del = async (e, id) => {
-if (!esAdmin) return;
 if(confirm("¿Borrar comercio?")) await deleteDoc(doc(db, "comercios", id));
 };
 
 window.zoom = (u) => { document.getElementById('modal-img').src = u; document.getElementById('modal').style.display='flex'; };
 
 window.cambiarFiltro = (f, id) => {
-if (!esAdmin) return;
 FILTRO_ESTADO = f;
 document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
 document.getElementById(id).classList.add('active');
@@ -1134,6 +1049,8 @@ return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '
 } catch (e) { return "---"; }
 };
 
+// Cargar comercios al inicio
+cargarComercios();
 window.addEventListener('load', configurarFechaMinima);
 </script>
 </body>
