@@ -1195,10 +1195,11 @@
     }
 
     // ===========================================
-    // 5. APROBAR COMERCIO (VERSIÓN CORREGIDA - CON PUBLICADO: FALSE)
+    // 5. APROBAR COMERCIO - CORREGIDO (UID NUNCA UNDEFINED)
     // ===========================================
     window.aprobarComercio = async () => {
         try {
+            // Verificaciones iniciales
             if (!postulacionActual) {
                 alert("❌ No hay postulación seleccionada");
                 return;
@@ -1211,6 +1212,7 @@
             
             if (!confirm("¿Confirmás que los datos son correctos y querés aprobar este comercio?")) return;
             
+            // Generar IDs
             const idBase = postulacionActual.nombre_comercio
                 .toLowerCase()
                 .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
@@ -1223,9 +1225,12 @@
             
             // 1. Crear cuenta en Auth (CONTRASEÑA 123456)
             let userCredential;
+            let uid = null;
+            
             try {
                 userCredential = await createUserWithEmailAndPassword(auth, postulacionActual.email, "123456");
-                console.log("✅ Cuenta creada. UID:", userCredential.user.uid);
+                uid = userCredential.user.uid;
+                console.log("✅ Cuenta creada. UID:", uid);
             } catch (authError) {
                 console.error("❌ Error al crear cuenta:", authError);
                 
@@ -1236,10 +1241,16 @@
                     
                     if (!querySnapshot.empty) {
                         // Ya tiene comercios, usamos ese UID
-                        userCredential = { user: { uid: querySnapshot.docs[0].data().uid } };
-                        console.log("✅ Usando UID existente:", userCredential.user.uid);
+                        const existingUid = querySnapshot.docs[0].data().uid;
+                        if (existingUid) {
+                            uid = existingUid;
+                            console.log("✅ Usando UID existente:", uid);
+                        } else {
+                            alert("❌ El comercio existente no tiene UID. Contactá a soporte.");
+                            return;
+                        }
                     } else {
-                        alert("❌ El email ya está registrado pero no tiene comercios. Revisá Firebase Console.");
+                        alert("❌ El email ya está registrado en Auth pero no tiene comercios. Revisá Firebase Console.");
                         return;
                     }
                 } else {
@@ -1248,11 +1259,17 @@
                 }
             }
             
-            // 2. Guardar en Firestore
-            console.log("📝 Guardando comercio en Firestore...");
+            // ⚠️ Si no hay UID, no podemos continuar
+            if (!uid) {
+                alert("❌ Error crítico: No se pudo obtener un UID válido");
+                return;
+            }
             
-            await addDoc(collection(db, "comercios"), {
-                uid: userCredential.user.uid,
+            // 2. Guardar en Firestore
+            console.log("📝 Guardando comercio en Firestore con UID:", uid);
+            
+            const nuevoComercio = {
+                uid: uid, // ← AHORA SÍ, SIEMPRE TIENE VALOR
                 idComercio: idComercio,
                 nombre: postulacionActual.nombre_comercio,
                 rubro: postulacionActual.rubro,
@@ -1286,8 +1303,10 @@
                 constancia_afip_url: postulacionActual.constancia_afip_url,
                 password: "123456",
                 rol: "comerciante",
-                publicado: false // ⬅️ ESTA ES LA LÍNEA QUE FALTABA
-            });
+                publicado: false // ← NUEVO: empieza como NO publicado
+            };
+            
+            await addDoc(collection(db, "comercios"), nuevoComercio);
             
             // 3. Actualizar postulación
             const postulacionRef = doc(db, "postulaciones_comercios", postulacionActual.id);
@@ -1299,7 +1318,7 @@
                 token_qr_generado: tokenQR
             });
             
-            // 4. Email de bienvenida
+            // 4. Email de bienvenida (opcional)
             try {
                 const enviarEmailSetup = httpsCallable(functions, 'enviarEmailSetup');
                 await enviarEmailSetup({
@@ -1309,9 +1328,10 @@
                 });
             } catch (emailError) {
                 console.error("Error email:", emailError);
+                // No detenemos el flujo si falla el email
             }
             
-            alert(`✅ Comercio aprobado\n\nID: ${idComercio}\nContraseña: 123456`);
+            alert(`✅ Comercio aprobado\n\nID: ${idComercio}\nContraseña: 123456\n\nEstado: NO PUBLICADO (el comerciante debe publicarlo manualmente)`);
             cerrarModal();
             
         } catch (error) {
