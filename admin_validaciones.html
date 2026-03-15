@@ -552,7 +552,7 @@
     import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, getDoc, addDoc, deleteDoc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getStorage, ref, getDownloadURL, deleteObject } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
-    import { getAuth, createUserWithEmailAndPassword, fetchSignInMethodsForEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -1195,7 +1195,7 @@
     }
 
     // ===========================================
-    // 5. APROBAR COMERCIO - VERSIÓN DEFINITIVA
+    // 5. APROBAR COMERCIO - VERSIÓN DEFINITIVA (CON PUBLICADO: FALSE)
     // ===========================================
     window.aprobarComercio = async () => {
         try {
@@ -1235,23 +1235,17 @@
                 console.error("❌ Error al crear cuenta:", authError);
                 
                 if (authError.code === 'auth/email-already-in-use') {
-                    // El email ya existe - obtenemos el UID del usuario que ya está en Auth
+                    // El email ya existe - intentamos obtener el UID
                     console.log("📧 Email ya existe, obteniendo UID desde Auth...");
                     
-                    // No podemos obtener el UID directamente, pero podemos usar signInWithEmailAndPassword
-                    // para obtenerlo (esto no guarda sesión porque no persistimos)
                     try {
-                        // Intentamos obtener el usuario sin persistir sesión
-                        const signInResult = await auth.signInWithEmailAndPassword(postulacionActual.email, "123456");
+                        const signInResult = await signInWithEmailAndPassword(auth, postulacionActual.email, "123456");
                         uid = signInResult.user.uid;
                         console.log("✅ UID obtenido desde Auth:", uid);
-                        
-                        // Cerramos sesión inmediatamente para no afectar al admin
-                        await auth.signOut();
+                        await signOut(auth);
                     } catch (signInError) {
                         console.error("❌ No se pudo obtener UID:", signInError);
                         
-                        // Si la contraseña no coincide, ofrecemos opción manual
                         const usarManual = confirm(
                             "El email ya existe en Auth pero no se pudo obtener el UID automáticamente.\n\n" +
                             "¿Querés ingresar manualmente el UID?\n\n" +
@@ -1267,7 +1261,6 @@
                                 return;
                             }
                         } else {
-                            // Generar UID temporal (esto NO es ideal, pero permite continuar)
                             uid = "temp_" + Date.now();
                             console.warn("⚠️ Usando UID temporal:", uid);
                         }
@@ -1284,7 +1277,7 @@
                 return;
             }
             
-            // 2. Guardar en Firestore
+            // 2. Guardar en Firestore - CON PUBLICADO: FALSE EXPLÍCITAMENTE
             console.log("📝 Guardando comercio en Firestore con UID:", uid);
             
             const nuevoComercio = {
@@ -1322,7 +1315,7 @@
                 constancia_afip_url: postulacionActual.constancia_afip_url,
                 password: "123456",
                 rol: "comerciante",
-                publicado: false // ← NUEVO: empieza como NO publicado
+                publicado: false // ← EXPLÍCITAMENTE false
             };
             
             await addDoc(collection(db, "comercios"), nuevoComercio);
@@ -1347,10 +1340,9 @@
                 });
             } catch (emailError) {
                 console.error("Error email:", emailError);
-                // No detenemos el flujo si falla el email
             }
             
-            alert(`✅ Comercio aprobado\n\nID: ${idComercio}\nContraseña: 123456\n\nEstado: NO PUBLICADO (el comerciante debe publicarlo manualmente)`);
+            alert(`✅ Comercio aprobado\n\nID: ${idComercio}\nContraseña: 123456\n\nESTADO: NO PUBLICADO (el comerciante debe publicarlo manualmente desde su panel)`);
             cerrarModal();
             
         } catch (error) {
