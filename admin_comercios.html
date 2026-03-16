@@ -527,7 +527,7 @@ min-height: 60px;
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, query, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 const firebaseConfig = {
@@ -633,15 +633,30 @@ return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '
 // BOTÓN PUBLICAR ELIMINADO - YA NO HAY togglePublicar
 // ============================================
 
-onSnapshot(collection(db, "comercios"), (snap) => {
-COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
-window.render();
-
-if(esComerciante && COMERCIOS.length > 0) {
-const comActual = COMERCIOS.find(x => x.idComercio === idForzado);
-if(comActual) window.edit(null, comActual.fbId);
+// ============================================
+// MODIFICACIÓN: Si es comerciante, cargar SOLO su comercio
+// ============================================
+if (esComerciante) {
+    // Cargar SOLO el comercio con el ID específico
+    const q = query(collection(db, "comercios"), where("idComercio", "==", idForzado));
+    onSnapshot(q, (snap) => {
+        COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+        window.render();
+        
+        if(COMERCIOS.length > 0) {
+            // Auto-editar el comercio para el comerciante
+            setTimeout(() => {
+                window.edit(null, COMERCIOS[0].fbId);
+            }, 500);
+        }
+    });
+} else {
+    // Admin: cargar TODOS los comercios
+    onSnapshot(collection(db, "comercios"), (snap) => {
+        COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+        window.render();
+    });
 }
-});
 
 function mostrarComercio(c) {
 const box = document.getElementById('lista-comercios');
@@ -736,15 +751,15 @@ const box = document.getElementById('lista-comercios');
 if(!box) return;
 box.innerHTML = "";
 
-// SI ES COMERCIANTE: solo muestra su comercio
+// SI ES COMERCIANTE: solo muestra su comercio (ya viene filtrado)
 if (esComerciante) {
-const miComercio = COMERCIOS.find(c => c.idComercio === idForzado);
-if (miComercio) {
-mostrarComercio(miComercio);
-} else {
-box.innerHTML = '<p class="text-center p-8 text-gray-400">No se encontró tu comercio</p>';
-}
-return;
+    // COMERCIOS ya contiene solo el comercio del comerciante
+    if (COMERCIOS.length === 0) {
+        box.innerHTML = '<p class="text-center p-8 text-gray-400">No se encontró tu comercio</p>';
+        return;
+    }
+    COMERCIOS.forEach(c => mostrarComercio(c));
+    return;
 }
 
 // SI ES ADMIN: calcula contadores y filtra
