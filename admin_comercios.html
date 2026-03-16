@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.7</title>
+<title>HABITAT-CAR | PANEL ADMINISTRATIVO v7.5</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -163,17 +163,7 @@ overflow: hidden;
 box-shadow: 0 8px 25px rgba(0,0,0,0.3);
 transition: 0.3s;
 }
-.comercio-card.inactive { 
-    background: #121b29; 
-    border-left-color: #333; 
-    opacity: 0.7;
-}
-.comercio-card.inactive .comercio-title {
-    color: #888;
-}
-.comercio-card.inactive .btn-op {
-    opacity: 0.8;
-}
+.comercio-card.inactive { background: #121b29; border-left-color: #333; }
 .visual-side { width: 160px; background: rgba(0,0,0,0.15); display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 25px; border-right: 1px solid rgba(255,255,255,0.05); }
 .img-preview { width: 120px; height: 120px; object-fit: cover; border-radius: 12px; background: white; border: 3px solid var(--azul-claro); cursor: zoom-in; }
 .info-side { flex: 1; padding: 25px; }
@@ -208,6 +198,13 @@ white-space: nowrap;
 .highlight-ben { color: var(--verde) !important; font-size: 1.3em !important; font-weight: 800 !important; }
 .btn-group { margin-top: 25px; display: flex; gap: 15px; flex-wrap: wrap; align-items: center; background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; }
 .btn-op { padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; font-size: 0.9em; transition: 0.3s; }
+.btn-publicar {
+padding: 12px 20px; border-radius: 8px; border: none; cursor: pointer; color: white; font-weight: bold; font-size: 0.9em; transition: 0.3s;
+background: var(--verde);
+}
+.btn-publicar.publicado {
+background: #6c757d;
+}
 .btn-directo {
 background: var(--celeste-habitat);
 color: white;
@@ -336,10 +333,22 @@ min-height: 60px;
 <div id="capa-seguridad">VALIDANDO SESIÓN SEGURA...</div>
 <header class="header">
 <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo">
-<nav class="nav-menu" id="nav-menu-principal" style="display: block;">
+<nav class="nav-menu" id="nav-menu-principal">
+<a href="admin_comercios.html" class="nav-link active">COMERCIOS</a>
+<a href="admin_leads.html" class="nav-link">LEADS</a>
+<a href="admin_vips.html" class="nav-link">VIPS</a>
+<a href="admin_tokens_vip.html" class="nav-link">TOKENS VIP</a>
+<a href="admin_curioso.html" class="nav-link">CURIOSO</a>
+<a href="admin_estadisticas.html" class="nav-link">ESTADÍSTICAS</a>
+<a href="admin_logs.html" class="nav-link">LOG</a>
+<a href="admin_tutoriales.html" class="nav-link">TUTORIALES</a>
+<a href="admin_validaciones.html" class="nav-link nav-link-validaciones">VALIDACIONES</a>
+<a href="index.html" class="nav-link">PANEL DE INGRESO</a>
+<a href="admin_legales.html" class="nav-link">LEGALES</a>
+<a href="admin_sorteos.html" class="nav-link">SORTEOS</a>
 </nav>
 </header>
-<div id="faja-herramientas" class="tools-faja" style="display: none;">
+<div class="tools-faja" id="faja-herramientas" style="display: none;">
 <div class="search-container">
 <span class="search-icon">🔍</span>
 <input type="text" id="masterSearch" class="search-input" placeholder="Buscar comercio..." oninput="window.render()">
@@ -348,10 +357,12 @@ min-height: 60px;
 <div class="stat-badge" style="background:#4a5568">TOTAL: <span id="count-total">0</span></div>
 <div class="stat-badge" style="background:var(--verde)">ACTIVOS: <span id="count-act">0</span></div>
 <div class="stat-badge" style="background:var(--rojo)">INACTIVOS: <span id="count-inact">0</span></div>
+<div class="stat-badge" style="background:var(--naranja)">PUBLICADOS: <span id="count-pub">0</span></div>
 </div>
 <div style="display: flex; gap: 8px;">
 <button id="fil-todos" class="btn-tool active" onclick="window.cambiarFiltro('todos', 'fil-todos')">Ver Todos</button>
 <button id="fil-inact" class="btn-tool" onclick="window.cambiarFiltro('inactivo', 'fil-inact')">Ver Inactivos</button>
+<button id="fil-pub" class="btn-tool" onclick="window.cambiarFiltro('publicado', 'fil-pub')">Ver Publicados</button>
 </div>
 </div>
 <div class="wrapper">
@@ -398,30 +409,6 @@ min-height: 60px;
 </div>
 </div>
 <input type="text" id="detalle-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
-<details style="background: rgba(212, 175, 55, 0.15); border: 1px solid var(--dorado); border-radius: 10px; margin-top: 15px; overflow: hidden;">
-<summary style="padding: 12px; cursor: pointer; font-weight: bold; color: var(--dorado); display: flex; justify-content: space-between; align-items: center; list-style: none; background: rgba(0,0,0,0.3);">
-<span>🌐 REDES SOCIALES Y SITIO WEB</span>
-<i class="fas fa-chevron-down" style="color: var(--dorado);"></i>
-</summary>
-<div class="form-grid" style="padding: 15px; border-top: 1px solid rgba(212,175,55,0.2);">
-<div class="form-group">
-<label><i class="fab fa-facebook-f"></i> URL FACEBOOK</label>
-<input type="text" id="facebook-input" placeholder="https://facebook.com/tucomercio">
-</div>
-<div class="form-group">
-<label><i class="fab fa-instagram"></i> URL INSTAGRAM</label>
-<input type="text" id="instagram-input" placeholder="https://instagram.com/tucomercio">
-</div>
-<div class="form-group">
-<label><i class="fab fa-tiktok"></i> URL TIKTOK</label>
-<input type="text" id="web-input" placeholder="https://tiktok.com/@tucomercio">
-</div>
-<div class="form-group">
-<label><i class="fas fa-globe"></i> SITIO WEB</label>
-<input type="text" id="sitio-web-input" placeholder="https://tucomercio.com">
-</div>
-</div>
-</details>
 <details style="background: rgba(255,140,0,0.1); border: 1px solid var(--naranja); border-radius: 10px; margin-top: 15px; overflow: hidden;">
 <summary style="padding: 12px; cursor: pointer; font-weight: bold; color: var(--naranja); display: flex; justify-content: space-between; align-items: center; list-style: none;">
 <span>🎁 SORTEOS Y PROMOCIONES</span>
@@ -490,12 +477,13 @@ min-height: 60px;
 <option value="">Ciudad / Localidad</option>
 </select>
 <input type="text" id="telefono-input" class="full" placeholder="WhatsApp (Número)">
+<input type="text" id="facebook-input" class="full" placeholder="URL FACEBOOK">
+<input type="text" id="instagram-input" class="full" placeholder="URL INSTAGRAM">
+<input type="text" id="web-input" class="full" placeholder="URL TIK TOK (Se guarda como 'web')">
+<input type="text" id="sitio-web-input" class="full" placeholder="Sitio Web (URL)">
 <input type="text" id="maps-url" class="full" placeholder="UBICACIÓN MAPS (URL de Google Maps)">
 <input type="email" id="email-input" class="full" placeholder="Email Dueño">
-<div style="position: relative; width: 100%;">
-<input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO (OBLIGATORIO)" style="border: 2px solid var(--oro);">
-<div style="position: absolute; bottom: -18px; left: 10px; font-size: 11px; color: var(--oro); font-weight: bold; background: rgba(0,0,0,0.7); padding: 2px 8px; border-radius: 12px;">🔐 Contraseña del Dueño</div>
-</div>
+<input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO (OBLIGATORIO)" style="border: 2px solid var(--oro)">
 <select id="reporte-input" class="full">
 <option value="Semanal">Reporte Semanal</option>
 <option value="Quincenal">Reporte Quincenal</option>
@@ -513,9 +501,8 @@ min-height: 60px;
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, doc, updateDoc, addDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
 const firebaseConfig = {
 apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -529,38 +516,6 @@ appId: "1:311691258694:web:17a09051dcea7707af9347"
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
-const auth = getAuth(app);
-
-let COMERCIOS = [];
-let FILTRO_ESTADO = 'todos';
-
-const urlParams = new URLSearchParams(window.location.search);
-const idEdicion = urlParams.get('edit');
-const esModoEdicionUnica = idEdicion !== null && idEdicion !== '';
-
-const navMenu = document.getElementById('nav-menu-principal');
-if (esModoEdicionUnica) {
-    navMenu.style.display = 'none';
-    document.getElementById('faja-herramientas').style.display = 'none';
-    document.getElementById('titulo-form').innerText = "✏️ EDITANDO MI COMERCIO";
-} else {
-    navMenu.style.display = 'block';
-    navMenu.innerHTML = `
-        <a href="admin_comercios.html" class="nav-link active">COMERCIOS</a>
-        <a href="admin_leads.html" class="nav-link">LEADS</a>
-        <a href="admin_vips.html" class="nav-link">VIPS</a>
-        <a href="admin_tokens_vip.html" class="nav-link">TOKENS VIP</a>
-        <a href="admin_curioso.html" class="nav-link">CURIOSO</a>
-        <a href="admin_estadisticas.html" class="nav-link">ESTADÍSTICAS</a>
-        <a href="admin_logs.html" class="nav-link">LOG</a>
-        <a href="admin_tutoriales.html" class="nav-link">TUTORIALES</a>
-        <a href="admin_validaciones.html" class="nav-link nav-link-validaciones">VALIDACIONES</a>
-        <a href="index.html" class="nav-link">PANEL DE INGRESO</a>
-        <a href="admin_legales.html" class="nav-link">LEGALES</a>
-        <a href="admin_sorteos.html" class="nav-link">SORTEOS</a>
-    `;
-    document.getElementById('faja-herramientas').style.display = 'flex';
-}
 
 async function subirLogoAFirebase(archivo) {
 if (!archivo) return null;
@@ -570,6 +525,13 @@ const snapshot = await uploadBytes(storageRef, archivo);
 const url = await getDownloadURL(snapshot.ref);
 return url;
 }
+
+const urlParams = new URLSearchParams(window.location.search);
+const idForzado = urlParams.get('id');
+const esModoAdmin = urlParams.get('admin') === 'true';
+let COMERCIOS = [];
+let FILTRO_ESTADO = 'todos';
+let esComerciante = idForzado && esModoAdmin; // TRUE si es un dueño de comercio
 
 function configurarFechaMinima() {
 const ahora = new Date();
@@ -615,70 +577,71 @@ ciudadSelect.innerHTML = '<option value="">Error al cargar</option>';
 }
 };
 
-function quitarCapaSeguridad() {
+window.addEventListener('load', () => {
+if (esComerciante) {
+// Ocultar herramientas de admin para comerciantes
+const nav = document.getElementById('nav-menu-principal');
+const faja = document.getElementById('faja-herramientas');
+if(nav) nav.style.display = 'none';
+if(faja) faja.style.display = 'none';
+} else {
+// Mostrar todo para admin
 const capa = document.getElementById('capa-seguridad');
-if (capa) capa.style.display = 'none';
+if(capa) capa.style.display = 'none';
+const faja = document.getElementById('faja-herramientas');
+if(faja) faja.style.display = 'flex';
 }
-quitarCapaSeguridad();
+configurarFechaMinima();
+});
 
-async function cargarComercios() {
-    try {
-        if (esModoEdicionUnica) {
-            const q = query(collection(db, "comercios"), where("idComercio", "==", idEdicion));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                COMERCIOS = querySnapshot.docs.map(d => ({ ...d.data(), fbId: d.id }));
-                if (COMERCIOS.length > 0) {
-                    setTimeout(() => {
-                        window.edit(null, COMERCIOS[0].fbId);
-                    }, 500);
-                }
-            } else {
-                COMERCIOS = [];
-            }
-        } else {
-            const snapshot = await getDocs(collection(db, "comercios"));
-            COMERCIOS = snapshot.docs.map(d => ({ ...d.data(), fbId: d.id }));
-        }
-        window.render();
-    } catch (error) {
-        console.error("Error cargando comercios:", error);
-    }
+const formatearFecha = (ts) => {
+if (!ts) return "Sin envíos";
+try {
+if (typeof ts === 'string') return ts;
+let fecha = ts.toDate ? ts.toDate() : new Date(Number(ts));
+return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+} catch (e) { return "---"; }
+};
+
+window.togglePublicar = async (fbId, publicadoActual) => {
+if (esComerciante) return; // Los comerciantes no pueden publicar
+const nuevoEstado = publicadoActual ? false : true;
+await updateDoc(doc(db, "comercios", fbId), { publicado: nuevoEstado });
+};
+
+onSnapshot(collection(db, "comercios"), (snap) => {
+COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+window.render();
+
+if(esComerciante && COMERCIOS.length > 0) {
+const comActual = COMERCIOS.find(x => x.idComercio === idForzado);
+if(comActual) window.edit(null, comActual.fbId);
 }
+});
 
-function mostrarErrorAuditor(mensaje) {
-    const box = document.getElementById('customAlert');
-    if (!box) return;
-    box.innerText = mensaje;
-    box.style.display = 'block';
-    setTimeout(() => { box.style.display = 'none'; }, 3000);
-}
-
-function mostrarComercio(c, mostrarBotonesAdmin) {
+function mostrarComercio(c) {
 const box = document.getElementById('lista-comercios');
-// ============================================
-// NUEVA VARIABLE: visibleEnApp
-// ============================================
-const estaOscuro = (c.visibleEnApp === false); // Si visibleEnApp es false, se oscurece
+const estaActivo = c.estado === 'activo';
+const publicado = c.publicado === true;
 const displayID = c.idComercio || c.id || "SIN-ID";
 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
 const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
 const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
 
 box.innerHTML += `
-<div class="comercio-card ${estaOscuro ? 'inactive' : ''}">
+<div class="comercio-card ${estaActivo ? '' : 'inactive'}">
 <div class="visual-side">
 <img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
 <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
-${mostrarBotonesAdmin ? `
+${!esComerciante ? `
 <a href="admin_ingreso_duenos.html?id=${displayID}&admin=true" target="_blank" class="btn-directo">VER PANEL</a>
 <button class="btn-copiar-link" onclick="window.copiarLinkDirecto('${displayID}')">
 <i class="fas fa-link"></i> COPIAR LINK
 </button>
-` : ''}
 <button class="btn-preview-sorteos" onclick="window.previsualizarSorteos('${displayID}', '${c.nombre}')">
-<i class="fas fa-eye"></i> PREVISUALIZAR
+<i class="fas fa-eye"></i> PREVISUALIZAR SORTEOS Y PROMOS
 </button>
+` : ''}
 </div>
 <div class="info-side">
 <div class="comercio-header">
@@ -724,16 +687,15 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 </div>
 <div class="btn-group">
 <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
-
-<!-- ============================================
-     NUEVO BOTÓN usando visibleEnApp
-     ============================================ -->
-<button class="btn-op" style="background:${c.visibleEnApp ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleVisible('${c.fbId}', ${c.visibleEnApp})">
-${c.visibleEnApp ? 'NO PUBLICAR' : 'PUBLICAR'}
+${!esComerciante ? `
+<button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
+${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
 </button>
-
+<button class="btn-publicar ${publicado ? 'publicado' : ''}" onclick="window.togglePublicar('${c.fbId}', ${publicado})">
+${publicado ? 'PUBLICADO ✓' : 'PUBLICAR'}
+</button>
 <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
-
+` : ''}
 <div class="social-box">
 ${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
 ${c.facebook ? `<a href="${c.facebook}" target="_blank" class="social-link bg-fb"><i class="fab fa-facebook-f"></i></a>` : ''}
@@ -748,40 +710,51 @@ ${c.mapsUrl ? `<a href="${c.mapsUrl}" target="_blank" class="social-link" style=
 }
 
 window.render = () => {
-    const box = document.getElementById('lista-comercios');
-    if(!box) return;
-    box.innerHTML = "";
-    if (esModoEdicionUnica) {
-        if (COMERCIOS.length === 0) {
-            box.innerHTML = '<div class="text-center p-8 bg-gray-800 rounded-2xl text-gray-400">No se encontró el comercio solicitado</div>';
-            return;
-        }
-        COMERCIOS.forEach(c => mostrarComercio(c, false));
-        return;
-    }
-    const masterSearchInput = document.getElementById('masterSearch');
-    const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
-    const totalComercios = COMERCIOS.length;
-    const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
-    const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
-    document.getElementById('count-total').innerText = totalComercios;
-    document.getElementById('count-act').innerText = activos;
-    document.getElementById('count-inact').innerText = inactivos;
-    let filtrados = COMERCIOS.filter(c => {
-        const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const matchesSearch = term === "" || searchStr.includes(term);
-        let matchesFiltro = true;
-        if (FILTRO_ESTADO === 'inactivo') {
-            matchesFiltro = c.estado !== 'activo';
-        }
-        return matchesSearch && matchesFiltro;
-    });
-    filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
-    if (filtrados.length === 0) {
-        box.innerHTML = '<div class="text-center p-8 bg-gray-800 rounded-2xl text-gray-400">No hay comercios para mostrar</div>';
-    } else {
-        filtrados.forEach(c => mostrarComercio(c, true));
-    }
+const box = document.getElementById('lista-comercios');
+if(!box) return;
+box.innerHTML = "";
+
+// SI ES COMERCIANTE: solo muestra su comercio
+if (esComerciante) {
+const miComercio = COMERCIOS.find(c => c.idComercio === idForzado);
+if (miComercio) {
+mostrarComercio(miComercio);
+} else {
+box.innerHTML = '<p class="text-center p-8 text-gray-400">No se encontró tu comercio</p>';
+}
+return;
+}
+
+// SI ES ADMIN: calcula contadores y filtra
+const masterSearchInput = document.getElementById('masterSearch');
+const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+
+const totalComercios = COMERCIOS.length;
+const activos = COMERCIOS.filter(x => x.estado === 'activo').length;
+const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
+const publicados = COMERCIOS.filter(x => x.publicado === true).length;
+
+document.getElementById('count-total').innerText = totalComercios;
+document.getElementById('count-act').innerText = activos;
+document.getElementById('count-inact').innerText = inactivos;
+document.getElementById('count-pub').innerText = publicados;
+
+let filtrados = COMERCIOS.filter(c => {
+const searchStr = ((c.nombre || "") + " " + (c.rubro || "") + " " + (c.ciudad || "") + " " + (c.direccion || "")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+const matchesSearch = term === "" || searchStr.includes(term);
+let matchesFiltro = true;
+
+if (FILTRO_ESTADO === 'inactivo') {
+matchesFiltro = c.estado !== 'activo';
+} else if (FILTRO_ESTADO === 'publicado') {
+matchesFiltro = c.publicado === true;
+}
+
+return matchesSearch && matchesFiltro;
+});
+
+filtrados.sort((a,b) => (a.nombre || "").localeCompare(b.nombre || ""));
+filtrados.forEach(c => mostrarComercio(c));
 };
 
 window.previsualizarSorteos = (id, nombre) => {
@@ -804,6 +777,13 @@ window.edit = (event, id) => {
 if(event) event.preventDefault();
 const c = COMERCIOS.find(x => x.fbId === id);
 if(!c) return;
+
+// Si es comerciante, verificar que sea SU comercio
+if (esComerciante && c.idComercio !== idForzado) {
+alert("No tienes permiso para editar otros comercios");
+return;
+}
+
 document.getElementById('edit-id').value = id;
 document.getElementById('nombre-input').value = c.nombre || "";
 document.getElementById('rubro-input').value = c.rubro || "";
@@ -842,6 +822,30 @@ document.getElementById('maps-url').value = c.mapsUrl || "";
 document.getElementById('email-input').value = c.emailDueno || "";
 document.getElementById('password-input').value = c.password || "";
 document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
+
+// Configurar el formulario según el tipo de usuario
+if (esComerciante) {
+// Modo comerciante: solo puede editar ciertos campos
+document.getElementById('nombre-input').readOnly = true;
+document.getElementById('rubro-input').readOnly = true;
+document.getElementById('id-input').classList.remove('read-only');
+document.getElementById('id-input').classList.add('read-only-comerciante');
+document.getElementById('token-input').classList.remove('read-only');
+document.getElementById('token-input').classList.add('read-only-comerciante');
+document.getElementById('reporte-input').disabled = true;
+document.getElementById('titulo-form').innerText = "📝 EDITAR MI COMERCIO";
+} else {
+// Modo admin: todo editable
+document.getElementById('nombre-input').readOnly = false;
+document.getElementById('rubro-input').readOnly = false;
+document.getElementById('id-input').classList.remove('read-only-comerciante');
+document.getElementById('id-input').classList.add('read-only');
+document.getElementById('token-input').classList.remove('read-only-comerciante');
+document.getElementById('token-input').classList.add('read-only');
+document.getElementById('reporte-input').disabled = false;
+document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
+}
+
 document.getElementById('btn-cancel-edit').style.display = 'block';
 };
 
@@ -857,7 +861,9 @@ if (!nombre || !telefono) {
 alert("⚠️ Completa Nombre y WhatsApp.");
 return;
 }
+
 const eid = document.getElementById('edit-id').value;
+
 const data = {
 nombre: nombre,
 rubro: document.getElementById('rubro-input').value.trim(),
@@ -890,8 +896,9 @@ mapsUrl: document.getElementById('maps-url').value.trim(),
 emailDueno: document.getElementById('email-input').value,
 password: passValue,
 frecuenciaReporte: document.getElementById('reporte-input').value,
-visibleEnApp: false
+publicado: false
 };
+
 try {
 let docRef;
 if (eid) {
@@ -903,6 +910,10 @@ toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;col
 document.body.appendChild(toast);
 setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 } else {
+if (esComerciante) {
+alert("No tienes permiso para crear nuevos comercios");
+return;
+}
 data.estado = "activo";
 data.fechaCarga = Date.now();
 data.lastSubmission = null;
@@ -913,6 +924,7 @@ toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;col
 document.body.appendChild(toast);
 setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 3000);
 }
+
 const file = document.getElementById('logo-file').files[0];
 if (file) {
 const logoUrl = await subirLogoAFirebase(file);
@@ -947,74 +959,49 @@ document.getElementById('promo_vence').value = "";
 document.getElementById('direccion-input').value = "";
 document.getElementById('maps-url').value = "";
 document.getElementById('rubro-input').value = "";
-document.getElementById('titulo-form').innerText = esModoEdicionUnica ? "✏️ EDITANDO MI COMERCIO" : "➕ REGISTRAR COMERCIO";
+document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
 document.getElementById('btn-cancel-edit').style.display = 'none';
+
+// Restaurar permisos de edición (por si acaso)
+document.getElementById('nombre-input').readOnly = false;
+document.getElementById('rubro-input').readOnly = false;
+document.getElementById('id-input').classList.remove('read-only-comerciante');
+document.getElementById('id-input').classList.add('read-only');
+document.getElementById('token-input').classList.remove('read-only-comerciante');
+document.getElementById('token-input').classList.add('read-only');
+document.getElementById('reporte-input').disabled = false;
+
 configurarFechaMinima();
 };
 
 window.genID = () => {
 if(document.getElementById('edit-id').value) return;
+if (esComerciante) return; // Los comerciantes no pueden generar IDs
 const n = document.getElementById('nombre-input').value;
 const id = n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 document.getElementById('id-input').value = id;
 document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000 + Math.random() * 899999) : "";
 };
 
-// ============================================
-// NUEVA FUNCIÓN usando visibleEnApp
-// ============================================
-window.toggleVisible = async (fbId, visibleActual) => {
-    try {
-        // Invertir el valor actual
-        const nuevoEstado = visibleActual === true ? false : true;
-        
-        // Actualizar SOLO el campo visibleEnApp en Firestore
-        await updateDoc(doc(db, "comercios", fbId), { 
-            visibleEnApp: nuevoEstado 
-        });
-        
-        // Mostrar notificación
-        const toast = document.createElement('div');
-        toast.textContent = nuevoEstado ? '✅ Comercio PUBLICADO' : '⏸️ Comercio NO PUBLICADO';
-        toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:10000;';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
-        
-        // Recargar todos los comercios para actualizar la vista
-        const snapshot = await getDocs(collection(db, "comercios"));
-        COMERCIOS = snapshot.docs.map(d => ({ ...d.data(), fbId: d.id }));
-        window.render();
-        
-    } catch (error) {
-        console.error("Error al cambiar visibilidad:", error);
-        alert("❌ Error al cambiar estado de publicación");
-    }
+window.toggleEstado = async (e, id, est) => {
+if (esComerciante) return; // Los comerciantes no pueden pausar/activar
+await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' });
 };
 
 window.del = async (e, id) => {
+if (esComerciante) return; // Los comerciantes no pueden borrar
 if(confirm("¿Borrar comercio?")) await deleteDoc(doc(db, "comercios", id));
 };
 
 window.zoom = (u) => { document.getElementById('modal-img').src = u; document.getElementById('modal').style.display='flex'; };
 
 window.cambiarFiltro = (f, id) => {
+if (esComerciante) return; // Los comerciantes no pueden filtrar
 FILTRO_ESTADO = f;
 document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
 document.getElementById(id).classList.add('active');
 window.render();
 };
-
-const formatearFecha = (ts) => {
-if (!ts) return "Sin envíos";
-try {
-if (typeof ts === 'string') return ts;
-let fecha = ts.toDate ? ts.toDate() : new Date(Number(ts));
-return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-} catch (e) { return "---"; }
-};
-
-cargarComercios();
-window.addEventListener('load', configurarFechaMinima);
 </script>
 </body>
 </html>
