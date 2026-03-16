@@ -348,7 +348,7 @@ min-height: 60px;
 <a href="admin_sorteos.html" class="nav-link">SORTEOS</a>
 </nav>
 </header>
-<div class="tools-faja" id="faja-herramientas" style="display: none;">
+<div class="tools-faja" id="faja-herramientas">
 <div class="search-container">
 <span class="search-icon">🔍</span>
 <input type="text" id="masterSearch" class="search-input" placeholder="Buscar comercio..." oninput="window.render()">
@@ -555,7 +555,13 @@ const idForzado = urlParams.get('id');
 const esModoAdmin = urlParams.get('admin') === 'true';
 let COMERCIOS = [];
 let FILTRO_ESTADO = 'todos';
-let esComerciante = idForzado && esModoAdmin; // TRUE si es un dueño de comercio
+
+// ============================================
+// DETECTAR SI ES COMERCIANTE (MÁS SIMPLE)
+// ============================================
+const esComerciante = idForzado !== null && esModoAdmin;
+
+console.log("URL Params - id:", idForzado, "admin:", esModoAdmin, "esComerciante:", esComerciante);
 
 function configurarFechaMinima() {
 const ahora = new Date();
@@ -608,12 +614,14 @@ const nav = document.getElementById('nav-menu-principal');
 const faja = document.getElementById('faja-herramientas');
 if(nav) nav.style.display = 'none';
 if(faja) faja.style.display = 'none';
+console.log("Modo comerciante activado - ocultando herramientas");
 } else {
 // Mostrar todo para admin
 const capa = document.getElementById('capa-seguridad');
 if(capa) capa.style.display = 'none';
 const faja = document.getElementById('faja-herramientas');
 if(faja) faja.style.display = 'flex';
+console.log("Modo admin activado - mostrando herramientas");
 }
 configurarFechaMinima();
 });
@@ -631,7 +639,7 @@ return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '
 // CARGA DE COMERCIOS SEGÚN EL ROL
 // ============================================
 if (esComerciante) {
-    console.log("Modo comerciante - cargando solo comercio con ID:", idForzado);
+    console.log("Cargando SOLO comercio con ID:", idForzado);
     
     // Query para buscar SOLO el comercio del comerciante
     const q = query(collection(db, "comercios"), where("idComercio", "==", idForzado));
@@ -646,15 +654,13 @@ if (esComerciante) {
             setTimeout(() => {
                 window.edit(null, COMERCIOS[0].fbId);
             }, 500);
-        } else {
-            console.error("No se encontró comercio con ID:", idForzado);
         }
     }, (error) => {
         console.error("Error en la consulta:", error);
     });
     
 } else {
-    console.log("Modo admin - cargando todos los comercios");
+    console.log("Cargando TODOS los comercios");
     
     onSnapshot(collection(db, "comercios"), (snap) => {
         COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
@@ -734,7 +740,6 @@ ${!esComerciante ? `
 <button class="btn-op" style="background:${estaActivo ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.toggleEstado(event, '${c.fbId}', '${c.estado}', '${c.nombre}')">
 ${estaActivo ? 'PAUSAR' : 'ACTIVAR'}
 </button>
-<!-- BOTÓN PUBLICAR ELIMINADO -->
 <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
 ` : ''}
 <div class="social-box">
