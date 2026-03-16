@@ -229,36 +229,23 @@
             };
 
             // Verificar si ya hay sesión activa
-            onAuthStateChanged(auth, async (user) => {
-    if (user) {
-        uidComercio = user.uid;
-
-        try {
-
-            // Verificar si el usuario logueado es administrador
-            const qAdmin = query(collection(db, "admins"), where("uid", "==", user.uid));
-            const snapAdmin = await getDocs(qAdmin);
-            const esAdminReal = !snapAdmin.empty;
-
-            // SOLO si es admin real se permite usar ?admin=true&id=
-            if (esAdminReal && esAdmin && idForzado) {
-                buscarComercioPorIdComercio(idForzado);
-            } else {
-                // Comerciante normal SIEMPRE ve solo su comercio
-                buscarComercioPorUID(user.uid);
-            }
-
-        } catch (error) {
-            console.error(error);
-            mostrarErrorAuditor("⚠️ ERROR DE VALIDACIÓN");
-        }
-
-    } else {
-        // No hay sesión, mostrar login
-        document.getElementById('loginBox').classList.remove('hidden');
-        document.getElementById('dashboard').classList.add('hidden');
-    }
-});
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    uidComercio = user.uid;
+                    
+                    // Si es admin con ID forzado, buscar por ID de comercio
+                    if (esAdmin && idForzado) {
+                        buscarComercioPorIdComercio(idForzado);
+                    } else {
+                        // Comerciante normal: buscar por UID
+                        buscarComercioPorUID(user.uid);
+                    }
+                } else {
+                    // No hay sesión, mostrar login
+                    document.getElementById('loginBox').classList.remove('hidden');
+                    document.getElementById('dashboard').classList.add('hidden');
+                }
+            });
 
             // Buscar comercio por UID (para comerciantes)
             async function buscarComercioPorUID(uid) {
