@@ -513,7 +513,7 @@ min-height: 60px;
 </div>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, doc, updateDoc, addDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
@@ -656,14 +656,17 @@ function mostrarErrorAuditor(mensaje) {
 
 function mostrarComercio(c, mostrarBotonesAdmin) {
 const box = document.getElementById('lista-comercios');
-const estaOscuro = (c.publicado === false);
+// ============================================
+// BORRAMOS LA VARIABLE estaOscuro TEMPORALMENTE
+// ============================================
+// const estaOscuro = (c.publicado === false);
 const displayID = c.idComercio || c.id || "SIN-ID";
 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
 const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
 const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
 
 box.innerHTML += `
-<div class="comercio-card ${estaOscuro ? 'inactive' : ''}">
+<div class="comercio-card">
 <div class="visual-side">
 <img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
 <img src="${qr}" class="img-preview" onclick="window.zoom('${qr}')">
@@ -721,10 +724,15 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 </div>
 <div class="btn-group">
 <button class="btn-op" style="background:#f39c12; color:black" onclick="window.edit(event, '${c.fbId}')">EDITAR</button>
-<button class="btn-op" style="background:${c.publicado ? 'var(--rojo)' : 'var(--verde)'}" onclick="window.togglePublicar('${c.fbId}', ${c.publicado})">
-${c.publicado ? 'NO PUBLICAR' : 'PUBLICAR'}
-</button>
+
+<!-- ============================================
+     BOTONES ELIMINADOS TEMPORALMENTE
+     ============================================ -->
+<!-- BOTÓN PUBLICAR / NO PUBLICAR ELIMINADO -->
+<!-- BOTÓN ACTIVAR / PAUSAR ELIMINADO -->
+
 <button class="btn-op" style="background:#333" onclick="window.del(event, '${c.fbId}', '${c.nombre}')">BORRAR</button>
+
 <div class="social-box">
 ${c.emailDueno ? `<a href="mailto:${c.emailDueno}" class="owner-email"><i class="fas fa-envelope"></i> ${c.emailDueno}</a>` : ''}
 ${c.facebook ? `<a href="${c.facebook}" target="_blank" class="social-link bg-fb"><i class="fab fa-facebook-f"></i></a>` : ''}
@@ -952,35 +960,10 @@ document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000
 };
 
 // ============================================
-// FUNCIÓN PUBLICAR CORREGIDA (LA ÚNICA QUE IMPORTA)
+// FUNCIONES ELIMINADAS TEMPORALMENTE
 // ============================================
-window.togglePublicar = async (fbId, publicadoActual) => {
-    try {
-        // Si publicadoActual es true, pasa a false. Si es false, pasa a true
-        const nuevoEstado = publicadoActual === true ? false : true;
-        
-        // Actualizar SOLO el campo publicado en Firestore
-        await updateDoc(doc(db, "comercios", fbId), { 
-            publicado: nuevoEstado 
-        });
-        
-        // Mostrar notificación
-        const toast = document.createElement('div');
-        toast.textContent = nuevoEstado ? '✅ Comercio PUBLICADO' : '⏸️ Comercio NO PUBLICADO';
-        toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:10000;';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
-        
-        // Recargar todos los comercios para actualizar la vista
-        const snapshot = await getDocs(collection(db, "comercios"));
-        COMERCIOS = snapshot.docs.map(d => ({ ...d.data(), fbId: d.id }));
-        window.render();
-        
-    } catch (error) {
-        console.error("Error al cambiar publicación:", error);
-        alert("❌ Error al cambiar estado de publicación");
-    }
-};
+// window.togglePublicar ELIMINADO
+// window.toggleEstado ELIMINADO
 
 window.del = async (e, id) => {
 if(confirm("¿Borrar comercio?")) await deleteDoc(doc(db, "comercios", id));
