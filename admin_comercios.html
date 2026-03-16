@@ -410,9 +410,7 @@ min-height: 60px;
 </div>
 <input type="text" id="detalle-vip" class="full" placeholder="Detalle VIP (Ej: En toda la compra)">
 
-<!-- ============================================ -->
-<!-- REDES SOCIALES AGRUPADAS - AGREGADO -->
-<!-- ============================================ -->
+<!-- REDES SOCIALES AGRUPADAS -->
 <details style="background: rgba(212, 175, 55, 0.15); border: 1px solid var(--dorado); border-radius: 10px; margin-top: 15px; overflow: hidden;">
 <summary style="padding: 12px; cursor: pointer; font-weight: bold; color: var(--dorado); display: flex; justify-content: space-between; align-items: center; list-style: none; background: rgba(0,0,0,0.3);">
 <span>🌐 REDES SOCIALES Y SITIO WEB</span>
@@ -630,17 +628,17 @@ return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '
 };
 
 // ============================================
-// BOTÓN PUBLICAR ELIMINADO - YA NO HAY togglePublicar
-// ============================================
-
-// ============================================
-// MODIFICACIÓN: Si es comerciante, cargar SOLO su comercio
+// CARGA DE COMERCIOS SEGÚN EL ROL
 // ============================================
 if (esComerciante) {
-    // Cargar SOLO el comercio con el ID específico
+    console.log("Modo comerciante - cargando solo comercio con ID:", idForzado);
+    
+    // Query para buscar SOLO el comercio del comerciante
     const q = query(collection(db, "comercios"), where("idComercio", "==", idForzado));
+    
     onSnapshot(q, (snap) => {
         COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+        console.log("Comercios encontrados:", COMERCIOS.length);
         window.render();
         
         if(COMERCIOS.length > 0) {
@@ -648,10 +646,16 @@ if (esComerciante) {
             setTimeout(() => {
                 window.edit(null, COMERCIOS[0].fbId);
             }, 500);
+        } else {
+            console.error("No se encontró comercio con ID:", idForzado);
         }
+    }, (error) => {
+        console.error("Error en la consulta:", error);
     });
+    
 } else {
-    // Admin: cargar TODOS los comercios
+    console.log("Modo admin - cargando todos los comercios");
+    
     onSnapshot(collection(db, "comercios"), (snap) => {
         COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
         window.render();
@@ -753,7 +757,6 @@ box.innerHTML = "";
 
 // SI ES COMERCIANTE: solo muestra su comercio (ya viene filtrado)
 if (esComerciante) {
-    // COMERCIOS ya contiene solo el comercio del comerciante
     if (COMERCIOS.length === 0) {
         box.innerHTML = '<p class="text-center p-8 text-gray-400">No se encontró tu comercio</p>';
         return;
