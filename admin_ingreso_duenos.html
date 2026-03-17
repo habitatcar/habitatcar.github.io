@@ -189,7 +189,7 @@
 
         <script type="module">
             import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-            import { getFirestore, collection, query, where, onSnapshot, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+            import { getFirestore, collection, query, where, onSnapshot, getDocs, addDoc, doc, updateDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
             import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
             const firebaseConfig = {
@@ -230,9 +230,7 @@
                 });
             };
 
-            // ============================================
-            // CORRECCIÓN: Mostrar login SIEMPRE al inicio
-            // ============================================
+            // Funciones para mostrar/ocultar secciones
             function mostrarLogin() {
                 document.getElementById('loginBox').classList.remove('hidden');
                 document.getElementById('dashboard').classList.add('hidden');
@@ -245,45 +243,68 @@
                 document.getElementById('btn-cerrar-sesion').style.display = 'block';
             }
 
-            // Verificar si ya hay sesión activa
-            onAuthStateChanged(auth, (user) => {
-                if (user) {
-                    console.log("Usuario logueado:", user.email);
-                    uidComercio = user.uid;
-                    
-                    // Si es admin con ID forzado, buscar por ID de comercio
-                    if (esAdmin && idForzado) {
-                        buscarComercioPorIdComercio(idForzado);
-                    } else {
-                        // Comerciante normal: buscar por UID
-                        buscarComercioPorUID(user.uid);
-                    }
-                } else {
-                    console.log("No hay usuario - mostrando login");
-                    mostrarLogin();
-                }
-            });
-
-            // Buscar comercio por UID (para comerciantes)
+            // ============================================
+            // BUSCAR COMERCIO POR UID - VERSIÓN CON PARCHE
+            // ============================================
             async function buscarComercioPorUID(uid) {
                 try {
+                    console.log("Buscando comercio con UID:", uid);
+                    
+                    // Primero intentamos buscar por UID (como debería ser)
                     const q = query(collection(db, "comercios"), where("uid", "==", uid));
                     const querySnapshot = await getDocs(q);
                     
                     if (!querySnapshot.empty) {
+                        // Encontró por UID - perfecto
                         const docSnap = querySnapshot.docs[0];
                         comercioActual = { id: docSnap.id, ...docSnap.data() };
                         
-                        console.log("Comercio encontrado:", comercioActual.nombre);
+                        console.log("Comercio encontrado por UID:", comercioActual.nombre);
                         document.getElementById('nombreComercioDinamico').innerText = comercioActual.nombre || "";
                         
                         mostrarDashboard();
                         inicializarGrafico();
                         iniciarSuscripciones(comercioActual.id);
-                    } else {
-                        mostrarErrorAuditor("❌ No se encontró tu comercio");
-                        signOut(auth);
+                        return;
                     }
+                    
+                    // Si no encontró por UID, buscamos por email (parche temporal)
+                    console.log("No se encontró por UID, buscando por email...");
+                    
+                    // Obtener el email del usuario actual
+                    const user = auth.currentUser;
+                    if (!user) {
+                        mostrarErrorAuditor("❌ Error de sesión");
+                        return;
+                    }
+                    
+                    const qEmail = query(collection(db, "comercios"), where("emailDueno", "==", user.email));
+                    const emailSnapshot = await getDocs(qEmail);
+                    
+                    if (!emailSnapshot.empty) {
+                        const docSnap = emailSnapshot.docs[0];
+                        comercioActual = { id: docSnap.id, ...docSnap.data() };
+                        
+                        console.log("Comercio encontrado por EMAIL:", comercioActual.nombre);
+                        
+                        // CORREGIMOS: Le agregamos el UID que faltaba
+                        await updateDoc(doc(db, "comercios", docSnap.id), { uid: uid });
+                        console.log("✅ UID guardado en el comercio");
+                        
+                        comercioActual.uid = uid; // Actualizamos el objeto local
+                        
+                        document.getElementById('nombreComercioDinamico').innerText = comercioActual.nombre || "";
+                        
+                        mostrarDashboard();
+                        inicializarGrafico();
+                        iniciarSuscripciones(comercioActual.id);
+                        return;
+                    }
+                    
+                    // Si no encontró por ningún lado
+                    mostrarErrorAuditor("❌ No se encontró tu comercio");
+                    signOut(auth);
+                    
                 } catch (error) {
                     console.error(error);
                     mostrarErrorAuditor("⚠️ Error al buscar comercio");
@@ -312,6 +333,25 @@
                     mostrarErrorAuditor("⚠️ Error al buscar comercio");
                 }
             }
+
+            // Verificar si ya hay sesión activa
+            onAuthStateChanged(auth, (user) => {
+                if (user) {
+                    console.log("Usuario logueado:", user.email);
+                    uidComercio = user.uid;
+                    
+                    // Si es admin con ID forzado, buscar por ID de comercio
+                    if (esAdmin && idForzado) {
+                        buscarComercioPorIdComercio(idForzado);
+                    } else {
+                        // Comerciante normal: buscar por UID
+                        buscarComercioPorUID(user.uid);
+                    }
+                } else {
+                    console.log("No hay usuario - mostrando login");
+                    mostrarLogin();
+                }
+            });
 
             window.loginComerciante = async () => {
                 const email = document.getElementById('emailInput').value.trim();
