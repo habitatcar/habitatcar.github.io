@@ -596,7 +596,7 @@
         if (comercioActual) window.location.href = `admin_mi_comercio.html?uid=${comercioActual.uid}`;
     };
 
-    // GENERAR PDF CON FONDO BLANCO
+    // 🚀 GENERAR PDF CON NUEVO DISEÑO PROFESIONAL
     window.generarPDF = async (soloBlob = false) => {
         const nombreComercio = comercioActual?.nombre || "Mi Comercio";
         const totalVip = parseInt(document.getElementById('statVip').innerText) || 0;
@@ -604,15 +604,23 @@
         const total = totalVip + totalLead;
         const conversion = total > 0 ? Math.round((totalVip / total) * 100) : 0;
         
-        // Construir tabla de registros
+        // Construir tabla de registros (últimos 50)
         let tablaHtml = '';
         registrosActividad.slice(0, 50).forEach(r => {
+            const badgeColor = r.tipo === 'VIP' ? '#fef3c7' : '#dbeafe';
+            const badgeText = r.tipo === 'VIP' ? '#b8860b' : '#1e40af';
             tablaHtml += `
                 <tr>
-                    <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${r.fecha.toLocaleDateString()} ${r.fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;"><span style="background:${r.tipo === 'VIP' ? '#fef3c7' : '#dbeafe'}; color:${r.tipo === 'VIP' ? '#b8860b' : '#1e40af'}; padding:4px 10px; border-radius:20px; font-size:11px; font-weight:bold;">${r.tipo}</span></td>
-                    <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${r.cupon}</td>
-                    <td style="padding: 8px; border-bottom: 1px solid #e5e7eb;">${r.detalle}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; color: #374151;">
+                        ${r.fecha.toLocaleDateString()} ${r.fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
+                    </td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">
+                        <span style="background:${badgeColor}; color:${badgeText}; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600;">
+                            ${r.tipo}
+                        </span>
+                    </td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; color: #374151; font-family: monospace;">${r.cupon}</td>
+                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; color: #4b5563;">${r.detalle}</td>
                 </tr>
             `;
         });
@@ -623,52 +631,106 @@
         const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
         let tablaSemanal = '';
         dias.forEach((dia, i) => {
-            tablaSemanal += `<tr><td style="padding:6px;">${dia}</td><td style="padding:6px; text-align:center;">${datosVip[i]}</td><td style="padding:6px; text-align:center;">${datosLead[i]}</td><td style="padding:6px; text-align:center;">${datosVip[i] + datosLead[i]}</td></tr>`;
+            const totalDia = datosVip[i] + datosLead[i];
+            tablaSemanal += `<tr style="border-bottom:1px solid #f3f4f6;">
+                <td style="padding:10px; color:#374151;">${dia}</td>
+                <td style="padding:10px; text-align:center; color:#d4af37; font-weight:600;">${datosVip[i]}</td>
+                <td style="padding:10px; text-align:center; color:#3b82f6; font-weight:600;">${datosLead[i]}</td>
+                <td style="padding:10px; text-align:center; font-weight:600; color:#1f2937;">${totalDia}</td>
+            </tr>`;
         });
         
+        // 🎨 NUEVO DISEÑO PDF PROFESIONAL
         const pdfHtml = `
-            <div style="background: white; font-family: Arial, sans-serif; padding: 30px; color: #1f2937;">
-                <div style="text-align: center; border-bottom: 3px solid #b8860b; padding-bottom: 20px; margin-bottom: 20px;">
-                    <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="height: 60px;">
-                    <h1 style="color: #b8860b; font-size: 24px; margin: 10px 0 0 0;">HABITAT-CAR</h1>
-                    <p style="color: #b8860b; font-size: 11px;">NEGOCIOS INMOBILIARIOS y GESTIONES DEL AUTOMOTOR</p>
-                </div>
-                
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h2 style="color: #b8860b; font-size: 18px; margin: 0;">${nombreComercio}</h2>
-                    <p style="color: #6b7280; font-size: 10px;">Reporte generado: ${new Date().toLocaleString()}</p>
-                </div>
-                
-                <div style="background: #f3f4f6; padding: 20px; border-radius: 12px; margin-bottom: 20px;">
-                    <h3 style="color: #1f2937; font-size: 14px; margin: 0 0 15px 0;">📊 RESUMEN EJECUTIVO</h3>
-                    <div style="display: flex; justify-content: space-around; text-align: center;">
-                        <div><p style="color: #6b7280; font-size: 11px;">TOTAL USUARIOS</p><p style="font-size: 32px; font-weight: bold;">${total}</p></div>
-                        <div><p style="color: #6b7280; font-size: 11px;">CANJES VIP</p><p style="font-size: 32px; font-weight: bold; color:#b8860b;">${totalVip}</p></div>
-                        <div><p style="color: #6b7280; font-size: 11px;">CANJES LEAD</p><p style="font-size: 32px; font-weight: bold; color:#3b82f6;">${totalLead}</p></div>
-                    </div>
-                    <div style="margin-top: 15px; text-align: center;">
-                        <p style="color: #6b7280; font-size: 11px;">📈 Tasa de conversión: ${conversion}% | ⏱️ Último acceso: ${document.getElementById('statUltima').innerText}</p>
-                    </div>
-                </div>
-                
-                <div style="margin-bottom: 20px;">
-                    <h3 style="color: #1f2937; font-size: 14px; margin: 0 0 10px 0;">📈 ACTIVIDAD SEMANAL</h3>
-                    <table style="width: 100%; border-collapse: collapse; background: #f9fafb; border-radius: 12px;">
-                        <thead><tr style="background: #e5e7eb;"><th style="padding: 10px; text-align: left;">Día</th><th style="padding: 10px; text-align: center;">VIP</th><th style="padding: 10px; text-align: center;">LEAD</th><th style="padding: 10px; text-align: center;">Total</th></tr></thead>
-                        <tbody>${tablaSemanal}</tbody>
-                    </table>
-                </div>
-                
-                <div>
-                    <h3 style="color: #1f2937; font-size: 14px; margin: 0 0 10px 0;">📋 REGISTRO DE ACTIVIDAD</h3>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                        <thead><tr style="background: #f3f4f6;"><th style="padding: 10px; text-align: left;">Fecha/Hora</th><th style="padding: 10px; text-align: left;">Tipo</th><th style="padding: 10px; text-align: left;">Cupón</th><th style="padding: 10px; text-align: left;">Detalle</th></tr></thead>
-                        <tbody>${tablaHtml || '<tr><td colspan="4" style="text-align:center; padding:30px;">Sin registros de actividad</td></tr>'}</tbody>
-                    </table>
-                    <p style="color: #9ca3af; font-size: 8px; text-align: center; margin-top: 25px;">Reporte generado por HABITAT-CAR - Sistema de Gestión Comercial</p>
-                </div>
-            </div>
-        `;
+<div style="background: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #374151; max-width: 800px; margin: 0 auto;">
+    
+    <!-- HEADER -->
+    <div style="text-align: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 30px;">
+        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="height: 70px; margin-bottom:10px;">
+        <h1 style="color: #d4af37; font-size: 26px; margin: 5px 0; font-weight: 800;">HABITAT-CAR</h1>
+        <p style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px;">NEGOCIOS INMOBILIARIOS y GESTIONES DEL AUTOMOTOR</p>
+    </div>
+
+    <!-- TITULO -->
+    <div style="text-align:center; margin-bottom:25px;">
+        <h2 style="font-size: 20px; color:#1f2937; margin:0; font-weight:700;">${nombreComercio}</h2>
+        <p style="font-size: 11px; color:#9ca3af;">Reporte generado: ${new Date().toLocaleString('es-AR')}</p>
+    </div>
+
+    <!-- KPIs -->
+    <div style="display:flex; gap:15px; justify-content:space-between; margin-bottom:25px; flex-wrap: wrap;">
+        
+        <div style="flex:1; min-width: 120px; background:#f9fafb; padding:15px; border-radius:12px; text-align:center; border: 1px solid #e5e7eb;">
+            <p style="font-size:10px; color:#6b7280; font-weight:600; text-transform: uppercase; margin: 0 0 8px 0;">Total Usuarios</p>
+            <p style="font-size:28px; font-weight:800; color:#1f2937; margin: 0;">${total}</p>
+        </div>
+
+        <div style="flex:1; min-width: 120px; background:#fff7ed; padding:15px; border-radius:12px; text-align:center; border: 1px solid #fed7aa;">
+            <p style="font-size:10px; color:#6b7280; font-weight:600; text-transform: uppercase; margin: 0 0 8px 0;">Canjes VIP</p>
+            <p style="font-size:28px; font-weight:800; color:#d4af37; margin: 0;">${totalVip}</p>
+        </div>
+
+        <div style="flex:1; min-width: 120px; background:#eff6ff; padding:15px; border-radius:12px; text-align:center; border: 1px solid #bfdbfe;">
+            <p style="font-size:10px; color:#6b7280; font-weight:600; text-transform: uppercase; margin: 0 0 8px 0;">Canjes LEAD</p>
+            <p style="font-size:28px; font-weight:800; color:#3b82f6; margin: 0;">${totalLead}</p>
+        </div>
+
+    </div>
+
+    <!-- INSIGHTS -->
+    <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding:18px; border-radius:12px; margin-bottom:25px; border-left: 4px solid #d4af37;">
+        <h3 style="font-size:14px; margin:0 0 10px 0; color:#1f2937; font-weight:700;">📊 Análisis del rendimiento</h3>
+        <p style="font-size:12px; color:#475569; line-height: 1.6; margin: 0;">
+            • Tasa de conversión VIP: <b style="color:#d4af37;">${conversion}%</b><br>
+            • Última actividad: <b>${document.getElementById('statUltima').innerText}</b><br>
+            • Total de interacciones: <b>${total}</b>
+        </p>
+    </div>
+
+    <!-- TABLA SEMANAL -->
+    <div style="margin-bottom:25px;">
+        <h3 style="font-size:14px; margin:0 0 10px 0; color:#1f2937; font-weight:700;">📈 Actividad semanal</h3>
+        <table style="width:100%; border-collapse:collapse; font-size:12px; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <thead>
+                <tr style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);">
+                    <th style="padding:12px 10px; text-align:left; color:#374151; font-weight:600;">Día</th>
+                    <th style="padding:12px; color:#d4af37; font-weight:600;">VIP</th>
+                    <th style="padding:12px; color:#3b82f6; font-weight:600;">LEAD</th>
+                    <th style="padding:12px; color:#1f2937; font-weight:600;">Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tablaSemanal}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- ACTIVIDAD -->
+    <div>
+        <h3 style="font-size:14px; margin:0 0 10px 0; color:#1f2937; font-weight:700;">📋 Registro de actividad</h3>
+        <table style="width:100%; border-collapse:collapse; font-size:11px; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
+            <thead>
+                <tr style="background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);">
+                    <th style="padding:12px 10px; text-align:left; color:#374151; font-weight:600;">Fecha</th>
+                    <th style="padding:12px; color:#374151; font-weight:600;">Tipo</th>
+                    <th style="padding:12px; color:#374151; font-weight:600;">Cupón</th>
+                    <th style="padding:12px; color:#374151; font-weight:600;">Detalle</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${tablaHtml || '<tr><td colspan="4" style="text-align:center; padding:25px; color:#9ca3af;">Sin registros de actividad</td></tr>'}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- FOOTER -->
+    <div style="text-align:center; margin-top:35px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size:10px; color:#9ca3af;">
+        <p style="margin: 0 0 5px 0;">Reporte generado automáticamente por <b style="color:#d4af37;">HABITAT-CAR</b></p>
+        <p style="margin: 0;">Sistema de Gestión Comercial © ${new Date().getFullYear()}</p>
+    </div>
+
+</div>
+`;
         
         // Crear elemento temporal para el PDF
         const tempDiv = document.createElement('div');
@@ -676,6 +738,7 @@
         tempDiv.style.position = 'absolute';
         tempDiv.style.left = '-9999px';
         tempDiv.style.top = '0';
+        tempDiv.style.width = '800px';
         document.body.appendChild(tempDiv);
         
         const footer = document.getElementById('footerNav');
@@ -684,10 +747,10 @@
         if(btnFicha) btnFicha.style.display = 'none';
         
         const opt = { 
-            margin: [0.5, 0.5, 0.5, 0.5],
+            margin: [0.3, 0.3, 0.3, 0.3],
             filename: `Reporte_${nombreComercio.replace(/\s/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`, 
-            image: { type: 'jpeg', quality: 0.95 }, 
-            html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true }, 
+            image: { type: 'jpeg', quality: 0.98 }, 
+            html2canvas: { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false }, 
             jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } 
         };
         
@@ -726,11 +789,19 @@
                 });
                 mostrarAlerta("✅ Reporte compartido");
             } else {
-                mostrarAlerta("📱 Tu navegador no soporta compartir archivos. El PDF se descargó.");
+                // Fallback: descargar el PDF
+                const url = URL.createObjectURL(pdfBlob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Reporte_${comercioActual?.nombre || 'Comercio'}.pdf`;
+                a.click();
+                URL.revokeObjectURL(url);
+                mostrarAlerta("📥 PDF descargado para compartir");
             }
         } catch(e) {
             if(e.name !== 'AbortError') {
-                mostrarAlerta("❌ Error al compartir. El PDF se descargó.");
+                console.error(e);
+                mostrarAlerta("❌ Error al compartir");
             }
         }
     };
@@ -740,14 +811,29 @@
         miGrafico = new Chart(ctx, {
             type: 'line',
             data: { labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'], datasets: [
-                { label: 'VIP', data: [0,0,0,0,0,0,0], borderColor: '#d4af37', borderWidth: 3, tension: 0.3, fill: false },
-                { label: 'LEAD', data: [0,0,0,0,0,0,0], borderColor: '#3b82f6', borderWidth: 3, tension: 0.3, fill: false }
+                { label: 'VIP', data: [0,0,0,0,0,0,0], borderColor: '#d4af37', backgroundColor: 'rgba(212, 175, 55, 0.1)', borderWidth: 3, tension: 0.3, fill: false, pointRadius: 3 },
+                { label: 'LEAD', data: [0,0,0,0,0,0,0], borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 3, tension: 0.3, fill: false, pointRadius: 3 }
             ] },
             options: { 
                 responsive: true, 
                 maintainAspectRatio: false,
-                plugins: { legend: { labels: { color: '#aaa', font: { size: 10 } } } },
-                scales: { y: { grid: { color: '#222' }, ticks: { color: '#aaa' } }, x: { ticks: { color: '#aaa' } } }
+                plugins: { 
+                    legend: { 
+                        labels: { color: '#aaa', font: { size: 10, weight: '600' } },
+                        position: 'top'
+                    } 
+                },
+                scales: { 
+                    y: { 
+                        beginAtZero: true,
+                        grid: { color: '#222' }, 
+                        ticks: { color: '#aaa', stepSize: 1 } 
+                    }, 
+                    x: { 
+                        grid: { display: false },
+                        ticks: { color: '#aaa' } 
+                    } 
+                }
             }
         });
     }
