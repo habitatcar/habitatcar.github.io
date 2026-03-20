@@ -647,17 +647,42 @@
         // ══════════════════════════════════════════
         // CABECERA
         // ══════════════════════════════════════════
+        // Cargar logo como base64 via canvas
+        let logoBase64 = null;
+        try {
+            logoBase64 = await new Promise((resolve) => {
+                const img = new Image();
+                img.crossOrigin = 'anonymous';
+                img.onload = () => {
+                    const cv2 = document.createElement('canvas');
+                    cv2.width = img.naturalWidth || 200;
+                    cv2.height = img.naturalHeight || 60;
+                    const ctx2 = cv2.getContext('2d');
+                    ctx2.drawImage(img, 0, 0);
+                    resolve(cv2.toDataURL('image/png'));
+                };
+                img.onerror = () => resolve(null);
+                img.src = 'https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true';
+            });
+        } catch(e) { logoBase64 = null; }
+
         // Fondo dorado claro
         doc.setFillColor(255, 251, 235);
         doc.rect(0, 0, W, 38, 'F');
         doc.setFillColor(212, 175, 55);
         doc.rect(0, 38, W, 1.2, 'F');
 
-        // Título
-        setFont(20, 'bold', [146, 64, 14]);
-        doc.text('HABITAT-CAR', MARGEN, 15);
-        setFont(7, 'normal', [180, 83, 9]);
-        doc.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', MARGEN, 21);
+        // Logo o texto fallback
+        if (logoBase64) {
+            try { doc.addImage(logoBase64, 'PNG', MARGEN, 4, 40, 28); } catch(e) {}
+            setFont(7, 'normal', [180, 83, 9]);
+            doc.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', MARGEN, 35);
+        } else {
+            setFont(20, 'bold', [146, 64, 14]);
+            doc.text('HABITAT-CAR', MARGEN, 15);
+            setFont(7, 'normal', [180, 83, 9]);
+            doc.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', MARGEN, 21);
+        }
 
         // Derecha
         setFont(11, 'bold', [146, 64, 14]);
@@ -783,6 +808,101 @@
         y += 8;
 
         // ══════════════════════════════════════════
+        // GRÁFICO DE LÍNEAS — VIP vs LEAD semanal
+        // ══════════════════════════════════════════
+        checkPage(68);
+        setFont(7, 'bold', [156, 163, 175]);
+        doc.text('GRAFICO SEMANAL — VIP vs LEAD', MARGEN, y);
+        y += 4;
+
+        const GX = MARGEN;          // origen X del gráfico
+        const GY = y;               // origen Y
+        const GW = ANCHO;           // ancho
+        const GH = 52;              // alto
+        const GP = 10;              // padding interno izquierdo (para eje Y)
+        const GR = 4;               // padding derecho
+
+        // Fondo del gráfico
+        doc.setFillColor(248, 250, 252);
+        doc.setDrawColor(229, 231, 235);
+        doc.roundedRect(GX, GY, GW, GH, 2, 2, 'FD');
+
+        // Calcular máximo para escala Y
+        const allVals = [...datosVip, ...datosLead];
+        const maxVal  = Math.max(...allVals, 1);
+        const chartW  = GW - GP - GR;
+        const chartH  = GH - 12; // margen arriba y abajo
+        const stepX   = chartW / 6; // 7 puntos = 6 intervalos
+        const colores = { vip: [212,175,55], lead: [59,130,246] };
+
+        // Líneas de cuadrícula horizontales (4 líneas)
+        doc.setDrawColor(229, 231, 235);
+        doc.setLineWidth(0.3);
+        for (let g = 0; g <= 4; g++) {
+            const gy = GY + 6 + (chartH / 4) * g;
+            doc.line(GX + GP, gy, GX + GW - GR, gy);
+            // etiqueta eje Y
+            const val = Math.round(maxVal - (maxVal / 4) * g);
+            setFont(5.5, 'normal', [156, 163, 175]);
+            doc.text(String(val), GX + GP - 2, gy + 1.5, {align:'right'});
+        }
+
+        // Etiquetas eje X (días)
+        const diasCortos = ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
+        diasCortos.forEach((d, i) => {
+            const px = GX + GP + i * stepX;
+            setFont(5.5, 'normal', [156, 163, 175]);
+            doc.text(d, px, GY + GH - 2, {align:'center'});
+        });
+
+        // Función para convertir valor a Y en el gráfico
+        const toY = (val) => GY + 6 + chartH - (val / maxVal) * chartH;
+        const toX = (i)   => GX + GP + i * stepX;
+
+        // Dibujar líneas y puntos — LEAD primero (detrás)
+        [
+            { datos: datosLead, color: colores.lead,  label: 'LEAD' },
+            { datos: datosVip,  color: colores.vip,   label: 'VIP'  },
+        ].forEach(({ datos, color }) => {
+            doc.setDrawColor(...color);
+            doc.setLineWidth(1.2);
+
+            // Área rellena (semitransparente simulada con rectángulos)
+            // Dibujar línea
+            for (let i = 0; i < 6; i++) {
+                const x1 = toX(i),     y1 = toY(datos[i]);
+                const x2 = toX(i + 1), y2 = toY(datos[i + 1]);
+                doc.line(x1, y1, x2, y2);
+            }
+
+            // Puntos
+            doc.setFillColor(...color);
+            datos.forEach((val, i) => {
+                const px = toX(i), py = toY(val);
+                doc.circle(px, py, 1.5, 'F');
+                // valor encima del punto
+                if (val > 0) {
+                    setFont(5.5, 'bold', color);
+                    doc.text(String(val), px, py - 3, {align:'center'});
+                }
+            });
+        });
+
+        // Leyenda
+        doc.setFillColor(212, 175, 55);
+        doc.circle(GX + GW - 40, GY + 8, 2, 'F');
+        setFont(6.5, 'bold', [146, 64, 14]);
+        doc.text('VIP', GX + GW - 36, GY + 9.5);
+
+        doc.setFillColor(59, 130, 246);
+        doc.circle(GX + GW - 20, GY + 8, 2, 'F');
+        setFont(6.5, 'bold', [30, 64, 175]);
+        doc.text('LEAD', GX + GW - 16, GY + 9.5);
+
+        doc.setLineWidth(0.2); // restaurar
+        y += GH + 10;
+
+        // ══════════════════════════════════════════
         // REGISTRO DE ACTIVIDAD
         // ══════════════════════════════════════════
         checkPage(20);
@@ -872,7 +992,9 @@
     // FIN generarPDF
     // ═══════════════════════════════════════════════════════════
 
-                const pdfBlob = await window.generarPDF(true);
+    window.compartirApp = async () => {
+        try {
+            const pdfBlob = await window.generarPDF(true);
             const file = new File([pdfBlob], `Reporte_${comercioActual?.nombre || 'Comercio'}.pdf`, { type: "application/pdf" });
             
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -892,7 +1014,7 @@
         }
     };
 
-    function inicializarGrafico() {
+        function inicializarGrafico() {
         const ctx = document.getElementById('graficoSemanal').getContext('2d');
         miGrafico = new Chart(ctx, {
             type: 'line',
