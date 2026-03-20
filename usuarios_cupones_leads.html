@@ -192,23 +192,6 @@
         .info-txt { display: block; font-size: 16px; color: #444; margin: 8px 0; font-weight: 500; }
         .ico-large { font-size: 22px; vertical-align: middle; margin-right: 6px; }
 
-        /* ============================================ */
-        /* INDICADOR DE USOS (CORREGIDO) */
-        /* ============================================ */
-        .usos-restantes {
-            display: inline-block;
-            background: var(--amarillo-usos);
-            color: var(--negro);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-weight: 700;
-            font-size: 14px;
-            margin: 5px 0;
-        }
-        .usos-restantes i {
-            margin-right: 5px;
-        }
-
         .btn-stack { padding: 0 12px; display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
         .btn-act {
             padding: 12px; border-radius: 8px; border: none; 
@@ -252,7 +235,7 @@
         .btn-validar { background: var(--rosa); }
         
         /* ============================================ */
-        /* BOTÓN USAR BENEFICIO - SIEMPRE DESACTIVADO POR DEFECTO */
+        /* BOTÓN USAR BENEFICIO - CON INDICADOR DENTRO */
         /* ============================================ */
         .btn-usar { 
             background: var(--gris-desactivado); 
@@ -260,6 +243,10 @@
             pointer-events: none; 
             transition: 0.3s; 
             border: 2px solid #999;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
         }
         .btn-usar.activo { 
             background: var(--verde); 
@@ -267,6 +254,18 @@
             border: 2px solid var(--verde);
             pointer-events: auto; 
             animation: parpadeoVerde 1.5s infinite; 
+        }
+        .contador-inline {
+            background: rgba(255,255,255,0.3);
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-left: 5px;
+        }
+        .contador-inline.agotado {
+            background: rgba(0,0,0,0.3);
         }
 
         .custom-overlay {
@@ -440,17 +439,6 @@
         }
         .btn-instalar-footer:hover {
             background: #002b5c;
-        }
-        
-        .contador-nube {
-            background: var(--rojo-cupon);
-            color: white;
-            padding: 2px 6px;
-            border-radius: 8px;
-            font-size: 11px;
-            font-weight: bold;
-            margin-left: 5px;
-            display: inline-block;
         }
 
         /* Estilos para pop-ups personalizados */
@@ -635,7 +623,7 @@
 
     <script type="module">
         // ===========================================
-        // CÓDIGO CORREGIDO - FLUJO COMPLETO
+        // CÓDIGO CORREGIDO - INDICADOR DENTRO DEL BOTÓN Y SCROLL
         // ===========================================
         if (localStorage.getItem('habitat_vip_auth') === 'true') {
             window.location.replace("usuarios_cupones_vips.html");
@@ -696,7 +684,7 @@
         const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
 
         // ============================================
-        // FUNCIONES PARA USOS (CORREGIDAS)
+        // FUNCIONES PARA USOS
         // ============================================
         const getUsosRealizados = (comercioId) => {
             return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
@@ -781,23 +769,19 @@
                 } else if (diasRestantes <= 3) {
                     infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vence: ${diasRestantes} días</span>`;
                 } else {
-                    infoVencimiento = `<span class="ico-large">⏳</span>Vence: ${diasRestantes} días`;
+                    infoVencimiento = `<span class="ico-large">⏳</span>Vence: ${diasRestantes} días</span>`;
                 }
 
                 // ============================================
-                // INDICADOR DE USOS (CORREGIDO: 0/3, 1/3, 2/3, 3/3)
+                // INDICADOR DE USOS DENTRO DEL BOTÓN
                 // ============================================
-                let usosHTML = `<div class="usos-restantes"><i class="fas fa-ticket-alt"></i> ${usosRealizados}/${usosPermitidos} usos</div>`;
+                const textoBoton = esAgotado ? 'AGOTADO' : `USAR BENEFICIO <span class="contador-inline">${usosRealizados}/${usosPermitidos}</span>`;
 
-                // ============================================
-                // BOTÓN USAR BENEFICIO - SIEMPRE DESACTIVADO POR DEFECTO
-                // ============================================
                 html += `
                     <div class="card ${esAgotado ? 'agotado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
                         ${htmlLogo}
                         <div class="nombre-c">${nombre}</div>
                         <div class="beneficio-c">${beneficio}</div>
-                        ${usosHTML}
                         <span class="info-txt">${infoVencimiento}</span>
                         ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
                         <div class="btn-stack">
@@ -806,7 +790,7 @@
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
                             <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarAtencion('${id}', '${nombre.replace(/'/g, "\\'")}')" ${esAgotado ? 'disabled' : ''}>
-                                Usar Beneficio <span class="contador-nube">${usosRealizados}</span>
+                                ${textoBoton}
                             </button>
                         </div>
                     </div>`;
@@ -1009,17 +993,14 @@
 
                 const btnUsar = document.getElementById(`btn-usar-${id}`);
                 if (btnUsar) {
-                    const contadorSpan = btnUsar.querySelector('.contador-nube');
-                    if (contadorSpan) {
-                        contadorSpan.textContent = nuevosUsos;
-                    }
-                    
                     // DESACTIVAR el botón después de usar
                     btnUsar.classList.remove('activo');
                     
-                    // Si ya no quedan usos, marcar como agotado
+                    // Actualizar el texto del botón
                     if (nuevosUsos >= usosPermitidos) {
-                        btnUsar.innerText = "AGOTADO";
+                        btnUsar.innerHTML = 'AGOTADO';
+                    } else {
+                        btnUsar.innerHTML = `USAR BENEFICIO <span class="contador-inline">${nuevosUsos}/${usosPermitidos}</span>`;
                     }
                 }
 
