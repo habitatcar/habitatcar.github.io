@@ -30,6 +30,7 @@
             --negro-card: #141414;
             --azul-lindo: #0056b3;
             --verde: #2e7d32;
+            --verde-claro: #4caf50;
             --rosa: #c2185b;
             --naranja-sorteo: #f57c00;
             --gris-volver: #757575;
@@ -38,6 +39,8 @@
             --tiktok: #000000;
             --azul-web: #0066cc;
             --rojo-error: #e63946;
+            --gris-desactivado: #cccccc;
+            --rojo-agotado: #b71c1c;
         }
 
         body { 
@@ -124,7 +127,20 @@
         }
         .btn-llegar { background-color: var(--verde); }
         .btn-validar { background-color: var(--rosa); }
-        .btn-usar { background-color: #222; color: #555; border-color: #444; pointer-events: none; }
+        
+        /* ============================================ */
+        /* BOTÓN USAR BENEFICIO - CON INDICADOR COMPLETO */
+        /* ============================================ */
+        .btn-usar { 
+            background-color: var(--gris-desactivado); 
+            color: white;
+            border-color: #444; 
+            pointer-events: none;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
         
         .btn-usar.activo { 
             background: #000; 
@@ -132,6 +148,23 @@
             pointer-events: auto; 
             border: 3px solid var(--dorado);
             animation: glow-pulse 1.5s infinite;
+        }
+        
+        .contador-inline {
+            background: var(--verde-claro);
+            color: white;
+            padding: 3px 10px;
+            border-radius: 16px;
+            font-size: 14px;
+            font-weight: 700;
+            margin-left: 8px;
+            min-width: 45px;
+            display: inline-block;
+            text-align: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .contador-inline.agotado {
+            background: var(--rojo-agotado);
         }
 
         @keyframes glow-pulse {
@@ -207,8 +240,6 @@
         .sin-pulso::before {
             display: none !important;
         }
-
-        .contador-nube { background: var(--dorado); color: black; padding: 4px 12px; border-radius: 10px; margin-left: 10px; font-size: 1.2em; font-weight: 900; }
 
         .redes-overlay {
             position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85);
@@ -606,22 +637,22 @@
             padding: 20px;
             border-radius: 20px;
             text-align: center;
-            max-width: 280px; /* REDUCIDO */
-            width: 80%;
+            max-width: 220px; /* REDUCIDO de 280px a 220px */
+            width: 75%;
             border: 5px solid var(--dorado);
         }
         .qr-validado-contenido .check-icon {
-            font-size: 50px;
-            margin-bottom: 10px;
+            font-size: 48px;
+            margin-bottom: 8px;
         }
         .qr-validado-contenido h3 {
             color: black;
-            font-size: 22px;
-            margin-bottom: 10px;
+            font-size: 20px;
+            margin-bottom: 8px;
         }
         .qr-validado-contenido p {
             color: #333;
-            font-size: 16px;
+            font-size: 15px;
             margin: 0;
             font-weight: 600;
         }
@@ -845,7 +876,14 @@
         }
 
         // ============================================
-        // CORRECCIÓN: Mostrar beneficio completo
+        // FUNCIONES PARA USOS VIP
+        // ============================================
+        const getUsosRealizados = (comercioId) => {
+            return parseInt(localStorage.getItem('uso_vip_' + comercioId) || "0");
+        };
+
+        // ============================================
+        // CORRECCIÓN: Mostrar beneficio completo y contador en botón
         // ============================================
         onSnapshot(collection(db, "comercios"), async (snap) => {
             const contenedor = document.getElementById('contenedor-vip');
@@ -857,7 +895,13 @@
                 if (c.estado === "inactivo") continue;
                 const id = d.id;
                 
-                const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0");
+                // ============================================
+                // CALCULAR USOS VIP
+                // ============================================
+                const usosPermitidos = parseInt(c.usosVip) || 0; // 0 = ilimitado
+                const usosRealizados = getUsosRealizados(id);
+                const esAgotado = (usosPermitidos > 0 && usosRealizados >= usosPermitidos);
+                
                 const tieneRedes = (c.facebook || c.instagram || c.web || c.sitioWeb);
                 const htmlLogo = c.logoUrl 
                     ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` 
@@ -912,11 +956,25 @@
                 listaComercios.push({id, ...c});
                 
                 // ============================================
-                // CORRECCIÓN 1: Mostrar beneficio completo
+                // BENEFICIO COMPLETO
                 // ============================================
                 let beneficioCompleto = c.descVip || '0%';
                 if (c.detalleVip) {
                     beneficioCompleto += ' ' + c.detalleVip;
+                }
+                
+                // ============================================
+                // TEXTO DEL BOTÓN CON CONTADOR
+                // ============================================
+                let textoBoton = '';
+                if (esAgotado) {
+                    textoBoton = 'AGOTADO';
+                } else {
+                    if (usosPermitidos > 0) {
+                        textoBoton = `Usar beneficio <span class="contador-inline">${usosRealizados}/${usosPermitidos}</span>`;
+                    } else {
+                        textoBoton = `Usar beneficio <span class="contador-inline">${usosRealizados}</span>`;
+                    }
                 }
                 
                 html += `
@@ -930,8 +988,8 @@
                             ${botonSorteo}
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
-                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajeroVIP('${id}', '${c.nombre}', '${beneficioCompleto}')">
-                                Usar beneficio <span class="contador-nube">${nUso}</span>
+                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajeroVIP('${id}', '${c.nombre}', '${beneficioCompleto}')" ${esAgotado ? 'disabled' : ''}>
+                                ${textoBoton}
                             </button>
                         </div>
                     </div>`;
@@ -1065,6 +1123,20 @@
                 
                 const snapComercio = await getDoc(comercioRef);
                 const dataCom = snapComercio.data();
+                
+                // ============================================
+                // OBTENER USOS VIP
+                // ============================================
+                const usosPermitidos = parseInt(dataCom.usosVip) || 0;
+                const usosRealizados = getUsosRealizados(id);
+                const nuevosUsos = usosRealizados + 1;
+                
+                // Verificar si aún puede usar (solo si tiene límite)
+                if (usosPermitidos > 0 && nuevosUsos > usosPermitidos) {
+                    alert("❌ Ya has agotado todos los usos de este cupón");
+                    return;
+                }
+                
                 const proximoNro = (dataCom.totalVips || 0) + 1;
                 const codigoIdentidad = "VIP-" + proximoNro.toString().padStart(4, '0');
 
@@ -1109,7 +1181,22 @@
                 document.getElementById('exito-beneficio').innerText = ben;
                 document.getElementById('pantalla-exito').style.display = 'flex';
 
-                const nUsoLocal = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
+                // Guardar en localStorage
+                localStorage.setItem('uso_vip_' + id, nuevosUsos);
+
+                // Actualizar el botón si existe
+                const btnUsar = document.getElementById(`btn-usar-${id}`);
+                if (btnUsar) {
+                    btnUsar.classList.remove('activo');
+                    
+                    if (usosPermitidos > 0 && nuevosUsos >= usosPermitidos) {
+                        btnUsar.innerHTML = 'AGOTADO';
+                    } else if (usosPermitidos > 0) {
+                        btnUsar.innerHTML = `Usar beneficio <span class="contador-inline">${nuevosUsos}/${usosPermitidos}</span>`;
+                    } else {
+                        btnUsar.innerHTML = `Usar beneficio <span class="contador-inline">${nuevosUsos}</span>`;
+                    }
+                }
                 
                 await addDoc(collection(db, "logs_actividad"), {
                     timestamp: ahora,
@@ -1124,13 +1211,11 @@
                     comercio: nom, 
                     comercioId: id,
                     fecha: serverTimestamp(), 
-                    uso_nro: nUsoLocal,
+                    uso_nro: nuevosUsos,
                     tipo: "VIP",
                     beneficio: ben,
                     codigoGenerado: codigoIdentidad
                 });
-
-                localStorage.setItem('uso_vip_' + id, nUsoLocal);
 
                 let s = 30;
                 const t = setInterval(() => {
