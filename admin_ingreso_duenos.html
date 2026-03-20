@@ -2,306 +2,105 @@
 <html lang="es">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes, viewport-fit=cover">
-    <title>Panel del Comercio | HABITAT-CAR</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Panel Comercio | HABITAT-CAR</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
-        :root { 
-            --dorado: #d4af37; 
-            --negro-fondo: #0a0a0a;
-        }
-        * {
-            -webkit-tap-highlight-color: transparent;
-        }
-        body { 
-            background-color: var(--negro-fondo); 
-            color: white; 
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            padding: 12px;
-            padding-bottom: 100px;
-        }
+        :root { --dorado: #d4af37; }
+        body { background: #0a0a0a; color: white; font-family: system-ui, -apple-system, sans-serif; padding: 16px; padding-bottom: 90px; }
         .text-dorado { color: var(--dorado); }
-        .bg-dorado { background-color: var(--dorado); }
+        .bg-dorado { background: var(--dorado); }
         .border-dorado { border-color: var(--dorado); }
-        
-        .tabla-responsive {
-            overflow-x: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        .contenedor-tabla {
-            max-height: 400px;
-            overflow-y: auto;
-            -webkit-overflow-scrolling: touch;
-        }
-        thead th {
-            position: sticky;
-            top: 0;
-            background-color: #1a1a2e;
-            z-index: 10;
-        }
-        
-        .card-metrica {
-            background: linear-gradient(135deg, #111111 0%, #1a1a1a 100%);
-            border-radius: 20px;
-            padding: 16px 12px;
-            transition: transform 0.2s;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-        .valor-metrica {
-            font-size: 2rem;
-            font-weight: 900;
-            line-height: 1.2;
-        }
-        .etiqueta-metrica {
-            font-size: 0.65rem;
-            letter-spacing: 1px;
-            text-transform: uppercase;
-            font-weight: 600;
-            color: #9ca3af;
-        }
-        
-        .btn-tactil {
-            min-height: 48px;
-        }
-        
-        #customAlert {
-            display: none;
-            position: fixed;
-            top: 16px;
-            left: 16px;
-            right: 16px;
-            background: rgba(0,0,0,0.95);
-            border: 2px solid var(--dorado);
-            color: white;
-            padding: 14px 20px;
-            border-radius: 16px;
-            z-index: 10000;
-            font-weight: bold;
-            font-size: 0.8rem;
-            text-align: center;
-            backdrop-filter: blur(10px);
-        }
-        
-        .modal-mobile {
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.95);
-            backdrop-filter: blur(8px);
-            display: none;
-            align-items: center;
-            justify-content: center;
-            z-index: 1000;
-            padding: 16px;
-        }
-        .modal-content {
-            background: #1a1a2e;
-            border-radius: 32px;
-            width: 100%;
-            max-height: 85vh;
-            overflow-y: auto;
-            border: 1px solid var(--dorado);
-        }
-        
-        .grafico-container {
-            position: relative;
-            height: 250px;
-            width: 100%;
-        }
-        
-        @media (min-width: 768px) {
-            body { padding: 24px; }
-            .valor-metrica { font-size: 2.5rem; }
-        }
-        
-        .btn-cerrar-sesion {
-            background: linear-gradient(135deg, #dc3545, #b91c2c);
-            color: white;
-            padding: 10px 18px;
-            border-radius: 40px;
-            font-weight: bold;
-            font-size: 0.8rem;
-            border: none;
-            cursor: pointer;
-        }
-        
-        .badge-vip {
-            background: rgba(212, 175, 55, 0.2);
-            color: var(--dorado);
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            font-weight: bold;
-        }
-        .badge-lead {
-            background: rgba(59, 130, 246, 0.2);
-            color: #60a5fa;
-            padding: 4px 10px;
-            border-radius: 20px;
-            font-size: 0.7rem;
-            font-weight: bold;
-        }
-        
-        .filtro-btn {
-            background: #1f2937;
-            padding: 8px 16px;
-            border-radius: 40px;
-            font-size: 0.75rem;
-            font-weight: 600;
-            white-space: nowrap;
-        }
-        .filtro-btn.active {
-            background: var(--dorado);
-            color: black;
-        }
-        
-        #debugPanel {
-            position: fixed;
-            bottom: 80px;
-            right: 10px;
-            background: rgba(0,0,0,0.8);
-            color: #0f0;
-            font-size: 9px;
-            padding: 4px 8px;
-            border-radius: 8px;
-            z-index: 9999;
-            font-family: monospace;
-            display: none;
-            max-width: 70%;
-            word-break: break-all;
-        }
-        
-        @media (max-width: 768px) {
-            #debugPanel { display: block; }
-        }
-        
-        /* Estilos para el PDF - Versión clara */
-        .pdf-container {
-            background: white;
-            padding: 30px;
-            font-family: Arial, sans-serif;
-            color: #1f2937;
-        }
-        .pdf-container h1 { color: #1f2937; font-size: 24px; margin: 0; }
-        .pdf-container h2 { color: #b8860b; font-size: 18px; margin: 0 0 10px 0; }
-        .pdf-container .resumen { background: #f3f4f6; padding: 15px; border-radius: 12px; margin: 15px 0; }
-        .pdf-container table { width: 100%; border-collapse: collapse; font-size: 10px; }
-        .pdf-container th { background: #f3f4f6; padding: 8px; text-align: left; border-bottom: 2px solid #e5e7eb; }
-        .pdf-container td { padding: 6px 8px; border-bottom: 1px solid #e5e7eb; }
-        .pdf-container .badge-pdf-vip { background: #fef3c7; color: #b8860b; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: bold; }
-        .pdf-container .badge-pdf-lead { background: #dbeafe; color: #1e40af; padding: 2px 8px; border-radius: 12px; font-size: 9px; font-weight: bold; }
+        .card { background: #111; border-radius: 20px; padding: 16px; }
+        .badge-vip { background: rgba(212,175,55,0.2); color: #d4af37; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .badge-lead { background: rgba(59,130,246,0.2); color: #60a5fa; padding: 4px 12px; border-radius: 20px; font-size: 12px; font-weight: bold; }
+        .btn-wa { background: #25D366; }
+        .contenedor-tabla { max-height: 400px; overflow-y: auto; }
+        thead th { position: sticky; top: 0; background: #1a1a1a; z-index: 10; }
+        #customAlert { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: black; border: 2px solid var(--dorado); padding: 12px 24px; border-radius: 40px; z-index: 9999; display: none; font-weight: bold; }
+        .modal { position: fixed; inset: 0; background: rgba(0,0,0,0.95); display: none; align-items: center; justify-content: center; z-index: 1000; padding: 16px; }
+        .modal-content { background: #1a1a1a; border-radius: 32px; max-width: 500px; width: 100%; max-height: 80vh; overflow-y: auto; border: 1px solid var(--dorado); padding: 20px; }
+        @media (max-width: 640px) { body { padding: 12px; padding-bottom: 80px; } .valor-metrica { font-size: 28px; } }
     </style>
 </head>
 <body>
 
 <div id="customAlert"></div>
-<div id="debugPanel">📱 Móvil detectado | Conectando...</div>
 
-<div id="pdf-content" class="max-w-5xl mx-auto">
-    <header class="flex items-center justify-between gap-4 mb-6 border-b-2 border-dorado pb-4 flex-wrap">
-        <div class="flex items-center gap-3 flex-wrap">
-            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="h-14 md:h-20 w-auto" alt="Habitat-Car">
+<div id="app">
+    <!-- HEADER -->
+    <div class="flex items-center justify-between flex-wrap gap-3 border-b-2 border-dorado pb-4 mb-6">
+        <div class="flex items-center gap-3">
+            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="h-12 md:h-16" alt="logo">
             <div>
-                <h1 class="text-2xl md:text-4xl font-black tracking-tighter text-white">HABITAT-CAR</h1>
-                <p class="text-dorado font-bold uppercase tracking-widest text-[10px] md:text-sm mt-1">NEGOCIOS INMOBILIARIOS y GESTIONES DEL AUTOMOTOR</p>
+                <h1 class="text-2xl md:text-3xl font-black text-white">HABITAT-CAR</h1>
+                <p class="text-dorado text-[10px] uppercase tracking-wider">Gestiones Automotor e Inmobiliarias</p>
             </div>
         </div>
-        <button onclick="cerrarSesion()" class="btn-cerrar-sesion" id="btn-cerrar-sesion" style="display: none;">
-            🔒 CERRAR
-        </button>
-    </header>
-
-    <div class="text-center mb-4">
-        <p id="nombreComercioDinamico" class="text-dorado font-bold uppercase tracking-widest text-base md:text-lg mt-2"></p>
-        <p class="text-gray-500 text-[10px] uppercase tracking-wider">Acceso Privado</p>
+        <button id="btnCerrarSesion" onclick="cerrarSesion()" class="bg-red-600 px-4 py-2 rounded-full text-sm font-bold hidden">🔒 SALIR</button>
     </div>
 
+    <div id="nombreComercio" class="text-center text-dorado font-bold text-lg mb-2"></div>
+
     <!-- LOGIN -->
-    <div id="loginBox" class="bg-gray-900/50 backdrop-blur-sm p-6 rounded-2xl border border-dorado mb-8 shadow-2xl">
-        <h2 class="text-dorado font-bold mb-5 uppercase text-center text-lg">Ingreso al Panel</h2>
-        <div class="space-y-4">
-            <input type="email" id="emailInput" placeholder="Email del comercio" 
-                class="w-full bg-black border-2 border-gray-700 focus:border-dorado outline-none p-4 rounded-xl text-white text-base">
-            <input type="password" id="passwordInput" placeholder="Contraseña" 
-                class="w-full bg-black border-2 border-gray-700 focus:border-dorado outline-none p-4 rounded-xl text-white text-base">
-        </div>
-        <button onclick="loginComerciante()" 
-            class="w-full mt-6 bg-dorado text-black font-black py-4 rounded-xl hover:bg-yellow-500 transition-all uppercase text-base btn-tactil">
-            Ingresar al Sistema
-        </button>
-        <p id="loginErrorMsg" class="text-red-500 text-center text-xs mt-3 hidden"></p>
+    <div id="loginBox" class="card border border-dorado max-w-md mx-auto">
+        <h2 class="text-dorado text-center font-bold mb-4">ACCESO COMERCIO</h2>
+        <input type="email" id="email" placeholder="Email" class="w-full bg-black border border-gray-700 p-3 rounded-xl mb-3 text-white">
+        <input type="password" id="password" placeholder="Contraseña" class="w-full bg-black border border-gray-700 p-3 rounded-xl mb-4 text-white">
+        <button onclick="login()" class="w-full bg-dorado text-black font-bold py-3 rounded-xl">INGRESAR</button>
+        <p id="errorMsg" class="text-red-500 text-xs text-center mt-3 hidden"></p>
     </div>
 
     <!-- DASHBOARD -->
     <div id="dashboard" class="hidden">
-        <div class="grid grid-cols-2 gap-3 mb-6">
-            <button onclick="irAFicha()" class="bg-dorado text-black font-bold p-3 rounded-xl flex items-center justify-center gap-2 text-sm">⚙️ Mi Ficha</button>
-            <button onclick="abrirInvitacionesVIP()" class="bg-yellow-600 text-white font-bold p-3 rounded-xl flex items-center justify-center gap-2 text-sm">✨ Invitaciones VIP</button>
+        <!-- Botones acción -->
+        <div class="grid grid-cols-2 gap-3 mb-5">
+            <button onclick="irAFicha()" class="bg-dorado text-black font-bold py-3 rounded-xl">⚙️ MI FICHA</button>
+            <button onclick="abrirVIP()" class="bg-yellow-600 text-white font-bold py-3 rounded-xl">✨ INVITACIONES VIP</button>
         </div>
 
-        <div class="grid grid-cols-2 gap-3 mb-6">
-            <div class="card-metrica text-center">
-                <div class="etiqueta-metrica">Total Usuarios</div>
-                <div class="valor-metrica text-white" id="statTotal">0</div>
-            </div>
-            <div class="card-metrica text-center">
-                <div class="etiqueta-metrica">Canjes VIP</div>
-                <div class="valor-metrica text-dorado" id="statVip">0</div>
-            </div>
-            <div class="card-metrica text-center">
-                <div class="etiqueta-metrica">Canjes LEAD</div>
-                <div class="valor-metrica text-blue-500" id="statLead">0</div>
-            </div>
-            <div class="card-metrica text-center">
-                <div class="etiqueta-metrica">Último Acceso</div>
-                <div class="text-white font-bold text-sm md:text-xl" id="statUltima">--:--</div>
-            </div>
+        <!-- Métricas -->
+        <div class="grid grid-cols-2 gap-3 mb-5">
+            <div class="card text-center"><div class="text-gray-400 text-[10px]">TOTAL</div><div id="total" class="text-3xl font-bold">0</div></div>
+            <div class="card text-center"><div class="text-gray-400 text-[10px]">VIP</div><div id="vip" class="text-3xl font-bold text-dorado">0</div></div>
+            <div class="card text-center"><div class="text-gray-400 text-[10px]">LEAD</div><div id="lead" class="text-3xl font-bold text-blue-500">0</div></div>
+            <div class="card text-center"><div class="text-gray-400 text-[10px]">ÚLTIMO</div><div id="ultimo" class="text-sm font-bold">--:--</div></div>
         </div>
 
-        <div class="flex gap-2 overflow-x-auto pb-2 mb-4">
-            <button class="filtro-btn active" data-filtro="todos">📊 TODOS</button>
-            <button class="filtro-btn" data-filtro="vip">⭐ VIP</button>
-            <button class="filtro-btn" data-filtro="lead">📌 LEAD</button>
+        <!-- Gráfico -->
+        <div class="card mb-5">
+            <canvas id="grafico" height="200"></canvas>
         </div>
 
-        <div class="bg-gray-900/50 rounded-2xl p-4 mb-6">
-            <div class="grafico-container">
-                <canvas id="graficoSemanal"></canvas>
-            </div>
-        </div>
-
-        <div class="bg-gray-900/30 rounded-2xl overflow-hidden border border-gray-800">
-            <div class="tabla-responsive">
-                <div class="contenedor-tabla">
-                    <table class="w-full text-left min-w-[500px]">
-                        <thead class="bg-gray-800 text-gray-400 text-[10px] uppercase">
-                            <tr><th class="p-4">Fecha/Hora</th><th class="p-4">Categoría</th><th class="p-4">N° Cupón</th><th class="p-4">Detalle</th></tr>
-                        </thead>
-                        <tbody id="tablaMaestra" class="divide-y divide-gray-800 text-xs"></tbody>
-                    </table>
-                </div>
+        <!-- Tabla -->
+        <div class="card p-0 overflow-hidden">
+            <div class="contenedor-tabla">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-gray-900 text-gray-400 text-[10px] uppercase">
+                        <tr><th class="p-3">FECHA</th><th>TIPO</th><th>CUPÓN</th><th>DETALLE</th></tr>
+                    </thead>
+                    <tbody id="tablaRegistros" class="divide-y divide-gray-800"></tbody>
+                </table>
             </div>
         </div>
     </div>
 
-    <!-- MODAL INVITACIONES VIP -->
-    <div id="modalInvitaciones" class="modal-mobile">
-        <div class="modal-content p-5">
-            <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-black text-dorado uppercase flex items-center gap-2">✨ Pases VIP</h2>
-                <button onclick="cerrarInvitaciones()" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
-            </div>
-            <p class="text-gray-400 text-xs mb-4">Compartí estos enlaces con tus mejores clientes</p>
-            <div id="contenedor-tokens" class="space-y-3 max-h-[55vh] overflow-y-auto pr-1"></div>
-            <button onclick="cerrarInvitaciones()" class="w-full mt-5 bg-gray-800 text-white font-bold py-3 rounded-xl text-sm hover:bg-gray-700 transition">Volver al Panel</button>
+    <!-- MODAL VIP -->
+    <div id="modalVIP" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-4"><h2 class="text-dorado text-xl font-bold">✨ Pases VIP</h2><button onclick="cerrarVIP()" class="text-gray-400 text-2xl">&times;</button></div>
+            <div id="listaTokens" class="space-y-3 max-h-[50vh] overflow-y-auto"></div>
+            <button onclick="cerrarVIP()" class="w-full mt-4 bg-gray-800 py-3 rounded-xl text-sm">CERRAR</button>
         </div>
     </div>
 
-    <footer id="footerNav" class="fixed bottom-0 left-0 right-0 bg-black/90 backdrop-blur-md p-3 border-t border-dorado flex gap-3 justify-center z-50">
-        <button onclick="generarPDF()" class="bg-white text-black px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 text-sm">🖨️ PDF</button>
-        <button onclick="compartirApp()" class="bg-blue-600 text-white px-5 py-2.5 rounded-xl font-bold flex items-center gap-2 text-sm">📤 Compartir</button>
-    </footer>
+    <!-- Footer -->
+    <div class="fixed bottom-0 left-0 right-0 bg-black/90 border-t border-dorado p-3 flex gap-3 justify-center">
+        <button onclick="generarPDF()" class="bg-white text-black px-5 py-2 rounded-xl font-bold">🖨️ PDF</button>
+        <button onclick="compartirPDF()" class="bg-blue-600 text-white px-5 py-2 rounded-xl font-bold">📤 COMPARTIR</button>
+    </div>
 </div>
 
 <script type="module">
@@ -322,465 +121,194 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
     
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    const debugDiv = document.getElementById('debugPanel');
-    if(debugDiv) debugDiv.innerText = isMobile ? '📱 MÓVIL | Conectando...' : '💻 PC';
-    
-    let miGrafico = null;
-    let comercioActual = null;
-    let filtroActual = 'todos';
-    let registrosActividad = [];
-    
-    const urlParams = new URLSearchParams(window.location.search);
-    const esAdmin = urlParams.get('admin') === 'true';
-    const idForzado = urlParams.get('id');
+    let comercio = null;
+    let grafico = null;
+    let registros = [];
 
-    const mostrarAlerta = (mensaje) => {
-        const box = document.getElementById('customAlert');
-        box.innerText = mensaje;
-        box.style.display = 'block';
-        setTimeout(() => { box.style.display = 'none'; }, 4000);
+    const alerta = (msg) => { let a = document.getElementById('customAlert'); a.innerText = msg; a.style.display = 'block'; setTimeout(() => a.style.display = 'none', 3000); };
+    window.cerrarSesion = () => signOut(auth).then(() => location.reload());
+
+    window.login = async () => {
+        const email = document.getElementById('email').value;
+        const pwd = document.getElementById('password').value;
+        if(!email || !pwd) return alerta("Completá ambos campos");
+        try {
+            await signInWithEmailAndPassword(auth, email, pwd);
+        } catch(e) {
+            let msg = e.code === 'auth/invalid-credential' ? "Email o contraseña incorrectos" : "Error de conexión";
+            alerta(msg);
+            document.getElementById('errorMsg').innerText = msg;
+            document.getElementById('errorMsg').classList.remove('hidden');
+        }
     };
 
-    window.cerrarSesion = () => {
-        signOut(auth).then(() => window.location.reload());
-    };
-
-    function mostrarLogin() {
-        document.getElementById('loginBox').classList.remove('hidden');
-        document.getElementById('dashboard').classList.add('hidden');
-        document.getElementById('btn-cerrar-sesion').style.display = 'none';
-    }
-
-    function mostrarDashboard() {
+    onAuthStateChanged(auth, async (user) => {
+        if(!user) { document.getElementById('loginBox').classList.remove('hidden'); document.getElementById('dashboard').classList.add('hidden'); document.getElementById('btnCerrarSesion').style.display = 'none'; return; }
+        document.getElementById('btnCerrarSesion').style.display = 'block';
+        const q = query(collection(db, "comercios"), where("uid", "==", user.uid));
+        const snap = await getDocs(q);
+        if(snap.empty) { alerta("Comercio no encontrado"); return; }
+        comercio = { id: snap.docs[0].id, ...snap.docs[0].data() };
+        document.getElementById('nombreComercio').innerText = comercio.nombre || "";
         document.getElementById('loginBox').classList.add('hidden');
         document.getElementById('dashboard').classList.remove('hidden');
-        document.getElementById('btn-cerrar-sesion').style.display = 'block';
-    }
-
-    async function buscarComercioPorUID(uid) {
-        try {
-            const q = query(collection(db, "comercios"), where("uid", "==", uid));
-            const querySnapshot = await getDocs(q);
-            
-            if (!querySnapshot.empty) {
-                const docSnap = querySnapshot.docs[0];
-                comercioActual = { id: docSnap.id, ...docSnap.data() };
-                document.getElementById('nombreComercioDinamico').innerText = comercioActual.nombre || "";
-                mostrarDashboard();
-                inicializarGrafico();
-                iniciarSuscripciones(comercioActual.id);
-                if(debugDiv) debugDiv.innerText = `✅ ${comercioActual.nombre}`;
-            } else {
-                mostrarAlerta("❌ No se encontró tu comercio");
-                signOut(auth);
-            }
-        } catch (error) {
-            console.error(error);
-            mostrarAlerta("⚠️ Error: " + error.message);
-        }
-    }
-
-    async function buscarComercioPorIdComercio(idComercio) {
-        try {
-            const q = query(collection(db, "comercios"), where("idComercio", "==", idComercio));
-            const querySnapshot = await getDocs(q);
-            if (!querySnapshot.empty) {
-                const docSnap = querySnapshot.docs[0];
-                comercioActual = { id: docSnap.id, ...docSnap.data() };
-                document.getElementById('nombreComercioDinamico').innerText = comercioActual.nombre || " [VISTA ADMIN]";
-                mostrarDashboard();
-                inicializarGrafico();
-                iniciarSuscripciones(comercioActual.id);
-            } else {
-                mostrarAlerta("❌ Comercio no encontrado");
-            }
-        } catch (error) {
-            mostrarAlerta("⚠️ Error: " + error.message);
-        }
-    }
-
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            if (esAdmin && idForzado) {
-                buscarComercioPorIdComercio(idForzado);
-            } else {
-                buscarComercioPorUID(user.uid);
-            }
-        } else {
-            mostrarLogin();
-        }
+        iniciarGrafico();
+        escucharCanjes(comercio.id);
     });
 
-    window.loginComerciante = async () => {
-        const email = document.getElementById('emailInput').value.trim();
-        const password = document.getElementById('passwordInput').value.trim();
-        const errorMsg = document.getElementById('loginErrorMsg');
-        
-        if(!email || !password) {
-            mostrarAlerta("⚠️ Completa email y contraseña");
-            return;
-        }
-        
-        try {
-            await signInWithEmailAndPassword(auth, email, password);
-            errorMsg.classList.add('hidden');
-        } catch (error) {
-            let mensaje = "🚫 Email o contraseña incorrectos";
-            if(error.code === 'auth/too-many-requests') mensaje = "⚠️ Demasiados intentos";
-            if(error.code === 'auth/network-request-failed') mensaje = "📶 Error de red";
-            mostrarAlerta(mensaje);
-            errorMsg.innerText = mensaje;
-            errorMsg.classList.remove('hidden');
-        }
-    };
-
-    window.enviarPorWhatsApp = (link, nombreComercio) => {
-        const mensaje = `🏆 *REGISTRO VIP - HÁBITAT-CAR* 🏆\n\n¡Hola! Como sos parte importante de nuestro negocio *"${nombreComercio}"* te comparto un pase VIP exclusivo para que accedas a cupones de descuentos especiales y exclusivos del Ecosistema Habitat-Car.\n\n✨ *Beneficios exclusivos:*\n• Descuentos especiales\n• Promociones anticipadas\n• Atención preferencial\n\n👉 *Para activar tu pase VIP, tocá el enlace:*\n➡️ ${link}\n\n¡No dejes pasar esta oportunidad! 🚀`;
-        
-        const mensajeCodificado = encodeURIComponent(mensaje);
-        window.open(`https://wa.me/?text=${mensajeCodificado}`, '_blank');
-        mostrarAlerta("📱 Abriendo WhatsApp...");
-    };
-
-    window.copiarLinkPase = (link) => {
-        navigator.clipboard.writeText(link).then(() => {
-            mostrarAlerta("✅ Enlace VIP copiado");
-        }).catch(() => {
-            mostrarAlerta("❌ No se pudo copiar");
-        });
-    };
-
-    window.abrirInvitacionesVIP = async () => {
-        if (!comercioActual) return;
-        
-        const modal = document.getElementById('modalInvitaciones');
-        const cont = document.getElementById('contenedor-tokens');
-        
-        modal.style.display = 'flex';
-        cont.innerHTML = '<p class="text-center text-dorado py-8">Cargando...</p>';
-
-        try {
-            const qTokens = query(collection(db, "tokens_vip"), where("comercioId", "==", comercioActual.idComercio));
-            const snap = await getDocs(qTokens);
-            let docs = snap.docs.map(d => ({id: d.id, ...d.data()}));
-
-            if (docs.length === 0) {
-                for (let i = 0; i < 10; i++) {
-                    const randomStr = Math.random().toString(36).substring(2, 8);
-                    const tkn = `vip_${randomStr}_${comercioActual.idComercio?.substring(0,3) || 'xxx'}`;
-                    await addDoc(collection(db, "tokens_vip"), {
-                        token: tkn,
-                        comercioId: comercioActual.idComercio,
-                        estado: 'disponible',
-                        creadoPor: 'comercio',
-                        fechaCreacion: Date.now()
-                    });
-                }
-                return abrirInvitacionesVIP(); 
-            }
-
-            cont.innerHTML = "";
-            
-            const disponibles = docs.filter(t => t.estado === 'disponible');
-            const canjeadas = docs.filter(t => t.estado !== 'disponible');
-            const nombreComercio = comercioActual.nombre || "Mi Comercio";
-            
-            if (disponibles.length > 0) {
-                cont.innerHTML += `<div class="mb-2"><p class="text-dorado text-[11px] font-bold uppercase">🟢 DISPONIBLES (${disponibles.length})</p></div>`;
-                disponibles.forEach((t, i) => {
-                    const link = `https://habitatcar.github.io/usuarios_registro_vip.html?t=${t.token}`;
-                    cont.innerHTML += `
-                        <div class="bg-gradient-to-r from-black/60 to-black/30 border border-dorado/40 rounded-xl mb-3 overflow-hidden">
-                            <div class="p-3">
-                                <div class="flex justify-between items-start mb-2">
-                                    <div>
-                                        <span class="text-[11px] font-bold text-dorado">Invitación VIP #${i+1}</span>
-                                        <span class="block text-[9px] text-green-400 font-bold mt-0.5">🟢 DISPONIBLE</span>
-                                    </div>
-                                    <span class="text-[8px] text-gray-500 font-mono">${t.token.substring(0,14)}...</span>
-                                </div>
-                                <div class="flex gap-2 mt-2">
-                                    <button onclick="copiarLinkPase('${link}')" class="flex-1 bg-gray-700 text-white py-2.5 rounded-xl text-[12px] font-bold">📋 COPIAR</button>
-                                    <button onclick="enviarPorWhatsApp('${link}', '${nombreComercio.replace(/'/g, "\\'")}')" class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-[12px] font-bold">💬 WHATSAPP</button>
-                                </div>
-                            </div>
-                        </div>`;
-                });
-            }
-            
-            if (canjeadas.length > 0) {
-                cont.innerHTML += `<div class="mt-3 mb-2 pt-2 border-t border-gray-800"><p class="text-gray-500 text-[10px] font-bold uppercase">🔴 YA CANJEADAS (${canjeadas.length})</p></div>`;
-                canjeadas.forEach((t) => {
-                    cont.innerHTML += `
-                        <div class="bg-black/30 border border-red-900/30 rounded-xl mb-2 opacity-70">
-                            <div class="p-2.5 flex justify-between items-center">
-                                <div>
-                                    <span class="text-[10px] text-gray-500">Invitación</span>
-                                    <span class="block text-[9px] text-red-400">🔴 CANJEADA</span>
-                                </div>
-                                <span class="text-[8px] text-gray-600 font-mono">${t.token.substring(0,12)}...</span>
-                            </div>
-                        </div>`;
-                });
-            }
-            
-        } catch (e) { 
-            cont.innerHTML = '<p class="text-center text-red-500 py-8">❌ Error al cargar</p>';
-        }
-    };
-
-    window.cerrarInvitaciones = () => {
-        document.getElementById('modalInvitaciones').style.display = 'none';
-    };
-
-    function iniciarSuscripciones(comercioId) {
-        const qVip = query(collection(db, "logs_vip"), where("comercioId", "==", comercioId));
-        onSnapshot(qVip, (snap) => procesarSnapshot(snap, "VIP"));
-        const qLead = query(collection(db, "logs_actividad"), where("comercioId", "==", comercioId), where("tipo", "==", "canje"));
-        onSnapshot(qLead, (snap) => procesarSnapshot(snap, "LEAD"));
-    }
-
-    function procesarSnapshot(snap, tipo) {
-        const tabla = document.getElementById('tablaMaestra');
-        snap.docChanges().forEach((change) => {
-            if (change.type === "added") {
-                const d = change.doc.data();
-                const docId = change.doc.id;
-                if (document.getElementById(docId)) return;
-
-                let fecha = d.fecha?.toDate ? d.fecha.toDate() : (d.timestamp ? new Date(d.timestamp) : new Date());
-                const esVip = (tipo === "VIP");
-                
-                registrosActividad.unshift({
-                    fecha: fecha,
-                    tipo: esVip ? 'VIP' : 'LEAD',
-                    cupon: d.idValidacion || d.codigoGenerado || d.idCupon || '-',
-                    detalle: d.beneficio || d.detalle || d.nombre || '-'
-                });
-                if(registrosActividad.length > 50) registrosActividad.pop();
-
-                if (miGrafico) {
-                    let diaAjustado = fecha.getDay() === 0 ? 6 : fecha.getDay() - 1;
-                    miGrafico.data.datasets[esVip ? 0 : 1].data[diaAjustado]++;
-                    miGrafico.update();
-                }
-
-                const filaHTML = `
-                    <tr id="${docId}">
-                        <td class="p-3 text-[11px]">${fecha.toLocaleDateString()}<br><span class="text-gray-500">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></td>
-                        <td class="p-3"><span class="${esVip ? 'badge-vip' : 'badge-lead'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
-                        <td class="p-3 font-mono text-[10px]">${d.idValidacion || d.codigoGenerado || d.idCupon || '-'}</td>
-                        <td class="p-3 text-gray-400 text-[10px]">${d.beneficio || d.detalle || d.nombre || '-'}</td>
-                    </tr>`;
-                tabla.insertAdjacentHTML('afterbegin', filaHTML);
-                
-                while(tabla.children.length > 100) tabla.removeChild(tabla.lastChild);
-                
-                const elStat = document.getElementById(esVip ? 'statVip' : 'statLead');
-                elStat.innerText = parseInt(elStat.innerText) + 1;
-                document.getElementById('statTotal').innerText = parseInt(document.getElementById('statVip').innerText) + parseInt(document.getElementById('statLead').innerText);
-                document.getElementById('statUltima').innerText = fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-                aplicarFiltroTabla();
-            }
-        });
-    }
-
-    function aplicarFiltroTabla() {
-        const filas = document.querySelectorAll('#tablaMaestra tr');
-        filas.forEach(fila => {
-            if (filtroActual === 'todos') fila.style.display = '';
-            else if (filtroActual === 'vip') fila.style.display = fila.querySelector('.badge-vip') ? '' : 'none';
-            else if (filtroActual === 'lead') fila.style.display = fila.querySelector('.badge-lead') ? '' : 'none';
-        });
-    }
-
-    document.querySelectorAll('[data-filtro]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('[data-filtro]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            filtroActual = btn.dataset.filtro;
-            aplicarFiltroTabla();
-        });
-    });
-
-    window.irAFicha = () => {
-        if (comercioActual) window.location.href = `admin_mi_comercio.html?uid=${comercioActual.uid}`;
-    };
-
-    // GENERAR PDF SIMPLIFICADO Y FUNCIONAL
-    window.generarPDF = async (soloBlob = false) => {
-        const totalVip = parseInt(document.getElementById('statVip').innerText) || 0;
-        const totalLead = parseInt(document.getElementById('statLead').innerText) || 0;
-        const total = totalVip + totalLead;
-        const conversion = total > 0 ? Math.round((totalVip / total) * 100) : 0;
-        const nombreComercio = comercioActual?.nombre || "Mi Comercio";
-        
-        // Construir HTML del PDF
-        let tablaHTML = '';
-        registrosActividad.slice(0, 30).forEach(reg => {
-            const badgeClass = reg.tipo === 'VIP' ? 'badge-pdf-vip' : 'badge-pdf-lead';
-            const badgeText = reg.tipo === 'VIP' ? 'VIP' : 'LEAD';
-            tablaHTML += `
-                <tr>
-                    <td style="padding: 6px 8px; border-bottom: 1px solid #e5e7eb;">${reg.fecha.toLocaleDateString()}<br><span style="color:#9ca3af; font-size:9px;">${reg.fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></td>
-                    <td style="padding: 6px 8px; border-bottom: 1px solid #e5e7eb;"><span class="${badgeClass}" style="background:${reg.tipo === 'VIP' ? '#fef3c7' : '#dbeafe'}; color:${reg.tipo === 'VIP' ? '#b8860b' : '#1e40af'}; padding:2px 8px; border-radius:12px; font-size:9px; font-weight:bold;">${badgeText}</span></td>
-                    <td style="padding: 6px 8px; border-bottom: 1px solid #e5e7eb;">${reg.cupon}</td>
-                    <td style="padding: 6px 8px; border-bottom: 1px solid #e5e7eb;">${reg.detalle}</td>
-                </tr>`;
-        });
-        
-        const fechaActual = new Date().toLocaleString();
-        const datosVip = miGrafico?.data.datasets[0].data || [0,0,0,0,0,0,0];
-        const datosLead = miGrafico?.data.datasets[1].data || [0,0,0,0,0,0,0];
-        
-        const pdfHTML = `
-            <div class="pdf-container" style="background: white; padding: 30px; font-family: Arial, sans-serif; color: #1f2937;">
-                <div style="text-align: center; border-bottom: 3px solid #b8860b; padding-bottom: 20px; margin-bottom: 20px;">
-                    <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="height: 60px;">
-                    <h1 style="color: #1f2937; font-size: 24px; margin: 10px 0 0 0;">HABITAT-CAR</h1>
-                    <p style="color: #b8860b; font-size: 11px;">NEGOCIOS INMOBILIARIOS y GESTIONES DEL AUTOMOTOR</p>
-                </div>
-                
-                <div style="text-align: center; margin-bottom: 20px;">
-                    <h2 style="color: #b8860b; font-size: 18px; margin: 0;">${nombreComercio}</h2>
-                    <p style="color: #6b7280; font-size: 10px;">Reporte de Actividad - ${fechaActual}</p>
-                </div>
-                
-                <div style="background: #f3f4f6; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-                    <h3 style="color: #1f2937; font-size: 14px; margin: 0 0 10px 0;">📊 RESUMEN EJECUTIVO</h3>
-                    <div style="display: flex; justify-content: space-around; text-align: center;">
-                        <div><p style="color: #6b7280; font-size: 10px; margin:0;">TOTAL</p><p style="font-size: 24px; font-weight: bold; margin:5px 0;">${total}</p></div>
-                        <div><p style="color: #6b7280; font-size: 10px; margin:0;">VIP</p><p style="font-size: 24px; font-weight: bold; color:#b8860b; margin:5px 0;">${totalVip}</p></div>
-                        <div><p style="color: #6b7280; font-size: 10px; margin:0;">LEAD</p><p style="font-size: 24px; font-weight: bold; color:#3b82f6; margin:5px 0;">${totalLead}</p></div>
-                    </div>
-                    <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #e5e7eb; text-align: center;">
-                        <p style="color: #6b7280; font-size: 10px;">📈 Conversión: ${conversion}% | ⏱️ Último acceso: ${document.getElementById('statUltima').innerText}</p>
-                    </div>
-                </div>
-                
-                <div style="margin-bottom: 20px;">
-                    <h3 style="color: #1f2937; font-size: 14px; margin: 0 0 10px 0;">📈 ACTIVIDAD SEMANAL</h3>
-                    <div style="background: #f9fafb; padding: 15px; border-radius: 12px;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 11px;">
-                            <tr style="background: #f3f4f6;">
-                                <th style="padding: 8px; text-align: left;">Día</th>
-                                <th style="padding: 8px; text-align: center;">VIP</th>
-                                <th style="padding: 8px; text-align: center;">LEAD</th>
-                                <th style="padding: 8px; text-align: center;">Total</th>
-                            </tr>
-                            ${['Lunes','Martes','Miércoles','Jueves','Viernes','Sábado','Domingo'].map((dia, i) => `
-                                <tr>
-                                    <td style="padding: 6px 8px;">${dia}</td>
-                                    <td style="padding: 6px 8px; text-align: center; color:#b8860b;">${datosVip[i]}</td>
-                                    <td style="padding: 6px 8px; text-align: center; color:#3b82f6;">${datosLead[i]}</td>
-                                    <td style="padding: 6px 8px; text-align: center;">${datosVip[i] + datosLead[i]}</td>
-                                </tr>
-                            `).join('')}
-                        </table>
-                    </div>
-                </div>
-                
-                <div>
-                    <h3 style="color: #1f2937; font-size: 14px; margin: 0 0 10px 0;">📋 REGISTRO DE ACTIVIDAD</h3>
-                    <table style="width: 100%; border-collapse: collapse; font-size: 9px;">
-                        <thead>
-                            <tr style="background: #f3f4f6;">
-                                <th style="padding: 8px; text-align: left;">Fecha/Hora</th>
-                                <th style="padding: 8px; text-align: left;">Tipo</th>
-                                <th style="padding: 8px; text-align: left;">Cupón</th>
-                                <th style="padding: 8px; text-align: left;">Detalle</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            ${tablaHTML || '<tr><td colspan="4" style="text-align:center; padding:20px;">Sin registros</td></tr>'}
-                        </tbody>
-                    </table>
-                    <p style="color: #9ca3af; font-size: 8px; text-align: center; margin-top: 20px;">Reporte generado por HABITAT-CAR - Sistema de Gestión Comercial</p>
-                </div>
-            </div>
-        `;
-        
-        // Crear un elemento temporal para el PDF
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = pdfHTML;
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px';
-        tempDiv.style.top = '0';
-        document.body.appendChild(tempDiv);
-        
-        const nav = document.getElementById('footerNav');
-        const btnFicha = document.querySelector('.grid-cols-2');
-        nav.style.display = 'none';
-        if(btnFicha) btnFicha.style.display = 'none';
-        
-        const opt = { 
-            margin: [0.5, 0.5, 0.5, 0.5],
-            filename: `Reporte_${nombreComercio.replace(/\s/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`, 
-            image: { type: 'jpeg', quality: 0.95 }, 
-            html2canvas: { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false }, 
-            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } 
-        };
-        
-        try {
-            const worker = html2pdf().set(opt).from(tempDiv);
-            if (soloBlob) {
-                const blob = await worker.output('blob');
-                document.body.removeChild(tempDiv);
-                restaurarUI();
-                return blob;
-            }
-            await worker.save();
-            document.body.removeChild(tempDiv);
-            restaurarUI();
-            mostrarAlerta("✅ PDF generado correctamente");
-        } catch (e) { 
-            console.error(e);
-            document.body.removeChild(tempDiv);
-            restaurarUI(); 
-            mostrarAlerta("❌ Error al generar PDF: " + e.message); 
-        }
-        
-        function restaurarUI() {
-            nav.style.display = 'flex';
-            if(btnFicha) btnFicha.style.display = 'grid';
-        }
-    };
-
-    window.compartirApp = async () => {
-        try {
-            const pdfBlob = await generarPDF(true);
-            const file = new File([pdfBlob], `Reporte_${comercioActual?.nombre || 'Comercio'}.pdf`, { type: "application/pdf" });
-            
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({
-                    files: [file],
-                    title: 'Reporte HABITAT-CAR',
-                    text: `Reporte de actividad de ${comercioActual?.nombre || 'Mi Comercio'}`
-                });
-                mostrarAlerta("✅ Reporte compartido");
-            } else {
-                mostrarAlerta("📱 Tu navegador no soporta compartir archivos. El PDF se descargó.");
-            }
-        } catch (e) { 
-            console.error(e);
-            if(e.name !== 'AbortError') {
-                mostrarAlerta("❌ Error al compartir. El PDF se descargó.");
-            }
-        }
-    };
-
-    function inicializarGrafico() {
-        const ctx = document.getElementById('graficoSemanal').getContext('2d');
-        miGrafico = new Chart(ctx, {
+    function iniciarGrafico() {
+        const ctx = document.getElementById('grafico').getContext('2d');
+        grafico = new Chart(ctx, {
             type: 'line',
-            data: { labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'], datasets: [
-                { label: 'VIP', data: [0,0,0,0,0,0,0], borderColor: '#d4af37', borderWidth: 3, tension: 0.3 },
-                { label: 'LEAD', data: [0,0,0,0,0,0,0], borderColor: '#3b82f6', borderWidth: 3, tension: 0.3 }
-            ] },
-            options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#aaa', font: { size: 10 } } } }, scales: { y: { grid: { color: '#222' }, ticks: { color: '#aaa' } }, x: { ticks: { color: '#aaa' } } } }
+            data: { labels: ['Lun','Mar','Mié','Jue','Vie','Sáb','Dom'], datasets: [
+                { label: 'VIP', data: [0,0,0,0,0,0,0], borderColor: '#d4af37', borderWidth: 2 },
+                { label: 'LEAD', data: [0,0,0,0,0,0,0], borderColor: '#3b82f6', borderWidth: 2 }
+            ]},
+            options: { responsive: true, maintainAspectRatio: true }
         });
     }
+
+    function escucharCanjes(comercioId) {
+        const qVip = query(collection(db, "logs_vip"), where("comercioId", "==", comercioId));
+        const qLead = query(collection(db, "logs_actividad"), where("comercioId", "==", comercioId), where("tipo", "==", "canje"));
+        onSnapshot(qVip, (snap) => snap.docChanges().forEach(c => c.type === 'added' && agregarRegistro(c.doc.data(), true)));
+        onSnapshot(qLead, (snap) => snap.docChanges().forEach(c => c.type === 'added' && agregarRegistro(c.doc.data(), false)));
+    }
+
+    function agregarRegistro(d, esVip) {
+        let fecha = d.fecha?.toDate ? d.fecha.toDate() : new Date();
+        let cupon = d.idValidacion || d.codigoGenerado || d.idCupon || '-';
+        let detalle = d.beneficio || d.detalle || d.nombre || '-';
+        registros.unshift({ fecha, tipo: esVip ? 'VIP' : 'LEAD', cupon, detalle });
+        if(registros.length > 100) registros.pop();
+        
+        let dia = fecha.getDay() === 0 ? 6 : fecha.getDay() - 1;
+        if(grafico) grafico.data.datasets[esVip ? 0 : 1].data[dia]++;
+        if(grafico) grafico.update();
+        
+        let vip = parseInt(document.getElementById('vip').innerText);
+        let lead = parseInt(document.getElementById('lead').innerText);
+        if(esVip) document.getElementById('vip').innerText = vip + 1;
+        else document.getElementById('lead').innerText = lead + 1;
+        document.getElementById('total').innerText = (esVip ? vip + 1 : vip) + (esVip ? lead : lead + 1);
+        document.getElementById('ultimo').innerText = fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+        
+        let tbody = document.getElementById('tablaRegistros');
+        tbody.insertAdjacentHTML('afterbegin', `
+            <tr><td class="p-2 text-xs">${fecha.toLocaleDateString()}<br><span class="text-gray-500">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></td>
+            <td><span class="${esVip ? 'badge-vip' : 'badge-lead'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
+            <td class="text-xs font-mono">${cupon}</td>
+            <td class="text-xs text-gray-400">${detalle}</td></tr>
+        `);
+        while(tbody.children.length > 100) tbody.removeChild(tbody.lastChild);
+    }
+
+    window.irAFicha = () => { if(comercio) location.href = `admin_mi_comercio.html?uid=${comercio.uid}`; };
+
+    window.enviarWhatsApp = (link, nombre) => {
+        let msg = `🏆 *REGISTRO VIP - HÁBITAT-CAR* 🏆\n\n¡Hola! Como sos parte importante de nuestro negocio *"${nombre}"* te comparto un pase VIP exclusivo para que accedas a cupones de descuentos especiales y exclusivos del Ecosistema Habitat-Car.\n\n✨ Beneficios exclusivos:\n• Descuentos especiales\n• Promociones anticipadas\n• Atención preferencial\n\n👉 Activá tu pase VIP aquí: ${link}\n\n¡No dejes pasar esta oportunidad! 🚀`;
+        window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+        alerta("📱 Abriendo WhatsApp");
+    };
+
+    window.copiarLink = (link) => { navigator.clipboard.writeText(link); alerta("✅ Link copiado"); };
+
+    window.abrirVIP = async () => {
+        if(!comercio) return;
+        let modal = document.getElementById('modalVIP');
+        let cont = document.getElementById('listaTokens');
+        modal.style.display = 'flex';
+        cont.innerHTML = '<div class="text-center text-dorado py-8">Cargando...</div>';
+        
+        let q = query(collection(db, "tokens_vip"), where("comercioId", "==", comercio.idComercio));
+        let snap = await getDocs(q);
+        let docs = snap.docs.map(d => ({id:d.id, ...d.data()}));
+        
+        if(docs.length === 0) {
+            for(let i=0;i<10;i++) {
+                let tkn = `vip_${Math.random().toString(36).substring(2,8)}_${comercio.idComercio?.substring(0,3)}`;
+                await addDoc(collection(db, "tokens_vip"), { token: tkn, comercioId: comercio.idComercio, estado: 'disponible', fechaCreacion: Date.now() });
+            }
+            return abrirVIP();
+        }
+        
+        let disponibles = docs.filter(t => t.estado === 'disponible');
+        let usadas = docs.filter(t => t.estado !== 'disponible');
+        let html = '';
+        if(disponibles.length) html += `<div class="text-dorado text-xs font-bold mb-2">🟢 DISPONIBLES (${disponibles.length})</div>`;
+        disponibles.forEach((t,i) => {
+            let link = `https://habitatcar.github.io/usuarios_registro_vip.html?t=${t.token}`;
+            html += `<div class="bg-black/40 border border-dorado/40 rounded-xl p-3 mb-2">
+                <div class="flex justify-between items-start mb-2"><div><span class="text-xs font-bold text-dorado">Invitación #${i+1}</span><div class="text-[10px] text-green-400">🟢 DISPONIBLE</div></div></div>
+                <div class="flex gap-2"><button onclick="copiarLink('${link}')" class="flex-1 bg-gray-700 py-2 rounded-xl text-xs font-bold">📋 COPIAR</button><button onclick="enviarWhatsApp('${link}','${comercio.nombre}')" class="flex-1 bg-green-600 py-2 rounded-xl text-xs font-bold">💬 WHATSAPP</button></div>
+            </div>`;
+        });
+        if(usadas.length) html += `<div class="text-gray-500 text-xs font-bold mt-3 mb-2">🔴 CANJEADAS (${usadas.length})</div>`;
+        usadas.forEach(t => {
+            html += `<div class="bg-black/20 border border-red-900/30 rounded-xl p-2 mb-1 opacity-60"><div class="text-[10px] text-gray-500">${t.token.substring(0,15)}... - CANJEADA</div></div>`;
+        });
+        cont.innerHTML = html;
+    };
+
+    window.cerrarVIP = () => { document.getElementById('modalVIP').style.display = 'none'; };
+
+    window.generarPDF = async (soloBlob = false) => {
+        let nombre = comercio?.nombre || "Mi Comercio";
+        let totalVip = parseInt(document.getElementById('vip').innerText) || 0;
+        let totalLead = parseInt(document.getElementById('lead').innerText) || 0;
+        let total = totalVip + totalLead;
+        let conversion = total > 0 ? Math.round((totalVip/total)*100) : 0;
+        
+        let tablaHtml = '';
+        registros.slice(0, 40).forEach(r => {
+            tablaHtml += `<tr><td style="padding:6px; border-bottom:1px solid #ddd;">${r.fecha.toLocaleDateString()} ${r.fecha.toLocaleTimeString()}</td><td style="padding:6px; border-bottom:1px solid #ddd;"><span style="background:${r.tipo=='VIP'?'#fef3c7':'#dbeafe'}; padding:2px 8px; border-radius:12px;">${r.tipo}</span></td><td style="padding:6px; border-bottom:1px solid #ddd;">${r.cupon}</td><td style="padding:6px; border-bottom:1px solid #ddd;">${r.detalle}</td></tr>`;
+        });
+        
+        let html = `<!DOCTYPE html>
+        <html><head><meta charset="UTF-8"><title>Reporte ${nombre}</title><style>body{font-family:Arial; padding:30px; background:white; color:#333;} h1{color:#b8860b;} .resumen{background:#f5f5f5; padding:15px; border-radius:10px; margin:20px 0;} table{width:100%; border-collapse:collapse;} th{background:#eee; padding:8px; text-align:left;} td{padding:6px;}</style></head>
+        <body>
+            <div style="text-align:center; border-bottom:2px solid #b8860b; padding-bottom:15px;">
+                <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="height:50px;"><h1>HABITAT-CAR</h1>
+                <p style="color:#b8860b;">Gestiones Automotor e Inmobiliarias</p>
+            </div>
+            <div style="text-align:center; margin:15px 0;"><h2>${nombre}</h2><p>Reporte generado: ${new Date().toLocaleString()}</p></div>
+            <div class="resumen"><h3>📊 RESUMEN</h3><div style="display:flex; justify-content:space-around;"><div><strong>TOTAL</strong><br><span style="font-size:28px;">${total}</span></div><div><strong>VIP</strong><br><span style="font-size:28px;color:#b8860b;">${totalVip}</span></div><div><strong>LEAD</strong><br><span style="font-size:28px;color:#3b82f6;">${totalLead}</span></div></div><p style="margin-top:10px;">📈 Conversión: ${conversion}% | ⏱️ Último acceso: ${document.getElementById('ultimo').innerText}</p></div>
+            <h3>📋 REGISTRO DE ACTIVIDAD</h3>
+            <table><thead><tr><th>Fecha/Hora</th><th>Tipo</th><th>Cupón</th><th>Detalle</th></tr></thead><tbody>${tablaHtml || '<tr><td colspan="4" style="text-align:center;">Sin registros</td></tr>'}</tbody></table>
+            <p style="text-align:center; font-size:10px; color:#999; margin-top:30px;">Reporte generado por HABITAT-CAR</p>
+        </body></html>`;
+        
+        let win = window.open();
+        win.document.write(html);
+        win.document.close();
+        setTimeout(() => { win.print(); win.close(); }, 500);
+        if(!soloBlob) alerta("📄 Abriendo ventana para guardar PDF");
+        return null;
+    };
+
+    window.compartirPDF = async () => {
+        let nombre = comercio?.nombre || "Comercio";
+        let totalVip = parseInt(document.getElementById('vip').innerText) || 0;
+        let totalLead = parseInt(document.getElementById('lead').innerText) || 0;
+        let total = totalVip + totalLead;
+        
+        let tablaHtml = '';
+        registros.slice(0, 20).forEach(r => {
+            tablaHtml += `${r.fecha.toLocaleDateString()} ${r.fecha.toLocaleTimeString()} | ${r.tipo} | ${r.cupon} | ${r.detalle}\n`;
+        });
+        
+        let texto = `Reporte HABITAT-CAR\nComercio: ${nombre}\nFecha: ${new Date().toLocaleString()}\nTotal usuarios: ${total} (VIP: ${totalVip}, LEAD: ${totalLead})\n\nÚltimos registros:\n${tablaHtml || 'Sin registros'}`;
+        
+        if(navigator.share) {
+            try {
+                await navigator.share({ title: `Reporte ${nombre}`, text: texto });
+                alerta("✅ Compartido");
+            } catch(e) { alerta("No se pudo compartir"); }
+        } else {
+            alerta("📋 Copiado al portapapeles");
+            navigator.clipboard.writeText(texto);
+        }
+    };
 </script>
 </body>
 </html>
