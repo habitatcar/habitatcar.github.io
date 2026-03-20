@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Beneficios Leads | Hábitat-Car</title>
 
-    <!-- Fuente Inter (la misma de la imagen) -->
+    <!-- Fuente Inter -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
@@ -34,6 +34,7 @@
             --azul-validar: #0d124a;
             --azul-lindo: #0056b3;
             --rojo-error: #e63946;
+            --amarillo-usos: #ffc107;
         }
 
         body { 
@@ -171,9 +172,9 @@
             animation: pulsoRecuadro 3s infinite ease-in-out;
         }
 
-        .card.usado { filter: grayscale(1); opacity: 0.7; pointer-events: none; }
-        .card.usado::after {
-            content: "CANJEADO";
+        .card.agotado { filter: grayscale(1); opacity: 0.7; pointer-events: none; }
+        .card.agotado::after {
+            content: "AGOTADO";
             position: absolute;
             top: 50%; left: 50%;
             transform: translate(-50%, -50%) rotate(-20deg);
@@ -189,6 +190,23 @@
 
         .info-txt { display: block; font-size: 16px; color: #444; margin: 8px 0; font-weight: 500; }
         .ico-large { font-size: 22px; vertical-align: middle; margin-right: 6px; }
+
+        /* ============================================ */
+        /* NUEVO: Indicador de usos restantes */
+        /* ============================================ */
+        .usos-restantes {
+            display: inline-block;
+            background: var(--amarillo-usos);
+            color: var(--negro);
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-weight: 700;
+            font-size: 14px;
+            margin: 5px 0;
+        }
+        .usos-restantes i {
+            margin-right: 5px;
+        }
 
         .btn-stack { padding: 0 12px; display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
         .btn-act {
@@ -582,7 +600,6 @@
     </div>
 
     <footer class="footer-identificacion">
-        <!-- FOOTER CORREGIDO: botón 📲 a la izquierda, POSTULACIONES centrado, más bajo -->
         <div class="footer-row" style="margin-bottom: 0; position: relative;">
             <button id="btn-instalar-footer" class="btn-instalar-footer">
                 📲
@@ -604,7 +621,7 @@
 
     <script type="module">
         // ===========================================
-        // TODO TU CÓDIGO EXISTENTE SE MANTIENE IGUAL
+        // CÓDIGO CORREGIDO - CON USOS MÚLTIPLES
         // ===========================================
         if (localStorage.getItem('habitat_vip_auth') === 'true') {
             window.location.replace("usuarios_cupones_vips.html");
@@ -653,42 +670,32 @@
                         `;
                         return;
                     }
-
-                    if (!data.canjes_por_comercio || Object.keys(data.canjes_por_comercio).length === 0) {
-                        Object.keys(localStorage).forEach(key => {
-                            if (key.startsWith('uso_lead_')) {
-                                localStorage.removeItem(key);
-                            }
-                        });
-                        localStorage.setItem('usados_v16_ok', JSON.stringify([]));
-                    }
                 }
             });
         }
-
-        let deferredPrompt;
-        const btnInstalar = document.getElementById('btn-instalar-pwa');
-
-        window.addEventListener('beforeinstallprompt', (e) => {
-            e.preventDefault();
-            deferredPrompt = e;
-            console.log('✅ Evento beforeinstallprompt capturado');
-        });
-
-        // El botón del header ya no se usa, pero lo mantenemos por si acaso
-        // btnInstalar.addEventListener('click', async () => { ... });
 
         let scanner = null;
         let idEnProceso = "";
         let tokenEsperado = "";
         
         const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
-        const getUsadosLocal = () => JSON.parse(localStorage.getItem('usados_v16_ok') || "[]");
 
-        const getUsosLocales = (comercioId) => {
+        // ============================================
+        // FUNCIÓN PARA OBTENER USOS RESTANTES
+        // ============================================
+        const getUsosRestantes = (comercioId, usosPermitidos) => {
+            const usosRealizados = parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
+            const usosPermitidosNum = parseInt(usosPermitidos) || 1;
+            return Math.max(0, usosPermitidosNum - usosRealizados);
+        };
+
+        const getUsosRealizados = (comercioId) => {
             return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
         };
 
+        // ============================================
+        // CARGA DE COMERCIOS - CON USOS MÚLTIPLES
+        // ============================================
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-cupones');
             const inicios = getInicios();
@@ -700,8 +707,15 @@
                 const id = docSnap.id;
                 if (c.estado === "inactivo") return;
 
-                const nUso = getUsosLocales(id);
-                const esUsado = nUso > 0;
+                // ============================================
+                // CALCULAR USOS RESTANTES
+                // ============================================
+                const usosPermitidos = parseInt(c.usosLead) || 1;
+                const usosRealizados = getUsosRealizados(id);
+                const usosRestantes = usosPermitidos - usosRealizados;
+                
+                // Si no quedan usos, la card se marca como agotada
+                const esAgotado = usosRestantes <= 0;
 
                 const nombre = c.nombre || "Local";
                 const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
@@ -756,18 +770,29 @@
 
                 let infoVencimiento = "";
                 if (!mostrarReloj) {
-                    infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento (Un solo uso)`;
+                    infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento`;
                 } else if (diasRestantes <= 3) {
-                    infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días</span>`;
+                    infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vence: ${diasRestantes} días</span>`;
                 } else {
-                    infoVencimiento = `<span class="ico-large">⏳</span>Vencimiento: ${diasRestantes} días`;
+                    infoVencimiento = `<span class="ico-large">⏳</span>Vence: ${diasRestantes} días`;
+                }
+
+                // ============================================
+                // INDICADOR DE USOS RESTANTES
+                // ============================================
+                let usosHTML = '';
+                if (usosPermitidos > 1) {
+                    usosHTML = `<div class="usos-restantes"><i class="fas fa-ticket-alt"></i> ${usosRestantes}/${usosPermitidos} usos</div>`;
+                } else {
+                    usosHTML = `<div class="usos-restantes"><i class="fas fa-ticket-alt"></i> 1 uso</div>`;
                 }
 
                 html += `
-                    <div class="card ${esUsado ? 'usado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
+                    <div class="card ${esAgotado ? 'agotado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
                         ${htmlLogo}
                         <div class="nombre-c">${nombre}</div>
                         <div class="beneficio-c">${beneficio}</div>
+                        ${usosHTML}
                         <span class="info-txt">${infoVencimiento}</span>
                         ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
                         <div class="btn-stack">
@@ -775,8 +800,8 @@
                             ${botonSorteo}
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
-                            <button class="btn-act btn-usar ${esUsado ? 'usado' : ''}" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre.replace(/'/g, "\\'")}')">
-                                Usar Beneficio <span class="contador-nube">${nUso}</span>
+                            <button class="btn-act btn-usar ${!esAgotado ? 'activo' : ''}" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre.replace(/'/g, "\\'")}')" ${esAgotado ? 'disabled' : ''}>
+                                Usar Beneficio <span class="contador-nube">${usosRealizados}</span>
                             </button>
                         </div>
                     </div>`;
@@ -787,19 +812,6 @@
             }
             contenedor.innerHTML = html;
         });
-
-        const syncUsados = async () => {
-            try {
-                const lSnap = await getDoc(doc(db, "leads", leadId));
-                if (lSnap.exists()) {
-                    const deFirebase = lSnap.data().cupones_usados || [];
-                    const locales = getUsadosLocal();
-                    const combinados = [...new Set([...locales, ...deFirebase])];
-                    localStorage.setItem('usados_v16_ok', JSON.stringify(combinados));
-                }
-            } catch(e) {}
-        };
-        syncUsados();
 
         window.cerrarValidado = () => { document.getElementById('overlay-validado').style.display = 'none'; };
         window.cerrarErrorQR = () => { document.getElementById('overlay-error-qr').style.display = 'none'; };
@@ -877,6 +889,9 @@
             navigator.clipboard.writeText(idTexto).then(() => { alert("Código copiado: " + idTexto); });
         };
 
+        // ============================================
+        // FINALIZAR CANJE - CON USOS MÚLTIPLES
+        // ============================================
         window.finalizar = async (id, nom) => {
             try {
                 if (!leadId || leadId.startsWith('invitado_')) {
@@ -892,7 +907,20 @@
 
                 const refComercio = doc(db, "comercios", id);
                 const snapCom = await getDoc(refComercio);
-                const totalActual = (snapCom.data().totalUsos || 0) + 1;
+                const dataCom = snapCom.data();
+                
+                // Obtener usos actuales
+                const usosPermitidos = parseInt(dataCom.usosLead) || 1;
+                const usosRealizados = getUsosRealizados(id);
+                const nuevosUsos = usosRealizados + 1;
+                
+                // Verificar si aún puede usar
+                if (nuevosUsos > usosPermitidos) {
+                    alert("❌ Ya has agotado todos los usos de este cupón");
+                    return;
+                }
+                
+                const totalActual = (dataCom.totalUsos || 0) + 1;
                 const idManual = "HAB-" + String(totalActual).padStart(4, '0');
 
                 await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
@@ -904,7 +932,9 @@
                         accion: "CANJE LEADS",
                         nombreComercio: nom,
                         usuarioId: leadId,
-                        idValidacion: idManual
+                        idValidacion: idManual,
+                        usoNumero: nuevosUsos,
+                        usosTotales: usosPermitidos
                     });
                 } catch(eLog) { console.error("Error Log:", eLog); }
 
@@ -925,12 +955,13 @@
                         fecha: fechaLegible,
                         hora: horaLegible,
                         codigo: idManual,
-                        timestamp: timestamp
+                        timestamp: timestamp,
+                        usoNumero: nuevosUsos
                     }),
                     lastSubmission: timestamp
                 });
 
-                const nuevosUsos = getUsosLocales(id) + 1;
+                // Guardar en localStorage
                 localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
 
                 const btnUsar = document.getElementById(`btn-usar-${id}`);
@@ -939,9 +970,13 @@
                     if (contadorSpan) {
                         contadorSpan.textContent = nuevosUsos;
                     }
-                    btnUsar.classList.add('usado');
-                    btnUsar.classList.remove('activo');
-                    btnUsar.innerText = "USADO";
+                    
+                    // Si ya no quedan usos, desactivar
+                    if (nuevosUsos >= usosPermitidos) {
+                        btnUsar.classList.add('usado');
+                        btnUsar.classList.remove('activo');
+                        btnUsar.innerText = "AGOTADO";
+                    }
                 }
 
                 document.getElementById('exito-comercio').innerText = nom;
@@ -955,9 +990,6 @@
                     document.getElementById('countdown').innerText = s;
                     if(s <= 0) { 
                         clearInterval(t); 
-                        const usadosLocales = getUsadosLocal();
-                        usadosLocales.push(id);
-                        localStorage.setItem('usados_v16_ok', JSON.stringify(usadosLocales));
                         location.reload(); 
                     }
                 }, 1000);
@@ -982,44 +1014,36 @@
             });
         };
 
-        // POPUP DE POSTULACIONES
+        // POPUP DE POSTULACIONES (estandarizado)
         window.abrirPopupPostulaciones = () => {
             const overlay = document.createElement('div');
-            overlay.style.cssText = `
-                position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-                background: rgba(0,0,0,0.9); display: flex; justify-content: center;
-                align-items: center; z-index: 10000;
-            `;
+            overlay.className = 'popup-instalacion'; // Reusamos la clase existente
             
             overlay.innerHTML = `
-                <div style="background: white; border-radius: 20px; padding: 25px; width: 85%; max-width: 280px; text-align: center; border: 4px solid var(--azul-habitat);">
-                    <h3 style="color: var(--azul-habitat); margin-top: 0; font-size: 1.4em; font-weight: 700;">¿QUÉ DESEAS POSTULAR?</h3>
+                <div class="popup-contenido" style="border: 4px solid var(--azul-habitat);">
+                    <h3 style="color: var(--azul-habitat);">¿QUÉ DESEAS POSTULAR?</h3>
                     
                     <button onclick="window.location.href='usuarios_comercios_postulacion.html'" 
-                            style="width: 100%; padding: 14px; margin: 6px 0; background: var(--azul-lindo); color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 1.1em; cursor: pointer; font-family: 'Inter', sans-serif;">
+                            style="width: 100%; padding: 14px; margin: 8px 0; background: var(--azul-lindo); color: white; border: 3px solid var(--azul-habitat); border-radius: 15px; font-weight: 600; font-size: 1.1em; cursor: pointer; font-family: 'Inter', sans-serif;">
                         🏪 COMERCIO
                     </button>
                     
                     <button onclick="alert('Próximamente podrás postularte como MARTILLERO')" 
-                            style="width: 100%; padding: 14px; margin: 6px 0; background: #8e8e93; color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 1.1em; cursor: pointer; font-family: 'Inter', sans-serif;">
+                            style="width: 100%; padding: 14px; margin: 8px 0; background: #8e8e93; color: white; border: none; border-radius: 15px; font-weight: 600; font-size: 1.1em; cursor: pointer; font-family: 'Inter', sans-serif;">
                         🔑 MARTILLERO (próximamente)
                     </button>
                     
                     <button onclick="alert('Próximamente podrás postularte como COLABORADOR')" 
-                            style="width: 100%; padding: 14px; margin: 6px 0; background: #8e8e93; color: white; border: none; border-radius: 10px; font-weight: 600; font-size: 1.1em; cursor: pointer; font-family: 'Inter', sans-serif;">
+                            style="width: 100%; padding: 14px; margin: 8px 0; background: #8e8e93; color: white; border: none; border-radius: 15px; font-weight: 600; font-size: 1.1em; cursor: pointer; font-family: 'Inter', sans-serif;">
                         👥 COLABORADOR (próximamente)
                     </button>
                     
-                    <button onclick="this.closest('div').closest('div').remove()" 
-                            style="width: 100%; padding: 10px; margin-top: 12px; background: #ccc; color: #333; border: none; border-radius: 8px; font-weight: 600; font-size: 1em; cursor: pointer; font-family: 'Inter', sans-serif;">
+                    <button onclick="this.closest('.popup-instalacion').remove()" 
+                            style="width: 100%; padding: 12px; margin-top: 20px; background: var(--gris-volver); color: white; border: none; border-radius: 12px; font-weight: 600; font-size: 1em; cursor: pointer; font-family: 'Inter', sans-serif;">
                         CERRAR
                     </button>
                 </div>
             `;
-            
-            overlay.addEventListener('click', (e) => {
-                if (e.target === overlay) overlay.remove();
-            });
             
             document.body.appendChild(overlay);
         };
@@ -1027,7 +1051,7 @@
 
     <script>
     // ===========================================
-    // SISTEMA DE INSTALACIÓN PWA - UN SOLO POPUP BONITO
+    // SISTEMA DE INSTALACIÓN PWA
     // ===========================================
     (function() {
         let deferredPrompt;
@@ -1040,15 +1064,12 @@
         });
 
         function mostrarMensajeInstalacion() {
-            // Eliminar cualquier popup anterior
             const popupAnterior = document.querySelector('.popup-instalacion');
             if (popupAnterior) popupAnterior.remove();
             
-            // Crear overlay personalizado
             const overlay = document.createElement('div');
             overlay.className = 'popup-instalacion';
             
-            // Logo en SVG (no se comprime)
             const logoSvg = `<svg width="70" height="70" viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
                 <rect width="100" height="100" rx="20" fill="#003D80"/>
                 <path d="M30 30H70V40H30V30Z" fill="white"/>
@@ -1059,7 +1080,6 @@
             </svg>`;
             
             if (yaInstalado) {
-                // Mensaje para cuando ya está instalada
                 overlay.innerHTML = `
                     <div class="popup-contenido">
                         ${logoSvg}
@@ -1071,7 +1091,6 @@
                     </div>
                 `;
             } else if (!deferredPrompt) {
-                // Mensaje para cuando no soporta instalación
                 overlay.innerHTML = `
                     <div class="popup-contenido">
                         ${logoSvg}
@@ -1083,7 +1102,6 @@
                     </div>
                 `;
             } else {
-                // Mensaje para instalar
                 overlay.innerHTML = `
                     <div class="popup-contenido">
                         ${logoSvg}
@@ -1099,7 +1117,6 @@
             
             document.body.appendChild(overlay);
             
-            // Manejadores de eventos
             if (yaInstalado) {
                 document.getElementById('btn-ok-instalada')?.addEventListener('click', () => overlay.remove());
             } else if (!deferredPrompt) {
@@ -1124,7 +1141,6 @@
             }
         }
 
-        // Configurar botón del footer
         document.addEventListener('DOMContentLoaded', function() {
             const btnInstalar = document.getElementById('btn-instalar-footer');
             if (btnInstalar) {
