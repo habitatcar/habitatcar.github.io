@@ -73,7 +73,6 @@
             transform: scale(1.02);
         }
         
-        /* DEBUG BOX */
         #debug-box {
             background: #1a1a1a;
             border: 2px solid var(--dorado);
@@ -93,7 +92,6 @@
 
 <div id="customAlert"></div>
 
-<!-- CAJA DE DEPURACIÓN -->
 <div id="debug-box">
 🔥 MODO DEPURACIÓN ACTIVADO<br>
 Cargando página...
@@ -174,7 +172,7 @@ Cargando página...
                         <tr><th class="p-5">Fecha/Hora</th><th class="p-5">Categoría</th><th class="p-5">Nro Cupón</th><th class="p-5">Detalle</th>\
                     </thead>
                     <tbody id="tablaMaestra" class="divide-y divide-gray-800 text-sm"></tbody>
-                </table>
+                追赶
             </div>
         </div>
     </div>
@@ -211,9 +209,6 @@ Cargando página...
     import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
     import Chart from "https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js";
 
-    // ============================================
-    // FUNCIÓN DE DEPURACIÓN
-    // ============================================
     function debugLog(mensaje, datos = null) {
         const box = document.getElementById('debug-box');
         const timestamp = new Date().toLocaleTimeString();
@@ -254,85 +249,13 @@ Cargando página...
         debugLog(esError ? "ERROR: " + mensaje : "ÉXITO: " + mensaje);
     }
 
+    // ============================================
+    // EXPONER FUNCIONES GLOBALMENTE
+    // ============================================
     window.cerrarSesion = () => {
         debugLog("Cerrando sesión...");
         signOut(auth).then(() => window.location.reload());
     };
-
-    async function buscarComercioPorUID(uid, userEmail) {
-        debugLog("🔍 Buscando comercio", { uid, userEmail });
-        
-        try {
-            // 1. Buscar por UID
-            debugLog("Paso 1: Buscando por UID...");
-            const q = query(collection(db, "comercios"), where("uid", "==", uid));
-            const querySnapshot = await getDocs(q);
-            debugLog(`Resultado búsqueda por UID: ${querySnapshot.size} documentos`);
-            
-            if (!querySnapshot.empty) {
-                const docSnap = querySnapshot.docs[0];
-                comercioActual = { id: docSnap.id, ...docSnap.data() };
-                debugLog("✅ Comercio encontrado por UID", { nombre: comercioActual.nombre, id: comercioActual.idComercio });
-                mostrarDashboard();
-                return;
-            }
-            
-            // 2. Buscar por email
-            debugLog("Paso 2: No encontró por UID, buscando por email...");
-            const qEmail = query(collection(db, "comercios"), where("emailDueno", "==", userEmail));
-            const emailSnapshot = await getDocs(qEmail);
-            debugLog(`Resultado búsqueda por email: ${emailSnapshot.size} documentos`);
-            
-            if (!emailSnapshot.empty) {
-                const docSnap = emailSnapshot.docs[0];
-                comercioActual = { id: docSnap.id, ...docSnap.data() };
-                debugLog("✅ Comercio encontrado por EMAIL", { nombre: comercioActual.nombre, id: comercioActual.idComercio });
-                
-                // Guardar UID que faltaba
-                debugLog("📝 Actualizando comercio con UID...");
-                await updateDoc(doc(db, "comercios", docSnap.id), { uid: uid });
-                debugLog("✅ UID guardado correctamente");
-                comercioActual.uid = uid;
-                
-                mostrarDashboard();
-                return;
-            }
-            
-            // 3. No encontró nada
-            debugLog("❌ No se encontró comercio para este usuario");
-            mostrarAlerta("❌ No se encontró tu comercio. Contactá al administrador.", true);
-            signOut(auth);
-            
-        } catch (error) {
-            debugLog("❌ Error en búsqueda", error);
-            mostrarAlerta("⚠️ Error al buscar comercio", true);
-        }
-    }
-
-    function mostrarDashboard() {
-        debugLog("Mostrando dashboard para: " + (comercioActual?.nombre || "desconocido"));
-        document.getElementById('loginBox').style.display = 'none';
-        document.getElementById('dashboard').style.display = 'block';
-        document.getElementById('btn-cerrar-sesion').style.display = 'block';
-        if (comercioActual?.nombre) {
-            document.getElementById('nombreComercioDinamico').innerText = comercioActual.nombre;
-        }
-        inicializarGrafico();
-        iniciarSuscripciones(comercioActual.id);
-    }
-
-    // Verificar sesión al cargar
-    onAuthStateChanged(auth, (user) => {
-        if (user) {
-            debugLog("✅ Usuario autenticado", { email: user.email, uid: user.uid });
-            buscarComercioPorUID(user.uid, user.email);
-        } else {
-            debugLog("❌ No hay usuario autenticado - mostrando login");
-            document.getElementById('loginBox').style.display = 'block';
-            document.getElementById('dashboard').style.display = 'none';
-            document.getElementById('btn-cerrar-sesion').style.display = 'none';
-        }
-    });
 
     window.loginComerciante = async () => {
         const email = document.getElementById('emailInput').value.trim();
@@ -348,7 +271,6 @@ Cargando página...
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
             debugLog("✅ Login exitoso", { email: userCredential.user.email, uid: userCredential.user.uid });
-            // El onAuthStateChanged se encargará de buscar el comercio
         } catch (error) {
             debugLog("❌ Error de login", { code: error.code, message: error.message });
             if (error.code === 'auth/user-not-found') {
@@ -417,6 +339,96 @@ Cargando página...
         document.getElementById('modalInvitaciones').classList.remove('flex');
     };
 
+    window.irAFicha = () => {
+        if (comercioActual) {
+            debugLog("Redirigiendo a admin_mi_comercio.html?uid=" + comercioActual.uid);
+            window.location.href = `admin_mi_comercio.html?uid=${comercioActual.uid}`;
+        }
+    };
+
+    window.generarPDF = async (soloBlob = false) => {
+        const element = document.getElementById('pdf-content');
+        const nav = document.getElementById('footerNav');
+        const btnFicha = document.getElementById('btnFichaArea');
+        const tablaCont = document.querySelector('.contenedor-tabla');
+        nav.style.display = 'none';
+        btnFicha.style.display = 'none';
+        const oldMaxH = tablaCont.style.maxHeight;
+        const oldOverflow = tablaCont.style.overflowY;
+        tablaCont.style.maxHeight = 'none';
+        tablaCont.style.overflowY = 'visible';
+        const opt = { margin: 0.2, filename: 'Reporte.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, backgroundColor: '#0a0a0a', useCORS: true }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } };
+        try {
+            const worker = html2pdf().set(opt).from(element);
+            if (soloBlob) { const blob = await worker.output('blob'); restaurarUI(); return blob; }
+            await worker.save();
+            restaurarUI();
+        } catch (e) { restaurarUI(); mostrarAlerta("❌ Error al generar PDF", true); }
+        function restaurarUI() { nav.style.display = 'flex'; btnFicha.style.display = 'flex'; tablaCont.style.maxHeight = oldMaxH; tablaCont.style.overflowY = oldOverflow; window.scrollTo(0,0); }
+    };
+
+    window.compartirApp = async () => {
+        try {
+            const pdfBlob = await generarPDF(true);
+            const file = new File([pdfBlob], "Reporte.pdf", { type: "application/pdf" });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                await navigator.share({ files: [file], title: 'Auditoría HABITAT-CAR' });
+            } else { window.generarPDF(); mostrarAlerta("⚠️ Compartir no soportado"); }
+        } catch (e) { mostrarAlerta("🚫 Error al compartir", true); }
+    };
+
+    async function buscarComercioPorUID(uid, userEmail) {
+        debugLog("🔍 Buscando comercio", { uid, userEmail });
+        
+        try {
+            const q = query(collection(db, "comercios"), where("uid", "==", uid));
+            const querySnapshot = await getDocs(q);
+            debugLog(`Resultado búsqueda por UID: ${querySnapshot.size} documentos`);
+            
+            if (!querySnapshot.empty) {
+                const docSnap = querySnapshot.docs[0];
+                comercioActual = { id: docSnap.id, ...docSnap.data() };
+                debugLog("✅ Comercio encontrado por UID", { nombre: comercioActual.nombre });
+                mostrarDashboard();
+                return;
+            }
+            
+            const qEmail = query(collection(db, "comercios"), where("emailDueno", "=="", userEmail));
+            const emailSnapshot = await getDocs(qEmail);
+            debugLog(`Resultado búsqueda por email: ${emailSnapshot.size} documentos`);
+            
+            if (!emailSnapshot.empty) {
+                const docSnap = emailSnapshot.docs[0];
+                comercioActual = { id: docSnap.id, ...docSnap.data() };
+                debugLog("✅ Comercio encontrado por EMAIL", { nombre: comercioActual.nombre });
+                await updateDoc(doc(db, "comercios", docSnap.id), { uid: uid });
+                debugLog("✅ UID guardado correctamente");
+                mostrarDashboard();
+                return;
+            }
+            
+            debugLog("❌ No se encontró comercio");
+            mostrarAlerta("❌ No se encontró tu comercio", true);
+            signOut(auth);
+            
+        } catch (error) {
+            debugLog("❌ Error en búsqueda", error);
+            mostrarAlerta("⚠️ Error al buscar comercio", true);
+        }
+    }
+
+    function mostrarDashboard() {
+        debugLog("Mostrando dashboard para: " + (comercioActual?.nombre || "desconocido"));
+        document.getElementById('loginBox').style.display = 'none';
+        document.getElementById('dashboard').style.display = 'block';
+        document.getElementById('btn-cerrar-sesion').style.display = 'block';
+        if (comercioActual?.nombre) {
+            document.getElementById('nombreComercioDinamico').innerText = comercioActual.nombre;
+        }
+        inicializarGrafico();
+        iniciarSuscripciones(comercioActual.id);
+    }
+
     function iniciarSuscripciones(comercioId) {
         const qVip = query(collection(db, "logs_vip"), where("comercioId", "==", comercioId));
         unsubVip = onSnapshot(qVip, (snap) => procesarSnapshot(snap, "VIP"));
@@ -459,44 +471,6 @@ Cargando página...
         });
     }
 
-    window.irAFicha = () => {
-        if (comercioActual) {
-            debugLog("Redirigiendo a admin_mi_comercio.html?uid=" + comercioActual.uid);
-            window.location.href = `admin_mi_comercio.html?uid=${comercioActual.uid}`;
-        }
-    };
-
-    window.generarPDF = async (soloBlob = false) => {
-        const element = document.getElementById('pdf-content');
-        const nav = document.getElementById('footerNav');
-        const btnFicha = document.getElementById('btnFichaArea');
-        const tablaCont = document.querySelector('.contenedor-tabla');
-        nav.style.display = 'none';
-        btnFicha.style.display = 'none';
-        const oldMaxH = tablaCont.style.maxHeight;
-        const oldOverflow = tablaCont.style.overflowY;
-        tablaCont.style.maxHeight = 'none';
-        tablaCont.style.overflowY = 'visible';
-        const opt = { margin: 0.2, filename: 'Reporte.pdf', image: { type: 'jpeg', quality: 0.98 }, html2canvas: { scale: 2, backgroundColor: '#0a0a0a', useCORS: true }, jsPDF: { unit: 'in', format: 'letter', orientation: 'portrait' } };
-        try {
-            const worker = html2pdf().set(opt).from(element);
-            if (soloBlob) { const blob = await worker.output('blob'); restaurarUI(); return blob; }
-            await worker.save();
-            restaurarUI();
-        } catch (e) { restaurarUI(); mostrarAlerta("❌ Error al generar PDF", true); }
-        function restaurarUI() { nav.style.display = 'flex'; btnFicha.style.display = 'flex'; tablaCont.style.maxHeight = oldMaxH; tablaCont.style.overflowY = oldOverflow; window.scrollTo(0,0); }
-    };
-
-    window.compartirApp = async () => {
-        try {
-            const pdfBlob = await generarPDF(true);
-            const file = new File([pdfBlob], "Reporte.pdf", { type: "application/pdf" });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                await navigator.share({ files: [file], title: 'Auditoría HABITAT-CAR' });
-            } else { window.generarPDF(); mostrarAlerta("⚠️ Compartir no soportado"); }
-        } catch (e) { mostrarAlerta("🚫 Error al compartir", true); }
-    };
-
     function inicializarGrafico() {
         const ctx = document.getElementById('graficoSemanal').getContext('2d');
         if (miGrafico) miGrafico.destroy();
@@ -512,6 +486,19 @@ Cargando página...
             options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#aaa' } } } }
         });
     }
+
+    // Verificar sesión al cargar
+    onAuthStateChanged(auth, (user) => {
+        if (user) {
+            debugLog("✅ Usuario autenticado", { email: user.email, uid: user.uid });
+            buscarComercioPorUID(user.uid, user.email);
+        } else {
+            debugLog("❌ No hay usuario autenticado - mostrando login");
+            document.getElementById('loginBox').style.display = 'block';
+            document.getElementById('dashboard').style.display = 'none';
+            document.getElementById('btn-cerrar-sesion').style.display = 'none';
+        }
+    });
 </script>
 </body>
 </html>
