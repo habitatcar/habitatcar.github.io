@@ -7,6 +7,7 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root { 
             --dorado: #d4af37; 
@@ -422,10 +423,8 @@
         }
     };
 
-    // Enviar por WhatsApp con mensaje personalizado
     window.enviarPorWhatsApp = (link, nombreComercio) => {
         const mensaje = `🏆 *REGISTRO VIP - HÁBITAT-CAR* 🏆\n\n¡Hola! Como sos parte importante de nuestro negocio *"${nombreComercio}"* te comparto un pase VIP exclusivo para que accedas a cupones de descuentos especiales y exclusivos del Ecosistema Habitat-Car.\n\n✨ *Beneficios exclusivos:*\n• Descuentos especiales\n• Promociones anticipadas\n• Atención preferencial\n\n👉 *Para activar tu pase VIP, tocá el enlace:*\n${link}\n\n¡No dejes pasar esta oportunidad! 🚀`;
-        
         const mensajeCodificado = encodeURIComponent(mensaje);
         window.open(`https://wa.me/?text=${mensajeCodificado}`, '_blank');
         mostrarAlerta("📱 Abriendo WhatsApp...");
@@ -556,7 +555,7 @@
 
                 const filaHTML = `
                     <tr id="${docId}">
-                        <td class="p-3 text-[11px]">${fecha.toLocaleDateString()}<br><span class="text-gray-500">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span>}</td>
+                        <td class="p-3 text-[11px]">${fecha.toLocaleDateString()}<br><span class="text-gray-500">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></td>
                         <td class="p-3"><span class="${esVip ? 'badge-vip' : 'badge-lead'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
                         <td class="p-3 font-mono text-[10px]">${d.idValidacion || d.codigoGenerado || d.idCupon || '-'}</td>
                         <td class="p-3 text-gray-400 text-[10px]">${d.beneficio || d.detalle || d.nombre || '-'}</td>
@@ -596,189 +595,284 @@
         if (comercioActual) window.location.href = `admin_mi_comercio.html?uid=${comercioActual.uid}`;
     };
 
-    // 🚀 GENERAR PDF CON NUEVO DISEÑO PROFESIONAL
+    // ═══════════════════════════════════════════════════════════
+    // GENERAR PDF — jsPDF nativo (sin html2canvas, sin DOM capture)
+    // ═══════════════════════════════════════════════════════════
     window.generarPDF = async (soloBlob = false) => {
-        const nombreComercio = comercioActual?.nombre || "Mi Comercio";
-        const totalVip = parseInt(document.getElementById('statVip').innerText) || 0;
-        const totalLead = parseInt(document.getElementById('statLead').innerText) || 0;
-        const total = totalVip + totalLead;
-        const conversion = total > 0 ? Math.round((totalVip / total) * 100) : 0;
-        
-        // Construir tabla de registros (últimos 50)
-        let tablaHtml = '';
-        registrosActividad.slice(0, 50).forEach(r => {
-            const badgeColor = r.tipo === 'VIP' ? '#fef3c7' : '#dbeafe';
-            const badgeText = r.tipo === 'VIP' ? '#b8860b' : '#1e40af';
-            tablaHtml += `
-                <tr>
-                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; color: #374151;">
-                        ${r.fecha.toLocaleDateString()} ${r.fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}
-                    </td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">
-                        <span style="background:${badgeColor}; color:${badgeText}; padding:4px 12px; border-radius:20px; font-size:11px; font-weight:600;">
-                            ${r.tipo}
-                        </span>
-                    </td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; color: #374151; font-family: monospace;">${r.cupon}</td>
-                    <td style="padding: 10px; border-bottom: 1px solid #e5e7eb; color: #4b5563;">${r.detalle}</td>
-                </tr>
-            `;
-        });
-        
-        // Datos del gráfico semanal
-        const datosVip = miGrafico?.data.datasets[0].data || [0,0,0,0,0,0,0];
-        const datosLead = miGrafico?.data.datasets[1].data || [0,0,0,0,0,0,0];
-        const dias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-        let tablaSemanal = '';
-        dias.forEach((dia, i) => {
-            const totalDia = datosVip[i] + datosLead[i];
-            tablaSemanal += `<tr style="border-bottom:1px solid #f3f4f6;">
-                <td style="padding:10px; color:#374151;">${dia}</td>
-                <td style="padding:10px; text-align:center; color:#d4af37; font-weight:600;">${datosVip[i]}</td>
-                <td style="padding:10px; text-align:center; color:#3b82f6; font-weight:600;">${datosLead[i]}</td>
-                <td style="padding:10px; text-align:center; font-weight:600; color:#1f2937;">${totalDia}</td>
-            </tr>`;
-        });
-        
-        // 🎨 NUEVO DISEÑO PDF PROFESIONAL
-        const pdfHtml = `
-<div style="background: #ffffff; font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; color: #374151; max-width: 800px; margin: 0 auto;">
-    
-    <!-- HEADER -->
-    <div style="text-align: center; border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 30px;">
-        <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" style="height: 70px; margin-bottom:10px;">
-        <h1 style="color: #d4af37; font-size: 26px; margin: 5px 0; font-weight: 800;">HABITAT-CAR</h1>
-        <p style="font-size: 11px; color: #9ca3af; text-transform: uppercase; letter-spacing: 1px;">NEGOCIOS INMOBILIARIOS y GESTIONES DEL AUTOMOTOR</p>
-    </div>
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
 
-    <!-- TITULO -->
-    <div style="text-align:center; margin-bottom:25px;">
-        <h2 style="font-size: 20px; color:#1f2937; margin:0; font-weight:700;">${nombreComercio}</h2>
-        <p style="font-size: 11px; color:#9ca3af;">Reporte generado: ${new Date().toLocaleString('es-AR')}</p>
-    </div>
+        const W = 210; // ancho A4
+        const MARGEN = 14;
+        const ANCHO = W - MARGEN * 2;
+        let y = 0;
 
-    <!-- KPIs -->
-    <div style="display:flex; gap:15px; justify-content:space-between; margin-bottom:25px; flex-wrap: wrap;">
-        
-        <div style="flex:1; min-width: 120px; background:#f9fafb; padding:15px; border-radius:12px; text-align:center; border: 1px solid #e5e7eb;">
-            <p style="font-size:10px; color:#6b7280; font-weight:600; text-transform: uppercase; margin: 0 0 8px 0;">Total Usuarios</p>
-            <p style="font-size:28px; font-weight:800; color:#1f2937; margin: 0;">${total}</p>
-        </div>
+        const nombreComercio = comercioActual?.nombre  || "Mi Comercio";
+        const rubro          = comercioActual?.rubro   || "";
+        const ciudad         = comercioActual?.ciudad  || "";
+        const provincia      = comercioActual?.provincia || "";
+        const ubicacion      = [ciudad, provincia].filter(Boolean).join(", ");
+        const totalVip       = parseInt(document.getElementById('statVip').innerText)  || 0;
+        const totalLead      = parseInt(document.getElementById('statLead').innerText) || 0;
+        const total          = totalVip + totalLead;
+        const conversion     = total > 0 ? Math.round((totalVip / total) * 100) : 0;
+        const ultimoAcceso   = document.getElementById('statUltima').innerText;
+        const fechaReporte   = new Date().toLocaleString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+        const dias           = ['Lunes','Martes','Miercoles','Jueves','Viernes','Sabado','Domingo'];
+        const datosVip       = miGrafico?.data.datasets[0].data || [0,0,0,0,0,0,0];
+        const datosLead      = miGrafico?.data.datasets[1].data || [0,0,0,0,0,0,0];
 
-        <div style="flex:1; min-width: 120px; background:#fff7ed; padding:15px; border-radius:12px; text-align:center; border: 1px solid #fed7aa;">
-            <p style="font-size:10px; color:#6b7280; font-weight:600; text-transform: uppercase; margin: 0 0 8px 0;">Canjes VIP</p>
-            <p style="font-size:28px; font-weight:800; color:#d4af37; margin: 0;">${totalVip}</p>
-        </div>
-
-        <div style="flex:1; min-width: 120px; background:#eff6ff; padding:15px; border-radius:12px; text-align:center; border: 1px solid #bfdbfe;">
-            <p style="font-size:10px; color:#6b7280; font-weight:600; text-transform: uppercase; margin: 0 0 8px 0;">Canjes LEAD</p>
-            <p style="font-size:28px; font-weight:800; color:#3b82f6; margin: 0;">${totalLead}</p>
-        </div>
-
-    </div>
-
-    <!-- INSIGHTS -->
-    <div style="background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%); padding:18px; border-radius:12px; margin-bottom:25px; border-left: 4px solid #d4af37;">
-        <h3 style="font-size:14px; margin:0 0 10px 0; color:#1f2937; font-weight:700;">📊 Análisis del rendimiento</h3>
-        <p style="font-size:12px; color:#475569; line-height: 1.6; margin: 0;">
-            • Tasa de conversión VIP: <b style="color:#d4af37;">${conversion}%</b><br>
-            • Última actividad: <b>${document.getElementById('statUltima').innerText}</b><br>
-            • Total de interacciones: <b>${total}</b>
-        </p>
-    </div>
-
-    <!-- TABLA SEMANAL -->
-    <div style="margin-bottom:25px;">
-        <h3 style="font-size:14px; margin:0 0 10px 0; color:#1f2937; font-weight:700;">📈 Actividad semanal</h3>
-        <table style="width:100%; border-collapse:collapse; font-size:12px; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <thead>
-                <tr style="background: linear-gradient(135deg, #f3f4f6 0%, #e5e7eb 100%);">
-                    <th style="padding:12px 10px; text-align:left; color:#374151; font-weight:600;">Día</th>
-                    <th style="padding:12px; color:#d4af37; font-weight:600;">VIP</th>
-                    <th style="padding:12px; color:#3b82f6; font-weight:600;">LEAD</th>
-                    <th style="padding:12px; color:#1f2937; font-weight:600;">Total</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${tablaSemanal}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- ACTIVIDAD -->
-    <div>
-        <h3 style="font-size:14px; margin:0 0 10px 0; color:#1f2937; font-weight:700;">📋 Registro de actividad</h3>
-        <table style="width:100%; border-collapse:collapse; font-size:11px; background: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.05);">
-            <thead>
-                <tr style="background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);">
-                    <th style="padding:12px 10px; text-align:left; color:#374151; font-weight:600;">Fecha</th>
-                    <th style="padding:12px; color:#374151; font-weight:600;">Tipo</th>
-                    <th style="padding:12px; color:#374151; font-weight:600;">Cupón</th>
-                    <th style="padding:12px; color:#374151; font-weight:600;">Detalle</th>
-                </tr>
-            </thead>
-            <tbody>
-                ${tablaHtml || '<tr><td colspan="4" style="text-align:center; padding:25px; color:#9ca3af;">Sin registros de actividad</td></tr>'}
-            </tbody>
-        </table>
-    </div>
-
-    <!-- FOOTER -->
-    <div style="text-align:center; margin-top:35px; padding-top: 20px; border-top: 1px solid #e5e7eb; font-size:10px; color:#9ca3af;">
-        <p style="margin: 0 0 5px 0;">Reporte generado automáticamente por <b style="color:#d4af37;">HABITAT-CAR</b></p>
-        <p style="margin: 0;">Sistema de Gestión Comercial © ${new Date().getFullYear()}</p>
-    </div>
-
-</div>
-`;
-        
-        // Crear elemento temporal para el PDF
-        const tempDiv = document.createElement('div');
-        tempDiv.innerHTML = pdfHtml;
-        tempDiv.style.position = 'absolute';
-        tempDiv.style.left = '-9999px';
-        tempDiv.style.top = '0';
-        tempDiv.style.width = '800px';
-        document.body.appendChild(tempDiv);
-        
-        const footer = document.getElementById('footerNav');
-        const btnFicha = document.querySelector('.grid-cols-2');
-        if(footer) footer.style.display = 'none';
-        if(btnFicha) btnFicha.style.display = 'none';
-        
-        const opt = { 
-            margin: [0.3, 0.3, 0.3, 0.3],
-            filename: `Reporte_${nombreComercio.replace(/\s/g, '_')}_${new Date().toISOString().slice(0,10)}.pdf`, 
-            image: { type: 'jpeg', quality: 0.98 }, 
-            html2canvas: { scale: 3, backgroundColor: '#ffffff', useCORS: true, logging: false }, 
-            jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' } 
+        // ── helpers ──
+        const setFont = (size, style='normal', color=[30,30,30]) => {
+            doc.setFontSize(size);
+            doc.setFont('helvetica', style);
+            doc.setTextColor(...color);
         };
-        
-        try {
-            if (soloBlob) {
-                const blob = await html2pdf().set(opt).from(tempDiv).output('blob');
-                document.body.removeChild(tempDiv);
-                if(footer) footer.style.display = 'flex';
-                if(btnFicha) btnFicha.style.display = 'grid';
-                return blob;
-            }
-            await html2pdf().set(opt).from(tempDiv).save();
-            document.body.removeChild(tempDiv);
-            if(footer) footer.style.display = 'flex';
-            if(btnFicha) btnFicha.style.display = 'grid';
-            mostrarAlerta("✅ PDF generado correctamente");
-        } catch(e) {
-            console.error(e);
-            document.body.removeChild(tempDiv);
-            if(footer) footer.style.display = 'flex';
-            if(btnFicha) btnFicha.style.display = 'grid';
-            mostrarAlerta("❌ Error al generar PDF");
-        }
-    };
+        const rect = (x, ry, w, h, fill) => {
+            doc.setFillColor(...fill);
+            doc.roundedRect(x, ry, w, h, 2, 2, 'F');
+        };
+        const line = (ry, color=[220,220,220]) => {
+            doc.setDrawColor(...color);
+            doc.line(MARGEN, ry, W - MARGEN, ry);
+        };
+        const newPage = () => {
+            doc.addPage();
+            y = 14;
+        };
+        const checkPage = (needed) => {
+            if (y + needed > 278) newPage();
+        };
 
-    window.compartirApp = async () => {
-        try {
-            const pdfBlob = await window.generarPDF(true);
+        // ══════════════════════════════════════════
+        // CABECERA
+        // ══════════════════════════════════════════
+        // Fondo dorado claro
+        doc.setFillColor(255, 251, 235);
+        doc.rect(0, 0, W, 38, 'F');
+        doc.setFillColor(212, 175, 55);
+        doc.rect(0, 38, W, 1.2, 'F');
+
+        // Título
+        setFont(20, 'bold', [146, 64, 14]);
+        doc.text('HABITAT-CAR', MARGEN, 15);
+        setFont(7, 'normal', [180, 83, 9]);
+        doc.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', MARGEN, 21);
+
+        // Derecha
+        setFont(11, 'bold', [146, 64, 14]);
+        doc.text('REPORTE DE ACTIVIDAD', W - MARGEN, 13, {align:'right'});
+        setFont(8, 'normal', [180, 83, 9]);
+        doc.text(fechaReporte, W - MARGEN, 19, {align:'right'});
+        // Badge CONFIDENCIAL
+        doc.setFillColor(212, 175, 55);
+        doc.roundedRect(W - MARGEN - 28, 22, 28, 7, 3, 3, 'F');
+        setFont(7, 'bold', [255, 255, 255]);
+        doc.text('CONFIDENCIAL', W - MARGEN - 14, 26.5, {align:'center'});
+
+        y = 45;
+
+        // ══════════════════════════════════════════
+        // DATOS DEL COMERCIO
+        // ══════════════════════════════════════════
+        doc.setFillColor(248, 250, 252);
+        doc.rect(0, y, W, 18, 'F');
+        doc.setDrawColor(226, 232, 240);
+        doc.line(0, y + 18, W, y + 18);
+
+        setFont(7, 'bold', [156, 163, 175]);
+        doc.text('COMERCIO', MARGEN, y + 6);
+        setFont(12, 'bold', [31, 41, 55]);
+        doc.text(nombreComercio.toUpperCase(), MARGEN, y + 13);
+
+        let xCols = MARGEN + 70;
+        if (rubro) {
+            setFont(7, 'bold', [156, 163, 175]);
+            doc.text('RUBRO', xCols, y + 6);
+            setFont(9, 'normal', [55, 65, 81]);
+            doc.text(rubro, xCols, y + 13);
+            xCols += 50;
+        }
+        if (ubicacion) {
+            setFont(7, 'bold', [156, 163, 175]);
+            doc.text('UBICACION', xCols, y + 6);
+            setFont(9, 'normal', [55, 65, 81]);
+            doc.text(ubicacion, xCols, y + 13);
+        }
+        setFont(7, 'bold', [156, 163, 175]);
+        doc.text('ULTIMO ACCESO', W - MARGEN, y + 6, {align:'right'});
+        setFont(9, 'normal', [55, 65, 81]);
+        doc.text(ultimoAcceso, W - MARGEN, y + 13, {align:'right'});
+
+        y += 24;
+
+        // ══════════════════════════════════════════
+        // METRICAS — 4 tarjetas
+        // ══════════════════════════════════════════
+        setFont(7, 'bold', [156, 163, 175]);
+        doc.text('RESUMEN EJECUTIVO', MARGEN, y);
+        y += 5;
+
+        const cards = [
+            { label:'TOTAL USUARIOS', val:String(total),      sub:'Canjes registrados', bg:[240,253,244], border:[187,247,208], num:[22, 101, 52],  txt:[21, 128, 61]  },
+            { label:'CANJES VIP',     val:String(totalVip),   sub:'Clientes premium',   bg:[255,251,235], border:[253,230,138], num:[146, 64, 14],  txt:[146, 64, 14]  },
+            { label:'CANJES LEAD',    val:String(totalLead),  sub:'Clientes generales', bg:[239,246,255], border:[191,219,254], num:[30, 64, 175],  txt:[30, 64, 175]  },
+            { label:'TASA VIP',       val:conversion+'%',     sub:'De canjes son VIP',  bg:[253,244,255], border:[233,213,255], num:[126, 34, 206], txt:[126, 34, 206] },
+        ];
+        const cw = (ANCHO - 9) / 4;
+        cards.forEach((card, i) => {
+            const cx = MARGEN + i * (cw + 3);
+            doc.setFillColor(...card.bg);
+            doc.setDrawColor(...card.border);
+            doc.roundedRect(cx, y, cw, 26, 2, 2, 'FD');
+            setFont(6.5, 'bold', card.txt);
+            doc.text(card.label, cx + cw/2, y + 6, {align:'center'});
+            setFont(20, 'bold', card.num);
+            doc.text(card.val, cx + cw/2, y + 18, {align:'center'});
+            setFont(7, 'normal', [156, 163, 175]);
+            doc.text(card.sub, cx + cw/2, y + 23.5, {align:'center'});
+        });
+        y += 32;
+
+        // ══════════════════════════════════════════
+        // ACTIVIDAD SEMANAL
+        // ══════════════════════════════════════════
+        checkPage(60);
+        setFont(7, 'bold', [156, 163, 175]);
+        doc.text('ACTIVIDAD POR DIA DE LA SEMANA', MARGEN, y);
+        y += 5;
+
+        // Header tabla
+        doc.setFillColor(248, 250, 252);
+        doc.rect(MARGEN, y, ANCHO, 7, 'F');
+        setFont(7, 'bold', [107, 114, 128]);
+        doc.text('DIA',   MARGEN + 3, y + 5);
+        doc.text('VIP',   MARGEN + 52, y + 5, {align:'center'});
+        doc.text('LEAD',  MARGEN + 72, y + 5, {align:'center'});
+        doc.text('TOTAL', MARGEN + 92, y + 5, {align:'center'});
+        doc.text('ACTIVIDAD',  MARGEN + 140, y + 5);
+        y += 7;
+
+        const maxBar = Math.max(...dias.map((_,i) => datosVip[i]+datosLead[i]), 1);
+        dias.forEach((dia, i) => {
+            const sub = datosVip[i] + datosLead[i];
+            const bg  = i % 2 === 0 ? [255,255,255] : [249,250,251];
+            doc.setFillColor(...bg);
+            doc.rect(MARGEN, y, ANCHO, 7, 'F');
+            setFont(8, 'normal', [55, 65, 81]);
+            doc.text(dia, MARGEN + 3, y + 5);
+            setFont(8, 'bold', [146, 64, 14]);
+            doc.text(String(datosVip[i]),  MARGEN + 52, y + 5, {align:'center'});
+            setFont(8, 'bold', [30, 64, 175]);
+            doc.text(String(datosLead[i]), MARGEN + 72, y + 5, {align:'center'});
+            setFont(8, 'bold', [31, 41, 55]);
+            doc.text(String(sub),          MARGEN + 92, y + 5, {align:'center'});
+            // barra
+            const barMax = 55;
+            const barW   = Math.round((sub / maxBar) * barMax);
+            doc.setFillColor(229, 231, 235);
+            doc.roundedRect(MARGEN + 110, y + 1.5, barMax, 4, 1, 1, 'F');
+            if (barW > 0) {
+                doc.setFillColor(212, 175, 55);
+                doc.roundedRect(MARGEN + 110, y + 1.5, barW, 4, 1, 1, 'F');
+            }
+            doc.setDrawColor(229, 231, 235);
+            doc.line(MARGEN, y + 7, W - MARGEN, y + 7);
+            y += 7;
+        });
+        y += 8;
+
+        // ══════════════════════════════════════════
+        // REGISTRO DE ACTIVIDAD
+        // ══════════════════════════════════════════
+        checkPage(20);
+        setFont(7, 'bold', [156, 163, 175]);
+        doc.text(`REGISTRO DE ACTIVIDAD  —  ultimos ${Math.min(registrosActividad.length,50)} registros`, MARGEN, y);
+        y += 5;
+
+        // Header
+        doc.setFillColor(248, 250, 252);
+        doc.rect(MARGEN, y, ANCHO, 7, 'F');
+        setFont(7, 'bold', [107, 114, 128]);
+        doc.text('FECHA / HORA', MARGEN + 3, y + 5);
+        doc.text('TIPO',         MARGEN + 42, y + 5);
+        doc.text('N CUPON',      MARGEN + 65, y + 5);
+        doc.text('DETALLE',      MARGEN + 110, y + 5);
+        y += 7;
+
+        if (registrosActividad.length === 0) {
+            doc.setFillColor(249, 250, 251);
+            doc.rect(MARGEN, y, ANCHO, 10, 'F');
+            setFont(9, 'normal', [156, 163, 175]);
+            doc.text('Sin registros de actividad aun', W/2, y + 7, {align:'center'});
+            y += 14;
+        } else {
+            registrosActividad.slice(0,50).forEach((r, i) => {
+                checkPage(10);
+                const bg = i % 2 === 0 ? [255,255,255] : [249,250,251];
+                doc.setFillColor(...bg);
+                doc.rect(MARGEN, y, ANCHO, 9, 'F');
+
+                const fStr = r.fecha.toLocaleDateString('es-AR') + '  ' +
+                             r.fecha.toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
+                setFont(7.5, 'normal', [55, 65, 81]);
+                doc.text(fStr, MARGEN + 3, y + 6);
+
+                // badge tipo
+                const esVip = r.tipo === 'VIP';
+                doc.setFillColor(...(esVip ? [254,243,199] : [219,234,254]));
+                doc.roundedRect(MARGEN + 42, y + 1.5, 18, 5.5, 1.5, 1.5, 'F');
+                setFont(6.5, 'bold', esVip ? [146,64,14] : [30,64,175]);
+                doc.text(r.tipo, MARGEN + 51, y + 5.5, {align:'center'});
+
+                setFont(7, 'normal', [55, 65, 81]);
+                const cuponStr = String(r.cupon || '-').substring(0, 18);
+                doc.text(cuponStr, MARGEN + 65, y + 6);
+
+                setFont(7, 'normal', [107, 114, 128]);
+                const detStr = String(r.detalle || '-').substring(0, 30);
+                doc.text(detStr, MARGEN + 110, y + 6);
+
+                doc.setDrawColor(243, 244, 246);
+                doc.line(MARGEN, y + 9, W - MARGEN, y + 9);
+                y += 9;
+            });
+        }
+
+        y += 8;
+
+        // ══════════════════════════════════════════
+        // PIE DE PAGINA (todas las páginas)
+        // ══════════════════════════════════════════
+        const totalPags = doc.internal.getNumberOfPages();
+        for (let p = 1; p <= totalPags; p++) {
+            doc.setPage(p);
+            doc.setFillColor(248, 250, 252);
+            doc.rect(0, 284, W, 14, 'F');
+            doc.setDrawColor(226, 232, 240);
+            doc.line(0, 284, W, 284);
+            setFont(7, 'normal', [156, 163, 175]);
+            doc.text('Generado por HABITAT-CAR · Sistema de Gestion Comercial', MARGEN, 290);
+            doc.text('habitatcar.com · habitatcar.com.ar', W/2, 290, {align:'center'});
+            doc.text(`Lorenzo M. Guerrero · MP: 279 · Jujuy  |  Pag ${p}/${totalPags}`, W - MARGEN, 290, {align:'right'});
+        }
+
+        // ══════════════════════════════════════════
+        // OUTPUT
+        // ══════════════════════════════════════════
+        const filename = `Reporte_${nombreComercio.replace(/\s/g,'_')}_${new Date().toISOString().slice(0,10)}.pdf`;
+
+        if (soloBlob) {
+            return doc.output('blob');
+        }
+        doc.save(filename);
+        mostrarAlerta("✅ PDF generado correctamente");
+    };
+    // ═══════════════════════════════════════════════════════════
+    // FIN generarPDF
+    // ═══════════════════════════════════════════════════════════
+
+                const pdfBlob = await window.generarPDF(true);
             const file = new File([pdfBlob], `Reporte_${comercioActual?.nombre || 'Comercio'}.pdf`, { type: "application/pdf" });
             
             if (navigator.canShare && navigator.canShare({ files: [file] })) {
@@ -789,19 +883,11 @@
                 });
                 mostrarAlerta("✅ Reporte compartido");
             } else {
-                // Fallback: descargar el PDF
-                const url = URL.createObjectURL(pdfBlob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `Reporte_${comercioActual?.nombre || 'Comercio'}.pdf`;
-                a.click();
-                URL.revokeObjectURL(url);
-                mostrarAlerta("📥 PDF descargado para compartir");
+                mostrarAlerta("📱 Tu navegador no soporta compartir archivos. El PDF se descargó.");
             }
         } catch(e) {
             if(e.name !== 'AbortError') {
-                console.error(e);
-                mostrarAlerta("❌ Error al compartir");
+                mostrarAlerta("❌ Error al compartir. El PDF se descargó.");
             }
         }
     };
@@ -811,29 +897,14 @@
         miGrafico = new Chart(ctx, {
             type: 'line',
             data: { labels: ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'], datasets: [
-                { label: 'VIP', data: [0,0,0,0,0,0,0], borderColor: '#d4af37', backgroundColor: 'rgba(212, 175, 55, 0.1)', borderWidth: 3, tension: 0.3, fill: false, pointRadius: 3 },
-                { label: 'LEAD', data: [0,0,0,0,0,0,0], borderColor: '#3b82f6', backgroundColor: 'rgba(59, 130, 246, 0.1)', borderWidth: 3, tension: 0.3, fill: false, pointRadius: 3 }
+                { label: 'VIP', data: [0,0,0,0,0,0,0], borderColor: '#d4af37', borderWidth: 3, tension: 0.3, fill: false },
+                { label: 'LEAD', data: [0,0,0,0,0,0,0], borderColor: '#3b82f6', borderWidth: 3, tension: 0.3, fill: false }
             ] },
             options: { 
                 responsive: true, 
                 maintainAspectRatio: false,
-                plugins: { 
-                    legend: { 
-                        labels: { color: '#aaa', font: { size: 10, weight: '600' } },
-                        position: 'top'
-                    } 
-                },
-                scales: { 
-                    y: { 
-                        beginAtZero: true,
-                        grid: { color: '#222' }, 
-                        ticks: { color: '#aaa', stepSize: 1 } 
-                    }, 
-                    x: { 
-                        grid: { display: false },
-                        ticks: { color: '#aaa' } 
-                    } 
-                }
+                plugins: { legend: { labels: { color: '#aaa', font: { size: 10 } } } },
+                scales: { y: { grid: { color: '#222' }, ticks: { color: '#aaa' } }, x: { ticks: { color: '#aaa' } } }
             }
         });
     }
