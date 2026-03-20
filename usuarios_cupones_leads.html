@@ -35,6 +35,7 @@
             --azul-lindo: #0056b3;
             --rojo-error: #e63946;
             --amarillo-usos: #ffc107;
+            --gris-desactivado: #cccccc;
         }
 
         body { 
@@ -192,7 +193,7 @@
         .ico-large { font-size: 22px; vertical-align: middle; margin-right: 6px; }
 
         /* ============================================ */
-        /* NUEVO: Indicador de usos restantes */
+        /* INDICADOR DE USOS (CORREGIDO) */
         /* ============================================ */
         .usos-restantes {
             display: inline-block;
@@ -213,6 +214,7 @@
             padding: 12px; border-radius: 8px; border: none; 
             font-weight: 600; font-size: 15px; color: white; cursor: pointer;
             font-family: 'Inter', sans-serif;
+            transition: all 0.3s ease;
         }
         .btn-conozca { background: var(--azul-lindo); }
         .btn-sorteo { 
@@ -248,9 +250,21 @@
         }
         .btn-llegar { background: var(--verde); }
         .btn-validar { background: var(--rosa); }
-        .btn-usar { background: #ccc; pointer-events: none; transition: 0.3s; }
+        
+        /* ============================================ */
+        /* BOTÓN USAR BENEFICIO - SIEMPRE DESACTIVADO POR DEFECTO */
+        /* ============================================ */
+        .btn-usar { 
+            background: var(--gris-desactivado); 
+            color: #666;
+            pointer-events: none; 
+            transition: 0.3s; 
+            border: 2px solid #999;
+        }
         .btn-usar.activo { 
             background: var(--verde); 
+            color: white;
+            border: 2px solid var(--verde);
             pointer-events: auto; 
             animation: parpadeoVerde 1.5s infinite; 
         }
@@ -538,9 +552,9 @@
     <div id="overlay-validado" class="custom-overlay">
         <div class="custom-alert">
             <img src="https://cdn-icons-png.flaticon.com/512/190/190411.png" class="check-icon">
-            <h2>QR VALIDADO</h2>
-            <p style="font-size: 20px; font-weight: 600;">Ahora pulse el botón "USAR BENEFICIO"</p>
-            <button class="btn-alert btn-si" style="background:var(--azul-habitat)" onclick="cerrarValidado()">ENTENDIDO</button>
+            <h2>✅ QR VALIDADO</h2>
+            <p style="font-size: 18px; font-weight: 600;">Ahora puedes usar el beneficio</p>
+            <button class="btn-alert btn-si" style="background:var(--azul-habitat)" onclick="cerrarValidado()">CONTINUAR</button>
         </div>
     </div>
 
@@ -549,7 +563,7 @@
             <img src="https://cdn-icons-png.flaticon.com/512/753/753345.png" class="check-icon">
             <h2 style="color: var(--rojo-cupon);">❌ ERROR DE VALIDACIÓN</h2>
             <p><b>El código escaneado no coincide con este comercio.</b></p>
-            <p style="font-weight: 600; color: var(--azul-habitat);">Hábitat-Car le pide que escanee el QR correcto ubicado en el mostrador.</p>
+            <p style="font-weight: 600; color: var(--azul-habitat);">Escanea el QR ubicado en el mostrador del comercio.</p>
             <button class="btn-alert btn-si" style="background:var(--rojo-cupon)" onclick="cerrarErrorQR()">REINTENTAR</button>
         </div>
     </div>
@@ -560,7 +574,7 @@
             <p>¿Avisaste al cajero que usarás el cupón?</p>
             <p>Si no avisaste, perderás el beneficio.</p>
             <div class="btn-group-alert">
-                <button id="btn-confirmar-final" class="btn-alert btn-si">SÍ</button>
+                <button id="btn-confirmar-final" class="btn-alert btn-si">SÍ, AVISÉ</button>
                 <button class="btn-alert btn-no" onclick="cerrarAtencion()">NO</button>
             </div>
         </div>
@@ -621,7 +635,7 @@
 
     <script type="module">
         // ===========================================
-        // CÓDIGO CORREGIDO - CON USOS MÚLTIPLES
+        // CÓDIGO CORREGIDO - FLUJO COMPLETO
         // ===========================================
         if (localStorage.getItem('habitat_vip_auth') === 'true') {
             window.location.replace("usuarios_cupones_vips.html");
@@ -650,8 +664,9 @@
             localStorage.getItem('leadId_v16') ||
             localStorage.getItem('leadId') ||
             "invitado_" + Date.now(); 
-        const leadNombre = localStorage.getItem('leadNombre') || "Usuario";
-        const leadApellido = localStorage.getItem('leadApellido') || "Leads";
+
+        // Variable para guardar la posición del scroll
+        let scrollPosition = 0;
 
         if (leadId && !leadId.startsWith('invitado_')) {
             onSnapshot(doc(db, "leads", leadId), (docSnap) => {
@@ -681,20 +696,14 @@
         const getInicios = () => JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
 
         // ============================================
-        // FUNCIÓN PARA OBTENER USOS RESTANTES
+        // FUNCIONES PARA USOS (CORREGIDAS)
         // ============================================
-        const getUsosRestantes = (comercioId, usosPermitidos) => {
-            const usosRealizados = parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
-            const usosPermitidosNum = parseInt(usosPermitidos) || 1;
-            return Math.max(0, usosPermitidosNum - usosRealizados);
-        };
-
         const getUsosRealizados = (comercioId) => {
             return parseInt(localStorage.getItem(`uso_lead_${comercioId}`) || "0");
         };
 
         // ============================================
-        // CARGA DE COMERCIOS - CON USOS MÚLTIPLES
+        // CARGA DE COMERCIOS
         // ============================================
         onSnapshot(collection(db, "comercios"), (snap) => {
             const contenedor = document.getElementById('contenedor-cupones');
@@ -707,9 +716,7 @@
                 const id = docSnap.id;
                 if (c.estado === "inactivo") return;
 
-                // ============================================
-                // CALCULAR USOS RESTANTES
-                // ============================================
+                // Calcular usos
                 const usosPermitidos = parseInt(c.usosLead) || 1;
                 const usosRealizados = getUsosRealizados(id);
                 const usosRestantes = usosPermitidos - usosRealizados;
@@ -778,15 +785,13 @@
                 }
 
                 // ============================================
-                // INDICADOR DE USOS RESTANTES
+                // INDICADOR DE USOS (CORREGIDO: 0/3, 1/3, 2/3, 3/3)
                 // ============================================
-                let usosHTML = '';
-                if (usosPermitidos > 1) {
-                    usosHTML = `<div class="usos-restantes"><i class="fas fa-ticket-alt"></i> ${usosRestantes}/${usosPermitidos} usos</div>`;
-                } else {
-                    usosHTML = `<div class="usos-restantes"><i class="fas fa-ticket-alt"></i> 1 uso</div>`;
-                }
+                let usosHTML = `<div class="usos-restantes"><i class="fas fa-ticket-alt"></i> ${usosRealizados}/${usosPermitidos} usos</div>`;
 
+                // ============================================
+                // BOTÓN USAR BENEFICIO - SIEMPRE DESACTIVADO POR DEFECTO
+                // ============================================
                 html += `
                     <div class="card ${esAgotado ? 'agotado' : ''}" data-nombre="${nombre.toLowerCase()}" data-vence="${diasRestantes}">
                         ${htmlLogo}
@@ -800,7 +805,7 @@
                             ${botonSorteo}
                             <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" onclick="abrirQR('${id}', '${token}')">Validar Cupón con QR</button>
-                            <button class="btn-act btn-usar ${!esAgotado ? 'activo' : ''}" id="btn-usar-${id}" onclick="confirmarAtencion('${id}', '${nombre.replace(/'/g, "\\'")}')" ${esAgotado ? 'disabled' : ''}>
+                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarAtencion('${id}', '${nombre.replace(/'/g, "\\'")}')" ${esAgotado ? 'disabled' : ''}>
                                 Usar Beneficio <span class="contador-nube">${usosRealizados}</span>
                             </button>
                         </div>
@@ -811,13 +816,35 @@
                 localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
             }
             contenedor.innerHTML = html;
+            
+            // Restaurar scroll después de recargar
+            setTimeout(() => {
+                window.scrollTo(0, scrollPosition);
+            }, 100);
         });
 
-        window.cerrarValidado = () => { document.getElementById('overlay-validado').style.display = 'none'; };
-        window.cerrarErrorQR = () => { document.getElementById('overlay-error-qr').style.display = 'none'; };
-        window.cerrarAtencion = () => { document.getElementById('overlay-atencion').style.display = 'none'; };
+        window.cerrarValidado = () => { 
+            document.getElementById('overlay-validado').style.display = 'none'; 
+        };
+        
+        window.cerrarErrorQR = () => { 
+            document.getElementById('overlay-error-qr').style.display = 'none'; 
+        };
+        
+        window.cerrarAtencion = () => { 
+            document.getElementById('overlay-atencion').style.display = 'none'; 
+        };
 
-        window.confirmarAtencion = (id, nom) => {
+        // ============================================
+        // PREGUNTAR ATENCIÓN (antes de finalizar)
+        // ============================================
+        window.preguntarAtencion = (id, nom) => {
+            const btn = document.getElementById(`btn-usar-${id}`);
+            if (!btn || !btn.classList.contains('activo')) {
+                alert("⚠️ Primero debes validar el QR del comercio");
+                return;
+            }
+            
             document.getElementById('overlay-atencion').style.display = 'flex';
             document.getElementById('btn-confirmar-final').onclick = () => {
                 document.getElementById('overlay-atencion').style.display = 'none';
@@ -862,16 +889,29 @@
             window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`;
         };
         
+        // ============================================
+        // ABRIR QR Y VALIDAR (activa el botón USAR)
+        // ============================================
         window.abrirQR = (id, token) => {
-            idEnProceso = id; tokenEsperado = token;
+            idEnProceso = id; 
+            tokenEsperado = token;
+            
+            // Guardar posición del scroll
+            scrollPosition = window.pageYOffset;
+            
             document.getElementById('modal-qr').style.display = 'flex';
             scanner = new Html5Qrcode("reader");
             scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
                 if (text.trim() === tokenEsperado.trim()) {
                     cerrarScanner();
-                    document.getElementById('overlay-validado').style.display = 'flex';
+                    
+                    // ACTIVAR el botón USAR BENEFICIO
                     const btn = document.getElementById(`btn-usar-${idEnProceso}`);
-                    if(btn) { btn.classList.add('activo'); btn.innerText = "USAR BENEFICIO"; }
+                    if(btn) { 
+                        btn.classList.add('activo'); 
+                    }
+                    
+                    document.getElementById('overlay-validado').style.display = 'flex';
                 } else { 
                     cerrarScanner();
                     document.getElementById('overlay-error-qr').style.display = 'flex'; 
@@ -899,6 +939,9 @@
                     window.location.replace("usuarios_registro_lead.html");
                     return;
                 }
+
+                // Guardar posición del scroll antes de mostrar éxito
+                scrollPosition = window.pageYOffset;
 
                 const ahora = new Date();
                 const fechaLegible = ahora.toLocaleDateString();
@@ -971,10 +1014,11 @@
                         contadorSpan.textContent = nuevosUsos;
                     }
                     
-                    // Si ya no quedan usos, desactivar
+                    // DESACTIVAR el botón después de usar
+                    btnUsar.classList.remove('activo');
+                    
+                    // Si ya no quedan usos, marcar como agotado
                     if (nuevosUsos >= usosPermitidos) {
-                        btnUsar.classList.add('usado');
-                        btnUsar.classList.remove('activo');
                         btnUsar.innerText = "AGOTADO";
                     }
                 }
@@ -990,6 +1034,7 @@
                     document.getElementById('countdown').innerText = s;
                     if(s <= 0) { 
                         clearInterval(t); 
+                        document.getElementById('pantalla-exito').style.display = 'none';
                         location.reload(); 
                     }
                 }, 1000);
@@ -1014,10 +1059,10 @@
             });
         };
 
-        // POPUP DE POSTULACIONES (estandarizado)
+        // POPUP DE POSTULACIONES
         window.abrirPopupPostulaciones = () => {
             const overlay = document.createElement('div');
-            overlay.className = 'popup-instalacion'; // Reusamos la clase existente
+            overlay.className = 'popup-instalacion';
             
             overlay.innerHTML = `
                 <div class="popup-contenido" style="border: 4px solid var(--azul-habitat);">
