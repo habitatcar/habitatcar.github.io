@@ -156,20 +156,19 @@
             color: black;
         }
         
-        /* Debug panel para móvil */
         #debugPanel {
             position: fixed;
             bottom: 80px;
             right: 10px;
             background: rgba(0,0,0,0.8);
             color: #0f0;
-            font-size: 10px;
-            padding: 6px 10px;
+            font-size: 9px;
+            padding: 4px 8px;
             border-radius: 8px;
             z-index: 9999;
             font-family: monospace;
             display: none;
-            max-width: 80%;
+            max-width: 70%;
             word-break: break-all;
         }
         
@@ -270,14 +269,16 @@
         </div>
     </div>
 
+    <!-- MODAL INVITACIONES VIP MEJORADO -->
     <div id="modalInvitaciones" class="modal-mobile">
-        <div class="modal-content p-6">
+        <div class="modal-content p-5">
             <div class="flex justify-between items-center mb-4">
-                <h2 class="text-2xl font-black text-dorado uppercase">✨ Pases VIP</h2>
-                <button onclick="cerrarInvitaciones()" class="text-gray-400 text-3xl">&times;</button>
+                <h2 class="text-2xl font-black text-dorado uppercase flex items-center gap-2">✨ Pases VIP</h2>
+                <button onclick="cerrarInvitaciones()" class="text-gray-400 hover:text-white text-3xl leading-none">&times;</button>
             </div>
-            <div id="contenedor-tokens" class="space-y-3 max-h-[50vh] overflow-y-auto"></div>
-            <button onclick="cerrarInvitaciones()" class="w-full mt-6 bg-gray-800 text-white font-bold py-3 rounded-xl text-sm">Volver</button>
+            <p class="text-gray-400 text-xs mb-4">Compartí estos enlaces con tus mejores clientes</p>
+            <div id="contenedor-tokens" class="space-y-3 max-h-[55vh] overflow-y-auto pr-1"></div>
+            <button onclick="cerrarInvitaciones()" class="w-full mt-5 bg-gray-800 text-white font-bold py-3 rounded-xl text-sm hover:bg-gray-700 transition">Volver al Panel</button>
         </div>
     </div>
 
@@ -305,10 +306,9 @@
     const db = getFirestore(app);
     const auth = getAuth(app);
     
-    // Detectar móvil
     const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
     const debugDiv = document.getElementById('debugPanel');
-    if(debugDiv) debugDiv.innerText = isMobile ? '📱 MÓVIL DETECTADO | Iniciando...' : '💻 PC DETECTADA';
+    if(debugDiv) debugDiv.innerText = isMobile ? '📱 MÓVIL | Conectando...' : '💻 PC';
     
     let miGrafico = null;
     let comercioActual = null;
@@ -343,7 +343,7 @@
 
     async function buscarComercioPorUID(uid) {
         try {
-            if(debugDiv) debugDiv.innerText = `Buscando comercio UID: ${uid.substring(0,8)}...`;
+            if(debugDiv) debugDiv.innerText = `Buscando comercio...`;
             const q = query(collection(db, "comercios"), where("uid", "==", uid));
             const querySnapshot = await getDocs(q);
             
@@ -354,16 +354,14 @@
                 mostrarDashboard();
                 inicializarGrafico();
                 iniciarSuscripciones(comercioActual.id);
-                if(debugDiv) debugDiv.innerText = `✅ Conectado: ${comercioActual.nombre}`;
+                if(debugDiv) debugDiv.innerText = `✅ ${comercioActual.nombre}`;
             } else {
                 mostrarAlerta("❌ No se encontró tu comercio");
-                if(debugDiv) debugDiv.innerText = `❌ Comercio no encontrado para UID: ${uid}`;
                 signOut(auth);
             }
         } catch (error) {
             console.error(error);
             mostrarAlerta("⚠️ Error: " + error.message);
-            if(debugDiv) debugDiv.innerText = `❌ Error: ${error.message}`;
         }
     }
 
@@ -386,10 +384,7 @@
         }
     }
 
-    // Escuchar cambios de autenticación
     onAuthStateChanged(auth, (user) => {
-        if(debugDiv) debugDiv.innerText = user ? `✅ Usuario autenticado: ${user.email}` : `❌ No autenticado`;
-        
         if (user) {
             if (esAdmin && idForzado) {
                 buscarComercioPorIdComercio(idForzado);
@@ -406,60 +401,56 @@
         const password = document.getElementById('passwordInput').value.trim();
         const errorMsg = document.getElementById('loginErrorMsg');
         
+        if(debugDiv) debugDiv.innerText = `Login: ${email}`;
+        
         if(!email || !password) {
             mostrarAlerta("⚠️ Completa email y contraseña");
             return;
         }
         
-        if(debugDiv) debugDiv.innerText = `Intentando login: ${email}`;
-        
         try {
             const userCredential = await signInWithEmailAndPassword(auth, email, password);
-            if(debugDiv) debugDiv.innerText = `✅ Login exitoso: ${userCredential.user.email}`;
+            if(debugDiv) debugDiv.innerText = `✅ Login OK`;
             errorMsg.classList.add('hidden');
         } catch (error) {
-            console.error(error);
             let mensaje = "🚫 Error de acceso";
             if(error.code === 'auth/invalid-credential') mensaje = "🚫 Email o contraseña incorrectos";
             if(error.code === 'auth/too-many-requests') mensaje = "⚠️ Demasiados intentos. Esperá unos minutos";
             if(error.code === 'auth/network-request-failed') mensaje = "📶 Error de red. Revisá tu conexión";
+            if(error.code === 'auth/unauthorized-domain') mensaje = "🌐 Dominio no autorizado";
             
             mostrarAlerta(mensaje);
             errorMsg.innerText = mensaje;
             errorMsg.classList.remove('hidden');
-            if(debugDiv) debugDiv.innerText = `❌ Login fallido: ${error.code}`;
+            if(debugDiv) debugDiv.innerText = `❌ ${error.code}`;
         }
     };
 
-    // Filtros
-    document.querySelectorAll('[data-filtro]').forEach(btn => {
-        btn.addEventListener('click', () => {
-            document.querySelectorAll('[data-filtro]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            filtroActual = btn.dataset.filtro;
-            aplicarFiltroTabla();
-        });
-    });
+    // Enviar por WhatsApp con mensaje personalizado
+    window.enviarPorWhatsApp = (link, nombreComercio) => {
+        const mensaje = `🎁 *INVITACIÓN VIP - HABITAT-CAR* 🎁\n\n¡Hola! Como sos parte importante de nuestro negocio *"${nombreComercio}"* te comparto un pase VIP exclusivo para que accedas a cupones de descuentos especiales y exclusivos del Ecosistema Habitat-Car.\n\n🔗 Link de invitación: ${link}\n\n✨ *Beneficios exclusivos para clientes VIP*\n\n¡No dejes pasar esta oportunidad! 🚀`;
+        
+        const mensajeCodificado = encodeURIComponent(mensaje);
+        window.open(`https://wa.me/?text=${mensajeCodificado}`, '_blank');
+        mostrarAlerta("📱 Abriendo WhatsApp...", 'ok');
+    };
 
-    function aplicarFiltroTabla() {
-        const filas = document.querySelectorAll('#tablaMaestra tr');
-        filas.forEach(fila => {
-            if (filtroActual === 'todos') {
-                fila.style.display = '';
-            } else if (filtroActual === 'vip') {
-                fila.style.display = fila.querySelector('.badge-vip') ? '' : 'none';
-            } else if (filtroActual === 'lead') {
-                fila.style.display = fila.querySelector('.badge-lead') ? '' : 'none';
-            }
+    window.copiarLinkPase = (link) => {
+        navigator.clipboard.writeText(link).then(() => {
+            mostrarAlerta("✅ Enlace VIP copiado", 'ok');
+        }).catch(() => {
+            mostrarAlerta("❌ No se pudo copiar", 'error');
         });
-    }
+    };
 
     window.abrirInvitacionesVIP = async () => {
         if (!comercioActual) return;
+        
         const modal = document.getElementById('modalInvitaciones');
         const cont = document.getElementById('contenedor-tokens');
+        
         modal.style.display = 'flex';
-        cont.innerHTML = '<p class="text-center text-dorado py-8">Cargando...</p>';
+        cont.innerHTML = '<p class="text-center text-dorado py-8 animate-pulse">Cargando invitaciones...</p>';
 
         try {
             const qTokens = query(collection(db, "tokens_vip"), where("comercioId", "==", comercioActual.idComercio));
@@ -482,30 +473,70 @@
             }
 
             cont.innerHTML = "";
-            docs.forEach((t, i) => {
-                const link = `https://habitatcar.github.io/usuarios_registro_vip.html?t=${t.token}`;
-                const esUsado = t.estado !== 'disponible';
-                cont.innerHTML += `
-                    <div class="bg-black/40 border ${esUsado ? 'border-red-900/30' : 'border-gray-700'} p-3 rounded-xl mb-2">
-                        <div class="flex justify-between items-center gap-2">
-                            <div><span class="text-[10px] text-gray-500">#${i+1}</span>
-                            <span class="block text-[11px] font-bold ${esUsado ? 'text-red-500' : 'text-green-400'}">${esUsado ? '🔴 Canjeada' : '🟢 Disponible'}</span></div>
-                            <button onclick="copiarLinkPase('${link}')" ${esUsado ? 'disabled' : ''} 
-                                class="${esUsado ? 'bg-gray-700 text-gray-500' : 'bg-dorado text-black'} px-4 py-2 rounded-xl text-[11px] font-bold">${esUsado ? 'USADO' : 'COPIAR'}</button>
-                        </div>
-                    </div>`;
-            });
+            
+            const disponibles = docs.filter(t => t.estado === 'disponible');
+            const canjeadas = docs.filter(t => t.estado !== 'disponible');
+            
+            const nombreComercio = comercioActual.nombre || "Mi Comercio";
+            
+            if (disponibles.length > 0) {
+                cont.innerHTML += `<div class="mb-2"><p class="text-dorado text-[11px] font-bold uppercase">🟢 DISPONIBLES (${disponibles.length})</p></div>`;
+                disponibles.forEach((t, i) => {
+                    const link = `https://habitatcar.github.io/usuarios_registro_vip.html?t=${t.token}`;
+                    cont.innerHTML += `
+                        <div class="bg-gradient-to-r from-black/60 to-black/30 border border-dorado/40 rounded-xl mb-3 overflow-hidden">
+                            <div class="p-3">
+                                <div class="flex justify-between items-start mb-2">
+                                    <div>
+                                        <span class="text-[11px] font-bold text-dorado">Invitación VIP #${i+1}</span>
+                                        <span class="block text-[9px] text-green-400 font-bold mt-0.5">🟢 DISPONIBLE</span>
+                                    </div>
+                                    <span class="text-[8px] text-gray-500 font-mono bg-black/50 px-2 py-1 rounded">${t.token.substring(0,14)}...</span>
+                                </div>
+                                <div class="flex gap-2 mt-2">
+                                    <button onclick="copiarLinkPase('${link}')" 
+                                        class="flex-1 bg-gray-700 text-white py-2.5 rounded-xl text-[12px] font-bold flex items-center justify-center gap-1 active:scale-95 transition-all">
+                                        📋 COPIAR
+                                    </button>
+                                    <button onclick="enviarPorWhatsApp('${link}', '${nombreComercio.replace(/'/g, "\\'")}')" 
+                                        class="flex-1 bg-green-600 text-white py-2.5 rounded-xl text-[12px] font-bold flex items-center justify-center gap-1 active:scale-95 transition-all">
+                                        💬 WHATSAPP
+                                    </button>
+                                </div>
+                            </div>
+                        </div>`;
+                });
+            }
+            
+            if (canjeadas.length > 0) {
+                cont.innerHTML += `<div class="mt-3 mb-2 pt-2 border-t border-gray-800"><p class="text-gray-500 text-[10px] font-bold uppercase">🔴 YA CANJEADAS (${canjeadas.length})</p></div>`;
+                canjeadas.forEach((t, i) => {
+                    cont.innerHTML += `
+                        <div class="bg-black/30 border border-red-900/30 rounded-xl mb-2 opacity-70">
+                            <div class="p-2.5 flex justify-between items-center">
+                                <div>
+                                    <span class="text-[10px] text-gray-500">Invitación</span>
+                                    <span class="block text-[9px] text-red-400">🔴 CANJEADA</span>
+                                </div>
+                                <span class="text-[8px] text-gray-600 font-mono">${t.token.substring(0,12)}...</span>
+                            </div>
+                        </div>`;
+                });
+            }
+            
+            if (disponibles.length === 0 && canjeadas.length === 0) {
+                cont.innerHTML = '<p class="text-center text-gray-400 py-8">No hay invitaciones disponibles</p>';
+            }
+            
         } catch (e) { 
-            cont.innerHTML = '<p class="text-center text-red-500 py-8">Error al cargar</p>';
+            console.error(e); 
+            cont.innerHTML = '<p class="text-center text-red-500 py-8">❌ Error al cargar</p>';
+            mostrarAlerta("Error al cargar invitaciones", 'error');
         }
     };
 
     window.cerrarInvitaciones = () => {
         document.getElementById('modalInvitaciones').style.display = 'none';
-    };
-
-    window.copiarLinkPase = (l) => {
-        navigator.clipboard.writeText(l).then(() => mostrarAlerta("✅ Enlace copiado", 'ok'));
     };
 
     function iniciarSuscripciones(comercioId) {
@@ -524,7 +555,6 @@
                 if (document.getElementById(docId)) return;
 
                 let fecha = d.fecha?.toDate ? d.fecha.toDate() : (d.timestamp ? new Date(d.timestamp) : new Date());
-                const timestamp = fecha.getTime();
                 const esVip = (tipo === "VIP");
 
                 if (miGrafico) {
@@ -534,7 +564,7 @@
                 }
 
                 const filaHTML = `
-                    <tr id="${docId}" data-time="${timestamp}">
+                    <tr id="${docId}">
                         <td class="p-3 text-[11px]">${fecha.toLocaleDateString()}<br><span class="text-gray-500">${fecha.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</span></td>
                         <td class="p-3"><span class="${esVip ? 'badge-vip' : 'badge-lead'}">${esVip ? 'VIP' : 'LEAD'}</span></td>
                         <td class="p-3 font-mono text-[10px]">${d.idValidacion || d.codigoGenerado || d.idCupon || '-'}</td>
@@ -552,6 +582,24 @@
             }
         });
     }
+
+    function aplicarFiltroTabla() {
+        const filas = document.querySelectorAll('#tablaMaestra tr');
+        filas.forEach(fila => {
+            if (filtroActual === 'todos') fila.style.display = '';
+            else if (filtroActual === 'vip') fila.style.display = fila.querySelector('.badge-vip') ? '' : 'none';
+            else if (filtroActual === 'lead') fila.style.display = fila.querySelector('.badge-lead') ? '' : 'none';
+        });
+    }
+
+    document.querySelectorAll('[data-filtro]').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('[data-filtro]').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            filtroActual = btn.dataset.filtro;
+            aplicarFiltroTabla();
+        });
+    });
 
     window.irAFicha = () => {
         if (comercioActual) window.location.href = `admin_mi_comercio.html?uid=${comercioActual.uid}`;
