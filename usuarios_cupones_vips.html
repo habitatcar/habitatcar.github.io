@@ -585,6 +585,46 @@
             background: var(--rojo-error);
             color: white;
         }
+
+        /* ============================================ */
+        /* MODAL DE QR VALIDADO - MÁS ANGOSTO */
+        /* ============================================ */
+        .qr-validado-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 9000;
+        }
+        .qr-validado-contenido {
+            background: white;
+            padding: 20px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 280px; /* REDUCIDO */
+            width: 80%;
+            border: 5px solid var(--dorado);
+        }
+        .qr-validado-contenido .check-icon {
+            font-size: 50px;
+            margin-bottom: 10px;
+        }
+        .qr-validado-contenido h3 {
+            color: black;
+            font-size: 22px;
+            margin-bottom: 10px;
+        }
+        .qr-validado-contenido p {
+            color: #333;
+            font-size: 16px;
+            margin: 0;
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -699,6 +739,11 @@
         let scanner = null;
         let listaComercios = [];
         let intervalosAlternancia = {};
+        
+        // ============================================
+        // VARIABLE PARA GUARDAR EL SCROLL
+        // ============================================
+        let scrollPosition = 0;
 
         function obtenerNombreParcial(nombreCompleto) {
             if (!nombreCompleto) return "Anónimo";
@@ -894,6 +939,18 @@
             
             contenedor.innerHTML = html;
             
+            // ============================================
+            // RESTAURAR SCROLL DESPUÉS DE RECARGAR
+            // ============================================
+            if (scrollPosition > 0) {
+                setTimeout(() => {
+                    window.scrollTo({
+                        top: scrollPosition,
+                        behavior: 'auto'
+                    });
+                }, 100);
+            }
+            
             document.querySelectorAll('[data-ganadores="true"]').forEach(btn => {
                 const id = btn.dataset.comercioId;
                 const titulo = btn.dataset.titulo;
@@ -940,6 +997,9 @@
         };
 
         window.abrirQR = (id, token) => {
+            // Guardar posición del scroll antes de abrir el QR
+            scrollPosition = window.pageYOffset;
+            
             document.getElementById('modal-qr').style.display = 'flex';
             scanner = new Html5Qrcode("reader");
             scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
@@ -948,13 +1008,16 @@
                     document.getElementById(`btn-usar-${id}`).classList.add('activo');
                     document.getElementById(`btn-val-${id}`).style.display = 'none';
                     
+                    // ============================================
+                    // MODAL DE QR VALIDADO - MÁS ANGOSTO
+                    // ============================================
                     const overlay = document.createElement('div');
-                    overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:flex;justify-content:center;align-items:center;z-index:9000;";
+                    overlay.className = 'qr-validado-overlay';
                     overlay.innerHTML = `
-                        <div style="background:white;padding:30px;border-radius:20px;text-align:center;max-width:80%; border:5px solid var(--dorado);">
-                            <div style="font-size:60px; margin-bottom:15px;">✅</div>
-                            <b style="color:black;font-size:24px;display:block;margin-bottom:10px;">QR VALIDADO</b>
-                            <p style="color:#333;font-size:18px;margin:0;font-weight:600;">Ahora pulse el botón "USAR BENEFICIO"</p>
+                        <div class="qr-validado-contenido">
+                            <div class="check-icon">✅</div>
+                            <h3>QR VALIDADO</h3>
+                            <p>Ahora pulse el botón "USAR BENEFICIO"</p>
                         </div>`;
                     document.body.appendChild(overlay);
                     setTimeout(() => overlay.remove(), 4000);
@@ -1075,6 +1138,7 @@
                     document.getElementById('countdown').innerText = s;
                     if(s <= 0) { 
                         clearInterval(t); 
+                        document.getElementById('pantalla-exito').style.display = 'none';
                         location.reload(); 
                     }
                 }, 1000);
