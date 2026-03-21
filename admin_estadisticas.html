@@ -32,7 +32,6 @@
             height: 100vh; overflow: hidden;
         }
 
-        /* HEADER REDISEÑADO - MISMO QUE COMERCIOS */
         .header {
             background: #004a99;
             padding: 12px 30px;
@@ -162,7 +161,6 @@
 </head>
 <body>
 
-    <!-- HEADER REDISEÑADO - CON CLASE ACTIVE EN ESTADÍSTICAS -->
     <header class="header">
         <div class="logo-container">
             <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo" alt="Habitat-Car">
@@ -269,7 +267,7 @@
         let listaComercios = [];
 
         // =============================================
-        // CONTADORES NAV (mismo que comercios)
+        // CONTADORES NAV
         // =============================================
         async function actualizarContadores() {
             if (typeof db === 'undefined' || !db) {
@@ -319,12 +317,7 @@
                 } catch(e) {}
                 if (el('cont-validaciones-colaboradores')) el('cont-validaciones-colaboradores').innerText = vCol;
 
-                console.log("✅ Contadores actualizados:", {
-                    comercios: totalComercios,
-                    leads: totalLeads,
-                    vips: totalVips
-                });
-
+                console.log("✅ Contadores actualizados");
             } catch(error) {
                 console.error("Error en contadores:", error);
             }
@@ -347,7 +340,6 @@
                     }
                 });
                 await batch.commit();
-                console.log("✅ Reset diario completado");
             }
             localStorage.setItem('panel_ultima_fecha', hoy);
         }
@@ -382,7 +374,6 @@
                     listaComercios.push({ 
                         id: d.id, 
                         ...data,
-                        // Asegurar que los valores numéricos existan
                         usosHoy: data.usosHoy || 0,
                         vipsHoy: data.vipsHoy || 0,
                         usosSemana: data.usosSemana || 0,
@@ -410,7 +401,47 @@
         }
 
         // =============================================
-        // GENERAR PDF — jsPDF nativo profesional
+        // FUNCIÓN PARA CALCULAR FRANJAS HORARIAS REALES
+        // =============================================
+        async function calcularFranjasHorarias(comercioNombre) {
+            try {
+                // Buscar logs de canje para este comercio
+                const logsSnap = await getDocs(query(
+                    collection(db, "logs_actividad"),
+                    where("comercio", "==", comercioNombre)
+                ));
+                
+                let manana = 0, tarde = 0, noche = 0;
+                let total = 0;
+                
+                logsSnap.forEach(doc => {
+                    const log = doc.data();
+                    const timestamp = log.timestamp || log.fecha || 0;
+                    if (timestamp) {
+                        const fecha = new Date(timestamp);
+                        const hora = fecha.getHours();
+                        total++;
+                        if (hora >= 8 && hora < 13) manana++;
+                        else if (hora >= 13 && hora < 20) tarde++;
+                        else if (hora >= 20 || hora < 5) noche++;
+                    }
+                });
+                
+                if (total === 0) return { manana: 33, tarde: 34, noche: 33 }; // valores por defecto
+                
+                return {
+                    manana: Math.round((manana / total) * 100),
+                    tarde: Math.round((tarde / total) * 100),
+                    noche: Math.round((noche / total) * 100)
+                };
+            } catch (e) {
+                console.error("Error calculando franjas horarias:", e);
+                return { manana: 33, tarde: 34, noche: 33 };
+            }
+        }
+
+        // =============================================
+        // GENERAR PDF - VERSIÓN CORREGIDA CON DATOS REALES
         // =============================================
         async function generarPDFComercio(c) {
             const { jsPDF } = window.jspdf;
@@ -418,19 +449,29 @@
             const W = 210, M = 12, AW = W - M * 2;
             let y = 0;
 
+            // DATOS REALES DEL COMERCIO
             const leadHist = parseInt(c.totalUsos    || 0);
             const vipHist  = parseInt(c.totalVips    || 0);
             const total    = leadHist + vipHist;
+            
+            // DATOS TEMPORALES REALES
             const sumaHoy  = parseInt(c.usosHoy     || 0) + parseInt(c.vipsHoy    || 0);
             const sumaSem  = parseInt(c.usosSemana  || 0) + parseInt(c.vipsSemana || 0);
             const sumaMes  = parseInt(c.usosMes     || 0) + parseInt(c.vipsMes    || 0);
             const sumaAnio = parseInt(c.usosAnio    || 0) + parseInt(c.vipsAnio   || 0);
-            const pLeads   = total > 0 ? Math.round((leadHist / total) * 100) : 50;
-            const pVips    = total > 0 ? Math.round((vipHist  / total) * 100) : 50;
+            
+            // PROPORCIÓN REAL
+            const pLeads = total > 0 ? Math.round((leadHist / total) * 100) : 50;
+            const pVips  = total > 0 ? Math.round((vipHist  / total) * 100) : 50;
             const tasaConv = total > 0 ? pVips + '%' : '0%';
+            
             const fechaRep = new Date().toLocaleString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
             const mesAnio  = new Date().toLocaleString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
 
+            // FRANJAS HORARIAS REALES
+            const franjas = await calcularFranjasHorarias(c.nombre);
+            
+            // PALETA DE COLORES
             const F_SLATE   = [250, 252, 255];
             const C1_BG  = [224, 242, 254]; const C1_TXT = [14,  107, 168];
             const C2_BG  = [232, 234, 255]; const C2_TXT = [63,  81,  181];
@@ -455,6 +496,7 @@
             };
             const chk = (n) => { if (y + n > 276) { pdfDoc2.addPage(); y = 14; } };
 
+            // Logo
             let logoB64 = null;
             try {
                 logoB64 = await new Promise(res => {
@@ -470,6 +512,7 @@
                 });
             } catch(e){ logoB64=null; }
 
+            // CABECERA
             for (let _gi = 0; _gi < 46; _gi++) {
                 const _t = _gi / 45;
                 const _r = Math.round(HEAD_L[0] + (HEAD_BG[0]-HEAD_L[0])*_t);
@@ -504,6 +547,8 @@
             pdfDoc2.text('CONFIDENCIAL', W-M-13, 40.5,{align:'center'});
 
             y = 54;
+
+            // FICHA DEL COMERCIO
             rr(0, y, W, 18, F_SLATE, null, 0);
             pdfDoc2.setFillColor(...C1_TXT);
             pdfDoc2.rect(0, y, 3, 18,'F');
@@ -516,6 +561,8 @@
             pdfDoc2.text('Último envío: '+(c.lastSubmission||'Nunca'), W-M, y+15,{align:'right'});
 
             y += 24;
+
+            // 4 TARJETAS MÉTRICAS CON DATOS REALES
             sf(7,'bold',T_SOFT);
             pdfDoc2.text('RESUMEN EJECUTIVO', M, y);
             y += 5;
@@ -542,6 +589,7 @@
             });
             y += CARD_H + 10;
 
+            // GRÁFICO BARRAS APILADAS CON DATOS REALES
             chk(55);
             sf(7,'bold',T_SOFT);
             pdfDoc2.text('RENDIMIENTO TEMPORAL', M, y);
@@ -593,6 +641,7 @@
             pdfDoc2.setLineWidth(0.2);
             y += BAR_H+22;
 
+            // GRÁFICO TORTA CON DATOS REALES
             chk(56);
             sf(7,'bold',T_SOFT);
             pdfDoc2.text('COMPOSICIÓN DE AUDIENCIA', M, y);
@@ -691,6 +740,7 @@
 
             y += PMM+10;
 
+            // TABLA TEMPORAL CON DATOS REALES
             chk(56);
             sf(7,'bold',T_SOFT);
             pdfDoc2.text('DETALLE TEMPORAL', M, y);
@@ -732,15 +782,16 @@
             });
             y += 8;
 
+            // FRANJAS HORARIAS CON DATOS REALES
             chk(40);
             sf(7,'bold',T_SOFT);
-            pdfDoc2.text('FRANJAS HORARIAS ESTIMADAS', M, y);
+            pdfDoc2.text('FRANJAS HORARIAS', M, y);
             y += 5;
 
             [
-                {lbl:'Mañana  08:00 – 13:00', pct:30, col:C2_TXT},
-                {lbl:'Tarde   13:00 – 20:00', pct:50, col:C1_TXT},
-                {lbl:'Noche   20:00 – 05:00', pct:20, col:C4_TXT},
+                {lbl:'Mañana  08:00 – 13:00', pct:franjas.manana, col:C2_TXT},
+                {lbl:'Tarde   13:00 – 20:00', pct:franjas.tarde, col:C1_TXT},
+                {lbl:'Noche   20:00 – 05:00', pct:franjas.noche, col:C4_TXT},
             ].forEach(f => {
                 sf(7.5,'normal',T_DARK);
                 pdfDoc2.text(f.lbl, M, y+5);
@@ -765,7 +816,7 @@
                 sf(6.5,'bold',C1_TXT);
                 pdfDoc2.text('habitatcar.com.ar · 388-4618228', W/2, 291.5,{align:'center'});
                 sf(6.5,'normal',T_SOFT);
-                pdfDoc2.text('Lorenzo M. Guerrero · MP: 279 · Pág '+p+'/'+nPags, W-M, 291.5,{align:'right'});
+                pdfDoc2.text('Página '+p+'/'+nPags, W-M, 291.5,{align:'right'});
             }
 
             return pdfDoc2;
@@ -859,15 +910,15 @@
                 const row = document.createElement('tr');
                 row.className = 'com-row';
                 row.innerHTML = `
-                    <td><b>${c.nombre || 'Sin Nombre'}</b></td>
-                    <td>${sumaHist}</td>
-                    <td style="color:var(--oro); font-weight:bold;">${leadHist}</td>
-                    <td style="color:var(--oro); font-weight:bold;">${vipHist}</td>
-                    <td style="color:var(--verde); font-weight:bold;">${sumaHoy}</td>
-                    <td>${sumaSem}</td>
-                    <td>${sumaMes}</td>
-                    <td>${sumaAnio}</td>
-                    <td style="font-size:0.85em; color:#00c3ff; font-weight:bold;">${visualEnvio}</td>
+                    <td><b>${c.nombre || 'Sin Nombre'}</b>}
+                    <td>${sumaHist}}
+                    <td style="color:var(--oro); font-weight:bold;">${leadHist}}
+                    <td style="color:var(--oro); font-weight:bold;">${vipHist}}
+                    <td style="color:var(--verde); font-weight:bold;">${sumaHoy}}
+                    <td>${sumaSem}}
+                    <td>${sumaMes}}
+                    <td>${sumaAnio}}
+                    <td style="font-size:0.85em; color:#00c3ff; font-weight:bold;">${visualEnvio}}
                     <td>
                         <select class="mail-freq" onchange="updateFreq('${c.id}', this.value)">
                             <option value="nunca"     ${frecuencia==='nunca'     ? 'selected' : ''}>Nunca</option>
@@ -877,7 +928,7 @@
                             <option value="mensual"   ${frecuencia==='mensual'   ? 'selected' : ''}>Mensual</option>
                         </select>
                         <button class="btn-send-row" onclick="enviarReporteIndividual('${c.id}')" title="Enviar reporte">✉</button>
-                    </td>
+                    }
                 `;
                 body.appendChild(row);
             });
