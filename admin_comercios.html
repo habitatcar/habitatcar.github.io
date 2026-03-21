@@ -36,7 +36,7 @@ background: var(--azul-oscuro); z-index: 9999; display: flex;
 justify-content: center; align-items: center; font-weight: bold;
 }
 
-/* HEADER REDISEÑADO */
+/* HEADER REDISEÑADO - FONDO AZUL COMO EL LOGO */
 .header {
 background: #004a99;
 padding: 12px 30px;
@@ -80,7 +80,7 @@ text-transform: uppercase;
 letter-spacing: 0.5px;
 display: inline-flex;
 align-items: center;
-gap: 6px;
+gap: 8px;
 }
 
 .nav-link:hover {
@@ -107,18 +107,28 @@ background: #e67e22;
 border-color: #e67e22;
 }
 
+/* CONTADORES CON FONDO VERDE OLIVA */
 .contador-badge {
-background: rgba(255,255,255,0.25);
+background: #6b8c42;
 border-radius: 20px;
 padding: 2px 8px;
 font-size: 10px;
 font-weight: bold;
 color: white;
 transition: all 0.2s;
+min-width: 24px;
+text-align: center;
+display: inline-block;
+}
+
+.contador-badge-group {
+display: inline-flex;
+gap: 4px;
+margin-left: 4px;
 }
 
 .nav-link:hover .contador-badge {
-background: rgba(0,0,0,0.3);
+background: rgba(0,0,0,0.5);
 color: white;
 }
 
@@ -142,6 +152,10 @@ font-size: 10px;
 .contador-badge {
 font-size: 8px;
 padding: 1px 6px;
+min-width: 18px;
+}
+.contador-badge-group {
+gap: 2px;
 }
 }
 
@@ -420,7 +434,7 @@ min-height: 60px;
 <body>
 <div id="capa-seguridad">VALIDANDO SESIÓN SEGURA...</div>
 
-<!-- HEADER REDISEÑADO -->
+<!-- HEADER REDISEÑADO - VERSIÓN FINAL -->
 <header class="header">
     <div class="logo-container">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo" alt="Habitat-Car">
@@ -434,7 +448,14 @@ min-height: 60px;
         <a href="admin_estadisticas.html" class="nav-link">ESTADÍSTICAS</a>
         <a href="admin_logs.html" class="nav-link">LOG</a>
         <a href="admin_tutoriales.html" class="nav-link" data-contador="tutoriales">TUTORIALES <span class="contador-badge" id="cont-tutoriales">0</span></a>
-        <a href="admin_validaciones.html" class="nav-link nav-link-validaciones" data-contador="validaciones">VALIDACIONES <span class="contador-badge" id="cont-validaciones">0</span></a>
+        <a href="admin_validaciones.html" class="nav-link nav-link-validaciones" data-contador="validaciones">
+            VALIDACIONES 
+            <span class="contador-badge-group">
+                <span class="contador-badge" id="cont-validaciones-comercios">0</span>
+                <span class="contador-badge" id="cont-validaciones-martilleros">0</span>
+                <span class="contador-badge" id="cont-validaciones-colaboradores">0</span>
+            </span>
+        </a>
         <a href="index.html" class="nav-link">PANEL DE INGRESO</a>
         <a href="admin_legales.html" class="nav-link">LEGALES</a>
         <a href="admin_sorteos.html" class="nav-link">SORTEOS</a>
@@ -623,7 +644,7 @@ min-height: 60px;
 </div>
 
 <script>
-// Función para actualizar contadores
+// Función para actualizar contadores (mejorada con 3 contadores para validaciones)
 async function actualizarContadores() {
     if (typeof db === 'undefined') return;
     try {
@@ -637,20 +658,46 @@ async function actualizarContadores() {
         const contLeads = document.getElementById('cont-leads');
         if (contLeads) contLeads.innerText = leadsSnap.size;
         
-        // Contar VIPs (leads convertidos)
+        // Contar VIPs (leads con rol vip)
         const vipsSnap = await getDocs(query(collection(db, "leads"), where("rol", "==", "vip")));
         const contVips = document.getElementById('cont-vips');
         if (contVips) contVips.innerText = vipsSnap.size;
         
-        // Contar tutoriales (documentos en colección tutoriales)
+        // Contar tutoriales
         const tutorialesSnap = await getDocs(collection(db, "tutoriales"));
         const contTutoriales = document.getElementById('cont-tutoriales');
         if (contTutoriales) contTutoriales.innerText = tutorialesSnap.size;
         
-        // Contar validaciones pendientes (ejemplo: logs sin validar)
-        const validacionesSnap = await getDocs(query(collection(db, "logs_actividad"), where("validado", "==", false)));
-        const contValidaciones = document.getElementById('cont-validaciones');
-        if (contValidaciones) contValidaciones.innerText = validacionesSnap.size;
+        // =============================================
+        // CONTADORES DE VALIDACIONES (preparado para 3 tipos)
+        // =============================================
+        
+        // Validaciones para comercios (pendientes de aprobación)
+        let totalValidacionesComercios = 0;
+        try {
+            const validacionesComerciosSnap = await getDocs(query(collection(db, "comercios"), where("validado", "==", false)));
+            totalValidacionesComercios = validacionesComerciosSnap.size;
+        } catch(e) { console.log("Colección comercios para validaciones no existe aún"); }
+        const contValidacionesComercios = document.getElementById('cont-validaciones-comercios');
+        if (contValidacionesComercios) contValidacionesComercios.innerText = totalValidacionesComercios;
+        
+        // Validaciones para martilleros (colección "martilleros" pendientes)
+        let totalValidacionesMartilleros = 0;
+        try {
+            const validacionesMartillerosSnap = await getDocs(query(collection(db, "martilleros"), where("validado", "==", false)));
+            totalValidacionesMartilleros = validacionesMartillerosSnap.size;
+        } catch(e) { console.log("Colección martilleros no existe aún"); }
+        const contValidacionesMartilleros = document.getElementById('cont-validaciones-martilleros');
+        if (contValidacionesMartilleros) contValidacionesMartilleros.innerText = totalValidacionesMartilleros;
+        
+        // Validaciones para colaboradores (colección "colaboradores" pendientes)
+        let totalValidacionesColaboradores = 0;
+        try {
+            const validacionesColaboradoresSnap = await getDocs(query(collection(db, "colaboradores"), where("validado", "==", false)));
+            totalValidacionesColaboradores = validacionesColaboradoresSnap.size;
+        } catch(e) { console.log("Colección colaboradores no existe aún"); }
+        const contValidacionesColaboradores = document.getElementById('cont-validaciones-colaboradores');
+        if (contValidacionesColaboradores) contValidacionesColaboradores.innerText = totalValidacionesColaboradores;
         
     } catch (error) {
         console.error("Error actualizando contadores:", error);
