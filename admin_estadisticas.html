@@ -286,415 +286,407 @@ async function registrarLogEnvio(comercio, email, estado) {
 async function generarPDFComercio(c) {
     const { jsPDF } = window.jspdf;
     const pdfDoc2 = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
-    const W = 210, MARGEN = 14, ANCHO = W - MARGEN * 2;
+    const W = 210, M = 12, AW = W - M * 2;
     let y = 0;
 
     // ── Datos ──
-    const leadHist  = parseInt(c.totalUsos    || 0);
-    const vipHist   = parseInt(c.totalVips    || 0);
-    const total     = leadHist + vipHist;
-    const sumaHoy   = parseInt(c.usosHoy     || 0) + parseInt(c.vipsHoy    || 0);
-    const sumaSem   = parseInt(c.usosSemana  || 0) + parseInt(c.vipsSemana || 0);
-    const sumaMes   = parseInt(c.usosMes     || 0) + parseInt(c.vipsMes    || 0);
-    const sumaAnio  = parseInt(c.usosAnio    || 0) + parseInt(c.vipsAnio   || 0);
-    const pLeads    = total > 0 ? Math.round((leadHist / total) * 100) : 50;
-    const pVips     = total > 0 ? Math.round((vipHist  / total) * 100) : 50;
-    const tasaConv  = total > 0 ? pVips + '%' : '0%';
-    const fechaRep  = new Date().toLocaleString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
-    const mesAnio   = new Date().toLocaleString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
+    const leadHist = parseInt(c.totalUsos    || 0);
+    const vipHist  = parseInt(c.totalVips    || 0);
+    const total    = leadHist + vipHist;
+    const sumaHoy  = parseInt(c.usosHoy     || 0) + parseInt(c.vipsHoy    || 0);
+    const sumaSem  = parseInt(c.usosSemana  || 0) + parseInt(c.vipsSemana || 0);
+    const sumaMes  = parseInt(c.usosMes     || 0) + parseInt(c.vipsMes    || 0);
+    const sumaAnio = parseInt(c.usosAnio    || 0) + parseInt(c.vipsAnio   || 0);
+    const pLeads   = total > 0 ? Math.round((leadHist / total) * 100) : 50;
+    const pVips    = total > 0 ? Math.round((vipHist  / total) * 100) : 50;
+    const tasaConv = total > 0 ? pVips + '%' : '0%';
+    const fechaRep = new Date().toLocaleString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
+    const mesAnio  = new Date().toLocaleString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
 
-    // Paleta San Expedito
-    const ROJO    = [180, 30, 30];    // rojo oscuro
-    const ROJO_S  = [220, 50, 50];    // rojo suave
-    const VERDE   = [60, 100, 50];    // verde oliva oscuro
-    const VERDE_S = [85, 140, 70];    // verde oliva claro
-    const BLANCO  = [255, 255, 255];
-    const GRIS1   = [245, 246, 244];  // fondo muy claro
-    const GRIS2   = [220, 225, 218];  // bordes
-    const TEXTO   = [30, 35, 25];     // casi negro
-    const MUTED   = [110, 120, 105];  // gris oliva
+    // ── PALETA elegante neutra ──
+    // Fondos de sección
+    const F_SLATE   = [248, 249, 250];   // gris casi blanco
+    const F_WARM    = [252, 250, 246];   // crema muy suave
+    // Acentos suaves para las 4 tarjetas
+    const C1_BG  = [232, 245, 243];  C1_TXT = [24,  110,  95];   // teal suave
+    const C2_BG  = [232, 239, 252];  C2_TXT = [40,  80,  170];   // índigo suave
+    const C3_BG  = [252, 235, 235];  C3_TXT = [170, 50,  50];    // rosa-rojo suave
+    const C4_BG  = [248, 244, 232];  C4_TXT = [140, 100, 20];    // ámbar suave
+    // Colores texto
+    const T_DARK  = [35,  40,  50];    // casi negro azulado
+    const T_MED   = [90,  98, 112];    // gris medio
+    const T_SOFT  = [155, 162, 175];   // gris claro
+    const WHITE   = [255, 255, 255];
+    // Acento cabecera y líneas
+    const HEAD_BG = [30,  45,  70];    // azul pizarra profundo
+    const ACCENT  = [200, 165, 75];    // dorado apagado (solo para línea fina)
+    const LINE    = [215, 218, 225];   // borde muy suave
 
     // ── helpers ──
-    const sf = (size, style='normal', color=TEXTO) => {
-        pdfDoc2.setFontSize(size);
-        pdfDoc2.setFont('helvetica', style);
-        pdfDoc2.setTextColor(...color);
+    const sf = (sz, st='normal', col=T_DARK) => {
+        pdfDoc2.setFontSize(sz); pdfDoc2.setFont('helvetica', st); pdfDoc2.setTextColor(...col);
     };
-    const fillR = (x,ry,w,h,fill,stroke) => {
+    const rr = (x,ry,w,h,fill,stroke,radius=2) => {
         pdfDoc2.setFillColor(...fill);
-        if (stroke) { pdfDoc2.setDrawColor(...stroke); pdfDoc2.roundedRect(x,ry,w,h,2,2,'FD'); }
-        else pdfDoc2.roundedRect(x,ry,w,h,2,2,'F');
+        if (stroke) { pdfDoc2.setDrawColor(...stroke); pdfDoc2.roundedRect(x,ry,w,h,radius,radius,'FD'); }
+        else         pdfDoc2.roundedRect(x,ry,w,h,radius,radius,'F');
     };
-    const checkPage = (needed) => { if (y + needed > 275) { pdfDoc2.addPage(); y = 14; } };
+    const chk = (n) => { if (y + n > 276) { pdfDoc2.addPage(); y = 14; } };
 
-    // ── Cargar logo ──
+    // ── Logo ──
     let logoB64 = null;
     try {
-        logoB64 = await new Promise(resolve => {
-            const img = new Image(); img.crossOrigin = 'anonymous';
+        logoB64 = await new Promise(res => {
+            const img = new Image(); img.crossOrigin='anonymous';
             img.onload = () => {
-                const cv = document.createElement('canvas');
-                cv.width = img.naturalWidth || 300; cv.height = img.naturalHeight || 90;
-                cv.getContext('2d').drawImage(img, 0, 0);
-                resolve(cv.toDataURL('image/png'));
+                const cv=document.createElement('canvas');
+                cv.width=img.naturalWidth||300; cv.height=img.naturalHeight||90;
+                cv.getContext('2d').drawImage(img,0,0);
+                res(cv.toDataURL('image/png'));
             };
-            img.onerror = () => resolve(null);
-            img.src = 'https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true';
+            img.onerror = () => res(null);
+            img.src='https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true';
         });
-    } catch(e) { logoB64 = null; }
+    } catch(e){ logoB64=null; }
 
-    // ══════════════════════════════
-    // CABECERA — fondo blanco con franja roja
-    // ══════════════════════════════
-    // Fondo blanco cabecera
-    pdfDoc2.setFillColor(...BLANCO);
-    pdfDoc2.rect(0, 0, W, 44, 'F');
-    // Franja roja izquierda
-    pdfDoc2.setFillColor(...ROJO);
-    pdfDoc2.rect(0, 0, 4, 44, 'F');
-    // Línea verde oliva inferior
-    pdfDoc2.setFillColor(...VERDE);
-    pdfDoc2.rect(0, 44, W, 1.5, 'F');
-    // Borde inferior gris
-    pdfDoc2.setFillColor(...GRIS2);
-    pdfDoc2.rect(0, 45.5, W, 0.5, 'F');
+    // ══════════════════════════
+    // CABECERA — pizarra + línea dorada
+    // ══════════════════════════
+    pdfDoc2.setFillColor(...HEAD_BG);
+    pdfDoc2.rect(0,0,W,46,'F');
+    pdfDoc2.setFillColor(...ACCENT);
+    pdfDoc2.rect(0,46,W,1.2,'F');
 
-    // Logo o texto — todo alineado a la izquierda con padding
     if (logoB64) {
-        try { pdfDoc2.addImage(logoB64, 'PNG', 8, 5, 46, 30); } catch(e) {}
-        sf(7, 'normal', MUTED);
-        pdfDoc2.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', 8, 38);
+        try { pdfDoc2.addImage(logoB64,'PNG',M,7,46,28); } catch(e){}
+        sf(6.5,'normal',[160,175,200]);
+        pdfDoc2.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', M, 40);
     } else {
-        sf(18, 'bold', TEXTO);
-        pdfDoc2.text('HABITAT-CAR', 8, 18);
-        sf(7, 'normal', MUTED);
-        pdfDoc2.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', 8, 26);
+        sf(17,'bold',WHITE);
+        pdfDoc2.text('HABITAT-CAR', M, 22);
+        sf(6.5,'normal',[160,175,200]);
+        pdfDoc2.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', M, 30);
     }
 
-    // Derecha — tipo y fecha
-    sf(12, 'bold', ROJO);
-    pdfDoc2.text('REPORTE MENSUAL', W - MARGEN, 14, {align:'right'});
-    sf(9, 'bold', TEXTO);
-    pdfDoc2.text(mesAnio, W - MARGEN, 22, {align:'right'});
-    sf(7, 'normal', MUTED);
-    pdfDoc2.text(fechaRep, W - MARGEN, 29, {align:'right'});
-    // Badge
-    pdfDoc2.setFillColor(...VERDE);
-    pdfDoc2.roundedRect(W - MARGEN - 28, 33, 28, 7, 2, 2, 'F');
-    sf(6.5, 'bold', BLANCO);
-    pdfDoc2.text('CONFIDENCIAL', W - MARGEN - 14, 38, {align:'center'});
+    sf(11,'bold',WHITE);
+    pdfDoc2.text('REPORTE MENSUAL', W-M, 16,{align:'right'});
+    sf(8,'normal',[180,195,220]);
+    pdfDoc2.text(mesAnio, W-M, 24,{align:'right'});
+    sf(6.5,'normal',[140,158,185]);
+    pdfDoc2.text(fechaRep, W-M, 31,{align:'right'});
+    rr(W-M-26, 36, 26, 6, [ACCENT[0],ACCENT[1],ACCENT[2]], null, 3);
+    sf(6,'bold',HEAD_BG);
+    pdfDoc2.text('CONFIDENCIAL', W-M-13, 40.5,{align:'center'});
 
-    y = 52;
+    y = 54;
 
-    // ══════════════════════════════
-    // DATOS DEL COMERCIO
-    // ══════════════════════════════
-    pdfDoc2.setFillColor(...GRIS1);
-    pdfDoc2.rect(0, y, W, 20, 'F');
-    pdfDoc2.setFillColor(...VERDE);
-    pdfDoc2.rect(0, y, 3, 20, 'F');
+    // ══════════════════════════
+    // FICHA DEL COMERCIO
+    // ══════════════════════════
+    rr(0, y, W, 18, F_WARM, null, 0);
+    pdfDoc2.setFillColor(...C1_TXT);
+    pdfDoc2.rect(0, y, 3, 18,'F');
+    sf(13,'bold',C1_TXT);
+    pdfDoc2.text((c.nombre||'COMERCIO').toUpperCase(), M+5, y+8);
+    const infoLine=[c.rubro,c.ciudad,c.provincia].filter(Boolean).join('  ·  ');
+    sf(7.5,'normal',T_MED);
+    if(infoLine) pdfDoc2.text(infoLine, M+5, y+15);
+    sf(7,'normal',T_SOFT);
+    pdfDoc2.text('Último envío: '+(c.lastSubmission||'Nunca'), W-M, y+15,{align:'right'});
 
-    sf(13, 'bold', VERDE);
-    pdfDoc2.text((c.nombre || 'COMERCIO').toUpperCase(), MARGEN + 5, y + 9);
-    sf(8, 'normal', MUTED);
-    const infoLine = [c.rubro, c.ciudad, c.provincia].filter(Boolean).join('  ·  ');
-    if (infoLine) pdfDoc2.text(infoLine, MARGEN + 5, y + 16);
-    sf(7, 'normal', MUTED);
-    pdfDoc2.text('Último envío: ' + (c.lastSubmission ? String(c.lastSubmission) : 'Nunca'), W - MARGEN, y + 16, {align:'right'});
+    y += 24;
 
-    y += 26;
-
-    // ══════════════════════════════
-    // 4 MÉTRICAS
-    // ══════════════════════════════
-    sf(7, 'bold', MUTED);
-    pdfDoc2.text('RESUMEN EJECUTIVO', MARGEN, y);
+    // ══════════════════════════
+    // 4 TARJETAS MÉTRICAS
+    // ══════════════════════════
+    sf(7,'bold',T_SOFT);
+    pdfDoc2.text('RESUMEN EJECUTIVO', M, y);
     y += 5;
 
-    const metricas = [
-        { label:'TOTAL HISTÓRICO', val:String(total),    sub:'Canjes acumulados',    bg:[235,242,232], bc:VERDE_S,  nc:VERDE,   tc:VERDE   },
-        { label:'CANJES LEAD',     val:String(leadHist), sub:'Clientes estándar',    bg:[234,242,251], bc:[120,150,200], nc:[40,70,140], tc:[40,70,140] },
-        { label:'CANJES VIP',      val:String(vipHist),  sub:'Clientes premium',     bg:[252,240,235], bc:ROJO_S,   nc:ROJO,    tc:ROJO    },
-        { label:'TASA VIP',        val:tasaConv,         sub:'Conversión a premium', bg:GRIS1,         bc:GRIS2,    nc:VERDE,   tc:VERDE   },
+    // Cada tarjeta: 44mm de alto, número grande que cabe bien
+    const CARD_H = 44;
+    const CARD_W = (AW - 9) / 4;
+    const cards = [
+        { lbl:'TOTAL',    sub:'histórico', val:String(total),    bg:C1_BG, tc:C1_TXT },
+        { lbl:'LEADS',    sub:'canjeados', val:String(leadHist), bg:C2_BG, tc:C2_TXT },
+        { lbl:'VIP',      sub:'canjeados', val:String(vipHist),  bg:C3_BG, tc:C3_TXT },
+        { lbl:'TASA VIP', sub:'del total', val:tasaConv,         bg:C4_BG, tc:C4_TXT },
     ];
-    const cw = (ANCHO - 9) / 4;
-    metricas.forEach((m, i) => {
-        const cx = MARGEN + i * (cw + 3);
-        fillR(cx, y, cw, 28, m.bg, m.bc);
-        sf(6.5, 'bold', m.tc);
-        pdfDoc2.text(m.label, cx + cw/2, y + 7, {align:'center'});
-        sf(22, 'bold', m.nc);
-        pdfDoc2.text(m.val, cx + cw/2, y + 20, {align:'center'});
-        sf(6.5, 'normal', MUTED);
-        pdfDoc2.text(m.sub, cx + cw/2, y + 26, {align:'center'});
+    cards.forEach((card, i) => {
+        const cx = M + i*(CARD_W+3);
+        // Fondo tarjeta
+        rr(cx, y, CARD_W, CARD_H, card.bg, null, 3);
+        // Barra de color en la parte superior de la tarjeta
+        pdfDoc2.setFillColor(...card.tc);
+        pdfDoc2.roundedRect(cx, y, CARD_W, 5, 2, 2,'F');
+        // Label
+        sf(7.5,'bold',card.tc);
+        pdfDoc2.text(card.lbl, cx+CARD_W/2, y+12,{align:'center'});
+        // Número — fuente 26, centrado, con espacio suficiente
+        sf(26,'bold',card.tc);
+        pdfDoc2.text(card.val, cx+CARD_W/2, y+28,{align:'center'});
+        // Subtítulo
+        sf(7,'normal',T_SOFT);
+        pdfDoc2.text(card.sub, cx+CARD_W/2, y+38,{align:'center'});
     });
-    y += 34;
+    y += CARD_H + 10;
 
-    // ══════════════════════════════
-    // GRÁFICO DE BARRAS — Rendimiento temporal
-    // ══════════════════════════════
-    checkPage(58);
-    sf(7, 'bold', MUTED);
-    pdfDoc2.text('RENDIMIENTO TEMPORAL', MARGEN, y);
+    // ══════════════════════════
+    // GRÁFICO BARRAS apiladas
+    // ══════════════════════════
+    chk(55);
+    sf(7,'bold',T_SOFT);
+    pdfDoc2.text('RENDIMIENTO TEMPORAL', M, y);
     y += 5;
 
     const periodos = [
-        { label:'HOY',    val:sumaHoy,  vip:parseInt(c.vipsHoy||0),    lead:parseInt(c.usosHoy||0)  },
-        { label:'SEMANA', val:sumaSem,  vip:parseInt(c.vipsSemana||0), lead:parseInt(c.usosSemana||0) },
-        { label:'MES',    val:sumaMes,  vip:parseInt(c.vipsMes||0),    lead:parseInt(c.usosMes||0)  },
-        { label:'AÑO',    val:sumaAnio, vip:parseInt(c.vipsAnio||0),   lead:parseInt(c.usosAnio||0) },
+        { lbl:'HOY',    tot:sumaHoy,  lead:parseInt(c.usosHoy||0),    vip:parseInt(c.vipsHoy||0)   },
+        { lbl:'SEMANA', tot:sumaSem,  lead:parseInt(c.usosSemana||0), vip:parseInt(c.vipsSemana||0) },
+        { lbl:'MES',    tot:sumaMes,  lead:parseInt(c.usosMes||0),    vip:parseInt(c.vipsMes||0)   },
+        { lbl:'AÑO',    tot:sumaAnio, lead:parseInt(c.usosAnio||0),   vip:parseInt(c.vipsAnio||0)  },
     ];
-    const maxTempo = Math.max(...periodos.map(p => p.val), 1);
-    const BW = (ANCHO - 15) / 4;
-    const BH = 36;
-    const BY = y;
+    const maxT = Math.max(...periodos.map(p=>p.tot),1);
+    const BAR_H = 38, BAR_W = (AW-15)/4;
+    const BAR_Y = y;
 
-    // Fondo
-    pdfDoc2.setFillColor(...GRIS1);
-    pdfDoc2.setDrawColor(...GRIS2);
-    pdfDoc2.roundedRect(MARGEN, BY, ANCHO, BH + 14, 2, 2, 'FD');
+    // Fondo del bloque
+    rr(M, BAR_Y, AW, BAR_H+18, F_SLATE, LINE, 3);
 
-    // Líneas guía
-    pdfDoc2.setDrawColor(...GRIS2);
-    pdfDoc2.setLineWidth(0.3);
-    for (let g = 1; g <= 3; g++) {
-        const gy = BY + 4 + BH - (BH / 3) * g;
-        pdfDoc2.line(MARGEN + 4, gy, MARGEN + ANCHO - 4, gy);
-    }
-
-    // Barras apiladas (LEAD abajo en verde, VIP encima en rojo)
-    periodos.forEach((p, i) => {
-        const bx = MARGEN + 4 + i * (BW + 3);
-        const bh_total = maxTempo > 0 ? Math.max((p.val / maxTempo) * BH, p.val > 0 ? 3 : 0) : 0;
-        const bh_lead  = p.val > 0 ? (p.lead / p.val) * bh_total : 0;
-        const bh_vip   = bh_total - bh_lead;
-        const by_base  = BY + 4 + BH;
-
-        // Barra LEAD (verde)
-        if (bh_lead > 0) {
-            pdfDoc2.setFillColor(...VERDE_S);
-            pdfDoc2.roundedRect(bx, by_base - bh_lead, BW, bh_lead, 1, 1, 'F');
-        }
-        // Barra VIP (rojo) encima
-        if (bh_vip > 0) {
-            pdfDoc2.setFillColor(...ROJO);
-            pdfDoc2.roundedRect(bx, by_base - bh_total, BW, bh_vip, 1, 1, 'F');
-        }
-        // Si no hay nada, barra mínima gris
-        if (p.val === 0) {
-            pdfDoc2.setFillColor(...GRIS2);
-            pdfDoc2.roundedRect(bx, by_base - 1.5, BW, 1.5, 1, 1, 'F');
-        }
-
-        // Valor total sobre la barra
-        sf(8, 'bold', TEXTO);
-        pdfDoc2.text(String(p.val), bx + BW/2, by_base - bh_total - 2, {align:'center'});
-        // Label abajo
-        sf(7, 'bold', MUTED);
-        pdfDoc2.text(p.label, bx + BW/2, BY + BH + 11, {align:'center'});
+    // Líneas de referencia
+    pdfDoc2.setDrawColor(...LINE);
+    pdfDoc2.setLineWidth(0.25);
+    [1,2,3].forEach(g => {
+        const gy = BAR_Y+6+BAR_H-(BAR_H/3)*g;
+        pdfDoc2.line(M+4,gy,M+AW-4,gy);
     });
 
-    // Leyenda barras
-    pdfDoc2.setFillColor(...VERDE_S);
-    pdfDoc2.roundedRect(MARGEN + 4, BY + 3, 8, 4, 1, 1, 'F');
-    sf(6, 'normal', MUTED);
-    pdfDoc2.text('LEAD', MARGEN + 14, BY + 7);
-    pdfDoc2.setFillColor(...ROJO);
-    pdfDoc2.roundedRect(MARGEN + 28, BY + 3, 8, 4, 1, 1, 'F');
-    pdfDoc2.text('VIP', MARGEN + 38, BY + 7);
+    periodos.forEach((p,i) => {
+        const bx  = M+4+i*(BAR_W+3);
+        const bht = maxT>0 ? Math.max((p.tot/maxT)*BAR_H, p.tot>0?2:0) : 0;
+        const bhl = bht>0 && p.tot>0 ? (p.lead/p.tot)*bht : 0;
+        const bhv = bht - bhl;
+        const baseY = BAR_Y+6+BAR_H;
+
+        // LEAD (índigo suave)
+        if(bhl>0){ pdfDoc2.setFillColor(...C2_TXT); pdfDoc2.roundedRect(bx,baseY-bhl,BAR_W,bhl,1,1,'F'); }
+        // VIP (rosa-rojo suave) encima
+        if(bhv>0){ pdfDoc2.setFillColor(...C3_TXT); pdfDoc2.roundedRect(bx,baseY-bht,BAR_W,bhv,1,1,'F'); }
+        if(bht===0){ pdfDoc2.setFillColor(...LINE); pdfDoc2.roundedRect(bx,baseY-1.5,BAR_W,1.5,1,1,'F'); }
+
+        // Valor encima
+        sf(8,'bold',T_DARK);
+        pdfDoc2.text(String(p.tot), bx+BAR_W/2, baseY-bht-2.5,{align:'center'});
+        // Label
+        sf(7,'bold',T_MED);
+        pdfDoc2.text(p.lbl, bx+BAR_W/2, BAR_Y+BAR_H+13,{align:'center'});
+    });
+
+    // Leyenda
+    pdfDoc2.setFillColor(...C2_TXT);
+    pdfDoc2.roundedRect(M+AW-34, BAR_Y+4, 7, 4, 1,1,'F');
+    sf(6.5,'normal',T_MED);
+    pdfDoc2.text('Lead', M+AW-25, BAR_Y+8);
+    pdfDoc2.setFillColor(...C3_TXT);
+    pdfDoc2.roundedRect(M+AW-15, BAR_Y+4, 7, 4, 1,1,'F');
+    pdfDoc2.text('VIP', M+AW-6, BAR_Y+8);
 
     pdfDoc2.setLineWidth(0.2);
-    y += BH + 20;
+    y += BAR_H+22;
 
-    // ══════════════════════════════
-    // GRÁFICO TORTA REAL con canvas
-    // ══════════════════════════════
-    checkPage(58);
-    sf(7, 'bold', MUTED);
-    pdfDoc2.text('COMPOSICIÓN DE AUDIENCIA', MARGEN, y);
+    // ══════════════════════════
+    // GRÁFICO TORTA con canvas
+    // ══════════════════════════
+    chk(56);
+    sf(7,'bold',T_SOFT);
+    pdfDoc2.text('COMPOSICIÓN DE AUDIENCIA', M, y);
     y += 5;
 
-    // Dibujar torta real con canvas
-    const PIE_SIZE = 120; // px del canvas
+    const PS = 130; // canvas size px
     const pieCanvas = document.createElement('canvas');
-    pieCanvas.width  = PIE_SIZE;
-    pieCanvas.height = PIE_SIZE;
+    pieCanvas.width = pieCanvas.height = PS;
     const pieCtx = pieCanvas.getContext('2d');
-    const cx2 = PIE_SIZE / 2, cy2 = PIE_SIZE / 2, r2 = PIE_SIZE / 2 - 4;
+    const pcx = PS/2, pcy = PS/2, pr = PS/2 - 6;
+
+    // Sombra ligera
+    pieCtx.shadowColor = 'rgba(0,0,0,0.08)';
+    pieCtx.shadowBlur = 8;
 
     const sectors = [
-        { pct: pLeads, color: '#3d6432' },  // verde oliva — LEADS
-        { pct: pVips,  color: '#b41e1e' },  // rojo — VIP
+        { pct:pLeads, color:'#3d7d6e' },  // teal — LEADS
+        { pct:pVips,  color:'#b85555' },  // rosa-rojo — VIP
     ];
-    let startAngle = -Math.PI / 2;
+    let ang = -Math.PI/2;
     sectors.forEach(s => {
-        const sliceAngle = (s.pct / 100) * 2 * Math.PI;
+        const sl = (s.pct/100)*2*Math.PI;
         pieCtx.beginPath();
-        pieCtx.moveTo(cx2, cy2);
-        pieCtx.arc(cx2, cy2, r2, startAngle, startAngle + sliceAngle);
+        pieCtx.moveTo(pcx,pcy);
+        pieCtx.arc(pcx,pcy,pr,ang,ang+sl);
         pieCtx.closePath();
         pieCtx.fillStyle = s.color;
         pieCtx.fill();
-        startAngle += sliceAngle;
+        ang += sl;
     });
-    // Donut hole
+    // Donut hole con gradiente
+    pieCtx.shadowBlur = 0;
+    const grad = pieCtx.createRadialGradient(pcx,pcy,0,pcx,pcy,pr*0.5);
+    grad.addColorStop(0,'#ffffff');
+    grad.addColorStop(1,'#f5f5f5');
     pieCtx.beginPath();
-    pieCtx.arc(cx2, cy2, r2 * 0.48, 0, 2 * Math.PI);
-    pieCtx.fillStyle = '#ffffff';
+    pieCtx.arc(pcx,pcy,pr*0.48,0,2*Math.PI);
+    pieCtx.fillStyle = grad;
     pieCtx.fill();
     // Borde
     pieCtx.beginPath();
-    pieCtx.arc(cx2, cy2, r2, 0, 2 * Math.PI);
-    pieCtx.strokeStyle = '#dde0dc';
-    pieCtx.lineWidth = 1;
-    pieCtx.stroke();
+    pieCtx.arc(pcx,pcy,pr,0,2*Math.PI);
+    pieCtx.strokeStyle='#dde0dc'; pieCtx.lineWidth=1.5; pieCtx.stroke();
 
     const pieB64 = pieCanvas.toDataURL('image/png');
-    const PIE_MM = 40;
-    const PIE_X  = MARGEN;
-    const PIE_Y  = y;
-    try { pdfDoc2.addImage(pieB64, 'PNG', PIE_X, PIE_Y, PIE_MM, PIE_MM); } catch(e) {}
+    const PMM = 44; // mm en el PDF
+    try { pdfDoc2.addImage(pieB64,'PNG', M, y, PMM, PMM); } catch(e){}
 
-    // Porcentaje dentro del donut
-    sf(10, 'bold', VERDE);
-    pdfDoc2.text(pLeads + '%', PIE_X + PIE_MM/2, PIE_Y + PIE_MM/2 + 2, {align:'center'});
-    sf(5.5, 'normal', MUTED);
-    pdfDoc2.text('LEADS', PIE_X + PIE_MM/2, PIE_Y + PIE_MM/2 + 7, {align:'center'});
+    // Centro del donut — texto
+    sf(11,'bold',C1_TXT);
+    pdfDoc2.text(pLeads+'%', M+PMM/2, y+PMM/2+2,{align:'center'});
+    sf(6,'normal',T_SOFT);
+    pdfDoc2.text('LEADS', M+PMM/2, y+PMM/2+7,{align:'center'});
 
-    // Panel de datos al lado
-    const PX = MARGEN + PIE_MM + 8;
-    const PW = ANCHO - PIE_MM - 8;
+    // Panel de datos a la derecha
+    const DX = M+PMM+8;
+    const DW = AW-PMM-8;
+    const DH = PMM;
 
-    // Card LEADS
-    fillR(PX, PIE_Y, PW/2 - 3, PIE_MM/2 - 2, [235,242,232], VERDE_S);
-    pdfDoc2.setFillColor(...VERDE);
-    pdfDoc2.roundedRect(PX + 3, PIE_Y + 4, 3, PIE_MM/2 - 10, 1, 1, 'F');
-    sf(7, 'bold', VERDE);
-    pdfDoc2.text('LEADS', PX + 10, PIE_Y + 9);
-    sf(16, 'bold', VERDE);
-    pdfDoc2.text(String(leadHist), PX + 10, PIE_Y + 20);
-    sf(6.5, 'normal', MUTED);
-    pdfDoc2.text(pLeads + '% del total', PX + 10, PIE_Y + 27);
+    // Tarjeta LEADS
+    rr(DX, y, DW/2-2, DH/2-2, C2_BG, null, 2);
+    pdfDoc2.setFillColor(...C2_TXT);
+    pdfDoc2.roundedRect(DX, y, DW/2-2, 3.5, 2,2,'F');
+    sf(7.5,'bold',C2_TXT);
+    pdfDoc2.text('LEADS', DX+4, y+11);
+    sf(18,'bold',C2_TXT);
+    pdfDoc2.text(String(leadHist), DX+4, y+24);
+    sf(6.5,'normal',T_SOFT);
+    pdfDoc2.text(pLeads+'% del total', DX+4, y+31);
 
-    // Card VIP
-    const VX = PX + PW/2 + 1;
-    fillR(VX, PIE_Y, PW/2 - 2, PIE_MM/2 - 2, [252,240,235], ROJO_S);
-    pdfDoc2.setFillColor(...ROJO);
-    pdfDoc2.roundedRect(VX + 3, PIE_Y + 4, 3, PIE_MM/2 - 10, 1, 1, 'F');
-    sf(7, 'bold', ROJO);
-    pdfDoc2.text('VIP', VX + 10, PIE_Y + 9);
-    sf(16, 'bold', ROJO);
-    pdfDoc2.text(String(vipHist), VX + 10, PIE_Y + 20);
-    sf(6.5, 'normal', MUTED);
-    pdfDoc2.text(pVips + '% del total', VX + 10, PIE_Y + 27);
+    // Tarjeta VIP
+    const VX = DX+DW/2+1;
+    const VW = DW/2-1;
+    rr(VX, y, VW, DH/2-2, C3_BG, null, 2);
+    pdfDoc2.setFillColor(...C3_TXT);
+    pdfDoc2.roundedRect(VX, y, VW, 3.5, 2,2,'F');
+    sf(7.5,'bold',C3_TXT);
+    pdfDoc2.text('VIP', VX+4, y+11);
+    sf(18,'bold',C3_TXT);
+    pdfDoc2.text(String(vipHist), VX+4, y+24);
+    sf(6.5,'normal',T_SOFT);
+    pdfDoc2.text(pVips+'% del total', VX+4, y+31);
 
-    // Barra proporcional abajo del gráfico torta
-    const BPY = PIE_Y + PIE_MM/2 + 1;
-    const BPW = PW;
-    fillR(PX, BPY, BPW, PIE_MM/2 - 2, GRIS1, GRIS2);
-    sf(6.5, 'bold', MUTED);
-    pdfDoc2.text('Proporción total:', PX + 4, BPY + 7);
-    pdfDoc2.setFillColor(220, 225, 218);
-    pdfDoc2.roundedRect(PX + 4, BPY + 10, BPW - 8, 6, 2, 2, 'F');
-    if (pLeads > 0) {
-        pdfDoc2.setFillColor(...VERDE_S);
-        pdfDoc2.roundedRect(PX + 4, BPY + 10, (BPW - 8) * pLeads / 100, 6, 2, 2, 'F');
+    // Barra proporcional en la parte inferior del panel
+    const BRY = y+DH/2;
+    rr(DX, BRY, DW, DH/2-2, F_SLATE, LINE, 2);
+    sf(6.5,'normal',T_SOFT);
+    pdfDoc2.text('Proporción:', DX+4, BRY+8);
+    pdfDoc2.setFillColor(215,220,228);
+    pdfDoc2.roundedRect(DX+4, BRY+11, DW-8, 5, 2,2,'F');
+    if(pLeads>0){
+        pdfDoc2.setFillColor(...C2_TXT);
+        pdfDoc2.roundedRect(DX+4, BRY+11, (DW-8)*pLeads/100, 5, 2,2,'F');
     }
-    if (pVips > 0) {
-        const vipX = PX + 4 + (BPW - 8) * pLeads / 100;
-        pdfDoc2.setFillColor(...ROJO);
-        pdfDoc2.roundedRect(vipX, BPY + 10, (BPW - 8) * pVips / 100, 6, 2, 2, 'F');
+    if(pVips>0){
+        pdfDoc2.setFillColor(...C3_TXT);
+        const ox = DX+4+(DW-8)*pLeads/100;
+        pdfDoc2.roundedRect(ox, BRY+11, (DW-8)*pVips/100, 5, 2,2,'F');
     }
+    sf(6,'normal',C2_TXT);
+    pdfDoc2.text('Lead '+pLeads+'%', DX+4, BRY+22);
+    sf(6,'normal',C3_TXT);
+    pdfDoc2.text('VIP '+pVips+'%', DX+DW-4, BRY+22,{align:'right'});
 
-    y += PIE_MM + 10;
+    y += PMM+10;
 
-    // ══════════════════════════════
+    // ══════════════════════════
     // TABLA TEMPORAL
-    // ══════════════════════════════
-    checkPage(56);
-    sf(7, 'bold', MUTED);
-    pdfDoc2.text('DETALLE TEMPORAL Y COMPARATIVO', MARGEN, y);
+    // ══════════════════════════
+    chk(56);
+    sf(7,'bold',T_SOFT);
+    pdfDoc2.text('DETALLE TEMPORAL', M, y);
     y += 4;
 
-    const tablaRows = [
+    const tRows=[
         ['Hoy',             String(parseInt(c.usosHoy||0)),    String(parseInt(c.vipsHoy||0)),    String(sumaHoy)],
         ['Semana',          String(parseInt(c.usosSemana||0)), String(parseInt(c.vipsSemana||0)), String(sumaSem)],
         ['Mes',             String(parseInt(c.usosMes||0)),    String(parseInt(c.vipsMes||0)),    String(sumaMes)],
         ['Año',             String(parseInt(c.usosAnio||0)),   String(parseInt(c.vipsAnio||0)),   String(sumaAnio)],
-        ['HISTÓRICO TOTAL', String(leadHist),                  String(vipHist),                   String(total)],
+        ['TOTAL HISTÓRICO', String(leadHist),                  String(vipHist),                   String(total)],
     ];
 
-    pdfDoc2.setFillColor(...VERDE);
-    pdfDoc2.rect(MARGEN, y, ANCHO, 8, 'F');
-    sf(7, 'bold', BLANCO);
-    pdfDoc2.text('PERÍODO',  MARGEN + 4, y + 5.5);
-    pdfDoc2.text('LEADS',    MARGEN + 62, y + 5.5, {align:'center'});
-    pdfDoc2.text('VIP',      MARGEN + 108, y + 5.5, {align:'center'});
-    pdfDoc2.text('TOTAL',    MARGEN + ANCHO - 6, y + 5.5, {align:'right'});
+    // Header
+    pdfDoc2.setFillColor(...HEAD_BG);
+    pdfDoc2.rect(M, y, AW, 8,'F');
+    sf(7,'bold',WHITE);
+    pdfDoc2.text('PERÍODO',  M+4, y+5.5);
+    pdfDoc2.text('LEADS',    M+65, y+5.5,{align:'center'});
+    pdfDoc2.text('VIP',      M+110, y+5.5,{align:'center'});
+    pdfDoc2.text('TOTAL',    M+AW-4, y+5.5,{align:'right'});
     y += 8;
 
-    tablaRows.forEach((row, i) => {
-        const esTotal = i === tablaRows.length - 1;
-        const bg = esTotal ? [235,242,232] : (i % 2 === 0 ? BLANCO : GRIS1);
-        pdfDoc2.setFillColor(...bg);
-        pdfDoc2.rect(MARGEN, y, ANCHO, 8, 'F');
-        pdfDoc2.setDrawColor(...GRIS2);
+    tRows.forEach((row,i) => {
+        const isT = i===tRows.length-1;
+        pdfDoc2.setFillColor(...(isT ? C1_BG : (i%2===0 ? WHITE : F_SLATE)));
+        pdfDoc2.rect(M, y, AW, 8,'F');
+        pdfDoc2.setDrawColor(...LINE);
         pdfDoc2.setLineWidth(0.2);
-        pdfDoc2.line(MARGEN, y + 8, MARGEN + ANCHO, y + 8);
-
-        sf(8, esTotal ? 'bold' : 'normal', TEXTO);
-        pdfDoc2.text(row[0], MARGEN + 4, y + 5.5);
-        sf(8, esTotal ? 'bold' : 'normal', [40, 70, 140]);
-        pdfDoc2.text(row[1], MARGEN + 62, y + 5.5, {align:'center'});
-        sf(8, esTotal ? 'bold' : 'normal', ROJO);
-        pdfDoc2.text(row[2], MARGEN + 108, y + 5.5, {align:'center'});
-        sf(8, esTotal ? 'bold' : 'normal', VERDE);
-        pdfDoc2.text(row[3], MARGEN + ANCHO - 6, y + 5.5, {align:'right'});
+        pdfDoc2.line(M, y+8, M+AW, y+8);
+        sf(8, isT?'bold':'normal', T_DARK);
+        pdfDoc2.text(row[0], M+4, y+5.5);
+        sf(8, isT?'bold':'normal', C2_TXT);
+        pdfDoc2.text(row[1], M+65, y+5.5,{align:'center'});
+        sf(8, isT?'bold':'normal', C3_TXT);
+        pdfDoc2.text(row[2], M+110, y+5.5,{align:'center'});
+        sf(8, isT?'bold':'normal', C1_TXT);
+        pdfDoc2.text(row[3], M+AW-4, y+5.5,{align:'right'});
         y += 8;
     });
     y += 8;
 
-    // ══════════════════════════════
+    // ══════════════════════════
     // FRANJAS HORARIAS
-    // ══════════════════════════════
-    checkPage(42);
-    sf(7, 'bold', MUTED);
-    pdfDoc2.text('FRANJAS HORARIAS ESTIMADAS', MARGEN, y);
+    // ══════════════════════════
+    chk(40);
+    sf(7,'bold',T_SOFT);
+    pdfDoc2.text('FRANJAS HORARIAS ESTIMADAS', M, y);
     y += 5;
 
-    const franjas = [
-        { label:'Mañana   08:00 – 13:00', pct:30, color:VERDE_S  },
-        { label:'Tarde    13:00 – 20:00', pct:50, color:VERDE     },
-        { label:'Noche    20:00 – 05:00', pct:20, color:[40,70,140] },
-    ];
-    franjas.forEach(f => {
-        sf(7, 'normal', TEXTO);
-        pdfDoc2.text(f.label, MARGEN, y + 5);
-        sf(7, 'bold', f.color);
-        pdfDoc2.text(f.pct + '%', MARGEN + ANCHO, y + 5, {align:'right'});
-        pdfDoc2.setFillColor(220, 225, 218);
-        pdfDoc2.roundedRect(MARGEN, y + 7, ANCHO, 5, 2, 2, 'F');
-        pdfDoc2.setFillColor(...f.color);
-        pdfDoc2.roundedRect(MARGEN, y + 7, ANCHO * f.pct / 100, 5, 2, 2, 'F');
+    [
+        {lbl:'Mañana  08:00 – 13:00', pct:30, col:C2_TXT},
+        {lbl:'Tarde   13:00 – 20:00', pct:50, col:C1_TXT},
+        {lbl:'Noche   20:00 – 05:00', pct:20, col:C4_TXT},
+    ].forEach(f => {
+        sf(7.5,'normal',T_DARK);
+        pdfDoc2.text(f.lbl, M, y+5);
+        sf(7,'bold',f.col);
+        pdfDoc2.text(f.pct+'%', M+AW, y+5,{align:'right'});
+        pdfDoc2.setFillColor(215,220,228);
+        pdfDoc2.roundedRect(M, y+7, AW, 5, 2,2,'F');
+        pdfDoc2.setFillColor(...f.col);
+        pdfDoc2.roundedRect(M, y+7, AW*f.pct/100, 5, 2,2,'F');
         y += 16;
     });
 
-    // ══════════════════════════════
-    // PIE EN TODAS LAS PÁGINAS
-    // ══════════════════════════════
-    const totalPags = pdfDoc2.internal.getNumberOfPages();
-    for (let p = 1; p <= totalPags; p++) {
+    // ══════════════════════════
+    // PIE — todas las páginas
+    // ══════════════════════════
+    const nPags = pdfDoc2.internal.getNumberOfPages();
+    for(let p=1; p<=nPags; p++){
         pdfDoc2.setPage(p);
-        pdfDoc2.setFillColor(...VERDE);
-        pdfDoc2.rect(0, 284, W, 1.2, 'F');
-        pdfDoc2.setFillColor(...GRIS1);
-        pdfDoc2.rect(0, 285.2, W, 11.8, 'F');
-        sf(6.5, 'normal', MUTED);
-        pdfDoc2.text('Reporte confidencial · uso exclusivo del comercio adherido', MARGEN, 292);
-        sf(6.5, 'bold', VERDE);
-        pdfDoc2.text('habitatcar.com.ar · 388-4618228', W/2, 292, {align:'center'});
-        sf(6.5, 'normal', MUTED);
-        pdfDoc2.text('Lorenzo M. Guerrero · MP: 279 · Pág ' + p + '/' + totalPags, W - MARGEN, 292, {align:'right'});
+        pdfDoc2.setFillColor(...ACCENT);
+        pdfDoc2.rect(0,284,W,1,'F');
+        pdfDoc2.setFillColor(...F_SLATE);
+        pdfDoc2.rect(0,285,W,12,'F');
+        sf(6.5,'normal',T_SOFT);
+        pdfDoc2.text('Reporte confidencial · uso exclusivo del comercio adherido', M, 291.5);
+        sf(6.5,'bold',C1_TXT);
+        pdfDoc2.text('habitatcar.com.ar · 388-4618228', W/2, 291.5,{align:'center'});
+        sf(6.5,'normal',T_SOFT);
+        pdfDoc2.text('Lorenzo M. Guerrero · MP: 279 · Pág '+p+'/'+nPags, W-M, 291.5,{align:'right'});
     }
 
     return pdfDoc2;
