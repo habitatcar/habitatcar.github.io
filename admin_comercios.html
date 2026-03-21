@@ -85,6 +85,37 @@ padding: 11px 30px; display: flex; justify-content: space-between;
 align-items: center; box-shadow: 0 4px 15px rgba(0,0,0,0.4);
 flex-wrap: wrap; gap: 15px;
 }
+/* ESTILOS PARA LOS FILTROS */
+.filtros-container {
+display: flex;
+gap: 10px;
+align-items: center;
+flex-wrap: wrap;
+}
+.filtro-select {
+padding: 10px 15px;
+border-radius: 8px;
+border: 1px solid var(--borravino);
+background: white;
+color: #333;
+font-weight: 600;
+font-size: 0.9em;
+cursor: pointer;
+outline: none;
+}
+.filtro-select:hover {
+border-color: var(--verde);
+}
+.contador-filtro {
+background: var(--borravino);
+color: white;
+padding: 8px 12px;
+border-radius: 8px;
+font-weight: bold;
+font-size: 0.8em;
+min-width: 35px;
+text-align: center;
+}
 .search-container { position: relative; flex: 1; max-width: 350px; }
 .search-input {
 width: 100%; padding: 10px 12px 10px 45px;
@@ -210,6 +241,19 @@ details[open] summary::after { transform: rotate(180deg); }
 </header>
 
 <div class="tools-faja" id="faja-herramientas">
+    <!-- FILTROS DE PROVINCIA Y LOCALIDAD -->
+    <div class="filtros-container">
+        <select id="filtro-provincia" class="filtro-select" onchange="cargarLocalidades(this.value); window.render()">
+            <option value="">TODAS LAS PROVINCIAS</option>
+        </select>
+        <div class="contador-filtro" id="count-prov">0</div>
+
+        <select id="filtro-localidad" class="filtro-select" onchange="window.render()">
+            <option value="">TODAS LAS LOCALIDADES</option>
+        </select>
+        <div class="contador-filtro" id="count-loc">0</div>
+    </div>
+
     <div class="search-container">
         <span class="search-icon">🔍</span>
         <input type="text" id="masterSearch" class="search-input" placeholder="Buscar comercio..." oninput="window.render()">
@@ -432,6 +476,59 @@ const formatearFecha = (ts) => {
     } catch (e) { return "---"; }
 };
 
+// =============================================
+// CARGAR PROVINCIAS PARA FILTRO
+// =============================================
+let todasLasProvincias = [];
+let todasLasLocalidades = [];
+
+async function cargarProvincias() {
+    try {
+        const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
+        const data = await res.json();
+        const combo = document.getElementById('filtro-provincia');
+        combo.innerHTML = '<option value="">TODAS LAS PROVINCIAS</option>';
+        
+        todasLasProvincias = data.provincias.map(p => p.nombre.toLowerCase());
+        todasLasProvincias.sort((a, b) => a.localeCompare(b));
+        
+        todasLasProvincias.forEach(nombreProv => {
+            let opt = document.createElement('option');
+            opt.value = nombreProv;
+            opt.textContent = nombreProv.charAt(0).toUpperCase() + nombreProv.slice(1);
+            combo.appendChild(opt);
+        });
+    } catch (e) { console.error("Error cargando provincias:", e); }
+}
+
+window.cargarLocalidades = async (provNombreNormalized) => {
+    const comboLoc = document.getElementById('filtro-localidad');
+    comboLoc.innerHTML = '<option value="">TODAS LAS LOCALIDADES</option>';
+    
+    if (!provNombreNormalized) {
+        todasLasLocalidades = [];
+        window.render();
+        return;
+    }
+    
+    try {
+        const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provNombreNormalized)}&max=1000&campos=nombre`);
+        const data = await res.json();
+        todasLasLocalidades = data.municipios ? data.municipios.map(m => m.nombre.toLowerCase()) : [];
+        todasLasLocalidades.sort((a, b) => a.localeCompare(b));
+        
+        todasLasLocalidades.forEach(nombreLoc => {
+            let opt = document.createElement('option');
+            opt.value = nombreLoc;
+            opt.textContent = nombreLoc.charAt(0).toUpperCase() + nombreLoc.slice(1);
+            comboLoc.appendChild(opt);
+        });
+    } catch (e) { console.error("Error cargando localidades:", e); }
+};
+
+// Llamar a cargarProvincias al inicio
+cargarProvincias();
+
 if (esComerciante) {
     const q = query(collection(db, "comercios"), where("idComercio", "==", idForzado));
     onSnapshot(q, (snap) => {
@@ -534,6 +631,10 @@ window.render = () => {
 
     const masterSearchInput = document.getElementById('masterSearch');
     const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
+    
+    // Obtener valores de los filtros
+    const provSeleccionada = document.getElementById('filtro-provincia').value;
+    const locSeleccionada = document.getElementById('filtro-localidad').value;
 
     const totalComercios = COMERCIOS.length;
     const activos   = COMERCIOS.filter(x => x.estado === 'activo').length;
@@ -544,15 +645,46 @@ window.render = () => {
     document.getElementById('count-act').innerText   = activos;
     document.getElementById('count-inact').innerText = inactivos;
     document.getElementById('count-pub').innerText   = publicados;
-
+    
+    // Contar comercios por provincia seleccionada
+    let countProv = 0;
+    let countLoc = 0;
+    
+    // Filtrar comercios
     let filtrados = COMERCIOS.filter(c => {
         const searchStr = ((c.nombre||"")+" "+(c.rubro||"")+" "+(c.ciudad||"")+" "+(c.direccion||"")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
         const matchesSearch = term === "" || searchStr.includes(term);
+        
         let matchesFiltro = true;
         if (FILTRO_ESTADO === 'inactivo') matchesFiltro = c.estado !== 'activo';
         else if (FILTRO_ESTADO === 'publicado') matchesFiltro = c.publicado === true;
-        return matchesSearch && matchesFiltro;
+        
+        // Filtrar por provincia
+        let matchesProv = true;
+        if (provSeleccionada) {
+            const provComercio = (c.provincia || "").toLowerCase();
+            matchesProv = provComercio === provSeleccionada;
+        }
+        
+        // Filtrar por localidad
+        let matchesLoc = true;
+        if (locSeleccionada && provSeleccionada) {
+            const locComercio = (c.localidad || c.ciudad || "").toLowerCase();
+            matchesLoc = locComercio === locSeleccionada;
+        } else if (locSeleccionada && !provSeleccionada) {
+            matchesLoc = false;
+        }
+        
+        // Contar para los contadores
+        if (provSeleccionada && matchesProv && matchesFiltro && matchesSearch) countProv++;
+        if (locSeleccionada && provSeleccionada && matchesLoc && matchesFiltro && matchesSearch) countLoc++;
+        
+        return matchesSearch && matchesFiltro && matchesProv && matchesLoc;
     });
+    
+    // Actualizar contadores de provincia y localidad
+    document.getElementById('count-prov').innerText = provSeleccionada ? countProv : 0;
+    document.getElementById('count-loc').innerText = locSeleccionada ? countLoc : 0;
 
     filtrados.sort((a,b) => (a.nombre||"").localeCompare(b.nombre||""));
     filtrados.forEach(c => mostrarComercio(c));
