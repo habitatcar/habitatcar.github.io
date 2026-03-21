@@ -623,24 +623,24 @@ style="background:#25D366; color:white; border:none; border-radius:8px; padding:
 <button class="btn btn-warning" onclick="desmarcarTodos()"><i class="fas fa-times"></i> CANCELAR</button>
 </div>
 <div class="table-container">
-<table>
-<thead>
-<tr id="tabla-headers">
-<th class="checkbox-cell" id="header-checkbox" style="display:none;"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
-<th>FECHA</th>
-<th>LOGO</th>
-<th>COMERCIO / PREMIO</th>
-<th>PARTICIPANTES</th>
-<th>ACCIONES</th>
-<th>PREMIOS</th>
-</tr>
-</thead>
-<tbody id="tabla-sorteos"></tbody>
-</table>
+   <table>
+      <thead>
+         <tr id="tabla-headers">
+            <th class="checkbox-cell" id="header-checkbox" style="display:none;"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th>
+            <th>FECHA</th>
+            <th>LOGO</th>
+            <th>COMERCIO / PREMIO</th>
+            <th>PARTICIPANTES</th>
+            <th>ACCIONES</th>
+            <th>PREMIOS</th>
+         </tr>
+      </thead>
+      <tbody id="tabla-sorteos"></tbody>
+   </table>
 </div>
 </div>
 
-<!-- MODALES (se mantienen igual) -->
+<!-- MODALES -->
 <div id="popup-confirmacion" class="modal" style="display:none;">
 <div class="modal-content">
 <h3 style="color:var(--azul-principal); margin-bottom:15px;">🎉 ¡SORTEO REALIZADO!</h3>
@@ -664,7 +664,6 @@ style="background:#25D366; color:white; border:none; border-radius:8px; padding:
 </div>
 
 <div id="modalPDF" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.92); z-index:10000; overflow-y:auto; padding:16px; box-sizing:border-box;">
-<!-- Contenido del modal PDF se mantiene igual por brevedad, pero en la versión completa está todo -->
 <div style="display:flex; flex-wrap:wrap; justify-content:center; gap:18px; max-width:1060px; margin:auto; padding-top:8px;">
 <div style="background:white; padding:16px; border-radius:14px; width:360px; color:#333; flex-shrink:0; max-height:88vh; overflow-y:auto;">
 <h3 style="color:var(--azul-principal); margin-bottom:10px; font-size:15px;">🎨 Diseño del Ticket</h3>
@@ -692,12 +691,12 @@ style="background:#25D366; color:white; border:none; border-radius:8px; padding:
 <div class="font-row"><label>Frase:</label><select id="cfg_font_t4" onchange="actualizarPrevia()"><option value="helvetica">Helvetica</option><option value="times">Times</option><option value="courier">Courier</option><option value="arial">Arial</option></select></div>
 <div class="font-row"><label>Pie:</label><select id="cfg_font_t5" onchange="actualizarPrevia()"><option value="helvetica">Helvetica</option><option value="times">Times</option><option value="courier">Courier</option><option value="arial">Arial</option></select></div>
 </div>
-<div class="pdf-section"><h4>🔴 Logo Comercio <span class="inyectado-tag">auto</span></h4>
+<div class="pdf-section"><h4>🔴 Logo Comercio</h4>
 <div class="slider-row"><span class="lbl">X</span><input type="range" id="cfg_l1x" min="0" max="60" value="5" oninput="actualizarPrevia()"><span class="val" id="v_l1x">5</span></div>
 <div class="slider-row"><span class="lbl">Y</span><input type="range" id="cfg_l1y" min="0" max="140" value="5" oninput="actualizarPrevia()"><span class="val" id="v_l1y">5</span></div>
 <div class="slider-row"><span class="lbl">📐</span><input type="range" id="cfg_l1s" min="8" max="50" value="20" oninput="actualizarPrevia()"><span class="val" id="v_l1s">20</span></div>
 </div>
-<div class="pdf-section"><h4>🔵 Logo Hábitat-Car <span class="inyectado-tag">auto</span></h4>
+<div class="pdf-section"><h4>🔵 Logo Hábitat-Car</h4>
 <div class="slider-row"><span class="lbl">X</span><input type="range" id="cfg_l2x" min="0" max="60" value="45" oninput="actualizarPrevia()"><span class="val" id="v_l2x">45</span></div>
 <div class="slider-row"><span class="lbl">Y</span><input type="range" id="cfg_l2y" min="0" max="140" value="5" oninput="actualizarPrevia()"><span class="val" id="v_l2y">5</span></div>
 <div class="slider-row"><span class="lbl">📐</span><input type="range" id="cfg_l2s" min="8" max="50" value="20" oninput="actualizarPrevia()"><span class="val" id="v_l2s">20</span></div>
@@ -766,7 +765,7 @@ style="background:#25D366; color:white; border:none; border-radius:8px; padding:
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
-import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, doc, getDoc, deleteDoc, updateDoc, writeBatch } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, doc, getDoc, deleteDoc, updateDoc, writeBatch, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 
 const CLAVE_MAESTRA = "HABITAT_MASTER_2026";
 const LOGO_DEFAULT  = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
@@ -806,7 +805,7 @@ const db = getFirestore(app);
 window.db = db;
 
 // ============================================
-// CONTADORES NAV (mismo que comercios)
+// CONTADORES NAV
 // ============================================
 async function actualizarContadores() {
     if (typeof db === 'undefined' || !db) {
@@ -817,63 +816,42 @@ async function actualizarContadores() {
     try {
         const todosSnap = await getDocs(collection(db, "leads"));
         const totalRaw = todosSnap.size;
-
         const vipsSnap = await getDocs(query(collection(db, "leads"), where("convertidoVIP", "==", true)));
         const totalVips = vipsSnap.size;
-
         const totalLeads = totalRaw - totalVips;
-
         const comerciosSnap = await getDocs(collection(db, "comercios"));
         const totalComercios = comerciosSnap.size;
-
         if (el('cont-comercios')) el('cont-comercios').innerText = totalComercios;
         if (el('cont-leads')) el('cont-leads').innerText = totalLeads;
         if (el('cont-vips')) el('cont-vips').innerText = totalVips;
-
         try {
             const tutSnap = await getDocs(collection(db, "tutoriales"));
             if (el('cont-tutoriales')) el('cont-tutoriales').innerText = tutSnap.size;
         } catch(e) {}
-
         let vCom = 0;
         try {
             const s = await getDocs(query(collection(db, "postulaciones_comercios"), where("estado", "==", "pendiente")));
             vCom = s.size;
         } catch(e) {}
         if (el('cont-validaciones-comercios')) el('cont-validaciones-comercios').innerText = vCom;
-
         let vMar = 0;
         try {
             const s = await getDocs(query(collection(db, "postulaciones_martilleros"), where("estado", "==", "pendiente")));
             vMar = s.size;
         } catch(e) {}
         if (el('cont-validaciones-martilleros')) el('cont-validaciones-martilleros').innerText = vMar;
-
         let vCol = 0;
         try {
             const s = await getDocs(query(collection(db, "postulaciones_colaboradores"), where("estado", "==", "pendiente")));
             vCol = s.size;
         } catch(e) {}
         if (el('cont-validaciones-colaboradores')) el('cont-validaciones-colaboradores').innerText = vCol;
-
-        console.log("✅ Contadores actualizados:", {
-            comercios: totalComercios,
-            leads: totalLeads,
-            vips: totalVips
-        });
-
-    } catch(error) {
-        console.error("Error en contadores:", error);
-    }
+    } catch(error) { console.error("Error en contadores:", error); }
 }
-
-setTimeout(() => {
-    actualizarContadores();
-    setInterval(actualizarContadores, 30000);
-}, 3000);
+setTimeout(() => { actualizarContadores(); setInterval(actualizarContadores, 30000); }, 3000);
 
 // ============================================
-// RESTO DEL CÓDIGO ORIGINAL DE SORTEOS (se mantiene igual)
+// VARIABLES GLOBALES
 // ============================================
 let estadisticas = { totalSorteos: 0, totalGanadores: 0, topComercio: '-', participantesUnicos: new Set() };
 let listenerActivos = null;
@@ -881,836 +859,717 @@ let listenerHistorial = null;
 let intervalSorteos = null;
 let ultimaEjecucion = {};
 
-window.toggleDarkMode = () => {};
-
-const actualizarEstadisticas = async () => {
-try {
-const snap = await getDocs(collection(db, "historial_sorteos"));
-let totalGanadores = 0;
-let comercioCount = {};
-let participantesSet = new Set();
-snap.docs.forEach(doc => {
-const h = doc.data();
-if (h.ganadores) {
-totalGanadores += h.ganadores.length;
-h.ganadores.forEach(g => {
-if (g.celular) participantesSet.add(g.celular);
-});
-}
-if (h.comercio) {
-comercioCount[h.comercio] = (comercioCount[h.comercio] || 0) + (h.ganadores?.length || 0);
-}
-});
-let topComercio = '-';
-let maxGanadores = 0;
-for (const [comercio, count] of Object.entries(comercioCount)) {
-if (count > maxGanadores) {
-maxGanadores = count;
-topComercio = comercio;
-}
-}
-document.getElementById('stat-total').textContent = snap.size;
-document.getElementById('stat-ganadores').textContent = totalGanadores;
-document.getElementById('stat-top').textContent = topComercio;
-document.getElementById('stat-participantes').textContent = participantesSet.size;
-} catch(e) {
-console.error("Error actualizando estadísticas:", e);
-}
-};
-
-window.abrirModalClave = (mensaje, callback) => {
-document.getElementById('modal-clave-mensaje').textContent = mensaje;
-document.getElementById('modal-clave-input').value = '';
-document.getElementById('modal-clave').style.display = 'flex';
-window.callbackClave = callback;
-};
-window.cerrarModalClave = () => {
-document.getElementById('modal-clave').style.display = 'none';
-window.callbackClave = null;
-};
-window.validarClaveModal = async () => {
-const clave = document.getElementById('modal-clave-input').value;
-if (!clave || !window.callbackClave) return;
-const resultado = await window.callbackClave(clave);
-if (resultado) {
-cerrarModalClave();
-}
-};
-window.validarAccionSegura = async (idComercio, claveIngresada) => {
-if (claveIngresada === CLAVE_MAESTRA) return true;
-try {
-const s = await getDoc(doc(db, "comercios", idComercio));
-if (s.exists() && claveIngresada === s.data().password) return true;
-} catch(e) {}
-return false;
-};
-
-window.subirImagenFondo = () => {
-document.getElementById('upload-bg').click();
-};
-window.procesarImagenSubida = (event) => {
-const file = event.target.files[0];
-if (!file) return;
-const reader = new FileReader();
-reader.onload = (e) => {
-document.getElementById('cfg_bg').value = e.target.result;
-actualizarPrevia();
-mostrarToast("✅ Imagen cargada como fondo", "success");
-};
-reader.readAsDataURL(file);
-};
-
-window.cargarPlantilla = (tipo) => {
-switch(tipo) {
-case 'clasica':
-document.getElementById('cfg_l1x').value = 5; document.getElementById('cfg_l1y').value = 5; document.getElementById('cfg_l1s').value = 20;
-document.getElementById('cfg_l2x').value = 45; document.getElementById('cfg_l2y').value = 5; document.getElementById('cfg_l2s').value = 20;
-document.getElementById('cfg_t1x').value = 40; document.getElementById('cfg_t1y').value = 70; document.getElementById('cfg_t1s').value = 22;
-document.getElementById('cfg_t2x').value = 40; document.getElementById('cfg_t2y').value = 90; document.getElementById('cfg_t2s').value = 16;
-document.getElementById('cfg_t6x').value = 40; document.getElementById('cfg_t6y').value = 105; document.getElementById('cfg_t6s').value = 12;
-document.getElementById('cfg_t3x').value = 40; document.getElementById('cfg_t3y').value = 118; document.getElementById('cfg_t3s').value = 14;
-document.getElementById('cfg_t4x').value = 40; document.getElementById('cfg_t4y').value = 45; document.getElementById('cfg_t4s').value = 14;
-document.getElementById('cfg_t5x').value = 40; document.getElementById('cfg_t5y').value = 148; document.getElementById('cfg_t5s').value = 8;
-document.getElementById('cfg_t4txt').value = '¡Felicitaciones!';
-document.getElementById('cfg_t5txt').value = 'Hábitat-Car';
-break;
-case 'elegante':
-document.getElementById('cfg_l1x').value = 10; document.getElementById('cfg_l1y').value = 10; document.getElementById('cfg_l1s').value = 15;
-document.getElementById('cfg_l2x').value = 40; document.getElementById('cfg_l2y').value = 10; document.getElementById('cfg_l2s').value = 15;
-document.getElementById('cfg_t1x').value = 40; document.getElementById('cfg_t1y').value = 65; document.getElementById('cfg_t1s').value = 18;
-document.getElementById('cfg_t2x').value = 40; document.getElementById('cfg_t2y').value = 85; document.getElementById('cfg_t2s').value = 14;
-document.getElementById('cfg_t6x').value = 40; document.getElementById('cfg_t6y').value = 100; document.getElementById('cfg_t6s').value = 10;
-document.getElementById('cfg_t3x').value = 40; document.getElementById('cfg_t3y').value = 115; document.getElementById('cfg_t3s').value = 12;
-document.getElementById('cfg_t4x').value = 40; document.getElementById('cfg_t4y').value = 45; document.getElementById('cfg_t4s').value = 12;
-document.getElementById('cfg_t5x').value = 40; document.getElementById('cfg_t5y').value = 150; document.getElementById('cfg_t5s').value = 7;
-document.getElementById('cfg_t4txt').value = 'Enhorabuena';
-document.getElementById('cfg_t5txt').value = 'Hábitat-Car';
-break;
-case 'destacada':
-document.getElementById('cfg_l1x').value = 5; document.getElementById('cfg_l1y').value = 5; document.getElementById('cfg_l1s').value = 25;
-document.getElementById('cfg_l2x').value = 45; document.getElementById('cfg_l2y').value = 5; document.getElementById('cfg_l2s').value = 25;
-document.getElementById('cfg_t1x').value = 40; document.getElementById('cfg_t1y').value = 75; document.getElementById('cfg_t1s').value = 28;
-document.getElementById('cfg_t2x').value = 40; document.getElementById('cfg_t2y').value = 95; document.getElementById('cfg_t2s').value = 20;
-document.getElementById('cfg_t6x').value = 40; document.getElementById('cfg_t6y').value = 110; document.getElementById('cfg_t6s').value = 14;
-document.getElementById('cfg_t3x').value = 40; document.getElementById('cfg_t3y').value = 123; document.getElementById('cfg_t3s').value = 16;
-document.getElementById('cfg_t4x').value = 40; document.getElementById('cfg_t4y').value = 45; document.getElementById('cfg_t4s').value = 16;
-document.getElementById('cfg_t5x').value = 40; document.getElementById('cfg_t5y').value = 148; document.getElementById('cfg_t5s').value = 9;
-document.getElementById('cfg_t4txt').value = '¡GRAN GANADOR!';
-document.getElementById('cfg_t5txt').value = 'Hábitat-Car';
-break;
-case 'minimalista':
-document.getElementById('cfg_l1x').value = 5; document.getElementById('cfg_l1y').value = 5; document.getElementById('cfg_l1s').value = 18;
-document.getElementById('cfg_l2x').value = 45; document.getElementById('cfg_l2y').value = 5; document.getElementById('cfg_l2s').value = 18;
-document.getElementById('cfg_t1x').value = 40; document.getElementById('cfg_t1y').value = 68; document.getElementById('cfg_t1s').value = 20;
-document.getElementById('cfg_t2x').value = 40; document.getElementById('cfg_t2y').value = 88; document.getElementById('cfg_t2s').value = 14;
-document.getElementById('cfg_t6x').value = 40; document.getElementById('cfg_t6y').value = 103; document.getElementById('cfg_t6s').value = 10;
-document.getElementById('cfg_t3x').value = 40; document.getElementById('cfg_t3y').value = 116; document.getElementById('cfg_t3s').value = 12;
-document.getElementById('cfg_t4x').value = 40; document.getElementById('cfg_t4y').value = 45; document.getElementById('cfg_t4s').value = 12;
-document.getElementById('cfg_t5x').value = 40; document.getElementById('cfg_t5y').value = 148; document.getElementById('cfg_t5s').value = 7;
-document.getElementById('cfg_t4txt').value = 'Gracias';
-document.getElementById('cfg_t5txt').value = 'HC';
-break;
-}
-actualizarPrevia();
-};
-
-const leerMsgWA  = () => localStorage.getItem('hc_wa_v3') || WA_DEFAULT;
-const leerCfgPDF = () => {
-try {
-return JSON.parse(localStorage.getItem('hc_pdf_v3')) || {};
-} catch(e) {
-return {};
-}
-};
-
-window.abrirEditorPDF = () => {
-const p = leerCfgPDF();
-document.getElementById('cfg_bg').value = p.bg || '';
-document.getElementById('cfg_l1x').value = p.l1x ?? 5; document.getElementById('cfg_l1y').value = p.l1y ?? 5; document.getElementById('cfg_l1s').value = p.l1s ?? 20;
-document.getElementById('cfg_l2x').value = p.l2x ?? 45; document.getElementById('cfg_l2y').value = p.l2y ?? 5; document.getElementById('cfg_l2s').value = p.l2s ?? 20;
-document.getElementById('cfg_t1x').value = p.t1x ?? 40; document.getElementById('cfg_t1y').value = p.t1y ?? 70; document.getElementById('cfg_t1s').value = p.t1s ?? 22;
-document.getElementById('cfg_t2x').value = p.t2x ?? 40; document.getElementById('cfg_t2y').value = p.t2y ?? 90; document.getElementById('cfg_t2s').value = p.t2s ?? 16;
-document.getElementById('cfg_t6x').value = p.t6x ?? 40; document.getElementById('cfg_t6y').value = p.t6y ?? 105; document.getElementById('cfg_t6s').value = p.t6s ?? 12;
-document.getElementById('cfg_t3x').value = p.t3x ?? 40; document.getElementById('cfg_t3y').value = p.t3y ?? 118; document.getElementById('cfg_t3s').value = p.t3s ?? 14;
-document.getElementById('cfg_t4x').value = p.t4x ?? 40; document.getElementById('cfg_t4y').value = p.t4y ?? 45; document.getElementById('cfg_t4s').value = p.t4s ?? 14;
-document.getElementById('cfg_t4txt').value = p.t4txt ?? '¡Felicitaciones!';
-document.getElementById('cfg_t5x').value = p.t5x ?? 40; document.getElementById('cfg_t5y').value = p.t5y ?? 148; document.getElementById('cfg_t5s').value = p.t5s ?? 8;
-document.getElementById('cfg_t5txt').value = p.t5txt ?? 'Hábitat-Car';
-document.getElementById('cfg_color_t1').value = p.color_t1 || '#000000';
-document.getElementById('cfg_color_t2').value = p.color_t2 || '#000000';
-document.getElementById('cfg_color_t3').value = p.color_t3 || '#000000';
-document.getElementById('cfg_color_t4').value = p.color_t4 || '#000000';
-document.getElementById('cfg_color_t5').value = p.color_t5 || '#666666';
-document.getElementById('cfg_color_t6').value = p.color_t6 || '#000000';
-document.getElementById('cfg_font_t1').value = p.font_t1 || 'helvetica';
-document.getElementById('cfg_font_t2').value = p.font_t2 || 'helvetica';
-document.getElementById('cfg_font_t3').value = p.font_t3 || 'helvetica';
-document.getElementById('cfg_font_t4').value = p.font_t4 || 'helvetica';
-document.getElementById('cfg_font_t5').value = p.font_t5 || 'helvetica';
-document.getElementById('cfg_font_t6').value = p.font_t6 || 'helvetica';
-document.getElementById('modalPDF').style.display = 'flex';
-actualizarPrevia();
-};
-
-window.actualizarPrevia = () => {
-const bg = document.getElementById('cfg_bg').value;
-const prev = document.getElementById('previa_ticket');
-prev.style.backgroundImage = bg ? `url(${bg})` : 'none';
-if (!bg) prev.style.backgroundColor = '#ddd';
-const f = 3.25;
-const movEl = (elId, xId, yId, sId, vxId, vyId, vsId, isLogo) => {
-const x = parseInt(document.getElementById(xId).value) || 0;
-const y = parseInt(document.getElementById(yId).value) || 0;
-const s = parseInt(document.getElementById(sId).value) || 10;
-if (vxId) document.getElementById(vxId).textContent = x;
-if (vyId) document.getElementById(vyId).textContent = y;
-if (vsId) document.getElementById(vsId).textContent = s;
-const el = document.getElementById(elId);
-if (!el) return;
-el.style.left = (x * f) + 'px';
-el.style.top = (y * f) + 'px';
-if (isLogo) {
-el.style.width = (s * f) + 'px';
-el.style.height = (s * f) + 'px';
-} else {
-el.style.fontSize = Math.round(s * f / 3.8) + 'px';
-}
-};
-document.getElementById('prev_t1').style.color = document.getElementById('cfg_color_t1').value;
-document.getElementById('prev_t2').style.color = document.getElementById('cfg_color_t2').value;
-document.getElementById('prev_t3').style.color = document.getElementById('cfg_color_t3').value;
-document.getElementById('prev_t4').style.color = document.getElementById('cfg_color_t4').value;
-document.getElementById('prev_t5').style.color = document.getElementById('cfg_color_t5').value;
-document.getElementById('prev_t6').style.color = document.getElementById('cfg_color_t6').value;
-const fontMap = { helvetica: 'Helvetica', times: 'Times New Roman', courier: 'Courier New', arial: 'Arial' };
-document.getElementById('prev_t1').style.fontFamily = fontMap[document.getElementById('cfg_font_t1').value] || 'Helvetica';
-document.getElementById('prev_t2').style.fontFamily = fontMap[document.getElementById('cfg_font_t2').value] || 'Helvetica';
-document.getElementById('prev_t3').style.fontFamily = fontMap[document.getElementById('cfg_font_t3').value] || 'Helvetica';
-document.getElementById('prev_t4').style.fontFamily = fontMap[document.getElementById('cfg_font_t4').value] || 'Helvetica';
-document.getElementById('prev_t5').style.fontFamily = fontMap[document.getElementById('cfg_font_t5').value] || 'Helvetica';
-document.getElementById('prev_t6').style.fontFamily = fontMap[document.getElementById('cfg_font_t6').value] || 'Helvetica';
-movEl('prev_l1','cfg_l1x','cfg_l1y','cfg_l1s','v_l1x','v_l1y','v_l1s', true);
-movEl('prev_l2','cfg_l2x','cfg_l2y','cfg_l2s','v_l2x','v_l2y','v_l2s', true);
-movEl('prev_t1','cfg_t1x','cfg_t1y','cfg_t1s','v_t1x','v_t1y','v_t1s', false);
-movEl('prev_t2','cfg_t2x','cfg_t2y','cfg_t2s','v_t2x','v_t2y','v_t2s', false);
-movEl('prev_t6','cfg_t6x','cfg_t6y','cfg_t6s','v_t6x','v_t6y','v_t6s', false);
-movEl('prev_t3','cfg_t3x','cfg_t3y','cfg_t3s','v_t3x','v_t3y','v_t3s', false);
-movEl('prev_t4','cfg_t4x','cfg_t4y','cfg_t4s','v_t4x','v_t4y','v_t4s', false);
-movEl('prev_t5','cfg_t5x','cfg_t5y','cfg_t5s','v_t5x','v_t5y','v_t5s', false);
-document.getElementById('prev_t4').textContent = document.getElementById('cfg_t4txt').value || '¡Felicitaciones!';
-document.getElementById('prev_t5').textContent = document.getElementById('cfg_t5txt').value + ' • 22/02/2026';
-};
-
-window.guardarConfigPDF = () => {
-const gv = id => document.getElementById(id).value;
-const gi = id => parseInt(gv(id)) || 0;
-const data = {
-bg: gv('cfg_bg'),
-l1x: gi('cfg_l1x'), l1y: gi('cfg_l1y'), l1s: gi('cfg_l1s'),
-l2x: gi('cfg_l2x'), l2y: gi('cfg_l2y'), l2s: gi('cfg_l2s'),
-t1x: gi('cfg_t1x'), t1y: gi('cfg_t1y'), t1s: gi('cfg_t1s'),
-t2x: gi('cfg_t2x'), t2y: gi('cfg_t2y'), t2s: gi('cfg_t2s'),
-t3x: gi('cfg_t3x'), t3y: gi('cfg_t3y'), t3s: gi('cfg_t3s'),
-t4x: gi('cfg_t4x'), t4y: gi('cfg_t4y'), t4s: gi('cfg_t4s'), t4txt: gv('cfg_t4txt'),
-t5x: gi('cfg_t5x'), t5y: gi('cfg_t5y'), t5s: gi('cfg_t5s'), t5txt: gv('cfg_t5txt'),
-t6x: gi('cfg_t6x'), t6y: gi('cfg_t6y'), t6s: gi('cfg_t6s'),
-color_t1: gv('cfg_color_t1'), color_t2: gv('cfg_color_t2'), color_t3: gv('cfg_color_t3'),
-color_t4: gv('cfg_color_t4'), color_t5: gv('cfg_color_t5'), color_t6: gv('cfg_color_t6'),
-font_t1: gv('cfg_font_t1'), font_t2: gv('cfg_font_t2'), font_t3: gv('cfg_font_t3'),
-font_t4: gv('cfg_font_t4'), font_t5: gv('cfg_font_t5'), font_t6: gv('cfg_font_t6')
-};
-localStorage.setItem('hc_pdf_v3', JSON.stringify(data));
-mostrarToast("✅ Diseño de Ticket guardado", "success");
-cerrarModales();
-};
-
-window.abrirEditorWA = () => {
-document.getElementById('cfg_wa_msg').value = leerMsgWA();
-document.getElementById('modalWA').style.display = 'flex';
-};
-window.guardarConfigWA = () => {
-const msg = document.getElementById('cfg_wa_msg').value;
-if (!msg.trim()) return mostrarToast("⚠️ El mensaje no puede estar vacío", "warning");
-localStorage.setItem('hc_wa_v3', msg);
-mostrarToast("✅ Mensaje guardado", "success");
-cerrarModales();
-};
-window.cerrarModales = () => {
-document.getElementById('modalPDF').style.display = 'none';
-document.getElementById('modalWA').style.display  = 'none';
-document.getElementById('modal-clave').style.display = 'none';
-};
-
-window.enviarEmailGanador = async (nombre, premio, comercio, email) => {
-if (!email) {
-mostrarToast("⚠️ Este ganador no tiene email registrado", "warning");
-return;
-}
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwWqItLbuGollI4F6OBDrHHoWwrvSJz88CWp1Wutt5hPWbqPUaATtIxVVv-wHOu3DGLbQ/exec";
-const payload = {
-email: email,
-asunto: `¡Felicitaciones! Ganaste en ${comercio}`,
-cuerpoHtml: `<h2>¡FELICITACIONES ${nombre}!</h2><p>Has resultado ganador del sorteo de <strong>${premio}</strong> en <strong>${comercio}</strong>.</p><p>Comunícate con el comercio para reclamar tu premio.</p><br><p>Saludos,<br>Equipo Hábitat-Car</p>`,
-cc: ''
-};
-try {
-await fetch(GAS_URL, {
-method: 'POST',
-mode: 'no-cors',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify(payload)
-});
-mostrarToast(`📧 Email enviado a ${email}`, "success");
-} catch(error) {
-console.error("Error enviando email:", error);
-mostrarToast("⚠️ No se pudo enviar el email", "warning");
-}
-};
-
-const enviarEmailAutomatico = async (ganadores, comercio, premio) => {
-const GAS_URL = "https://script.google.com/macros/s/AKfycbwWqItLbuGollI4F6OBDrHHoWwrvSJz88CWp1Wutt5hPWbqPUaATtIxVVv-wHOu3DGLbQ/exec";
-for (const g of ganadores) {
-if (g.email) {
-const payload = {
-email: g.email,
-asunto: `¡Felicitaciones! Ganaste en ${comercio}`,
-cuerpoHtml: `<h2>¡FELICITACIONES ${g.nombreMostrar}!</h2><p>Has resultado ganador del sorteo de <strong>${premio}</strong> en <strong>${comercio}</strong>.</p><p>Comunícate con el comercio para reclamar tu premio.</p><br><p>Saludos,<br>Equipo Hábitat-Car</p>`,
-cc: 'habitatcar@gmail.com'
-};
-try {
-await fetch(GAS_URL, {
-method: 'POST',
-mode: 'no-cors',
-headers: { 'Content-Type': 'application/json' },
-body: JSON.stringify(payload)
-});
-console.log(`✅ Email enviado a ${g.email}`);
-} catch(e) {
-console.error(`❌ Error enviando email a ${g.email}:`, e);
-}
-}
-}
-};
-
-const limpiarParticipantesSorteo = async (nombreComercio) => {
-try {
-const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nombreComercio));
-const snapshot = await getDocs(q);
-const batch = writeBatch(db);
-snapshot.docs.forEach(doc => { batch.delete(doc.ref); });
-await batch.commit();
-console.log(`✅ Participantes de ${nombreComercio} eliminados`);
-} catch (error) {
-console.error("Error limpiando participantes:", error);
-}
-};
-
+// ============================================
+// FUNCIONES PRINCIPALES (CORREGIDAS)
+// ============================================
 const verificarSorteosAutomaticos = async () => {
-try {
-const ahora = Date.now();
-const q = query(collection(db, "comercios"), where("titulo_sorteo", "!=", null));
-const snap = await getDocs(q);
-for (const doc of snap.docs) {
-const c = doc.data();
-const comercioId = doc.id;
-if (!c.titulo_sorteo) continue;
-if (!c.fecha_sorteo) continue;
-const ts = new Date(c.fecha_sorteo).getTime();
-if (ts <= ahora) {
-const historialQuery = query(collection(db, "historial_sorteos"), where("comercio", "==", c.nombre), where("premio", "==", c.titulo_sorteo));
-const historialSnap = await getDocs(historialQuery);
-if (historialSnap.empty && !ultimaEjecucion[comercioId]) {
-ultimaEjecucion[comercioId] = true;
-console.log(`⏰ Ejecutando sorteo automático de ${c.nombre}`);
-const cantPremios = parseInt(c.cantidad_premios) || 1;
-await ejecutarSorteo(doc.id, c.nombre, c.titulo_sorteo, cantPremios, c.emailDueno || '', c.logoUrl || '', c.descripcion_sorteo || '', true);
-setTimeout(() => { delete ultimaEjecucion[comercioId]; }, 5000);
-}
-}
-}
-} catch (e) {
-console.error("Error verificando sorteos automáticos:", e);
-}
-};
-
-window.mostrarConfirmacionSorteo = (total, ganadores, comercio) => {
-document.getElementById('lista-ganadores-popup').innerHTML = ganadores.map((g, index) => {
-const badge = g.tipo==="VIP" ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>` : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
-let numeroPremio = "";
-if (ganadores.length === 1) {
-numeroPremio = "🏆 Ganador";
-} else {
-const sufijos = ["º", "º", "º", "º", "º"];
-numeroPremio = `${index + 1}${sufijos[index] || "º"} Premio`;
-}
-return `<div style="background:#f8f9fa;border-left:4px solid var(--dorado);padding:12px;margin:8px 0;border-radius:8px;">
-<div style="display:flex;justify-content:space-between;align-items:center;"><span style="font-weight:bold;"><i class="fas fa-trophy" style="color:var(--dorado);margin-right:5px;"></i>${g.nombreMostrar}</span><span><span class="badge" style="background:var(--dorado); color:white;">${numeroPremio}</span> ${badge}</span></div>
-<small style="color:#666;display:block;margin-top:5px;"><i class="fab fa-whatsapp"></i> ${g.celular||'Sin teléfono'} | <i class="fas fa-envelope"></i> ${g.email||'Sin email'}</small>
-</div>`;
-}).join('');
-document.getElementById('texto-sorteo').innerText = `Sorteo de ${comercio}: ${ganadores.length} ganador(es) entre ${total} participantes.`;
-document.getElementById('popup-confirmacion').style.display = 'flex';
-};
-window.cerrarModalSorteo = () => document.getElementById('popup-confirmacion').style.display = 'none';
-window.irAlHistorial = () => { cerrarModalSorteo(); mostrarHistorial(); };
-
-window.itemsSeleccionados = new Set();
-window.vistaActual = 'activos';
-window.toggleSelectAll = () => {
-const sa = document.getElementById('select-all');
-document.querySelectorAll('.row-checkbox').forEach(cb => {
-cb.checked = sa.checked;
-sa.checked ? window.itemsSeleccionados.add(cb.dataset.id) : window.itemsSeleccionados.delete(cb.dataset.id);
-});
-actualizarBulkActions();
-};
-window.actualizarBulkActions = () => {
-const bulk = document.getElementById('bulk-actions');
-if (window.itemsSeleccionados.size > 0) {
-bulk.classList.add('active');
-document.getElementById('selected-count').textContent = window.itemsSeleccionados.size;
-document.getElementById('select-all').checked = window.itemsSeleccionados.size === document.querySelectorAll('.row-checkbox').length;
-const btnEliminar = bulk.querySelector('.btn-danger');
-if (btnEliminar) {
-if (window.vistaActual === 'activos') {
-btnEliminar.innerHTML = '<i class="fas fa-trash"></i> ELIMINAR SORTEOS';
-btnEliminar.onclick = eliminarSeleccionadosActivos;
-} else {
-btnEliminar.innerHTML = '<i class="fas fa-trash"></i> ELIMINAR DEL HISTORIAL';
-btnEliminar.onclick = eliminarSeleccionados;
-}
-}
-} else {
-bulk.classList.remove('active');
-document.getElementById('select-all').checked = false;
-}
-};
-window.toggleSeleccion = (id, cb) => { cb.checked ? window.itemsSeleccionados.add(id) : window.itemsSeleccionados.delete(id); actualizarBulkActions(); };
-window.eliminarSeleccionados = async () => {
-if (!window.itemsSeleccionados.size) return mostrarToast("⚠️ No hay items seleccionados","warning");
-if (!confirm(`¿Eliminar ${window.itemsSeleccionados.size} registro(s) del historial?`)) return;
-mostrarToast("🗑️ Eliminando...","warning");
-try {
-await Promise.all([...window.itemsSeleccionados].map(id => deleteDoc(doc(db,"historial_sorteos",id))));
-mostrarToast(`✅ ${window.itemsSeleccionados.size} eliminado(s)`,"success");
-window.itemsSeleccionados.clear(); actualizarBulkActions(); mostrarHistorial();
-actualizarEstadisticas();
-} catch(e) { mostrarToast("❌ Error","error"); }
-};
-window.desmarcarTodos = () => {
-window.itemsSeleccionados.clear();
-document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked=false);
-document.getElementById('select-all').checked=false; actualizarBulkActions();
-};
-window.eliminarIndividual = async (id, btn) => {
-if (!confirm('¿Eliminar este registro del historial?')) return;
-const orig=btn.innerHTML; btn.disabled=true; btn.innerHTML="⏳";
-try { await deleteDoc(doc(db,"historial_sorteos",id)); mostrarToast("✅ Eliminado","success"); mostrarHistorial(); actualizarEstadisticas(); }
-catch(e) { mostrarToast("❌ Error","error"); btn.disabled=false; btn.innerHTML=orig; }
-};
-
-window.eliminarSeleccionadosActivos = async () => {
-if (!window.itemsSeleccionados.size) { mostrarToast("⚠️ No hay items seleccionados", "warning"); return; }
-if (!confirm(`¿Eliminar ${window.itemsSeleccionados.size} sorteo(s) seleccionado(s)?`)) return;
-mostrarToast("🗑️ Eliminando...", "warning");
-let exitosos = 0, errores = 0;
-for (const id of window.itemsSeleccionados) {
-try {
-await updateDoc(doc(db, "comercios", id), { titulo_sorteo: null, descripcion_sorteo: null, fecha_sorteo: null });
-exitosos++;
-} catch (e) { errores++; }
-}
-window.itemsSeleccionados.clear();
-actualizarBulkActions();
-mostrarToast(`✅ ${exitosos} eliminados, ${errores} errores`, exitosos > 0 ? "success" : "error");
-cargarActivos();
-};
-
-window.iniciarRelojes = () => {
-setInterval(() => {
-document.querySelectorAll('.btn-sortear-accion:not(.finalizado)').forEach(btn => {
-if (btn.disabled) return;
-const ts=parseInt(btn.dataset.timestamp), f=ts-Date.now();
-if (f>0) {
-const d=Math.floor(f/86400000),h=Math.floor((f%86400000)/3600000),m=Math.floor((f%3600000)/60000),s=Math.floor((f%60000)/1000);
-btn.innerHTML=`⏳ ${d}d ${h}h ${m}m ${s}s`; 
-btn.classList.add('btn-dark'); 
-btn.classList.remove('btn-primary');
-} else { 
-btn.innerHTML=`🎲 SORTEAR AHORA`; 
-btn.classList.remove('btn-dark'); 
-btn.classList.add('btn-primary');
-}
-});
-},1000);
-};
-
-window.intentarSorteo = async (btn) => {
-if (btn.disabled) return;
-const tr = btn.closest('tr');
-if (tr?.classList.contains('finalizado')) {
-mostrarToast("🔒 Sorteo ya finalizado", "warning");
-return;
-}
-const ts = parseInt(btn.dataset.timestamp);
-const ahora = Date.now();
-if (btn.classList.contains('btn-dark')) {
-mostrarToast("⏳ El sorteo aún no está disponible. Esperá a que termine la cuenta regresiva.", "warning");
-return;
-}
-if (btn.classList.contains('btn-primary')) {
-const idComercio = btn.dataset.id;
-const nombreComercio = btn.dataset.nombre;
-const premio = btn.dataset.premio;
-const desc = btn.dataset.desc;
-const logoUrl = btn.dataset.logo;
-const mailC = btn.dataset.mail;
-const comercioSnap = await getDoc(doc(db, "comercios", idComercio));
-const cantPremios = comercioSnap.exists() ? parseInt(comercioSnap.data().cantidad_premios) || 1 : 1;
-await ejecutarSorteo(idComercio, nombreComercio, premio, cantPremios, mailC, logoUrl, desc, false);
-}
+    try {
+        const ahora = Date.now();
+        const q = query(collection(db, "comercios"), where("titulo_sorteo", "!=", null));
+        const snap = await getDocs(q);
+        for (const doc of snap.docs) {
+            const c = doc.data();
+            const comercioId = doc.id;
+            if (!c.titulo_sorteo) continue;
+            if (!c.fecha_sorteo) continue;
+            const ts = new Date(c.fecha_sorteo).getTime();
+            if (ts <= ahora) {
+                const historialQuery = query(collection(db, "historial_sorteos"), where("comercio", "==", c.nombre), where("premio", "==", c.titulo_sorteo));
+                const historialSnap = await getDocs(historialQuery);
+                if (!historialSnap.empty) {
+                    if (!ultimaEjecucion[comercioId]) ultimaEjecucion[comercioId] = 'completado';
+                    continue;
+                }
+                if (ultimaEjecucion[comercioId] === 'fallido' && (Date.now() - (ultimaEjecucion[comercioId + '_time'] || 0)) < 300000) continue;
+                const participantesQuery = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", c.nombre));
+                const participantesSnap = await getDocs(participantesQuery);
+                if (participantesSnap.empty) {
+                    if (!ultimaEjecucion[comercioId]) {
+                        console.log(`ℹ️ Sorteo automático de ${c.nombre} sin participantes. No se ejecuta.`);
+                        ultimaEjecucion[comercioId] = 'fallido';
+                        ultimaEjecucion[comercioId + '_time'] = Date.now();
+                    }
+                    continue;
+                }
+                if (!ultimaEjecucion[comercioId] || ultimaEjecucion[comercioId] === 'fallido') {
+                    ultimaEjecucion[comercioId] = 'ejecutando';
+                    console.log(`⏰ Ejecutando sorteo automático de ${c.nombre}`);
+                    const cantPremios = parseInt(c.cantidad_premios) || 1;
+                    try {
+                        await ejecutarSorteo(doc.id, c.nombre, c.titulo_sorteo, cantPremios, c.emailDueno || '', c.logoUrl || '', c.descripcion_sorteo || '', true);
+                        ultimaEjecucion[comercioId] = 'completado';
+                    } catch (error) {
+                        console.error(`❌ Error en sorteo automático de ${c.nombre}:`, error);
+                        ultimaEjecucion[comercioId] = 'fallido';
+                        ultimaEjecucion[comercioId + '_time'] = Date.now();
+                    }
+                    setTimeout(() => {
+                        if (ultimaEjecucion[comercioId] === 'ejecutando' || ultimaEjecucion[comercioId] === 'completado') {
+                            delete ultimaEjecucion[comercioId];
+                            delete ultimaEjecucion[comercioId + '_time'];
+                        }
+                    }, 300000);
+                }
+            }
+        }
+    } catch (e) { console.error("Error verificando sorteos automáticos:", e); }
 };
 
 const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc, esAutomatico = false) => {
-mostrarToast(`🎲 Procesando sorteo ${esAutomatico ? 'automático' : 'manual'} para ${nomCom}...`, "warning");
-try {
-const historialQuery = query(collection(db, "historial_sorteos"), where("comercio", "==", nomCom), where("premio", "==", premio));
-const historialSnap = await getDocs(historialQuery);
-if (!historialSnap.empty) {
-mostrarToast("🔒 Este sorteo ya fue realizado", "warning");
-return;
-}
-const snapP = await getDocs(query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom)));
-let participantes = [];
-for (const d of snapP.docs) {
-const p = d.data();
-let nom = p.nombre || "Participante";
-let cel = p.celular || p.whatsapp || "S/D";
-let tipo = p.tipo || "LEAD";
-let email = p.email || "";
-let provincia = p.provincia || "";
-let localidad = p.localidad || "";
-if (p.usuarioId && !p.usuarioId.startsWith('temp_')) {
-try {
-const ld = await getDoc(doc(db, "leads", p.usuarioId));
-if (ld.exists()) {
-const l = ld.data();
-nom = `${l.nombres || ''} ${l.apellido || ''}`.trim() || nom;
-cel = l.whatsapp || l.celular || cel;
-tipo = (l.convertidoVIP || l.tipo === "VIP") ? "VIP" : "LEAD";
-email = l.email || email;
-provincia = l.provincia || provincia;
-localidad = l.localidad || localidad;
-}
-} catch (e) {}
-}
-participantes.push({ ...p, nombreMostrar: nom, celular: cel, tipo, email, provincia, localidad });
-}
-if (!participantes.length) {
-mostrarToast("⚠️ Sin participantes para sortear", "error");
-return;
-}
-let ganadores = [];
-let bolsa = [...participantes];
-for (let i = 0; i < Math.min(cant, bolsa.length); i++) {
-const idx = Math.floor(Math.random() * bolsa.length);
-ganadores.push(bolsa.splice(idx, 1)[0]);
-}
-const ganadoresConNumero = ganadores.map((g, index) => {
-let numeroPremio = "";
-if (cant === 1) { numeroPremio = "Ganador"; } else {
-const sufijos = ["º", "º", "º", "º", "º"];
-numeroPremio = `${index + 1}${sufijos[index] || "º"} Premio`;
-}
-return { ...g, numeroPremio };
-});
-await addDoc(collection(db, "historial_sorteos"), {
-comercio: nomCom, premio, descripcion_sorteo: desc || "", logoUrl: logoUrl || "",
-ganadores: ganadoresConNumero, fecha: serverTimestamp(), mailComercio: mailC || 'habitatcar@gmail.com',
-timestampProgramado: Date.now(), tipo_sorteo: esAutomatico ? 'automático' : 'manual', comercioId: idCom
-});
-await limpiarParticipantesSorteo(nomCom);
-await enviarEmailAutomatico(ganadoresConNumero, nomCom, premio);
-const comercioSnap = await getDoc(doc(db, "comercios", idCom));
-if (comercioSnap.exists()) {
-const comercio = comercioSnap.data();
-if (comercio.telefono) {
-const mensajeComercio = `🎉 Sorteo ${esAutomatico ? 'AUTOMÁTICO' : 'MANUAL'} realizado para ${comercio.nombre}\nGanadores: ${ganadores.length}\n🏆 Premio: ${premio}\n📱 Los participantes han sido limpiados.`;
-const num = window.normalizarTelefonoAR(comercio.telefono);
-if (num) { window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeComercio)}`, '_blank'); }
-}
-}
-mostrarToast(`✅ Sorteo exitoso - ${ganadores.length} ganador(es)`, "success");
-mostrarConfirmacionSorteo(participantes.length, ganadoresConNumero, nomCom);
-actualizarEstadisticas();
-cargarActivos();
-} catch (e) {
-console.error("Error en sorteo:", e);
-mostrarToast("❌ Error en el sorteo", "error");
-}
+    if (!esAutomatico) mostrarToast(`🎲 Procesando sorteo manual para ${nomCom}...`, "warning");
+    try {
+        const historialQuery = query(collection(db, "historial_sorteos"), where("comercio", "==", nomCom), where("premio", "==", premio));
+        const historialSnap = await getDocs(historialQuery);
+        if (!historialSnap.empty) { if (!esAutomatico) mostrarToast("🔒 Este sorteo ya fue realizado", "warning"); return; }
+        const snapP = await getDocs(query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom)));
+        let participantes = [];
+        for (const d of snapP.docs) {
+            const p = d.data();
+            let nom = p.nombre || "Participante";
+            let cel = p.celular || p.whatsapp || "S/D";
+            let tipo = p.tipo || "LEAD";
+            let email = p.email || "";
+            if (p.usuarioId && !p.usuarioId.startsWith('temp_')) {
+                try {
+                    const ld = await getDoc(doc(db, "leads", p.usuarioId));
+                    if (ld.exists()) {
+                        const l = ld.data();
+                        nom = `${l.nombres || ''} ${l.apellido || ''}`.trim() || nom;
+                        cel = l.whatsapp || l.celular || cel;
+                        tipo = (l.convertidoVIP || l.tipo === "VIP") ? "VIP" : "LEAD";
+                        email = l.email || email;
+                    }
+                } catch (e) {}
+            }
+            participantes.push({ ...p, nombreMostrar: nom, celular: cel, tipo, email });
+        }
+        if (!participantes.length) {
+            if (!esAutomatico) mostrarToast("⚠️ Sin participantes para sortear", "error");
+            else console.log(`ℹ️ Sorteo automático de ${nomCom} sin participantes. No se ejecuta.`);
+            return;
+        }
+        let ganadores = [];
+        let bolsa = [...participantes];
+        for (let i = 0; i < Math.min(cant, bolsa.length); i++) {
+            const idx = Math.floor(Math.random() * bolsa.length);
+            ganadores.push(bolsa.splice(idx, 1)[0]);
+        }
+        const ganadoresConNumero = ganadores.map((g, index) => {
+            let numeroPremio = "";
+            if (cant === 1) numeroPremio = "Ganador";
+            else { const sufijos = ["º", "º", "º", "º", "º"]; numeroPremio = `${index + 1}${sufijos[index] || "º"} Premio`; }
+            return { ...g, numeroPremio };
+        });
+        await addDoc(collection(db, "historial_sorteos"), {
+            comercio: nomCom, premio, descripcion_sorteo: desc || "", logoUrl: logoUrl || "",
+            ganadores: ganadoresConNumero, fecha: serverTimestamp(), mailComercio: mailC || 'habitatcar@gmail.com',
+            timestampProgramado: Date.now(), tipo_sorteo: esAutomatico ? 'automático' : 'manual', comercioId: idCom
+        });
+        await limpiarParticipantesSorteo(nomCom);
+        await enviarEmailAutomatico(ganadoresConNumero, nomCom, premio);
+        if (!esAutomatico) {
+            mostrarToast(`✅ Sorteo exitoso - ${ganadores.length} ganador(es)`, "success");
+            mostrarConfirmacionSorteo(participantes.length, ganadoresConNumero, nomCom);
+        }
+        actualizarEstadisticas();
+        cargarActivos();
+    } catch (e) { console.error("Error en sorteo:", e); if (!esAutomatico) mostrarToast("❌ Error en el sorteo", "error"); }
+};
+
+const limpiarParticipantesSorteo = async (nombreComercio) => {
+    try {
+        const q = query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nombreComercio));
+        const snapshot = await getDocs(q);
+        const batch = writeBatch(db);
+        snapshot.docs.forEach(doc => { batch.delete(doc.ref); });
+        await batch.commit();
+        console.log(`✅ Participantes de ${nombreComercio} eliminados`);
+    } catch (error) { console.error("Error limpiando participantes:", error); }
+};
+
+const enviarEmailAutomatico = async (ganadores, comercio, premio) => {
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwWqItLbuGollI4F6OBDrHHoWwrvSJz88CWp1Wutt5hPWbqPUaATtIxVVv-wHOu3DGLbQ/exec";
+    for (const g of ganadores) {
+        if (g.email) {
+            const payload = {
+                email: g.email,
+                asunto: `¡Felicitaciones! Ganaste en ${comercio}`,
+                cuerpoHtml: `<h2>¡FELICITACIONES ${g.nombreMostrar}!</h2><p>Has resultado ganador del sorteo de <strong>${premio}</strong> en <strong>${comercio}</strong>.</p><p>Comunícate con el comercio para reclamar tu premio.</p><br><p>Saludos,<br>Equipo Hábitat-Car</p>`,
+                cc: 'habitatcar@gmail.com'
+            };
+            try {
+                await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                console.log(`✅ Email enviado a ${g.email}`);
+            } catch(e) { console.error(`❌ Error enviando email a ${g.email}:`, e); }
+        }
+    }
+};
+
+const actualizarEstadisticas = async () => {
+    try {
+        const snap = await getDocs(collection(db, "historial_sorteos"));
+        let totalGanadores = 0;
+        let comercioCount = {};
+        let participantesSet = new Set();
+        snap.docs.forEach(doc => {
+            const h = doc.data();
+            if (h.ganadores) {
+                totalGanadores += h.ganadores.length;
+                h.ganadores.forEach(g => { if (g.celular) participantesSet.add(g.celular); });
+            }
+            if (h.comercio) comercioCount[h.comercio] = (comercioCount[h.comercio] || 0) + (h.ganadores?.length || 0);
+        });
+        let topComercio = '-';
+        let maxGanadores = 0;
+        for (const [comercio, count] of Object.entries(comercioCount)) if (count > maxGanadores) { maxGanadores = count; topComercio = comercio; }
+        document.getElementById('stat-total').textContent = snap.size;
+        document.getElementById('stat-ganadores').textContent = totalGanadores;
+        document.getElementById('stat-top').textContent = topComercio;
+        document.getElementById('stat-participantes').textContent = participantesSet.size;
+    } catch(e) { console.error("Error actualizando estadísticas:", e); }
+};
+
+// ============================================
+// FUNCIONES DE UI (Mantener igual que el original)
+// ============================================
+window.mostrarToast = (msg, tipo = "success") => {
+    const d = document.createElement('div');
+    d.className = `toast ${tipo}`;
+    d.innerText = msg;
+    document.body.appendChild(d);
+    setTimeout(() => d.remove(), 3500);
+};
+window.normalizarTelefonoAR = n => { if (!n) return null; let s = n.toString().replace(/\D/g,''); if (s.length===10) return '549'+s; if (s.startsWith('54')&&!s.startsWith('549')) return '549'+s.substring(2); return s.startsWith('549')?s:'549'+s; };
+window.mostrarConfirmacionSorteo = (total, ganadores, comercio) => {
+    document.getElementById('lista-ganadores-popup').innerHTML = ganadores.map((g, index) => {
+        const badge = g.tipo==="VIP" ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>` : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
+        let numeroPremio = "";
+        if (ganadores.length === 1) numeroPremio = "🏆 Ganador";
+        else { const sufijos = ["º", "º", "º", "º", "º"]; numeroPremio = `${index + 1}${sufijos[index] || "º"} Premio`; }
+        return `<div style="background:#f8f9fa;border-left:4px solid var(--dorado);padding:12px;margin:8px 0;border-radius:8px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+                <span style="font-weight:bold;"><i class="fas fa-trophy" style="color:var(--dorado);margin-right:5px;"></i>${g.nombreMostrar}</span>
+                <span><span class="badge" style="background:var(--dorado); color:white;">${numeroPremio}</span> ${badge}</span>
+            </div>
+            <small style="color:#666;display:block;margin-top:5px;"><i class="fab fa-whatsapp"></i> ${g.celular||'Sin teléfono'} | <i class="fas fa-envelope"></i> ${g.email||'Sin email'}</small>
+        </div>`;
+    }).join('');
+    document.getElementById('texto-sorteo').innerText = `Sorteo de ${comercio}: ${ganadores.length} ganador(es) entre ${total} participantes.`;
+    document.getElementById('popup-confirmacion').style.display = 'flex';
+};
+window.cerrarModalSorteo = () => document.getElementById('popup-confirmacion').style.display = 'none';
+window.irAlHistorial = () => { window.cerrarModalSorteo(); window.mostrarHistorial(); };
+window.toggleSelectAll = () => {
+    const sa = document.getElementById('select-all');
+    document.querySelectorAll('.row-checkbox').forEach(cb => {
+        cb.checked = sa.checked;
+        sa.checked ? window.itemsSeleccionados.add(cb.dataset.id) : window.itemsSeleccionados.delete(cb.dataset.id);
+    });
+    window.actualizarBulkActions();
+};
+window.toggleSeleccion = (id, cb) => { cb.checked ? window.itemsSeleccionados.add(id) : window.itemsSeleccionados.delete(id); window.actualizarBulkActions(); };
+window.actualizarBulkActions = () => {
+    const bulk = document.getElementById('bulk-actions');
+    if (window.itemsSeleccionados.size > 0) {
+        bulk.classList.add('active');
+        document.getElementById('selected-count').textContent = window.itemsSeleccionados.size;
+        document.getElementById('select-all').checked = window.itemsSeleccionados.size === document.querySelectorAll('.row-checkbox').length;
+        const btnEliminar = bulk.querySelector('.btn-danger');
+        if (btnEliminar) {
+            if (window.vistaActual === 'activos') {
+                btnEliminar.innerHTML = '<i class="fas fa-trash"></i> ELIMINAR SORTEOS';
+                btnEliminar.onclick = window.eliminarSeleccionadosActivos;
+            } else {
+                btnEliminar.innerHTML = '<i class="fas fa-trash"></i> ELIMINAR DEL HISTORIAL';
+                btnEliminar.onclick = window.eliminarSeleccionados;
+            }
+        }
+    } else { bulk.classList.remove('active'); document.getElementById('select-all').checked = false; }
+};
+window.itemsSeleccionados = new Set();
+window.vistaActual = 'activos';
+window.desmarcarTodos = () => { window.itemsSeleccionados.clear(); document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked=false); document.getElementById('select-all').checked=false; window.actualizarBulkActions(); };
+window.eliminarSeleccionados = async () => {
+    if (!window.itemsSeleccionados.size) return window.mostrarToast("⚠️ No hay items seleccionados","warning");
+    if (!confirm(`¿Eliminar ${window.itemsSeleccionados.size} registro(s) del historial?`)) return;
+    window.mostrarToast("🗑️ Eliminando...","warning");
+    try {
+        await Promise.all([...window.itemsSeleccionados].map(id => deleteDoc(doc(db,"historial_sorteos",id))));
+        window.mostrarToast(`✅ ${window.itemsSeleccionados.size} eliminado(s)`,"success");
+        window.itemsSeleccionados.clear(); window.actualizarBulkActions(); window.mostrarHistorial();
+        actualizarEstadisticas();
+    } catch(e) { window.mostrarToast("❌ Error","error"); }
+};
+window.eliminarIndividual = async (id, btn) => {
+    if (!confirm('¿Eliminar este registro del historial?')) return;
+    const orig=btn.innerHTML; btn.disabled=true; btn.innerHTML="⏳";
+    try { await deleteDoc(doc(db,"historial_sorteos",id)); window.mostrarToast("✅ Eliminado","success"); window.mostrarHistorial(); actualizarEstadisticas(); }
+    catch(e) { window.mostrarToast("❌ Error","error"); btn.disabled=false; btn.innerHTML=orig; }
+};
+window.eliminarSeleccionadosActivos = async () => {
+    if (!window.itemsSeleccionados.size) { window.mostrarToast("⚠️ No hay items seleccionados", "warning"); return; }
+    if (!confirm(`¿Eliminar ${window.itemsSeleccionados.size} sorteo(s) seleccionado(s)?`)) return;
+    window.mostrarToast("🗑️ Eliminando...", "warning");
+    let exitosos = 0, errores = 0;
+    for (const id of window.itemsSeleccionados) {
+        try {
+            await updateDoc(doc(db, "comercios", id), { titulo_sorteo: null, descripcion_sorteo: null, fecha_sorteo: null });
+            exitosos++;
+        } catch (e) { errores++; }
+    }
+    window.itemsSeleccionados.clear();
+    window.actualizarBulkActions();
+    window.mostrarToast(`✅ ${exitosos} eliminados, ${errores} errores`, exitosos > 0 ? "success" : "error");
+    window.cargarActivos();
+};
+
+window.iniciarRelojes = () => {
+    setInterval(() => {
+        document.querySelectorAll('.btn-sortear-accion:not(.finalizado)').forEach(btn => {
+            if (btn.disabled) return;
+            const ts=parseInt(btn.dataset.timestamp), f=ts-Date.now();
+            if (f>0) {
+                const d=Math.floor(f/86400000),h=Math.floor((f%86400000)/3600000),m=Math.floor((f%3600000)/60000),s=Math.floor((f%60000)/1000);
+                btn.innerHTML=`⏳ ${d}d ${h}h ${m}m ${s}s`; 
+                btn.classList.add('btn-dark'); 
+                btn.classList.remove('btn-primary');
+            } else { 
+                btn.innerHTML=`🎲 SORTEAR AHORA`; 
+                btn.classList.remove('btn-dark'); 
+                btn.classList.add('btn-primary');
+            }
+        });
+    },1000);
+};
+
+window.intentarSorteo = async (btn) => {
+    if (btn.disabled) return;
+    const tr = btn.closest('tr');
+    if (tr?.classList.contains('finalizado')) { window.mostrarToast("🔒 Sorteo ya finalizado", "warning"); return; }
+    const ts = parseInt(btn.dataset.timestamp);
+    if (btn.classList.contains('btn-dark')) { window.mostrarToast("⏳ El sorteo aún no está disponible. Esperá a que termine la cuenta regresiva.", "warning"); return; }
+    if (btn.classList.contains('btn-primary')) {
+        const idComercio = btn.dataset.id, nombreComercio = btn.dataset.nombre, premio = btn.dataset.premio, desc = btn.dataset.desc, logoUrl = btn.dataset.logo, mailC = btn.dataset.mail;
+        const comercioSnap = await getDoc(doc(db, "comercios", idComercio));
+        const cantPremios = comercioSnap.exists() ? parseInt(comercioSnap.data().cantidad_premios) || 1 : 1;
+        await ejecutarSorteo(idComercio, nombreComercio, premio, cantPremios, mailC, logoUrl, desc, false);
+    }
 };
 
 window.intentarEliminarSorteo = async (idComercio, fechaSorteo) => {
-const ts = fechaSorteo ? new Date(fechaSorteo).getTime() : Date.now();
-const dh = (ts - Date.now()) / 3600000;
-let mensaje;
-if (dh < 24 && dh > 0) {
-mensaje = "⚠️ ZONA CRÍTICA: Faltan menos de 24hs\nSolo la CLAVE MAESTRA puede cancelar este sorteo.\nIngrese la clave:";
-} else {
-mensaje = "Ingrese CLAVE DE COMERCIO o MAESTRA para eliminar:";
-}
-abrirModalClave(mensaje, async (clave) => {
-if (!clave) return false;
-const valida = await validarAccionSegura(idComercio, clave);
-if (!valida) {
-mostrarToast("❌ Contraseña incorrecta", "error");
-return false;
-}
-if (dh < 24 && dh > 0 && clave !== CLAVE_MAESTRA) {
-mostrarToast("❌ Solo Admin puede cancelar sorteos inminentes", "error");
-return false;
-}
-try {
-await updateDoc(doc(db, "comercios", idComercio), { titulo_sorteo: null, descripcion_sorteo: null, fecha_sorteo: null });
-mostrarToast("🗑️ Sorteo cancelado", "success");
-cargarActivos();
-return true;
-} catch (e) {
-mostrarToast("❌ Error", "error");
-return false;
-}
-});
+    const ts = fechaSorteo ? new Date(fechaSorteo).getTime() : Date.now();
+    const dh = (ts - Date.now()) / 3600000;
+    let mensaje;
+    if (dh < 24 && dh > 0) mensaje = "⚠️ ZONA CRÍTICA: Faltan menos de 24hs\nSolo la CLAVE MAESTRA puede cancelar este sorteo.\nIngrese la clave:";
+    else mensaje = "Ingrese CLAVE DE COMERCIO o MAESTRA para eliminar:";
+    window.abrirModalClave(mensaje, async (clave) => {
+        if (!clave) return false;
+        const valida = await window.validarAccionSegura(idComercio, clave);
+        if (!valida) { window.mostrarToast("❌ Contraseña incorrecta", "error"); return false; }
+        if (dh < 24 && dh > 0 && clave !== CLAVE_MAESTRA) { window.mostrarToast("❌ Solo Admin puede cancelar sorteos inminentes", "error"); return false; }
+        try {
+            await updateDoc(doc(db, "comercios", idComercio), { titulo_sorteo: null, descripcion_sorteo: null, fecha_sorteo: null });
+            window.mostrarToast("🗑️ Sorteo cancelado", "success");
+            window.cargarActivos();
+            return true;
+        } catch (e) { window.mostrarToast("❌ Error", "error"); return false; }
+    });
 };
 
-const cargarActivos = () => {
-window.vistaActual = 'activos';
-window.itemsSeleccionados.clear();
-actualizarBulkActions();
-document.getElementById('header-checkbox').style.display = 'table-cell';
-const tabla = document.getElementById('tabla-sorteos');
-tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando sorteos...</td></tr>';
-if (listenerActivos) listenerActivos();
-listenerActivos = onSnapshot(collection(db, "comercios"), async (snap) => {
-tabla.innerHTML = "";
-const ahora = Date.now();
-const comerciosArray = [];
-snap.forEach(doc => {
-const data = doc.data();
-if (data.titulo_sorteo) { comerciosArray.push({ id: doc.id, data: data }); }
-});
-const historialSnap = await getDocs(collection(db, "historial_sorteos"));
-const sorteosEjecutados = new Set();
-historialSnap.docs.forEach(doc => {
-const h = doc.data();
-if (h.ganadores && h.ganadores.length > 0) { sorteosEjecutados.add(`${h.comercio}|${h.premio}`); }
-});
-comerciosArray.sort((a, b) => {
-const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
-const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
-const ejecutadoA = sorteosEjecutados.has(`${a.data.nombre}|${a.data.titulo_sorteo}`);
-const ejecutadoB = sorteosEjecutados.has(`${b.data.nombre}|${b.data.titulo_sorteo}`);
-if (!ejecutadoA && !ejecutadoB) return fechaA - fechaB;
-if (!ejecutadoA && ejecutadoB) return -1;
-if (ejecutadoA && !ejecutadoB) return 1;
-return fechaB - fechaA;
-});
-if (comerciosArray.length === 0) {
-tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#666;">📭 No hay sorteos activos</td></tr>';
-return;
-}
-for (const { id: docId, data: c } of comerciosArray) {
-const nomCom = c.nombre || "Sin nombre";
-const premio = c.titulo_sorteo;
-const descPremio = c.descripcion_sorteo || "";
-const fechaISO = c.fecha_sorteo || "";
-const ts = fechaISO ? new Date(fechaISO).getTime() : Date.now();
-const mailC = c.emailDueno || '';
-const cantPremios = parseInt(c.cantidad_premios) || 1;
-const enHistorial = sorteosEjecutados.has(`${nomCom}|${premio}`);
-const fechaPasada = ts < ahora;
-const ejecutado = enHistorial && fechaPasada;
-let cL = 0, cV = 0;
-try {
-const snapP = await getDocs(query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom)));
-await Promise.all(snapP.docs.map(async p => {
-const pd = p.data();
-if (pd.usuarioId && !pd.usuarioId.startsWith('temp_')) {
-try {
-const ld = await getDoc(doc(db, "leads", pd.usuarioId));
-if (ld.exists() && (ld.data().convertidoVIP || ld.data().tipo === "VIP")) { cV++; return; }
-} catch (e) {}
-}
-pd.tipo === "VIP" ? cV++ : cL++;
-}));
-} catch (e) { console.error("Error contando participantes:", e); }
-const f = (fechaISO ? (() => { try { const [fp, hp] = fechaISO.split('T'); const [a,m,d] = fp.split('-'); const [h,min] = hp.split(':'); return { fecha: `${d}/${m}/${a}`, hora: `${h}:${min} Hs.` }; } catch(e) { return { fecha: 'A definir', hora: '' }; } })() : { fecha: 'A definir', hora: '' });
-let badge = '';
-let estadoClase = ejecutado ? 'finalizado' : '';
-if (ejecutado) { badge = `<span class="badge badge-finalizado">✅ SORTEO FINALIZADO</span>`; }
-else if (ts > ahora) { badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`; }
-else { badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`; }
-let botonSorteo;
-if (ejecutado) { botonSorteo = `<button class="btn btn-secondary btn-sm" disabled style="opacity:0.5">✅ FINALIZADO</button>`; }
-else {
-if (ts > ahora) {
-botonSorteo = `<button class="btn btn-dark btn-sortear-accion" data-id="${docId}" data-nombre="${nomCom}" data-premio="${premio}" data-desc="${descPremio}" data-logo="${c.logoUrl || ''}" data-mail="${mailC}" data-timestamp="${ts}" onclick="intentarSorteo(this)">⏳ Calculando...</button>`;
-} else {
-botonSorteo = `<button class="btn btn-primary btn-sortear-accion" data-id="${docId}" data-nombre="${nomCom}" data-premio="${premio}" data-desc="${descPremio}" data-logo="${c.logoUrl || ''}" data-mail="${mailC}" data-timestamp="${ts}" onclick="intentarSorteo(this)">🎲 SORTEAR AHORA</button>`;
-}
-}
-const textoPremios = cantPremios === 1 ? '🎁 1 premio' : `🎁 ${cantPremios} premios`;
-tabla.innerHTML += `<tr class="${estadoClase}">
-<td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docId}" onchange="toggleSeleccion('${docId}',this)">}`
-            + `<td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div>}`
-            + `<td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'">}`
-            + `<td><span class="badge badge-comercio">${nomCom}</span><br><span class="badge badge-premio">🎁 ${premio}</span>${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}}`
-            + `<td><div class="participantes-cell"><div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cL}</span></div><div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cV}</span></div><div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${cL + cV}</span></div></div>}`
-            + `<td>${botonSorteo}<br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docId}','${fechaISO}')">🗑️ Cancelar</button>}`
-            + `<td style="text-align:center"><span class="badge badge-premios">${textoPremios}</span>}`
-            + `</tr>`;
-}
-});
+window.abrirModalClave = (mensaje, callback) => {
+    document.getElementById('modal-clave-mensaje').textContent = mensaje;
+    document.getElementById('modal-clave-input').value = '';
+    document.getElementById('modal-clave').style.display = 'flex';
+    window.callbackClave = callback;
+};
+window.cerrarModalClave = () => { document.getElementById('modal-clave').style.display = 'none'; window.callbackClave = null; };
+window.validarClaveModal = async () => {
+    const clave = document.getElementById('modal-clave-input').value;
+    if (!clave || !window.callbackClave) return;
+    const resultado = await window.callbackClave(clave);
+    if (resultado) window.cerrarModalClave();
+};
+window.validarAccionSegura = async (idComercio, claveIngresada) => {
+    if (claveIngresada === CLAVE_MAESTRA) return true;
+    try {
+        const s = await getDoc(doc(db, "comercios", idComercio));
+        if (s.exists() && claveIngresada === s.data().password) return true;
+    } catch(e) {}
+    return false;
+};
+
+window.enviarEmailGanador = async (nombre, premio, comercio, email) => {
+    if (!email) { window.mostrarToast("⚠️ Este ganador no tiene email registrado", "warning"); return; }
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbwWqItLbuGollI4F6OBDrHHoWwrvSJz88CWp1Wutt5hPWbqPUaATtIxVVv-wHOu3DGLbQ/exec";
+    const payload = {
+        email: email,
+        asunto: `¡Felicitaciones! Ganaste en ${comercio}`,
+        cuerpoHtml: `<h2>¡FELICITACIONES ${nombre}!</h2><p>Has resultado ganador del sorteo de <strong>${premio}</strong> en <strong>${comercio}</strong>.</p><p>Comunícate con el comercio para reclamar tu premio.</p><br><p>Saludos,<br>Equipo Hábitat-Car</p>`,
+        cc: ''
+    };
+    try {
+        await fetch(GAS_URL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        window.mostrarToast(`📧 Email enviado a ${email}`, "success");
+    } catch(error) { window.mostrarToast("⚠️ No se pudo enviar el email", "warning"); }
+};
+
+window.cargarActivos = () => {
+    window.vistaActual = 'activos';
+    window.itemsSeleccionados.clear();
+    window.actualizarBulkActions();
+    document.getElementById('header-checkbox').style.display = 'table-cell';
+    const tabla = document.getElementById('tabla-sorteos');
+    tabla.innerHTML = '}<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando sorteos...</td></tr>';
+    if (listenerActivos) listenerActivos();
+    listenerActivos = onSnapshot(collection(db, "comercios"), async (snap) => {
+        tabla.innerHTML = "";
+        const ahora = Date.now();
+        const comerciosArray = [];
+        snap.forEach(doc => { const data = doc.data(); if (data.titulo_sorteo) comerciosArray.push({ id: doc.id, data: data }); });
+        const historialSnap = await getDocs(collection(db, "historial_sorteos"));
+        const sorteosEjecutados = new Set();
+        historialSnap.docs.forEach(doc => { const h = doc.data(); if (h.ganadores && h.ganadores.length > 0) sorteosEjecutados.add(`${h.comercio}|${h.premio}`); });
+        comerciosArray.sort((a, b) => {
+            const fechaA = a.data.fecha_sorteo ? new Date(a.data.fecha_sorteo).getTime() : 0;
+            const fechaB = b.data.fecha_sorteo ? new Date(b.data.fecha_sorteo).getTime() : 0;
+            const ejecutadoA = sorteosEjecutados.has(`${a.data.nombre}|${a.data.titulo_sorteo}`);
+            const ejecutadoB = sorteosEjecutados.has(`${b.data.nombre}|${b.data.titulo_sorteo}`);
+            if (!ejecutadoA && !ejecutadoB) return fechaA - fechaB;
+            if (!ejecutadoA && ejecutadoB) return -1;
+            if (ejecutadoA && !ejecutadoB) return 1;
+            return fechaB - fechaA;
+        });
+        if (comerciosArray.length === 0) { tabla.innerHTML = '}<tr><td colspan="7" style="text-align:center;padding:40px;color:#666;">📭 No hay sorteos activos</td></tr>'; return; }
+        for (const { id: docId, data: c } of comerciosArray) {
+            const nomCom = c.nombre || "Sin nombre", premio = c.titulo_sorteo, descPremio = c.descripcion_sorteo || "", fechaISO = c.fecha_sorteo || "", ts = fechaISO ? new Date(fechaISO).getTime() : Date.now(), mailC = c.emailDueno || '', cantPremios = parseInt(c.cantidad_premios) || 1;
+            const enHistorial = sorteosEjecutados.has(`${nomCom}|${premio}`);
+            const fechaPasada = ts < ahora, ejecutado = enHistorial && fechaPasada;
+            let cL = 0, cV = 0;
+            try {
+                const snapP = await getDocs(query(collection(db, "admin_participantes_sorteos"), where("comercio", "==", nomCom)));
+                await Promise.all(snapP.docs.map(async p => {
+                    const pd = p.data();
+                    if (pd.usuarioId && !pd.usuarioId.startsWith('temp_')) {
+                        try { const ld = await getDoc(doc(db, "leads", pd.usuarioId)); if (ld.exists() && (ld.data().convertidoVIP || ld.data().tipo === "VIP")) { cV++; return; } } catch (e) {}
+                    }
+                    pd.tipo === "VIP" ? cV++ : cL++;
+                }));
+            } catch (e) { console.error("Error contando participantes:", e); }
+            const f = fechaISO ? (() => { try { const [fp, hp] = fechaISO.split('T'); const [a,m,d] = fp.split('-'); const [h,min] = hp.split(':'); return { fecha: `${d}/${m}/${a}`, hora: `${h}:${min} Hs.` }; } catch(e) { return { fecha: 'A definir', hora: '' }; } })() : { fecha: 'A definir', hora: '' };
+            let badge = '', estadoClase = ejecutado ? 'finalizado' : '';
+            if (ejecutado) badge = `<span class="badge badge-finalizado">✅ SORTEO FINALIZADO</span>`;
+            else if (ts > ahora) badge = `<span class="timestamp-badge">🕐 Programado: ${f.fecha} ${f.hora}</span>`;
+            else badge = `<span class="badge badge-critica">🔴 LISTO PARA SORTEAR</span>`;
+            let botonSorteo;
+            if (ejecutado) botonSorteo = `<button class="btn btn-secondary btn-sm" disabled style="opacity:0.5">✅ FINALIZADO</button>`;
+            else if (ts > ahora) botonSorteo = `<button class="btn btn-dark btn-sortear-accion" data-id="${docId}" data-nombre="${nomCom}" data-premio="${premio}" data-desc="${descPremio}" data-logo="${c.logoUrl || ''}" data-mail="${mailC}" data-timestamp="${ts}" onclick="intentarSorteo(this)">⏳ Calculando...</button>`;
+            else botonSorteo = `<button class="btn btn-primary btn-sortear-accion" data-id="${docId}" data-nombre="${nomCom}" data-premio="${premio}" data-desc="${descPremio}" data-logo="${c.logoUrl || ''}" data-mail="${mailC}" data-timestamp="${ts}" onclick="intentarSorteo(this)">🎲 SORTEAR AHORA</button>`;
+            const textoPremios = cantPremios === 1 ? '🎁 1 premio' : `🎁 ${cantPremios} premios`;
+            tabla.innerHTML += `<tr class="${estadoClase}">
+                <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docId}" onchange="toggleSeleccion('${docId}',this)"></td>
+                <td><div class="fecha-cell"><span class="fecha-principal">${f.fecha}</span><span class="hora-secundaria">${f.hora}</span>${badge}</div></td>
+                <td><img src="${c.logoUrl || ''}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+                <td><span class="badge badge-comercio">${nomCom}</span><br><span class="badge badge-premio">🎁 ${premio}</span>${descPremio ? `<div class="premio-desc">${descPremio}</div>` : ''}</td>
+                <td><div class="participantes-cell"><div class="participantes-row"><span>LEAD:</span><span class="participantes-value valor-lead">${cL}</span></div><div class="participantes-row"><span>VIP:</span><span class="participantes-value valor-vip">${cV}</span></div><div class="participantes-row"><b>TOTAL:</b><span class="participantes-value valor-total">${cL + cV}</span></div></div></td>
+                <td>${botonSorteo}<br><button class="btn btn-danger btn-sm" style="margin-top:5px;font-size:0.8rem" onclick="intentarEliminarSorteo('${docId}','${fechaISO}')">🗑️ Cancelar</button></td>
+                <td style="text-align:center"><span class="badge badge-premios">${textoPremios}</span></td>
+            </tr>`;
+        }
+    });
 };
 
 window.mostrarHistorial = () => {
-window.vistaActual = 'historial';
-window.itemsSeleccionados.clear();
-actualizarBulkActions();
-document.getElementById('header-checkbox').style.display = 'table-cell';
-const tabla = document.getElementById('tabla-sorteos');
-tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando historial...</td></tr>';
-const headers = document.getElementById('tabla-headers');
-if (headers) {
-headers.innerHTML = `<th class="checkbox-cell" style="display:none;"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th><th>FECHA</th><th>LOGO</th><th>COMERCIO / PREMIO</th><th>INFO USUARIOS</th><th>CONTACTO</th><th>NOTIFICACIONES<br>MANUALES</th>`;
-}
-if (listenerHistorial) listenerHistorial();
-listenerHistorial = onSnapshot(collection(db, "historial_sorteos"), snap => {
-tabla.innerHTML = "";
-actualizarEstadisticas();
-if (snap.empty) {
-tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#666;">📭 No hay historial de sorteos</td></tr>';
-return;
-}
-snap.docs.sort((a, b) => (b.data().fecha?.seconds || 0) - (a.data().fecha?.seconds || 0)).forEach(docSnap => {
-const h = docSnap.data();
-const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
-const logoC = h.logoUrl || LOGO_DEFAULT;
-const descSorteo = h.descripcion_sorteo || "";
-(h.ganadores || []).forEach((g, index) => {
-const nombreG = g.nombreMostrar || "Invitado";
-const celG = g.celular || "";
-const emailG = g.email || "";
-const numeroPremio = g.numeroPremio || (h.ganadores.length === 1 ? "Ganador" : `${index + 1}º Premio`);
-const badge = g.tipo === "VIP" ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>` : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
-const esc = s => (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-tabla.innerHTML += `<tr>
-<td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}',this)">}`
-+ `<td><small>${fecha}</small>}`
-+ `<td><img src="${esc(logoC)}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'">}`
-+ `<td><span class="badge badge-comercio">${h.comercio}</span><br><span class="badge badge-premio">🎁 ${h.premio}</span>${descSorteo ? `<div class="premio-desc">${descSorteo}</div>` : ''}}`
-+ `<td><div style="font-weight:bold">${nombreG}</div><div><span class="badge" style="background:var(--dorado); color:white; margin-top:4px;">${numeroPremio}</span> ${badge}</div>}`
-+ `<td><div style="font-size:0.85em;color:var(--verde-boton);margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>${emailG ? `<div style="font-size:0.8em;color:#666;word-break:break-all;"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}}`
-+ `<td style="white-space: nowrap;"><div style="display:flex; flex-direction:column; gap:5px;">
-<button class="btn-accion btn-wapdf" data-nombre="${esc(nombreG)}" data-premio="${esc(h.premio)}" data-comercio="${esc(h.comercio)}" data-descripcion="${esc(descSorteo)}" data-cel="${esc(celG)}" data-logo="${esc(logoC)}" onclick="clickEnviarTicket(this)"><i class="fab fa-whatsapp"></i> <i class="fas fa-file-pdf"></i> WA+PDF</button>
-<button class="btn-accion btn-email" onclick="enviarEmailGanador('${esc(nombreG)}', '${esc(h.premio)}', '${esc(h.comercio)}', '${esc(emailG)}')"><i class="fas fa-envelope"></i> EMAIL</button>
-<button class="btn-accion" style="background:#6c757d" data-texto="${esc(nombreG + ' - WA: ' + celG + ' - Email: ' + emailG)}" onclick="navigator.clipboard.writeText(this.dataset.texto);mostrarToast('📋 Copiado','warning')"><i class="fas fa-copy"></i> COPIAR</button>
-<button class="btn-accion btn-delete" onclick="eliminarIndividual('${docSnap.id}',this)"><i class="fas fa-trash"></i> ELIMINAR</button>
-</div></td></tr>`;
-});
-});
-});
+    window.vistaActual = 'historial';
+    window.itemsSeleccionados.clear();
+    window.actualizarBulkActions();
+    document.getElementById('header-checkbox').style.display = 'table-cell';
+    const tabla = document.getElementById('tabla-sorteos');
+    tabla.innerHTML = '}<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando historial...</td></tr>';
+    const headers = document.getElementById('tabla-headers');
+    if (headers) { headers.innerHTML = `<th class="checkbox-cell" style="display:none;"><input type="checkbox" id="select-all" onchange="toggleSelectAll()"></th><th>FECHA</th><th>LOGO</th><th>COMERCIO / PREMIO</th><th>INFO USUARIOS</th><th>CONTACTO</th><th>NOTIFICACIONES<br>MANUALES</th>`; }
+    if (listenerHistorial) listenerHistorial();
+    listenerHistorial = onSnapshot(query(collection(db, "historial_sorteos"), orderBy("fecha", "desc")), snap => {
+        tabla.innerHTML = "";
+        actualizarEstadisticas();
+        if (snap.empty) { tabla.innerHTML = '}<tr><td colspan="7" style="text-align:center;padding:40px;color:#666;">📭 No hay historial de sorteos</td></tr>'; return; }
+        snap.forEach(docSnap => {
+            const h = docSnap.data();
+            const fecha = h.fecha?.toDate ? h.fecha.toDate().toLocaleString() : "Reciente";
+            const logoC = h.logoUrl || LOGO_DEFAULT;
+            const descSorteo = h.descripcion_sorteo || "";
+            (h.ganadores || []).forEach((g, index) => {
+                const nombreG = g.nombreMostrar || "Invitado", celG = g.celular || "", emailG = g.email || "";
+                const numeroPremio = g.numeroPremio || (h.ganadores.length === 1 ? "Ganador" : `${index + 1}º Premio`);
+                const badge = g.tipo === "VIP" ? `<span class="badge badge-vip"><i class="fas fa-crown"></i> VIP</span>` : `<span class="badge badge-lead"><i class="fas fa-user"></i> LEAD</span>`;
+                const esc = s => (s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+                tabla.innerHTML += `<tr>
+                    <td class="checkbox-cell"><input type="checkbox" class="row-checkbox" data-id="${docSnap.id}" onchange="toggleSeleccion('${docSnap.id}',this)"></td>
+                    <td><small>${fecha}</small></td>
+                    <td><img src="${esc(logoC)}" class="logo-mini" onerror="this.src='${LOGO_DEFAULT}'"></td>
+                    <td><span class="badge badge-comercio">${h.comercio}</span><br><span class="badge badge-premio">🎁 ${h.premio}</span>${descSorteo ? `<div class="premio-desc">${descSorteo}</div>` : ''}</td>
+                    <td><div style="font-weight:bold">${nombreG}</div><div><span class="badge" style="background:var(--dorado); color:white; margin-top:4px;">${numeroPremio}</span> ${badge}</div></td>
+                    <td><div style="font-size:0.85em;color:var(--verde-boton);margin-bottom:3px;"><i class="fab fa-whatsapp"></i> ${celG}</div>${emailG ? `<div style="font-size:0.8em;color:#666;word-break:break-all;"><i class="fas fa-envelope"></i> ${emailG}</div>` : ''}</td>
+                    <td style="white-space: nowrap;"><div style="display:flex; flex-direction:column; gap:5px;">
+                        <button class="btn-accion btn-wapdf" data-nombre="${esc(nombreG)}" data-premio="${esc(h.premio)}" data-comercio="${esc(h.comercio)}" data-descripcion="${esc(descSorteo)}" data-cel="${esc(celG)}" data-logo="${esc(logoC)}" onclick="clickEnviarTicket(this)"><i class="fab fa-whatsapp"></i> <i class="fas fa-file-pdf"></i> WA+PDF</button>
+                        <button class="btn-accion btn-email" onclick="enviarEmailGanador('${esc(nombreG)}', '${esc(h.premio)}', '${esc(h.comercio)}', '${esc(emailG)}')"><i class="fas fa-envelope"></i> EMAIL</button>
+                        <button class="btn-accion" style="background:#6c757d" data-texto="${esc(nombreG + ' - WA: ' + celG + ' - Email: ' + emailG)}" onclick="navigator.clipboard.writeText(this.dataset.texto);mostrarToast('📋 Copiado','warning')"><i class="fas fa-copy"></i> COPIAR</button>
+                        <button class="btn-accion btn-delete" onclick="eliminarIndividual('${docSnap.id}',this)"><i class="fas fa-trash"></i> ELIMINAR</button>
+                    </div></td>
+                </tr>`;
+            });
+        });
+    });
 };
 
 window.clickEnviarTicket = btn => {
-window.enviarTicketElite(btn.dataset.nombre || '', btn.dataset.premio || '', btn.dataset.comercio || '', btn.dataset.descripcion || '', btn.dataset.cel || '', btn.dataset.logo || '');
+    window.enviarTicketElite(btn.dataset.nombre || '', btn.dataset.premio || '', btn.dataset.comercio || '', btn.dataset.descripcion || '', btn.dataset.cel || '', btn.dataset.logo || '');
 };
 
 window.enviarTicketElite = async (nombre, premio, comercio, descripcion, telefono, logoComercio) => {
-const p = leerCfgPDF();
-const mensajeWA = leerMsgWA().replace(/\{\{NOMBRE\}\}/g, nombre || 'Ganador').replace(/\{\{PREMIO\}\}/g, premio || 'el premio').replace(/\{\{COMERCIO\}\}/g, comercio || 'el comercio').replace(/\{\{DESCRIPCION\}\}/g, descripcion || premio || 'el premio');
-const { jsPDF } = window.jspdf;
-const docPDF = new jsPDF({ unit: "mm", format: [80, 160] });
-const loadImg = url => new Promise(resolve => {
-if (!url) return resolve(null);
-const proxiedUrl = proxyURL(url);
-const img = new Image();
-img.crossOrigin = "Anonymous";
-img.onload = () => resolve(img);
-img.onerror = () => resolve(null);
-img.src = proxiedUrl;
-});
-const [bgImg, logoComercioImg, logoHabitatImg] = await Promise.all([loadImg(p.bg), loadImg(logoComercio || LOGO_DEFAULT), loadImg(LOGO_HABITAT)]);
-if (bgImg) docPDF.addImage(bgImg, 'JPEG', 0, 0, 80, 160);
-if (logoComercioImg) { const sz = parseInt(p.l1s) || 20; const aspectRatio = logoComercioImg.width / logoComercioImg.height; if (aspectRatio > 1) { docPDF.addImage(logoComercioImg, 'PNG', parseInt(p.l1x) || 5, parseInt(p.l1y) || 5, sz, sz / aspectRatio); } else { docPDF.addImage(logoComercioImg, 'PNG', parseInt(p.l1x) || 5, parseInt(p.l1y) || 5, sz * aspectRatio, sz); } }
-if (logoHabitatImg) { const sz = parseInt(p.l2s) || 20; const aspectRatio = logoHabitatImg.width / logoHabitatImg.height; if (aspectRatio > 1) { docPDF.addImage(logoHabitatImg, 'PNG', parseInt(p.l2x) || 45, parseInt(p.l2y) || 5, sz, sz / aspectRatio); } else { docPDF.addImage(logoHabitatImg, 'PNG', parseInt(p.l2x) || 45, parseInt(p.l2y) || 5, sz * aspectRatio, sz); } }
-docPDF.setFont(p.font_t4 || 'helvetica', "bold"); docPDF.setFontSize(p.t4s || 14); docPDF.setTextColor(p.color_t4 || '#000000'); docPDF.text(p.t4txt || '¡Felicitaciones!', p.t4x || 40, p.t4y || 45, { align: "center" });
-docPDF.setFont(p.font_t1 || 'helvetica', "bold"); docPDF.setFontSize(p.t1s || 22); docPDF.setTextColor(p.color_t1 || '#000000'); const nombreLines = docPDF.splitTextToSize((nombre || "Ganador").toUpperCase(), 70); const lineHeightNombre = (p.t1s || 22) * 0.35; const startYNombre = p.t1y || 70; nombreLines.forEach((line, index) => { docPDF.text(line, p.t1x || 40, startYNombre + (index * lineHeightNombre), { align: "center" }); });
-docPDF.setFont(p.font_t2 || 'helvetica', "normal"); docPDF.setFontSize(p.t2s || 16); docPDF.setTextColor(p.color_t2 || '#000000'); docPDF.text(premio || "Premio", p.t2x || 40, p.t2y || 90, { align: "center" });
-docPDF.setFont(p.font_t6 || 'helvetica', "normal"); docPDF.setFontSize(p.t6s || 12); docPDF.setTextColor(p.color_t6 || '#000000'); const descLines = docPDF.splitTextToSize(descripcion || premio || "", 70); const lineHeightDesc = (p.t6s || 12) * 0.35; const startYDesc = p.t6y || 105; descLines.forEach((line, index) => { docPDF.text(line, p.t6x || 40, startYDesc + (index * lineHeightDesc), { align: "center" }); });
-docPDF.setFont(p.font_t3 || 'helvetica', "normal"); docPDF.setFontSize(p.t3s || 14); docPDF.setTextColor(p.color_t3 || '#000000'); docPDF.text(comercio || "Comercio", p.t3x || 40, p.t3y || 118, { align: "center" });
-docPDF.setFont(p.font_t5 || 'helvetica', "normal"); docPDF.setFontSize(p.t5s || 8); docPDF.setTextColor(p.color_t5 || '#666666'); docPDF.text(`${p.t5txt || 'Hábitat-Car'} • ${new Date().toLocaleDateString()}`, p.t5x || 40, p.t5y || 148, { align: "center" });
-docPDF.save(`Ticket_${(nombre || 'Ganador').replace(/\s+/g, '_')}.pdf`);
-if (telefono) { const num = window.normalizarTelefonoAR(telefono); if (num) { setTimeout(() => window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeWA)}`, '_blank'), 1200); mostrarToast("✅ PDF descargado — WhatsApp abierto.\nAdjuntá el PDF desde tu galería.", "success"); return; } }
-mostrarToast("✅ Ticket PDF descargado", "success");
+    const p = window.leerCfgPDF();
+    const mensajeWA = window.leerMsgWA().replace(/\{\{NOMBRE\}\}/g, nombre || 'Ganador').replace(/\{\{PREMIO\}\}/g, premio || 'el premio').replace(/\{\{COMERCIO\}\}/g, comercio || 'el comercio').replace(/\{\{DESCRIPCION\}\}/g, descripcion || premio || 'el premio');
+    const { jsPDF } = window.jspdf;
+    const docPDF = new jsPDF({ unit: "mm", format: [80, 160] });
+    const loadImg = url => new Promise(resolve => { if (!url) return resolve(null); const proxiedUrl = proxyURL(url); const img = new Image(); img.crossOrigin = "Anonymous"; img.onload = () => resolve(img); img.onerror = () => resolve(null); img.src = proxiedUrl; });
+    const [bgImg, logoComercioImg, logoHabitatImg] = await Promise.all([loadImg(p.bg), loadImg(logoComercio || LOGO_DEFAULT), loadImg(LOGO_HABITAT)]);
+    if (bgImg) docPDF.addImage(bgImg, 'JPEG', 0, 0, 80, 160);
+    if (logoComercioImg) { const sz = parseInt(p.l1s) || 20; const aspectRatio = logoComercioImg.width / logoComercioImg.height; if (aspectRatio > 1) { docPDF.addImage(logoComercioImg, 'PNG', parseInt(p.l1x) || 5, parseInt(p.l1y) || 5, sz, sz / aspectRatio); } else { docPDF.addImage(logoComercioImg, 'PNG', parseInt(p.l1x) || 5, parseInt(p.l1y) || 5, sz * aspectRatio, sz); } }
+    if (logoHabitatImg) { const sz = parseInt(p.l2s) || 20; const aspectRatio = logoHabitatImg.width / logoHabitatImg.height; if (aspectRatio > 1) { docPDF.addImage(logoHabitatImg, 'PNG', parseInt(p.l2x) || 45, parseInt(p.l2y) || 5, sz, sz / aspectRatio); } else { docPDF.addImage(logoHabitatImg, 'PNG', parseInt(p.l2x) || 45, parseInt(p.l2y) || 5, sz * aspectRatio, sz); } }
+    docPDF.setFont(p.font_t4 || 'helvetica', "bold"); docPDF.setFontSize(p.t4s || 14); docPDF.setTextColor(p.color_t4 || '#000000'); docPDF.text(p.t4txt || '¡Felicitaciones!', p.t4x || 40, p.t4y || 45, { align: "center" });
+    docPDF.setFont(p.font_t1 || 'helvetica', "bold"); docPDF.setFontSize(p.t1s || 22); docPDF.setTextColor(p.color_t1 || '#000000'); const nombreLines = docPDF.splitTextToSize((nombre || "Ganador").toUpperCase(), 70); const lineHeightNombre = (p.t1s || 22) * 0.35; const startYNombre = p.t1y || 70; nombreLines.forEach((line, index) => { docPDF.text(line, p.t1x || 40, startYNombre + (index * lineHeightNombre), { align: "center" }); });
+    docPDF.setFont(p.font_t2 || 'helvetica', "normal"); docPDF.setFontSize(p.t2s || 16); docPDF.setTextColor(p.color_t2 || '#000000'); docPDF.text(premio || "Premio", p.t2x || 40, p.t2y || 90, { align: "center" });
+    docPDF.setFont(p.font_t6 || 'helvetica', "normal"); docPDF.setFontSize(p.t6s || 12); docPDF.setTextColor(p.color_t6 || '#000000'); const descLines = docPDF.splitTextToSize(descripcion || premio || "", 70); const lineHeightDesc = (p.t6s || 12) * 0.35; const startYDesc = p.t6y || 105; descLines.forEach((line, index) => { docPDF.text(line, p.t6x || 40, startYDesc + (index * lineHeightDesc), { align: "center" }); });
+    docPDF.setFont(p.font_t3 || 'helvetica', "normal"); docPDF.setFontSize(p.t3s || 14); docPDF.setTextColor(p.color_t3 || '#000000'); docPDF.text(comercio || "Comercio", p.t3x || 40, p.t3y || 118, { align: "center" });
+    docPDF.setFont(p.font_t5 || 'helvetica', "normal"); docPDF.setFontSize(p.t5s || 8); docPDF.setTextColor(p.color_t5 || '#666666'); docPDF.text(`${p.t5txt || 'Hábitat-Car'} • ${new Date().toLocaleDateString()}`, p.t5x || 40, p.t5y || 148, { align: "center" });
+    docPDF.save(`Ticket_${(nombre || 'Ganador').replace(/\s+/g, '_')}.pdf`);
+    if (telefono) { const num = window.normalizarTelefonoAR(telefono); if (num) { setTimeout(() => window.open(`https://wa.me/${num}?text=${encodeURIComponent(mensajeWA)}`, '_blank'), 1200); window.mostrarToast("✅ PDF descargado — WhatsApp abierto.\nAdjuntá el PDF desde tu galería.", "success"); return; } }
+    window.mostrarToast("✅ Ticket PDF descargado", "success");
 };
 
-window.normalizarTelefonoAR = n => { if (!n) return null; let s = n.toString().replace(/\D/g,''); if (s.length===10) return '549'+s; if (s.startsWith('54')&&!s.startsWith('549')) return '549'+s.substring(2); return s.startsWith('549')?s:'549'+s; };
+window.leerMsgWA = () => localStorage.getItem('hc_wa_v3') || WA_DEFAULT;
+window.leerCfgPDF = () => { try { return JSON.parse(localStorage.getItem('hc_pdf_v3')) || {}; } catch(e) { return {}; } };
+window.subirImagenFondo = () => { document.getElementById('upload-bg').click(); };
+window.procesarImagenSubida = (event) => {
+    const file = event.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        document.getElementById('cfg_bg').value = e.target.result;
+        window.actualizarPrevia();
+        window.mostrarToast("✅ Imagen cargada como fondo", "success");
+    };
+    reader.readAsDataURL(file);
+};
+window.cargarPlantilla = (tipo) => {
+    switch(tipo) {
+        case 'clasica':
+            document.getElementById('cfg_l1x').value = 5; document.getElementById('cfg_l1y').value = 5; document.getElementById('cfg_l1s').value = 20;
+            document.getElementById('cfg_l2x').value = 45; document.getElementById('cfg_l2y').value = 5; document.getElementById('cfg_l2s').value = 20;
+            document.getElementById('cfg_t1x').value = 40; document.getElementById('cfg_t1y').value = 70; document.getElementById('cfg_t1s').value = 22;
+            document.getElementById('cfg_t2x').value = 40; document.getElementById('cfg_t2y').value = 90; document.getElementById('cfg_t2s').value = 16;
+            document.getElementById('cfg_t6x').value = 40; document.getElementById('cfg_t6y').value = 105; document.getElementById('cfg_t6s').value = 12;
+            document.getElementById('cfg_t3x').value = 40; document.getElementById('cfg_t3y').value = 118; document.getElementById('cfg_t3s').value = 14;
+            document.getElementById('cfg_t4x').value = 40; document.getElementById('cfg_t4y').value = 45; document.getElementById('cfg_t4s').value = 14;
+            document.getElementById('cfg_t5x').value = 40; document.getElementById('cfg_t5y').value = 148; document.getElementById('cfg_t5s').value = 8;
+            document.getElementById('cfg_t4txt').value = '¡Felicitaciones!';
+            document.getElementById('cfg_t5txt').value = 'Hábitat-Car';
+            break;
+        case 'elegante':
+            document.getElementById('cfg_l1x').value = 10; document.getElementById('cfg_l1y').value = 10; document.getElementById('cfg_l1s').value = 15;
+            document.getElementById('cfg_l2x').value = 40; document.getElementById('cfg_l2y').value = 10; document.getElementById('cfg_l2s').value = 15;
+            document.getElementById('cfg_t1x').value = 40; document.getElementById('cfg_t1y').value = 65; document.getElementById('cfg_t1s').value = 18;
+            document.getElementById('cfg_t2x').value = 40; document.getElementById('cfg_t2y').value = 85; document.getElementById('cfg_t2s').value = 14;
+            document.getElementById('cfg_t6x').value = 40; document.getElementById('cfg_t6y').value = 100; document.getElementById('cfg_t6s').value = 10;
+            document.getElementById('cfg_t3x').value = 40; document.getElementById('cfg_t3y').value = 115; document.getElementById('cfg_t3s').value = 12;
+            document.getElementById('cfg_t4x').value = 40; document.getElementById('cfg_t4y').value = 45; document.getElementById('cfg_t4s').value = 12;
+            document.getElementById('cfg_t5x').value = 40; document.getElementById('cfg_t5y').value = 150; document.getElementById('cfg_t5s').value = 7;
+            document.getElementById('cfg_t4txt').value = 'Enhorabuena';
+            document.getElementById('cfg_t5txt').value = 'Hábitat-Car';
+            break;
+        case 'destacada':
+            document.getElementById('cfg_l1x').value = 5; document.getElementById('cfg_l1y').value = 5; document.getElementById('cfg_l1s').value = 25;
+            document.getElementById('cfg_l2x').value = 45; document.getElementById('cfg_l2y').value = 5; document.getElementById('cfg_l2s').value = 25;
+            document.getElementById('cfg_t1x').value = 40; document.getElementById('cfg_t1y').value = 75; document.getElementById('cfg_t1s').value = 28;
+            document.getElementById('cfg_t2x').value = 40; document.getElementById('cfg_t2y').value = 95; document.getElementById('cfg_t2s').value = 20;
+            document.getElementById('cfg_t6x').value = 40; document.getElementById('cfg_t6y').value = 110; document.getElementById('cfg_t6s').value = 14;
+            document.getElementById('cfg_t3x').value = 40; document.getElementById('cfg_t3y').value = 123; document.getElementById('cfg_t3s').value = 16;
+            document.getElementById('cfg_t4x').value = 40; document.getElementById('cfg_t4y').value = 45; document.getElementById('cfg_t4s').value = 16;
+            document.getElementById('cfg_t5x').value = 40; document.getElementById('cfg_t5y').value = 148; document.getElementById('cfg_t5s').value = 9;
+            document.getElementById('cfg_t4txt').value = '¡GRAN GANADOR!';
+            document.getElementById('cfg_t5txt').value = 'Hábitat-Car';
+            break;
+        case 'minimalista':
+            document.getElementById('cfg_l1x').value = 5; document.getElementById('cfg_l1y').value = 5; document.getElementById('cfg_l1s').value = 18;
+            document.getElementById('cfg_l2x').value = 45; document.getElementById('cfg_l2y').value = 5; document.getElementById('cfg_l2s').value = 18;
+            document.getElementById('cfg_t1x').value = 40; document.getElementById('cfg_t1y').value = 68; document.getElementById('cfg_t1s').value = 20;
+            document.getElementById('cfg_t2x').value = 40; document.getElementById('cfg_t2y').value = 88; document.getElementById('cfg_t2s').value = 14;
+            document.getElementById('cfg_t6x').value = 40; document.getElementById('cfg_t6y').value = 103; document.getElementById('cfg_t6s').value = 10;
+            document.getElementById('cfg_t3x').value = 40; document.getElementById('cfg_t3y').value = 116; document.getElementById('cfg_t3s').value = 12;
+            document.getElementById('cfg_t4x').value = 40; document.getElementById('cfg_t4y').value = 45; document.getElementById('cfg_t4s').value = 12;
+            document.getElementById('cfg_t5x').value = 40; document.getElementById('cfg_t5y').value = 148; document.getElementById('cfg_t5s').value = 7;
+            document.getElementById('cfg_t4txt').value = 'Gracias';
+            document.getElementById('cfg_t5txt').value = 'HC';
+            break;
+    }
+    window.actualizarPrevia();
+};
+window.actualizarPrevia = () => {
+    const bg = document.getElementById('cfg_bg').value;
+    const prev = document.getElementById('previa_ticket');
+    prev.style.backgroundImage = bg ? `url(${bg})` : 'none';
+    if (!bg) prev.style.backgroundColor = '#ddd';
+    const f = 3.25;
+    const movEl = (elId, xId, yId, sId, vxId, vyId, vsId, isLogo) => {
+        const x = parseInt(document.getElementById(xId).value) || 0;
+        const y = parseInt(document.getElementById(yId).value) || 0;
+        const s = parseInt(document.getElementById(sId).value) || 10;
+        if (vxId) document.getElementById(vxId).textContent = x;
+        if (vyId) document.getElementById(vyId).textContent = y;
+        if (vsId) document.getElementById(vsId).textContent = s;
+        const el = document.getElementById(elId);
+        if (!el) return;
+        el.style.left = (x * f) + 'px';
+        el.style.top = (y * f) + 'px';
+        if (isLogo) {
+            el.style.width = (s * f) + 'px';
+            el.style.height = (s * f) + 'px';
+        } else {
+            el.style.fontSize = Math.round(s * f / 3.8) + 'px';
+        }
+    };
+    document.getElementById('prev_t1').style.color = document.getElementById('cfg_color_t1').value;
+    document.getElementById('prev_t2').style.color = document.getElementById('cfg_color_t2').value;
+    document.getElementById('prev_t3').style.color = document.getElementById('cfg_color_t3').value;
+    document.getElementById('prev_t4').style.color = document.getElementById('cfg_color_t4').value;
+    document.getElementById('prev_t5').style.color = document.getElementById('cfg_color_t5').value;
+    document.getElementById('prev_t6').style.color = document.getElementById('cfg_color_t6').value;
+    const fontMap = { helvetica: 'Helvetica', times: 'Times New Roman', courier: 'Courier New', arial: 'Arial' };
+    document.getElementById('prev_t1').style.fontFamily = fontMap[document.getElementById('cfg_font_t1').value] || 'Helvetica';
+    document.getElementById('prev_t2').style.fontFamily = fontMap[document.getElementById('cfg_font_t2').value] || 'Helvetica';
+    document.getElementById('prev_t3').style.fontFamily = fontMap[document.getElementById('cfg_font_t3').value] || 'Helvetica';
+    document.getElementById('prev_t4').style.fontFamily = fontMap[document.getElementById('cfg_font_t4').value] || 'Helvetica';
+    document.getElementById('prev_t5').style.fontFamily = fontMap[document.getElementById('cfg_font_t5').value] || 'Helvetica';
+    document.getElementById('prev_t6').style.fontFamily = fontMap[document.getElementById('cfg_font_t6').value] || 'Helvetica';
+    movEl('prev_l1','cfg_l1x','cfg_l1y','cfg_l1s','v_l1x','v_l1y','v_l1s', true);
+    movEl('prev_l2','cfg_l2x','cfg_l2y','cfg_l2s','v_l2x','v_l2y','v_l2s', true);
+    movEl('prev_t1','cfg_t1x','cfg_t1y','cfg_t1s','v_t1x','v_t1y','v_t1s', false);
+    movEl('prev_t2','cfg_t2x','cfg_t2y','cfg_t2s','v_t2x','v_t2y','v_t2s', false);
+    movEl('prev_t6','cfg_t6x','cfg_t6y','cfg_t6s','v_t6x','v_t6y','v_t6s', false);
+    movEl('prev_t3','cfg_t3x','cfg_t3y','cfg_t3s','v_t3x','v_t3y','v_t3s', false);
+    movEl('prev_t4','cfg_t4x','cfg_t4y','cfg_t4s','v_t4x','v_t4y','v_t4s', false);
+    movEl('prev_t5','cfg_t5x','cfg_t5y','cfg_t5s','v_t5x','v_t5y','v_t5s', false);
+    document.getElementById('prev_t4').textContent = document.getElementById('cfg_t4txt').value || '¡Felicitaciones!';
+    document.getElementById('prev_t5').textContent = document.getElementById('cfg_t5txt').value + ' • 22/02/2026';
+};
+window.abrirEditorPDF = () => {
+    const p = window.leerCfgPDF();
+    document.getElementById('cfg_bg').value = p.bg || '';
+    document.getElementById('cfg_l1x').value = p.l1x ?? 5; document.getElementById('cfg_l1y').value = p.l1y ?? 5; document.getElementById('cfg_l1s').value = p.l1s ?? 20;
+    document.getElementById('cfg_l2x').value = p.l2x ?? 45; document.getElementById('cfg_l2y').value = p.l2y ?? 5; document.getElementById('cfg_l2s').value = p.l2s ?? 20;
+    document.getElementById('cfg_t1x').value = p.t1x ?? 40; document.getElementById('cfg_t1y').value = p.t1y ?? 70; document.getElementById('cfg_t1s').value = p.t1s ?? 22;
+    document.getElementById('cfg_t2x').value = p.t2x ?? 40; document.getElementById('cfg_t2y').value = p.t2y ?? 90; document.getElementById('cfg_t2s').value = p.t2s ?? 16;
+    document.getElementById('cfg_t6x').value = p.t6x ?? 40; document.getElementById('cfg_t6y').value = p.t6y ?? 105; document.getElementById('cfg_t6s').value = p.t6s ?? 12;
+    document.getElementById('cfg_t3x').value = p.t3x ?? 40; document.getElementById('cfg_t3y').value = p.t3y ?? 118; document.getElementById('cfg_t3s').value = p.t3s ?? 14;
+    document.getElementById('cfg_t4x').value = p.t4x ?? 40; document.getElementById('cfg_t4y').value = p.t4y ?? 45; document.getElementById('cfg_t4s').value = p.t4s ?? 14;
+    document.getElementById('cfg_t4txt').value = p.t4txt ?? '¡Felicitaciones!';
+    document.getElementById('cfg_t5x').value = p.t5x ?? 40; document.getElementById('cfg_t5y').value = p.t5y ?? 148; document.getElementById('cfg_t5s').value = p.t5s ?? 8;
+    document.getElementById('cfg_t5txt').value = p.t5txt ?? 'Hábitat-Car';
+    document.getElementById('cfg_color_t1').value = p.color_t1 || '#000000';
+    document.getElementById('cfg_color_t2').value = p.color_t2 || '#000000';
+    document.getElementById('cfg_color_t3').value = p.color_t3 || '#000000';
+    document.getElementById('cfg_color_t4').value = p.color_t4 || '#000000';
+    document.getElementById('cfg_color_t5').value = p.color_t5 || '#666666';
+    document.getElementById('cfg_color_t6').value = p.color_t6 || '#000000';
+    document.getElementById('cfg_font_t1').value = p.font_t1 || 'helvetica';
+    document.getElementById('cfg_font_t2').value = p.font_t2 || 'helvetica';
+    document.getElementById('cfg_font_t3').value = p.font_t3 || 'helvetica';
+    document.getElementById('cfg_font_t4').value = p.font_t4 || 'helvetica';
+    document.getElementById('cfg_font_t5').value = p.font_t5 || 'helvetica';
+    document.getElementById('cfg_font_t6').value = p.font_t6 || 'helvetica';
+    document.getElementById('modalPDF').style.display = 'flex';
+    window.actualizarPrevia();
+};
+window.guardarConfigPDF = () => {
+    const gv = id => document.getElementById(id).value;
+    const gi = id => parseInt(gv(id)) || 0;
+    const data = {
+        bg: gv('cfg_bg'),
+        l1x: gi('cfg_l1x'), l1y: gi('cfg_l1y'), l1s: gi('cfg_l1s'),
+        l2x: gi('cfg_l2x'), l2y: gi('cfg_l2y'), l2s: gi('cfg_l2s'),
+        t1x: gi('cfg_t1x'), t1y: gi('cfg_t1y'), t1s: gi('cfg_t1s'),
+        t2x: gi('cfg_t2x'), t2y: gi('cfg_t2y'), t2s: gi('cfg_t2s'),
+        t3x: gi('cfg_t3x'), t3y: gi('cfg_t3y'), t3s: gi('cfg_t3s'),
+        t4x: gi('cfg_t4x'), t4y: gi('cfg_t4y'), t4s: gi('cfg_t4s'), t4txt: gv('cfg_t4txt'),
+        t5x: gi('cfg_t5x'), t5y: gi('cfg_t5y'), t5s: gi('cfg_t5s'), t5txt: gv('cfg_t5txt'),
+        t6x: gi('cfg_t6x'), t6y: gi('cfg_t6y'), t6s: gi('cfg_t6s'),
+        color_t1: gv('cfg_color_t1'), color_t2: gv('cfg_color_t2'), color_t3: gv('cfg_color_t3'),
+        color_t4: gv('cfg_color_t4'), color_t5: gv('cfg_color_t5'), color_t6: gv('cfg_color_t6'),
+        font_t1: gv('cfg_font_t1'), font_t2: gv('cfg_font_t2'), font_t3: gv('cfg_font_t3'),
+        font_t4: gv('cfg_font_t4'), font_t5: gv('cfg_font_t5'), font_t6: gv('cfg_font_t6')
+    };
+    localStorage.setItem('hc_pdf_v3', JSON.stringify(data));
+    window.mostrarToast("✅ Diseño de Ticket guardado", "success");
+    window.cerrarModales();
+};
+window.abrirEditorWA = () => {
+    document.getElementById('cfg_wa_msg').value = window.leerMsgWA();
+    document.getElementById('modalWA').style.display = 'flex';
+};
+window.guardarConfigWA = () => {
+    const msg = document.getElementById('cfg_wa_msg').value;
+    if (!msg.trim()) return window.mostrarToast("⚠️ El mensaje no puede estar vacío", "warning");
+    localStorage.setItem('hc_wa_v3', msg);
+    window.mostrarToast("✅ Mensaje guardado", "success");
+    window.cerrarModales();
+};
+window.cerrarModales = () => {
+    document.getElementById('modalPDF').style.display = 'none';
+    document.getElementById('modalWA').style.display  = 'none';
+    document.getElementById('modal-clave').style.display = 'none';
+};
 
-function mostrarToast(msg, tipo = "success") {
-const d = document.createElement('div');
-d.className = `toast ${tipo}`;
-d.innerText = msg;
-document.body.appendChild(d);
-setTimeout(() => d.remove(), 3500);
-}
-
-document.getElementById('btn-activos').onclick = cargarActivos;
-document.getElementById('btn-historial').onclick = () => { mostrarHistorial(); actualizarEstadisticas(); };
+document.getElementById('btn-activos').onclick = window.cargarActivos;
+document.getElementById('btn-historial').onclick = () => { window.mostrarHistorial(); actualizarEstadisticas(); };
 
 document.addEventListener('DOMContentLoaded', () => {
-cargarActivos();
-iniciarRelojes();
-actualizarEstadisticas();
-if (intervalSorteos) clearInterval(intervalSorteos);
-intervalSorteos = setInterval(verificarSorteosAutomaticos, 1000);
+    window.cargarActivos();
+    window.iniciarRelojes();
+    actualizarEstadisticas();
+    if (intervalSorteos) clearInterval(intervalSorteos);
+    intervalSorteos = setInterval(verificarSorteosAutomaticos, 5000);
 });
 
-document.getElementById('modalPDF').addEventListener('click', e => { if (e.target.id === 'modalPDF') cerrarModales(); });
-document.getElementById('modalWA').addEventListener('click', e => { if (e.target.id === 'modalWA') cerrarModales(); });
-document.getElementById('modal-clave').addEventListener('click', e => { if (e.target.id === 'modal-clave') cerrarModalClave(); });
-
-window.mostrarHistorial = mostrarHistorial;
-window.mostrarToast = mostrarToast;
-window.mostrarConfirmacionSorteo = mostrarConfirmacionSorteo;
-window.cerrarModalSorteo = cerrarModalSorteo;
-window.irAlHistorial = irAlHistorial;
-window.toggleSeleccion = toggleSeleccion;
-window.toggleSelectAll = toggleSelectAll;
-window.eliminarSeleccionados = eliminarSeleccionados;
-window.eliminarSeleccionadosActivos = eliminarSeleccionadosActivos;
-window.desmarcarTodos = desmarcarTodos;
-window.eliminarIndividual = eliminarIndividual;
-window.actualizarBulkActions = actualizarBulkActions;
-window.intentarSorteo = intentarSorteo;
-window.intentarEliminarSorteo = intentarEliminarSorteo;
-window.validarAccionSegura = validarAccionSegura;
-window.enviarTicketElite = enviarTicketElite;
-window.clickEnviarTicket = clickEnviarTicket;
-window.abrirEditorPDF = abrirEditorPDF;
-window.abrirEditorWA = abrirEditorWA;
-window.actualizarPrevia = actualizarPrevia;
-window.guardarConfigPDF = guardarConfigPDF;
-window.guardarConfigWA = guardarConfigWA;
-window.cerrarModales = cerrarModales;
-window.iniciarRelojes = iniciarRelojes;
-window.cargarPlantilla = cargarPlantilla;
-window.subirImagenFondo = subirImagenFondo;
-window.procesarImagenSubida = procesarImagenSubida;
-window.ejecutarSorteoAutomatico = ejecutarSorteo;
-window.abrirModalClave = abrirModalClave;
-window.cerrarModalClave = cerrarModalClave;
-window.validarClaveModal = validarClaveModal;
-window.enviarEmailGanador = enviarEmailGanador;
+window.mostrarHistorial = window.mostrarHistorial;
+window.mostrarToast = window.mostrarToast;
+window.mostrarConfirmacionSorteo = window.mostrarConfirmacionSorteo;
+window.cerrarModalSorteo = window.cerrarModalSorteo;
+window.irAlHistorial = window.irAlHistorial;
+window.toggleSelectAll = window.toggleSelectAll;
+window.toggleSeleccion = window.toggleSeleccion;
+window.eliminarSeleccionados = window.eliminarSeleccionados;
+window.eliminarSeleccionadosActivos = window.eliminarSeleccionadosActivos;
+window.desmarcarTodos = window.desmarcarTodos;
+window.eliminarIndividual = window.eliminarIndividual;
+window.actualizarBulkActions = window.actualizarBulkActions;
+window.intentarSorteo = window.intentarSorteo;
+window.intentarEliminarSorteo = window.intentarEliminarSorteo;
+window.validarAccionSegura = window.validarAccionSegura;
+window.enviarTicketElite = window.enviarTicketElite;
+window.clickEnviarTicket = window.clickEnviarTicket;
+window.abrirEditorPDF = window.abrirEditorPDF;
+window.abrirEditorWA = window.abrirEditorWA;
+window.actualizarPrevia = window.actualizarPrevia;
+window.guardarConfigPDF = window.guardarConfigPDF;
+window.guardarConfigWA = window.guardarConfigWA;
+window.cerrarModales = window.cerrarModales;
+window.iniciarRelojes = window.iniciarRelojes;
+window.cargarPlantilla = window.cargarPlantilla;
+window.subirImagenFondo = window.subirImagenFondo;
+window.procesarImagenSubida = window.procesarImagenSubida;
+window.abrirModalClave = window.abrirModalClave;
+window.cerrarModalClave = window.cerrarModalClave;
+window.validarClaveModal = window.validarClaveModal;
+window.enviarEmailGanador = window.enviarEmailGanador;
 
 </script>
 </body>
