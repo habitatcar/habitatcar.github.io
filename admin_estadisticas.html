@@ -173,7 +173,6 @@
         }
         .btn-send-row:hover { background: #004a99; transform: scale(1.05); }
         
-        /* MODAL PARA NOTIFICACIONES */
         .modal-notificacion {
             position: fixed;
             top: 50%;
@@ -192,18 +191,9 @@
             gap: 12px;
             min-width: 300px;
         }
-        .modal-notificacion i {
-            font-size: 40px;
-            color: var(--verde);
-        }
-        .modal-notificacion h3 {
-            margin: 0;
-            color: var(--oro);
-        }
-        .modal-notificacion p {
-            margin: 0;
-            font-size: 14px;
-        }
+        .modal-notificacion i { font-size: 40px; color: var(--verde); }
+        .modal-notificacion h3 { margin: 0; color: var(--oro); }
+        .modal-notificacion p { margin: 0; font-size: 14px; }
         .modal-notificacion .email-destino {
             color: var(--oro);
             font-weight: bold;
@@ -223,7 +213,6 @@
 </head>
 <body>
 
-    <!-- MODAL DE NOTIFICACIÓN -->
     <div id="modalNotificacion" class="modal-notificacion">
         <i class="fas fa-check-circle"></i>
         <h3>✅ REPORTE ENVIADO</h3>
@@ -297,7 +286,7 @@
     <div class="table-container">
         <table>
             <thead>
-                 <tr>
+                <tr>
                     <th>Comercio</th>
                     <th>Total Histórico</th>
                     <th style="color:var(--oro)">Leads</th>
@@ -308,7 +297,7 @@
                     <th>Año</th>
                     <th>Último Envío</th>
                     <th>Frecuencia / Acción</th>
-                 </tr>
+                </tr>
             </thead>
             <tbody id="tabla-body"></tbody>
         </table>
@@ -336,9 +325,6 @@
         const enviarReportePorEmail = httpsCallable(functions, 'enviarReporteEmail');
         let listaComercios = [];
 
-        // =============================================
-        // MOSTRAR MODAL DE NOTIFICACIÓN
-        // =============================================
         function mostrarModalNotificacion(email) {
             const modal = document.getElementById('modalNotificacion');
             const emailSpan = document.getElementById('emailDestino');
@@ -349,9 +335,6 @@
             }, 3000);
         }
 
-        // =============================================
-        // CONTADORES NAV
-        // =============================================
         async function actualizarContadores() {
             if (typeof db === 'undefined' || !db) {
                 setTimeout(actualizarContadores, 2000);
@@ -361,12 +344,9 @@
             try {
                 const todosSnap = await getDocs(collection(db, "leads"));
                 const totalRaw = todosSnap.size;
-
                 const vipsSnap = await getDocs(query(collection(db, "leads"), where("convertidoVIP", "==", true)));
                 const totalVips = vipsSnap.size;
-
                 const totalLeads = totalRaw - totalVips;
-
                 const comerciosSnap = await getDocs(collection(db, "comercios"));
                 const totalComercios = comerciosSnap.size;
 
@@ -483,9 +463,6 @@
             } catch (e) { console.error("Error log:", e); }
         }
 
-        // =============================================
-        // FUNCIÓN PARA CALCULAR FRANJAS HORARIAS REALES
-        // =============================================
         async function calcularFranjasHorarias(comercioNombre) {
             try {
                 const logsSnap = await getDocs(query(
@@ -522,9 +499,6 @@
             }
         }
 
-        // =============================================
-        // GENERAR PDF
-        // =============================================
         async function generarPDFComercio(c) {
             const { jsPDF } = window.jspdf;
             const pdfDoc2 = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
@@ -707,7 +681,7 @@
             pdfDoc2.setLineWidth(0.2);
             y += BAR_H+22;
 
-            // GRÁFICO TORTA
+            // GRÁFICO TORTA - CON NÚMEROS A LA DERECHA
             chk(56);
             sf(7,'bold',T_SOFT);
             pdfDoc2.text('COMPOSICIÓN DE AUDIENCIA', M, y);
@@ -762,27 +736,29 @@
             const DW = AW-PMM-8;
             const DH = PMM;
 
+            // Tarjeta LEADS - NÚMERO A LA DERECHA
             rr(DX, y, DW/2-2, DH/2-2, C2_BG, null, 2);
             pdfDoc2.setFillColor(...C2_TXT);
             pdfDoc2.roundedRect(DX, y, DW/2-2, 3.5, 2,2,'F');
-            sf(7.5,'bold',C2_TXT);
-            pdfDoc2.text('LEADS', DX+4, y+9);
-            sf(15,'bold',C2_TXT);
-            pdfDoc2.text(String(leadHist), DX+4, y+22);
+            sf(9,'bold',C2_TXT);
+            pdfDoc2.text('LEADS', DX+4, y+11);
+            sf(20,'bold',C2_TXT);
+            pdfDoc2.text(String(leadHist), DX+DW/2-12, y+26,{align:'right'});
             sf(6.5,'normal',T_SOFT);
-            pdfDoc2.text(pLeads+'% del total', DX+4, y+29);
+            pdfDoc2.text(pLeads+'% del total', DX+4, y+36);
 
+            // Tarjeta VIP - NÚMERO A LA DERECHA
             const VX = DX+DW/2+1;
             const VW = DW/2-1;
             rr(VX, y, VW, DH/2-2, C3_BG, null, 2);
             pdfDoc2.setFillColor(...C3_TXT);
             pdfDoc2.roundedRect(VX, y, VW, 3.5, 2,2,'F');
-            sf(7.5,'bold',C3_TXT);
-            pdfDoc2.text('VIP', VX+4, y+9);
-            sf(15,'bold',C3_TXT);
-            pdfDoc2.text(String(vipHist), VX+4, y+22);
+            sf(9,'bold',C3_TXT);
+            pdfDoc2.text('VIP', VX+4, y+11);
+            sf(20,'bold',C3_TXT);
+            pdfDoc2.text(String(vipHist), VX+VW-8, y+26,{align:'right'});
             sf(6.5,'normal',T_SOFT);
-            pdfDoc2.text(pVips+'% del total', VX+4, y+29);
+            pdfDoc2.text(pVips+'% del total', VX+4, y+36);
 
             const BRY = y+DH/2;
             rr(DX, BRY, DW, DH/2-2, F_SLATE, LINE, 2);
@@ -912,7 +888,6 @@
                             const ahoraStr = new Date().toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
                             await updateDoc(doc(db, "comercios", id), { lastSubmission: ahoraStr });
                             await registrarLogEnvio(c.nombre, c.emailDueno, "Enviado");
-                            // Mostrar modal en lugar de alert
                             mostrarModalNotificacion(c.emailDueno);
                             renderTabla();
                         } else { 
