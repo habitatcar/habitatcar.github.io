@@ -510,12 +510,13 @@ min-height: 60px;
 <input type="email" id="email-input" class="full" placeholder="Email Dueño">
 <input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO (OBLIGATORIO)" style="border: 2px solid var(--oro)">
 
-<!-- CAMBIO IMPORTANTE: AGREGADA OPCIÓN DIARIO -->
+<!-- CAMPO DE FRECUENCIA DE REPORTES - UNIFICADO -->
 <select id="reporte-input" class="full">
-    <option value="Diario">Reporte Diario</option>
-    <option value="Semanal">Reporte Semanal</option>
-    <option value="Quincenal">Reporte Quincenal</option>
-    <option value="Mensual">Reporte Mensual</option>
+    <option value="diario">Reporte Diario</option>
+    <option value="semanal" selected>Reporte Semanal</option>
+    <option value="quincenal">Reporte Quincenal</option>
+    <option value="mensual">Reporte Mensual</option>
+    <option value="nunca">Nunca (No enviar)</option>
 </select>
 
 </div>
@@ -672,6 +673,14 @@ const displayID = c.idComercio || c.id || "SIN-ID";
 const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
 const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
 const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
+const frecuenciaMostrar = c.frecuenciaReportes || 'semanal';
+const frecuenciaTexto = {
+    'diario': 'Diario',
+    'semanal': 'Semanal',
+    'quincenal': 'Quincenal',
+    'mensual': 'Mensual',
+    'nunca': 'Nunca'
+}[frecuenciaMostrar] || 'Semanal';
 
 box.innerHTML += `
 <div class="comercio-card ${estaActivo ? '' : 'inactive'}">
@@ -696,7 +705,7 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 <div class="data-grid">
 <div class="data-box"><b>ID SISTEMA</b><span style="color: #a0d2ff; font-weight: 600;">${displayID}</span></div>
 <div class="data-box"><b>Token QR</b><span style="color: #a0d2ff; font-weight: 600;">${c.tokenQR || '-'}</span></div>
-<div class="data-box"><b>Reporte</b><span style="color: #a0d2ff; font-weight: 600;">${c.frecuenciaReporte || 'Semanal'}</span></div>
+<div class="data-box"><b>Reporte</b><span style="color: #a0d2ff; font-weight: 600;">${frecuenciaTexto}</span></div>
 <div style="display: flex; flex-direction: column; gap: 8px; justify-content: center;">
 <div style="font-size: 0.85em;">
 <b style="color: #ffffff;">WhatsApp:</b>
@@ -863,7 +872,8 @@ document.getElementById('sitio-web-input').value = c.sitioWeb || "";
 document.getElementById('maps-url').value = c.mapsUrl || "";
 document.getElementById('email-input').value = c.emailDueno || "";
 document.getElementById('password-input').value = c.password || "";
-document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
+// CARGAR EL CAMPO UNIFICADO frecuenciaReportes
+document.getElementById('reporte-input').value = c.frecuenciaReportes || "semanal";
 
 if (esComerciante) {
 document.getElementById('nombre-input').readOnly = true;
@@ -934,7 +944,8 @@ sitioWeb: document.getElementById('sitio-web-input').value,
 mapsUrl: document.getElementById('maps-url').value.trim(),
 emailDueno: document.getElementById('email-input').value,
 password: passValue,
-frecuenciaReporte: document.getElementById('reporte-input').value,
+// CAMPO UNIFICADO: frecuenciaReportes
+frecuenciaReportes: document.getElementById('reporte-input').value,
 publicado: false
 };
 
@@ -998,6 +1009,7 @@ document.getElementById('promo_vence').value = "";
 document.getElementById('direccion-input').value = "";
 document.getElementById('maps-url').value = "";
 document.getElementById('rubro-input').value = "";
+document.getElementById('reporte-input').value = "semanal";
 document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
 document.getElementById('btn-cancel-edit').style.display = 'none';
 
