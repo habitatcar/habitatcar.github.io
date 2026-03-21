@@ -39,7 +39,6 @@
             overflow: hidden;
         }
 
-        /* HEADER COPIADO DE COMERCIOS */
         .header {
             background: var(--azul-medio);
             padding: 15px 30px;
@@ -85,7 +84,6 @@
             background: #e67e22;
         }
 
-        /* FAJA DE ESTADÍSTICAS */
         .faja-stats {
             background: var(--gris-oscuro);
             padding: 15px 25px;
@@ -177,7 +175,6 @@
             background: rgba(0,0,0,0.3);
         }
 
-        /* BARRA DE BÚSQUEDA */
         .search-bar {
             background: var(--azul-medio);
             padding: 12px 25px;
@@ -227,7 +224,6 @@
             background: #218838;
         }
 
-        /* CONTENEDOR DE TABLA CON SCROLL */
         .table-container {
             flex: 1;
             padding: 0 25px 25px 25px;
@@ -265,7 +261,6 @@
             font-size: 0.9em;
         }
 
-        /* ESTILOS PARA LOS SELECTORES Y BOTONES EN TABLA */
         .mail-freq {
             background: var(--azul-oscuro);
             color: var(--oro);
@@ -274,7 +269,7 @@
             border-radius: 4px;
             font-size: 0.8em;
             cursor: pointer;
-            width: 100px;
+            width: 110px;
         }
         .btn-send-row {
             background: linear-gradient(135deg, #004a99 0%, #002d5e 100%);
@@ -299,7 +294,6 @@
             transform: scale(1.05);
         }
 
-        /* MOLDE PARA PDF (oculto) */
         #molde-pdf-container {
             position: absolute;
             left: -9999px;
@@ -382,7 +376,6 @@
             font-weight: bold;
         }
 
-        /* RESPONSIVE */
         @media (max-width: 1200px) {
             .faja-stats {
                 flex-direction: column;
@@ -399,7 +392,6 @@
 </head>
 <body>
 
-    <!-- HEADER COPIADO DE COMERCIOS -->
     <header class="header">
         <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo" alt="Habitat-Car">
         <nav class="nav-menu">
@@ -418,7 +410,6 @@
         </nav>
     </header>
 
-    <!-- FAJA DE ESTADÍSTICAS -->
     <div class="faja-stats">
         <div class="stat-group">
             <div class="btn-stat-com">COMERCIOS: <span id="count-com">0</span></div>
@@ -448,7 +439,6 @@
         </div>
     </div>
 
-    <!-- BARRA DE BÚSQUEDA Y ACCIONES -->
     <div class="search-bar">
         <input type="text" id="buscador" class="search-input" placeholder="🔍 Buscar comercios..." onkeyup="filtrarTabla()">
         <button class="btn-sort" onclick="ordenarYRender('nombre')">ORDEN A-Z</button>
@@ -456,7 +446,6 @@
         <button class="btn-sort btn-masivo" onclick="enviarTodosLosReportes()">🚀 ENVÍO MASIVO</button>
     </div>
 
-    <!-- CONTENEDOR DE TABLA -->
     <div class="table-container">
         <table>
             <thead>
@@ -473,13 +462,10 @@
                     <th>Frecuencia / Acción</th>
                 </tr>
             </thead>
-            <tbody id="tabla-body">
-                <!-- Se llena dinámicamente -->
-            </tbody>
+            <tbody id="tabla-body"></tbody>
         </table>
     </div>
 
-    <!-- MOLDE PDF (oculto) -->
     <div id="molde-pdf-container">
         <div id="reporte-contenido">
             <div class="header-pdf">
@@ -562,16 +548,10 @@
     const db = getFirestore(app);
     const functions = getFunctions(app);
     
-    // ============================================
-    // REFERENCIA A LA FUNCIÓN DE REPORTE
-    // ============================================
     const enviarReportePorEmail = httpsCallable(functions, 'enviarReporteEmail');
     
     let listaComercios = [];
 
-    // ============================================
-    // CONTROL DE RESETEO DIARIO
-    // ============================================
     async function controlarReseteoDiario(comercios) {
         const hoy = new Date().toLocaleDateString('es-AR');
         const ultimaFecha = localStorage.getItem('panel_ultima_fecha');
@@ -598,9 +578,6 @@
         localStorage.setItem('panel_ultima_fecha', hoy);
     }
 
-    // ============================================
-    // CARGAR ESTADÍSTICAS DE USUARIOS
-    // ============================================
     async function cargarStatsUsuarios() {
         try {
             const snapLeads = await getDocs(collection(db, "leads"));
@@ -630,9 +607,6 @@
         }
     }
 
-    // ============================================
-    // ESCUCHA DE COMERCIOS
-    // ============================================
     onSnapshot(collection(db, "comercios"), (snap) => {
         listaComercios = [];
         snap.forEach(d => {
@@ -644,9 +618,6 @@
         renderTabla();
     });
 
-    // ============================================
-    // REGISTRAR LOG DE ENVÍO
-    // ============================================
     async function registrarLogEnvio(comercio, email, estado) {
         try {
             await addDoc(collection(db, "historico_envios_reportes"), {
@@ -661,16 +632,12 @@
         }
     }
 
-    // ============================================
-    // ENVIAR REPORTE INDIVIDUAL (CON FIREBASE FUNCTIONS)
-    // ============================================
     window.enviarReporteIndividual = async (id) => {
         const c = listaComercios.find(x => x.id === id);
         if (!c) return alert("Comercio no encontrado");
         if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
         
         try {
-            // Preparar fecha para el PDF
             const fechaActual = new Date();
             const mesAnio = fechaActual.toLocaleString('es-AR', { month: 'long', year: 'numeric' }).toUpperCase();
             document.getElementById('pdf-fecha').innerText = mesAnio;
@@ -692,7 +659,6 @@
             document.getElementById('bar-vips').style.width = pVips + "%";
             document.getElementById('bar-vips').innerText = `VIP (${vVips})`;
             
-            // Valores de ejemplo para franjas horarias
             document.getElementById('pdf-manana').innerText = Math.floor(Math.random() * 20 + 5);
             document.getElementById('pdf-tarde').innerText = Math.floor(Math.random() * 30 + 15);
             document.getElementById('pdf-noche').innerText = Math.floor(Math.random() * 15 + 2);
@@ -731,7 +697,7 @@
                         await updateDoc(doc(db, "comercios", id), { lastSubmission: ahoraStr });
                         await registrarLogEnvio(c.nombre, c.emailDueno, "Enviado");
                         alert(`✅ Reporte enviado con éxito a ${c.nombre}`);
-                        renderTabla(); // Actualizar la tabla para mostrar el nuevo lastSubmission
+                        renderTabla();
                     } else {
                         throw new Error("Error en el envío");
                     }
@@ -748,9 +714,6 @@
         }
     };
 
-    // ============================================
-    // ENVÍO MASIVO
-    // ============================================
     window.enviarTodosLosReportes = async () => {
         if (!confirm("¿Deseas enviar reportes a TODOS los comercios con frecuencia activa?")) return;
         
@@ -766,7 +729,6 @@
                     console.error("Error con", c.nombre, e);
                     fallidos++;
                 }
-                // Pequeña pausa para no saturar
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
         }
@@ -774,9 +736,6 @@
         alert(`✅ Envío masivo completado\n📨 Enviados: ${enviados}\n❌ Fallidos: ${fallidos}`);
     };
 
-    // ============================================
-    // RENDERIZAR TABLA
-    // ============================================
     function renderTabla() {
         const body = document.getElementById('tabla-body');
         if (!body) return;
@@ -834,7 +793,7 @@
             const row = document.createElement('tr');
             row.className = 'com-row';
             row.innerHTML = `
-                <td><b>${c.nombre || 'Sin Nombre'}</b></td>
+                <td><b>${c.nombre || 'Sin Nombre'}</b>}}
                 <td>${sumaHist}</td>
                 <td style="color:var(--oro); font-weight:bold;">${leadHist}</td>
                 <td style="color:var(--oro); font-weight:bold;">${vipHist}</td>
@@ -848,6 +807,7 @@
                         <option value="nunca" ${c.frecuenciaMail === 'nunca' ? 'selected' : ''}>Nunca</option>
                         <option value="diario" ${c.frecuenciaMail === 'diario' ? 'selected' : ''}>Diario</option>
                         <option value="semanal" ${c.frecuenciaMail === 'semanal' ? 'selected' : ''}>Semanal</option>
+                        <option value="quincenal" ${c.frecuenciaMail === 'quincenal' ? 'selected' : ''}>Quincenal</option>
                         <option value="mensual" ${c.frecuenciaMail === 'mensual' ? 'selected' : ''}>Mensual</option>
                     </select>
                     <button class="btn-send-row" onclick="enviarReporteIndividual('${c.id}')" title="Enviar reporte">✉</button>
@@ -864,9 +824,6 @@
         document.getElementById('count-c-anio').innerText = tAnioTotal;
     }
 
-    // ============================================
-    // ORDENAR Y RENDERIZAR
-    // ============================================
     window.ordenarYRender = (criterio) => {
         if (criterio === 'nombre') {
             listaComercios.sort((a, b) => (a.nombre || "").localeCompare(b.nombre || ""));
@@ -876,9 +833,6 @@
         renderTabla();
     };
 
-    // ============================================
-    // ACTUALIZAR FRECUENCIA DE MAIL
-    // ============================================
     window.updateFreq = async (id, val) => { 
         try {
             await updateDoc(doc(db, "comercios", id), { frecuenciaMail: val });
@@ -887,9 +841,6 @@
         }
     };
 
-    // ============================================
-    // FILTRAR TABLA
-    // ============================================
     window.filtrarTabla = () => {
         const term = document.getElementById('buscador').value.toLowerCase();
         document.querySelectorAll('.com-row').forEach(row => { 
@@ -897,9 +848,6 @@
         });
     };
 
-    // ============================================
-    // INICIALIZAR
-    // ============================================
     cargarStatsUsuarios();
     </script>
 </body>
