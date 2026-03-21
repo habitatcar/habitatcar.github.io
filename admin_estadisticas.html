@@ -285,33 +285,47 @@ async function registrarLogEnvio(comercio, email, estado) {
 // ═══════════════════════════════════════════════════════════
 async function generarPDFComercio(c) {
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
+    const pdfDoc2 = new jsPDF({ orientation:'portrait', unit:'mm', format:'a4' });
     const W = 210, MARGEN = 14, ANCHO = W - MARGEN * 2;
     let y = 0;
 
-    const leadHist  = parseInt(c.totalUsos  || 0);
-    const vipHist   = parseInt(c.totalVips  || 0);
+    // ── Datos ──
+    const leadHist  = parseInt(c.totalUsos    || 0);
+    const vipHist   = parseInt(c.totalVips    || 0);
     const total     = leadHist + vipHist;
-    const sumaHoy   = parseInt(c.usosHoy    || 0) + parseInt(c.vipsHoy    || 0);
-    const sumaSem   = parseInt(c.usosSemana || 0) + parseInt(c.vipsSemana || 0);
-    const sumaMes   = parseInt(c.usosMes    || 0) + parseInt(c.vipsMes    || 0);
-    const sumaAnio  = parseInt(c.usosAnio   || 0) + parseInt(c.vipsAnio   || 0);
+    const sumaHoy   = parseInt(c.usosHoy     || 0) + parseInt(c.vipsHoy    || 0);
+    const sumaSem   = parseInt(c.usosSemana  || 0) + parseInt(c.vipsSemana || 0);
+    const sumaMes   = parseInt(c.usosMes     || 0) + parseInt(c.vipsMes    || 0);
+    const sumaAnio  = parseInt(c.usosAnio    || 0) + parseInt(c.vipsAnio   || 0);
     const pLeads    = total > 0 ? Math.round((leadHist / total) * 100) : 50;
     const pVips     = total > 0 ? Math.round((vipHist  / total) * 100) : 50;
     const tasaConv  = total > 0 ? pVips + '%' : '0%';
     const fechaRep  = new Date().toLocaleString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
     const mesAnio   = new Date().toLocaleString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
 
+    // Paleta San Expedito
+    const ROJO    = [180, 30, 30];    // rojo oscuro
+    const ROJO_S  = [220, 50, 50];    // rojo suave
+    const VERDE   = [60, 100, 50];    // verde oliva oscuro
+    const VERDE_S = [85, 140, 70];    // verde oliva claro
+    const BLANCO  = [255, 255, 255];
+    const GRIS1   = [245, 246, 244];  // fondo muy claro
+    const GRIS2   = [220, 225, 218];  // bordes
+    const TEXTO   = [30, 35, 25];     // casi negro
+    const MUTED   = [110, 120, 105];  // gris oliva
+
     // ── helpers ──
-    const sf = (size, style='normal', color=[30,30,30]) => {
-        doc.setFontSize(size); doc.setFont('helvetica', style); doc.setTextColor(...color);
+    const sf = (size, style='normal', color=TEXTO) => {
+        pdfDoc2.setFontSize(size);
+        pdfDoc2.setFont('helvetica', style);
+        pdfDoc2.setTextColor(...color);
     };
-    const fillRect = (x,ry,w,h,fill,stroke) => {
-        doc.setFillColor(...fill);
-        if (stroke) doc.setDrawColor(...stroke); else doc.setDrawColor(...fill);
-        doc.roundedRect(x,ry,w,h,2,2,stroke ? 'FD' : 'F');
+    const fillR = (x,ry,w,h,fill,stroke) => {
+        pdfDoc2.setFillColor(...fill);
+        if (stroke) { pdfDoc2.setDrawColor(...stroke); pdfDoc2.roundedRect(x,ry,w,h,2,2,'FD'); }
+        else pdfDoc2.roundedRect(x,ry,w,h,2,2,'F');
     };
-    const checkPage = (needed) => { if (y + needed > 278) { doc.addPage(); y = 14; } };
+    const checkPage = (needed) => { if (y + needed > 275) { pdfDoc2.addPage(); y = 14; } };
 
     // ── Cargar logo ──
     let logoB64 = null;
@@ -330,81 +344,89 @@ async function generarPDFComercio(c) {
     } catch(e) { logoB64 = null; }
 
     // ══════════════════════════════
-    // CABECERA
+    // CABECERA — fondo blanco con franja roja
     // ══════════════════════════════
-    doc.setFillColor(0, 74, 153);
-    doc.rect(0, 0, W, 42, 'F');
-    doc.setFillColor(255, 193, 7);
-    doc.rect(0, 42, W, 1.5, 'F');
+    // Fondo blanco cabecera
+    pdfDoc2.setFillColor(...BLANCO);
+    pdfDoc2.rect(0, 0, W, 44, 'F');
+    // Franja roja izquierda
+    pdfDoc2.setFillColor(...ROJO);
+    pdfDoc2.rect(0, 0, 4, 44, 'F');
+    // Línea verde oliva inferior
+    pdfDoc2.setFillColor(...VERDE);
+    pdfDoc2.rect(0, 44, W, 1.5, 'F');
+    // Borde inferior gris
+    pdfDoc2.setFillColor(...GRIS2);
+    pdfDoc2.rect(0, 45.5, W, 0.5, 'F');
 
+    // Logo o texto — todo alineado a la izquierda con padding
     if (logoB64) {
-        try { doc.addImage(logoB64, 'PNG', MARGEN, 6, 44, 30); } catch(e) {}
+        try { pdfDoc2.addImage(logoB64, 'PNG', 8, 5, 46, 30); } catch(e) {}
+        sf(7, 'normal', MUTED);
+        pdfDoc2.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', 8, 38);
     } else {
-        sf(18, 'bold', [255,255,255]);
-        doc.text('HABITAT-CAR', MARGEN, 20);
+        sf(18, 'bold', TEXTO);
+        pdfDoc2.text('HABITAT-CAR', 8, 18);
+        sf(7, 'normal', MUTED);
+        pdfDoc2.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', 8, 26);
     }
 
-    sf(7, 'normal', [179, 215, 255]);
-    doc.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', MARGEN, 38);
+    // Derecha — tipo y fecha
+    sf(12, 'bold', ROJO);
+    pdfDoc2.text('REPORTE MENSUAL', W - MARGEN, 14, {align:'right'});
+    sf(9, 'bold', TEXTO);
+    pdfDoc2.text(mesAnio, W - MARGEN, 22, {align:'right'});
+    sf(7, 'normal', MUTED);
+    pdfDoc2.text(fechaRep, W - MARGEN, 29, {align:'right'});
+    // Badge
+    pdfDoc2.setFillColor(...VERDE);
+    pdfDoc2.roundedRect(W - MARGEN - 28, 33, 28, 7, 2, 2, 'F');
+    sf(6.5, 'bold', BLANCO);
+    pdfDoc2.text('CONFIDENCIAL', W - MARGEN - 14, 38, {align:'center'});
 
-    sf(13, 'bold', [255, 255, 255]);
-    doc.text('REPORTE MENSUAL DE ACTIVIDAD', W - MARGEN, 16, {align:'right'});
-    sf(8, 'normal', [179, 215, 255]);
-    doc.text(mesAnio, W - MARGEN, 23, {align:'right'});
-    sf(7, 'normal', [150, 200, 255]);
-    doc.text('Generado: ' + fechaRep, W - MARGEN, 29, {align:'right'});
-
-    // Badge CONFIDENCIAL
-    doc.setFillColor(255, 193, 7);
-    doc.roundedRect(W - MARGEN - 30, 32, 30, 7, 2, 2, 'F');
-    sf(7, 'bold', [10, 25, 47]);
-    doc.text('CONFIDENCIAL', W - MARGEN - 15, 37, {align:'center'});
-
-    y = 50;
+    y = 52;
 
     // ══════════════════════════════
     // DATOS DEL COMERCIO
     // ══════════════════════════════
-    doc.setFillColor(240, 245, 255);
-    doc.rect(0, y, W, 20, 'F');
-    doc.setDrawColor(0, 74, 153);
-    doc.rect(0, y, 3, 20, 'F');
+    pdfDoc2.setFillColor(...GRIS1);
+    pdfDoc2.rect(0, y, W, 20, 'F');
+    pdfDoc2.setFillColor(...VERDE);
+    pdfDoc2.rect(0, y, 3, 20, 'F');
 
-    sf(14, 'bold', [0, 74, 153]);
-    doc.text((c.nombre || 'COMERCIO').toUpperCase(), MARGEN + 5, y + 9);
-    sf(8, 'normal', [100, 120, 150]);
+    sf(13, 'bold', VERDE);
+    pdfDoc2.text((c.nombre || 'COMERCIO').toUpperCase(), MARGEN + 5, y + 9);
+    sf(8, 'normal', MUTED);
     const infoLine = [c.rubro, c.ciudad, c.provincia].filter(Boolean).join('  ·  ');
-    if (infoLine) doc.text(infoLine, MARGEN + 5, y + 16);
-
-    sf(7, 'normal', [150, 150, 150]);
-    const lastEnv = c.lastSubmission ? String(c.lastSubmission) : 'Nunca';
-    doc.text('Último reporte enviado: ' + lastEnv, W - MARGEN, y + 16, {align:'right'});
+    if (infoLine) pdfDoc2.text(infoLine, MARGEN + 5, y + 16);
+    sf(7, 'normal', MUTED);
+    pdfDoc2.text('Último envío: ' + (c.lastSubmission ? String(c.lastSubmission) : 'Nunca'), W - MARGEN, y + 16, {align:'right'});
 
     y += 26;
 
     // ══════════════════════════════
     // 4 MÉTRICAS
     // ══════════════════════════════
-    sf(7, 'bold', [150, 160, 180]);
-    doc.text('RESUMEN EJECUTIVO', MARGEN, y);
+    sf(7, 'bold', MUTED);
+    pdfDoc2.text('RESUMEN EJECUTIVO', MARGEN, y);
     y += 5;
 
     const metricas = [
-        { label:'TOTAL HISTÓRICO', val:String(total),     sub:'Canjes acumulados',   bg:[232,245,233], border:[129,199,132], nc:[27,94,32],   tc:[46,125,50]  },
-        { label:'CANJES VIP',      val:String(vipHist),   sub:'Clientes premium',    bg:[255,248,225], border:[255,213,79],  nc:[130,100,0],  tc:[121,85,9]   },
-        { label:'CANJES LEAD',     val:String(leadHist),  sub:'Clientes estándar',   bg:[227,242,253], border:[100,181,246], nc:[13,71,161],  tc:[21,101,192] },
-        { label:'TASA VIP',        val:tasaConv,          sub:'Conversión a premium', bg:[243,229,245], border:[186,104,200], nc:[74,20,140],  tc:[106,27,154] },
+        { label:'TOTAL HISTÓRICO', val:String(total),    sub:'Canjes acumulados',    bg:[235,242,232], bc:VERDE_S,  nc:VERDE,   tc:VERDE   },
+        { label:'CANJES LEAD',     val:String(leadHist), sub:'Clientes estándar',    bg:[234,242,251], bc:[120,150,200], nc:[40,70,140], tc:[40,70,140] },
+        { label:'CANJES VIP',      val:String(vipHist),  sub:'Clientes premium',     bg:[252,240,235], bc:ROJO_S,   nc:ROJO,    tc:ROJO    },
+        { label:'TASA VIP',        val:tasaConv,         sub:'Conversión a premium', bg:GRIS1,         bc:GRIS2,    nc:VERDE,   tc:VERDE   },
     ];
     const cw = (ANCHO - 9) / 4;
     metricas.forEach((m, i) => {
         const cx = MARGEN + i * (cw + 3);
-        fillRect(cx, y, cw, 28, m.bg, m.border);
+        fillR(cx, y, cw, 28, m.bg, m.bc);
         sf(6.5, 'bold', m.tc);
-        doc.text(m.label, cx + cw/2, y + 7, {align:'center'});
+        pdfDoc2.text(m.label, cx + cw/2, y + 7, {align:'center'});
         sf(22, 'bold', m.nc);
-        doc.text(m.val, cx + cw/2, y + 20, {align:'center'});
-        sf(6.5, 'normal', [150,150,150]);
-        doc.text(m.sub, cx + cw/2, y + 26, {align:'center'});
+        pdfDoc2.text(m.val, cx + cw/2, y + 20, {align:'center'});
+        sf(6.5, 'normal', MUTED);
+        pdfDoc2.text(m.sub, cx + cw/2, y + 26, {align:'center'});
     });
     y += 34;
 
@@ -412,258 +434,271 @@ async function generarPDFComercio(c) {
     // GRÁFICO DE BARRAS — Rendimiento temporal
     // ══════════════════════════════
     checkPage(58);
-    sf(7, 'bold', [150, 160, 180]);
-    doc.text('RENDIMIENTO TEMPORAL', MARGEN, y);
+    sf(7, 'bold', MUTED);
+    pdfDoc2.text('RENDIMIENTO TEMPORAL', MARGEN, y);
     y += 5;
 
     const periodos = [
-        { label:'HOY',    val: sumaHoy  },
-        { label:'SEMANA', val: sumaSem  },
-        { label:'MES',    val: sumaMes  },
-        { label:'AÑO',    val: sumaAnio },
+        { label:'HOY',    val:sumaHoy,  vip:parseInt(c.vipsHoy||0),    lead:parseInt(c.usosHoy||0)  },
+        { label:'SEMANA', val:sumaSem,  vip:parseInt(c.vipsSemana||0), lead:parseInt(c.usosSemana||0) },
+        { label:'MES',    val:sumaMes,  vip:parseInt(c.vipsMes||0),    lead:parseInt(c.usosMes||0)  },
+        { label:'AÑO',    val:sumaAnio, vip:parseInt(c.vipsAnio||0),   lead:parseInt(c.usosAnio||0) },
     ];
     const maxTempo = Math.max(...periodos.map(p => p.val), 1);
-    const barColors = [[0,74,153], [0,100,180], [0,130,210], [255,193,7]];
     const BW = (ANCHO - 15) / 4;
-    const BH = 38;
+    const BH = 36;
     const BY = y;
 
     // Fondo
-    doc.setFillColor(248, 250, 252);
-    doc.setDrawColor(220, 225, 235);
-    doc.roundedRect(MARGEN, BY, ANCHO, BH + 14, 3, 3, 'FD');
+    pdfDoc2.setFillColor(...GRIS1);
+    pdfDoc2.setDrawColor(...GRIS2);
+    pdfDoc2.roundedRect(MARGEN, BY, ANCHO, BH + 14, 2, 2, 'FD');
 
     // Líneas guía
-    doc.setDrawColor(220, 225, 235);
-    doc.setLineWidth(0.3);
+    pdfDoc2.setDrawColor(...GRIS2);
+    pdfDoc2.setLineWidth(0.3);
     for (let g = 1; g <= 3; g++) {
         const gy = BY + 4 + BH - (BH / 3) * g;
-        doc.line(MARGEN + 4, gy, MARGEN + ANCHO - 4, gy);
+        pdfDoc2.line(MARGEN + 4, gy, MARGEN + ANCHO - 4, gy);
     }
 
+    // Barras apiladas (LEAD abajo en verde, VIP encima en rojo)
     periodos.forEach((p, i) => {
         const bx = MARGEN + 4 + i * (BW + 3);
-        const bh = maxTempo > 0 ? Math.max((p.val / maxTempo) * BH, p.val > 0 ? 3 : 0) : 0;
-        const by2 = BY + 4 + BH - bh;
+        const bh_total = maxTempo > 0 ? Math.max((p.val / maxTempo) * BH, p.val > 0 ? 3 : 0) : 0;
+        const bh_lead  = p.val > 0 ? (p.lead / p.val) * bh_total : 0;
+        const bh_vip   = bh_total - bh_lead;
+        const by_base  = BY + 4 + BH;
 
-        // Sombra
-        doc.setFillColor(200, 210, 230);
-        doc.roundedRect(bx + 1, by2 + 1, BW, bh, 2, 2, 'F');
-        // Barra
-        doc.setFillColor(...barColors[i]);
-        doc.roundedRect(bx, by2, BW, bh, 2, 2, 'F');
-        // Brillo
-        doc.setFillColor(255, 255, 255);
-        doc.setGState(new doc.GState({opacity: 0.15}));
-        doc.roundedRect(bx + 2, by2, BW/2 - 2, bh, 1, 1, 'F');
-        doc.setGState(new doc.GState({opacity: 1}));
+        // Barra LEAD (verde)
+        if (bh_lead > 0) {
+            pdfDoc2.setFillColor(...VERDE_S);
+            pdfDoc2.roundedRect(bx, by_base - bh_lead, BW, bh_lead, 1, 1, 'F');
+        }
+        // Barra VIP (rojo) encima
+        if (bh_vip > 0) {
+            pdfDoc2.setFillColor(...ROJO);
+            pdfDoc2.roundedRect(bx, by_base - bh_total, BW, bh_vip, 1, 1, 'F');
+        }
+        // Si no hay nada, barra mínima gris
+        if (p.val === 0) {
+            pdfDoc2.setFillColor(...GRIS2);
+            pdfDoc2.roundedRect(bx, by_base - 1.5, BW, 1.5, 1, 1, 'F');
+        }
 
-        // Valor sobre la barra
-        sf(9, 'bold', [10, 25, 47]);
-        doc.text(String(p.val), bx + BW/2, by2 - 2, {align:'center'});
-        // Label
-        sf(7, 'bold', [80, 100, 130]);
-        doc.text(p.label, bx + BW/2, BY + BH + 11, {align:'center'});
+        // Valor total sobre la barra
+        sf(8, 'bold', TEXTO);
+        pdfDoc2.text(String(p.val), bx + BW/2, by_base - bh_total - 2, {align:'center'});
+        // Label abajo
+        sf(7, 'bold', MUTED);
+        pdfDoc2.text(p.label, bx + BW/2, BY + BH + 11, {align:'center'});
     });
+
+    // Leyenda barras
+    pdfDoc2.setFillColor(...VERDE_S);
+    pdfDoc2.roundedRect(MARGEN + 4, BY + 3, 8, 4, 1, 1, 'F');
+    sf(6, 'normal', MUTED);
+    pdfDoc2.text('LEAD', MARGEN + 14, BY + 7);
+    pdfDoc2.setFillColor(...ROJO);
+    pdfDoc2.roundedRect(MARGEN + 28, BY + 3, 8, 4, 1, 1, 'F');
+    pdfDoc2.text('VIP', MARGEN + 38, BY + 7);
+
+    pdfDoc2.setLineWidth(0.2);
     y += BH + 20;
 
     // ══════════════════════════════
-    // GRÁFICO DE TORTA — Composición VIP / Lead
+    // GRÁFICO TORTA REAL con canvas
     // ══════════════════════════════
-    checkPage(55);
-    sf(7, 'bold', [150, 160, 180]);
-    doc.text('COMPOSICIÓN DE AUDIENCIA', MARGEN, y);
+    checkPage(58);
+    sf(7, 'bold', MUTED);
+    pdfDoc2.text('COMPOSICIÓN DE AUDIENCIA', MARGEN, y);
     y += 5;
 
-    const PIE_CX = MARGEN + 30;
-    const PIE_CY = y + 25;
-    const PIE_R  = 22;
+    // Dibujar torta real con canvas
+    const PIE_SIZE = 120; // px del canvas
+    const pieCanvas = document.createElement('canvas');
+    pieCanvas.width  = PIE_SIZE;
+    pieCanvas.height = PIE_SIZE;
+    const pieCtx = pieCanvas.getContext('2d');
+    const cx2 = PIE_SIZE / 2, cy2 = PIE_SIZE / 2, r2 = PIE_SIZE / 2 - 4;
 
-    // Dibujar sectores manualmente (aproximado con arcos)
-    // Sector LEADS (azul)
-    const angLead = pLeads / 100 * 360;
-    const angVip  = pVips  / 100 * 360;
-
-    // Fondo círculo completo de referencia
-    doc.setFillColor(227, 242, 253);
-    doc.circle(PIE_CX, PIE_CY, PIE_R, 'F');
-
-    // Sector VIP (dorado) — dibujar como polígono aproximado
-    if (pVips > 0 && pVips < 100) {
-        const steps = Math.max(Math.round(angVip / 5), 3);
-        const startAngle = -90;
-        const endAngle   = startAngle + angVip;
-        const pts = [[PIE_CX, PIE_CY]];
-        for (let s = 0; s <= steps; s++) {
-            const ang = (startAngle + (angVip / steps) * s) * Math.PI / 180;
-            pts.push([PIE_CX + PIE_R * Math.cos(ang), PIE_CY + PIE_R * Math.sin(ang)]);
-        }
-        doc.setFillColor(255, 193, 7);
-        doc.triangle(pts[0][0], pts[0][1], pts[1][0], pts[1][1], pts[Math.floor(steps/2)+1][0], pts[Math.floor(steps/2)+1][1], 'F');
-        // Completar con más triángulos
-        for (let s = 1; s < pts.length - 1; s++) {
-            doc.setFillColor(255, 193, 7);
-            doc.triangle(PIE_CX, PIE_CY, pts[s][0], pts[s][1], pts[s+1][0], pts[s+1][1], 'F');
-        }
-    } else if (pVips === 100) {
-        doc.setFillColor(255, 193, 7);
-        doc.circle(PIE_CX, PIE_CY, PIE_R, 'F');
-    }
-
-    // Círculo interior (donut)
-    doc.setFillColor(255, 255, 255);
-    doc.circle(PIE_CX, PIE_CY, PIE_R * 0.52, 'F');
-
-    // Porcentaje central
-    sf(10, 'bold', [0, 74, 153]);
-    doc.text(pLeads + '%', PIE_CX, PIE_CY + 1.5, {align:'center'});
-    sf(5.5, 'normal', [100, 120, 150]);
-    doc.text('LEADS', PIE_CX, PIE_CY + 6, {align:'center'});
-
+    const sectors = [
+        { pct: pLeads, color: '#3d6432' },  // verde oliva — LEADS
+        { pct: pVips,  color: '#b41e1e' },  // rojo — VIP
+    ];
+    let startAngle = -Math.PI / 2;
+    sectors.forEach(s => {
+        const sliceAngle = (s.pct / 100) * 2 * Math.PI;
+        pieCtx.beginPath();
+        pieCtx.moveTo(cx2, cy2);
+        pieCtx.arc(cx2, cy2, r2, startAngle, startAngle + sliceAngle);
+        pieCtx.closePath();
+        pieCtx.fillStyle = s.color;
+        pieCtx.fill();
+        startAngle += sliceAngle;
+    });
+    // Donut hole
+    pieCtx.beginPath();
+    pieCtx.arc(cx2, cy2, r2 * 0.48, 0, 2 * Math.PI);
+    pieCtx.fillStyle = '#ffffff';
+    pieCtx.fill();
     // Borde
-    doc.setDrawColor(200, 210, 230);
-    doc.setLineWidth(0.5);
-    doc.circle(PIE_CX, PIE_CY, PIE_R);
+    pieCtx.beginPath();
+    pieCtx.arc(cx2, cy2, r2, 0, 2 * Math.PI);
+    pieCtx.strokeStyle = '#dde0dc';
+    pieCtx.lineWidth = 1;
+    pieCtx.stroke();
 
-    // Leyenda al lado del gráfico
-    const LX = MARGEN + 62;
-    const LY = y + 8;
+    const pieB64 = pieCanvas.toDataURL('image/png');
+    const PIE_MM = 40;
+    const PIE_X  = MARGEN;
+    const PIE_Y  = y;
+    try { pdfDoc2.addImage(pieB64, 'PNG', PIE_X, PIE_Y, PIE_MM, PIE_MM); } catch(e) {}
 
-    // Cuadro resumen composición
-    fillRect(LX, LY, ANCHO - 62, 46, [248, 250, 252], [220, 225, 235]);
+    // Porcentaje dentro del donut
+    sf(10, 'bold', VERDE);
+    pdfDoc2.text(pLeads + '%', PIE_X + PIE_MM/2, PIE_Y + PIE_MM/2 + 2, {align:'center'});
+    sf(5.5, 'normal', MUTED);
+    pdfDoc2.text('LEADS', PIE_X + PIE_MM/2, PIE_Y + PIE_MM/2 + 7, {align:'center'});
 
-    sf(8, 'bold', [0, 74, 153]);
-    doc.text('LEADS', LX + 8, LY + 11);
-    doc.setFillColor(0, 74, 153);
-    doc.roundedRect(LX + 4, LY + 5, 3, 8, 1, 1, 'F');
-    sf(18, 'bold', [13, 71, 161]);
-    doc.text(String(leadHist), LX + 8, LY + 24);
-    sf(7, 'normal', [120, 140, 170]);
-    doc.text(pLeads + '% del total', LX + 8, LY + 30);
+    // Panel de datos al lado
+    const PX = MARGEN + PIE_MM + 8;
+    const PW = ANCHO - PIE_MM - 8;
 
-    // Barra separadora vertical
-    doc.setDrawColor(220, 225, 235);
-    doc.setLineWidth(0.5);
-    doc.line(LX + ANCHO/2 - 25, LY + 4, LX + ANCHO/2 - 25, LY + 42);
+    // Card LEADS
+    fillR(PX, PIE_Y, PW/2 - 3, PIE_MM/2 - 2, [235,242,232], VERDE_S);
+    pdfDoc2.setFillColor(...VERDE);
+    pdfDoc2.roundedRect(PX + 3, PIE_Y + 4, 3, PIE_MM/2 - 10, 1, 1, 'F');
+    sf(7, 'bold', VERDE);
+    pdfDoc2.text('LEADS', PX + 10, PIE_Y + 9);
+    sf(16, 'bold', VERDE);
+    pdfDoc2.text(String(leadHist), PX + 10, PIE_Y + 20);
+    sf(6.5, 'normal', MUTED);
+    pdfDoc2.text(pLeads + '% del total', PX + 10, PIE_Y + 27);
 
-    const LX2 = LX + ANCHO/2 - 18;
-    sf(8, 'bold', [130, 100, 0]);
-    doc.text('VIP', LX2, LY + 11);
-    doc.setFillColor(255, 193, 7);
-    doc.roundedRect(LX2 - 4, LY + 5, 3, 8, 1, 1, 'F');
-    sf(18, 'bold', [121, 85, 9]);
-    doc.text(String(vipHist), LX2, LY + 24);
-    sf(7, 'normal', [150, 130, 60]);
-    doc.text(pVips + '% del total', LX2, LY + 30);
+    // Card VIP
+    const VX = PX + PW/2 + 1;
+    fillR(VX, PIE_Y, PW/2 - 2, PIE_MM/2 - 2, [252,240,235], ROJO_S);
+    pdfDoc2.setFillColor(...ROJO);
+    pdfDoc2.roundedRect(VX + 3, PIE_Y + 4, 3, PIE_MM/2 - 10, 1, 1, 'F');
+    sf(7, 'bold', ROJO);
+    pdfDoc2.text('VIP', VX + 10, PIE_Y + 9);
+    sf(16, 'bold', ROJO);
+    pdfDoc2.text(String(vipHist), VX + 10, PIE_Y + 20);
+    sf(6.5, 'normal', MUTED);
+    pdfDoc2.text(pVips + '% del total', VX + 10, PIE_Y + 27);
 
-    // Barra de proporción visual
-    const barY2 = LY + 37;
-    const barW2 = ANCHO - 66;
-    doc.setFillColor(227, 242, 253);
-    doc.roundedRect(LX + 4, barY2, barW2, 5, 2, 2, 'F');
+    // Barra proporcional abajo del gráfico torta
+    const BPY = PIE_Y + PIE_MM/2 + 1;
+    const BPW = PW;
+    fillR(PX, BPY, BPW, PIE_MM/2 - 2, GRIS1, GRIS2);
+    sf(6.5, 'bold', MUTED);
+    pdfDoc2.text('Proporción total:', PX + 4, BPY + 7);
+    pdfDoc2.setFillColor(220, 225, 218);
+    pdfDoc2.roundedRect(PX + 4, BPY + 10, BPW - 8, 6, 2, 2, 'F');
     if (pLeads > 0) {
-        doc.setFillColor(0, 74, 153);
-        doc.roundedRect(LX + 4, barY2, barW2 * pLeads / 100, 5, 2, 2, 'F');
+        pdfDoc2.setFillColor(...VERDE_S);
+        pdfDoc2.roundedRect(PX + 4, BPY + 10, (BPW - 8) * pLeads / 100, 6, 2, 2, 'F');
+    }
+    if (pVips > 0) {
+        const vipX = PX + 4 + (BPW - 8) * pLeads / 100;
+        pdfDoc2.setFillColor(...ROJO);
+        pdfDoc2.roundedRect(vipX, BPY + 10, (BPW - 8) * pVips / 100, 6, 2, 2, 'F');
     }
 
-    y += 58;
+    y += PIE_MM + 10;
 
     // ══════════════════════════════
-    // TABLA DATOS TEMPORALES
+    // TABLA TEMPORAL
     // ══════════════════════════════
-    checkPage(50);
-    sf(7, 'bold', [150, 160, 180]);
-    doc.text('DETALLE TEMPORAL Y COMPARATIVO', MARGEN, y);
+    checkPage(56);
+    sf(7, 'bold', MUTED);
+    pdfDoc2.text('DETALLE TEMPORAL Y COMPARATIVO', MARGEN, y);
     y += 4;
 
     const tablaRows = [
-        ['Hoy',    String(parseInt(c.usosHoy||0)),   String(parseInt(c.vipsHoy||0)),   String(sumaHoy)],
-        ['Semana', String(parseInt(c.usosSemana||0)), String(parseInt(c.vipsSemana||0)), String(sumaSem)],
-        ['Mes',    String(parseInt(c.usosMes||0)),    String(parseInt(c.vipsMes||0)),    String(sumaMes)],
-        ['Año',    String(parseInt(c.usosAnio||0)),   String(parseInt(c.vipsAnio||0)),   String(sumaAnio)],
-        ['HISTÓRICO TOTAL', String(leadHist),          String(vipHist),                  String(total)],
+        ['Hoy',             String(parseInt(c.usosHoy||0)),    String(parseInt(c.vipsHoy||0)),    String(sumaHoy)],
+        ['Semana',          String(parseInt(c.usosSemana||0)), String(parseInt(c.vipsSemana||0)), String(sumaSem)],
+        ['Mes',             String(parseInt(c.usosMes||0)),    String(parseInt(c.vipsMes||0)),    String(sumaMes)],
+        ['Año',             String(parseInt(c.usosAnio||0)),   String(parseInt(c.vipsAnio||0)),   String(sumaAnio)],
+        ['HISTÓRICO TOTAL', String(leadHist),                  String(vipHist),                   String(total)],
     ];
 
-    // Header tabla
-    doc.setFillColor(0, 74, 153);
-    doc.rect(MARGEN, y, ANCHO, 8, 'F');
-    sf(7, 'bold', [255, 255, 255]);
-    doc.text('PERÍODO',  MARGEN + 4, y + 5.5);
-    doc.text('LEADS',    MARGEN + 58, y + 5.5, {align:'center'});
-    doc.text('VIP',      MARGEN + 100, y + 5.5, {align:'center'});
-    doc.text('TOTAL',    MARGEN + ANCHO - 10, y + 5.5, {align:'right'});
+    pdfDoc2.setFillColor(...VERDE);
+    pdfDoc2.rect(MARGEN, y, ANCHO, 8, 'F');
+    sf(7, 'bold', BLANCO);
+    pdfDoc2.text('PERÍODO',  MARGEN + 4, y + 5.5);
+    pdfDoc2.text('LEADS',    MARGEN + 62, y + 5.5, {align:'center'});
+    pdfDoc2.text('VIP',      MARGEN + 108, y + 5.5, {align:'center'});
+    pdfDoc2.text('TOTAL',    MARGEN + ANCHO - 6, y + 5.5, {align:'right'});
     y += 8;
 
     tablaRows.forEach((row, i) => {
         const esTotal = i === tablaRows.length - 1;
-        const bg = esTotal ? [255, 248, 225] : (i % 2 === 0 ? [255,255,255] : [247,249,252]);
-        doc.setFillColor(...bg);
-        doc.rect(MARGEN, y, ANCHO, 8, 'F');
-        doc.setDrawColor(220, 225, 235);
-        doc.line(MARGEN, y + 8, MARGEN + ANCHO, y + 8);
+        const bg = esTotal ? [235,242,232] : (i % 2 === 0 ? BLANCO : GRIS1);
+        pdfDoc2.setFillColor(...bg);
+        pdfDoc2.rect(MARGEN, y, ANCHO, 8, 'F');
+        pdfDoc2.setDrawColor(...GRIS2);
+        pdfDoc2.setLineWidth(0.2);
+        pdfDoc2.line(MARGEN, y + 8, MARGEN + ANCHO, y + 8);
 
-        sf(esTotal ? 8 : 8, esTotal ? 'bold' : 'normal', esTotal ? [10,25,47] : [55,65,81]);
-        doc.text(row[0], MARGEN + 4, y + 5.5);
-        sf(8, esTotal ? 'bold' : 'normal', [13, 71, 161]);
-        doc.text(row[1], MARGEN + 58, y + 5.5, {align:'center'});
-        sf(8, esTotal ? 'bold' : 'normal', [121, 85, 9]);
-        doc.text(row[2], MARGEN + 100, y + 5.5, {align:'center'});
-        sf(8, esTotal ? 'bold' : 'normal', [27, 94, 32]);
-        doc.text(row[3], MARGEN + ANCHO - 10, y + 5.5, {align:'right'});
+        sf(8, esTotal ? 'bold' : 'normal', TEXTO);
+        pdfDoc2.text(row[0], MARGEN + 4, y + 5.5);
+        sf(8, esTotal ? 'bold' : 'normal', [40, 70, 140]);
+        pdfDoc2.text(row[1], MARGEN + 62, y + 5.5, {align:'center'});
+        sf(8, esTotal ? 'bold' : 'normal', ROJO);
+        pdfDoc2.text(row[2], MARGEN + 108, y + 5.5, {align:'center'});
+        sf(8, esTotal ? 'bold' : 'normal', VERDE);
+        pdfDoc2.text(row[3], MARGEN + ANCHO - 6, y + 5.5, {align:'right'});
         y += 8;
     });
     y += 8;
 
     // ══════════════════════════════
-    // FRANJA HORARIA (estimada)
+    // FRANJAS HORARIAS
     // ══════════════════════════════
     checkPage(42);
-    sf(7, 'bold', [150, 160, 180]);
-    doc.text('FRANJAS HORARIAS ESTIMADAS (distribución típica)', MARGEN, y);
+    sf(7, 'bold', MUTED);
+    pdfDoc2.text('FRANJAS HORARIAS ESTIMADAS', MARGEN, y);
     y += 5;
 
     const franjas = [
-        { label:'Mañana  08:00 – 13:00', pct: 30, color:[100,181,246] },
-        { label:'Tarde   13:00 – 20:00', pct: 50, color:[0,74,153]    },
-        { label:'Noche   20:00 – 05:00', pct: 20, color:[51,71,102]   },
+        { label:'Mañana   08:00 – 13:00', pct:30, color:VERDE_S  },
+        { label:'Tarde    13:00 – 20:00', pct:50, color:VERDE     },
+        { label:'Noche    20:00 – 05:00', pct:20, color:[40,70,140] },
     ];
-    const fW = ANCHO;
     franjas.forEach(f => {
-        sf(7, 'normal', [55, 65, 81]);
-        doc.text(f.label, MARGEN, y + 5);
-        sf(7, 'bold', [0, 74, 153]);
-        doc.text(f.pct + '%', MARGEN + ANCHO, y + 5, {align:'right'});
-        // Barra fondo
-        doc.setFillColor(230, 235, 245);
-        doc.roundedRect(MARGEN, y + 7, fW, 5, 2, 2, 'F');
-        // Barra rellena
-        doc.setFillColor(...f.color);
-        doc.roundedRect(MARGEN, y + 7, fW * f.pct / 100, 5, 2, 2, 'F');
+        sf(7, 'normal', TEXTO);
+        pdfDoc2.text(f.label, MARGEN, y + 5);
+        sf(7, 'bold', f.color);
+        pdfDoc2.text(f.pct + '%', MARGEN + ANCHO, y + 5, {align:'right'});
+        pdfDoc2.setFillColor(220, 225, 218);
+        pdfDoc2.roundedRect(MARGEN, y + 7, ANCHO, 5, 2, 2, 'F');
+        pdfDoc2.setFillColor(...f.color);
+        pdfDoc2.roundedRect(MARGEN, y + 7, ANCHO * f.pct / 100, 5, 2, 2, 'F');
         y += 16;
     });
-    y += 4;
 
     // ══════════════════════════════
-    // PIE DE PÁGINA — todas las páginas
+    // PIE EN TODAS LAS PÁGINAS
     // ══════════════════════════════
-    const totalPags = doc.internal.getNumberOfPages();
+    const totalPags = pdfDoc2.internal.getNumberOfPages();
     for (let p = 1; p <= totalPags; p++) {
-        doc.setPage(p);
-        doc.setFillColor(0, 74, 153);
-        doc.rect(0, 284, W, 13, 'F');
-        doc.setFillColor(255, 193, 7);
-        doc.rect(0, 284, W, 1.2, 'F');
-        sf(7, 'normal', [179, 215, 255]);
-        doc.text('Este reporte es confidencial · uso exclusivo del comercio adherido', MARGEN, 291);
-        sf(7, 'normal', [255, 193, 7]);
-        doc.text('habitatcar.com.ar · 388-4618228', W/2, 291, {align:'center'});
-        sf(7, 'normal', [179, 215, 255]);
-        doc.text(`Lorenzo M. Guerrero · MP: 279 · Pág ${p}/${totalPags}`, W - MARGEN, 291, {align:'right'});
+        pdfDoc2.setPage(p);
+        pdfDoc2.setFillColor(...VERDE);
+        pdfDoc2.rect(0, 284, W, 1.2, 'F');
+        pdfDoc2.setFillColor(...GRIS1);
+        pdfDoc2.rect(0, 285.2, W, 11.8, 'F');
+        sf(6.5, 'normal', MUTED);
+        pdfDoc2.text('Reporte confidencial · uso exclusivo del comercio adherido', MARGEN, 292);
+        sf(6.5, 'bold', VERDE);
+        pdfDoc2.text('habitatcar.com.ar · 388-4618228', W/2, 292, {align:'center'});
+        sf(6.5, 'normal', MUTED);
+        pdfDoc2.text('Lorenzo M. Guerrero · MP: 279 · Pág ' + p + '/' + totalPags, W - MARGEN, 292, {align:'right'});
     }
 
-    return doc;
+    return pdfDoc2;
 }
-// ═══════════════════════════════════════════════════════════
 
 window.enviarReporteIndividual = async (id) => {
     const c = listaComercios.find(x => x.id === id);
@@ -671,8 +706,8 @@ window.enviarReporteIndividual = async (id) => {
     if (!c.emailDueno) return alert("El comercio no tiene email configurado.");
 
     try {
-        const doc = await generarPDFComercio(c);
-        const pdfBlob = doc.output('blob');
+        const pdfDoc = await generarPDFComercio(c);
+        const pdfBlob = pdfDoc.output('blob');
 
         const reader = new FileReader();
         reader.readAsDataURL(pdfBlob);
