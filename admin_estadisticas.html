@@ -721,7 +721,7 @@
         let fallidos = 0;
         
         for (let c of listaComercios) {
-            if (c.frecuenciaMail && c.frecuenciaMail !== 'nunca') {
+            if (c.frecuenciaReportes && c.frecuenciaReportes !== 'nunca') {
                 try {
                     await enviarReporteIndividual(c.id);
                     enviados++;
@@ -790,28 +790,31 @@
                 }
             }
 
+            // OBTENER LA FRECUENCIA DEL CAMPO UNIFICADO: frecuenciaReportes
+            const frecuencia = c.frecuenciaReportes || 'nunca';
+            
             const row = document.createElement('tr');
             row.className = 'com-row';
             row.innerHTML = `
                 <td><b>${c.nombre || 'Sin Nombre'}</b>}}
-                <td>${sumaHist}</td>
-                <td style="color:var(--oro); font-weight:bold;">${leadHist}</td>
-                <td style="color:var(--oro); font-weight:bold;">${vipHist}</td>
-                <td style="color:var(--verde); font-weight:bold;">${sumaHoy}</td>
-                <td>${sumaSem}</td>
-                <td>${sumaMes}</td>
-                <td>${sumaAnio}</td>
-                <td style="font-size: 0.85em; color: #00c3ff; font-weight: bold;">${visualEnvio}</td>
+                <td>${sumaHist}}
+                <td style="color:var(--oro); font-weight:bold;">${leadHist}}
+                <td style="color:var(--oro); font-weight:bold;">${vipHist}}
+                <td style="color:var(--verde); font-weight:bold;">${sumaHoy}}
+                <td>${sumaSem}}
+                <td>${sumaMes}}
+                <td>${sumaAnio}}
+                <td style="font-size: 0.85em; color: #00c3ff; font-weight: bold;">${visualEnvio}}
                 <td>
                     <select class="mail-freq" onchange="updateFreq('${c.id}', this.value)">
-                        <option value="nunca" ${c.frecuenciaMail === 'nunca' ? 'selected' : ''}>Nunca</option>
-                        <option value="diario" ${c.frecuenciaMail === 'diario' ? 'selected' : ''}>Diario</option>
-                        <option value="semanal" ${c.frecuenciaMail === 'semanal' ? 'selected' : ''}>Semanal</option>
-                        <option value="quincenal" ${c.frecuenciaMail === 'quincenal' ? 'selected' : ''}>Quincenal</option>
-                        <option value="mensual" ${c.frecuenciaMail === 'mensual' ? 'selected' : ''}>Mensual</option>
+                        <option value="nunca" ${frecuencia === 'nunca' ? 'selected' : ''}>Nunca</option>
+                        <option value="diario" ${frecuencia === 'diario' ? 'selected' : ''}>Diario</option>
+                        <option value="semanal" ${frecuencia === 'semanal' ? 'selected' : ''}>Semanal</option>
+                        <option value="quincenal" ${frecuencia === 'quincenal' ? 'selected' : ''}>Quincenal</option>
+                        <option value="mensual" ${frecuencia === 'mensual' ? 'selected' : ''}>Mensual</option>
                     </select>
                     <button class="btn-send-row" onclick="enviarReporteIndividual('${c.id}')" title="Enviar reporte">✉</button>
-                </td>
+                }}
             `;
             body.appendChild(row);
         });
@@ -835,9 +838,12 @@
 
     window.updateFreq = async (id, val) => { 
         try {
-            await updateDoc(doc(db, "comercios", id), { frecuenciaMail: val });
+            // ACTUALIZAR EL CAMPO UNIFICADO: frecuenciaReportes
+            await updateDoc(doc(db, "comercios", id), { frecuenciaReportes: val });
+            console.log(`✅ Frecuencia actualizada a: ${val}`);
         } catch (error) {
             console.error("Error actualizando frecuencia:", error);
+            alert("Error al actualizar la frecuencia");
         }
     };
 
