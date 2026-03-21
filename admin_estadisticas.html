@@ -303,24 +303,34 @@ async function generarPDFComercio(c) {
     const fechaRep = new Date().toLocaleString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
     const mesAnio  = new Date().toLocaleString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
 
-    // ── PALETA elegante neutra ──
-    // Fondos de sección
-    const F_SLATE   = [248, 249, 250];   // gris casi blanco
-    const F_WARM    = [252, 250, 246];   // crema muy suave
-    // Acentos suaves para las 4 tarjetas
-    const C1_BG  = [232, 245, 243]; const C1_TXT = [24,  110,  95];   // teal suave
-    const C2_BG  = [232, 239, 252]; const C2_TXT = [40,  80,  170];   // índigo suave
-    const C3_BG  = [252, 235, 235]; const C3_TXT = [170, 50,  50];    // rosa-rojo suave
-    const C4_BG  = [248, 244, 232]; const C4_TXT = [140, 100, 20];    // ámbar suave
-    // Colores texto
-    const T_DARK  = [35,  40,  50];    // casi negro azulado
-    const T_MED   = [90,  98, 112];    // gris medio
-    const T_SOFT  = [155, 162, 175];   // gris claro
+    // ── PALETA PASTEL PROFESIONAL ──
+    // Fondos
+    const F_SLATE   = [250, 252, 255];   // blanco-celeste muy suave
+    const F_WARM    = [252, 253, 255];   // blanco puro con tinte frío
+
+    // Tarjeta 1 — celeste pastel (Total)
+    const C1_BG  = [224, 242, 254]; const C1_TXT = [14,  107, 168];
+
+    // Tarjeta 2 — azul lavanda pastel (Lead)
+    const C2_BG  = [232, 234, 255]; const C2_TXT = [63,  81,  181];
+
+    // Tarjeta 3 — verde menta pastel (VIP)
+    const C3_BG  = [220, 247, 235]; const C3_TXT = [27,  133, 94];
+
+    // Tarjeta 4 — amarillo-dorado pastel (Tasa)
+    const C4_BG  = [255, 248, 218]; const C4_TXT = [158, 118, 18];
+
+    // Texto
+    const T_DARK  = [40,  50,  70];    // azul noche suave
+    const T_MED   = [95, 108, 130];    // gris azulado
+    const T_SOFT  = [160, 170, 188];   // gris muy claro
     const WHITE   = [255, 255, 255];
-    // Acento cabecera y líneas
-    const HEAD_BG = [30,  45,  70];    // azul pizarra profundo
-    const ACCENT  = [200, 165, 75];    // dorado apagado (solo para línea fina)
-    const LINE    = [215, 218, 225];   // borde muy suave
+
+    // Cabecera — degradado celeste→azul cielo (simulado con rect degradado)
+    const HEAD_BG = [32,  110, 185];   // azul cielo medio — tono principal
+    const HEAD_L  = [85,  165, 230];   // celeste claro — tono superior del degradado
+    const ACCENT  = [240, 185, 40];    // dorado luminoso para línea fina
+    const LINE    = [210, 225, 240];   // borde celeste muy suave
 
     // ── helpers ──
     const sf = (sz, st='normal', col=T_DARK) => {
@@ -350,32 +360,42 @@ async function generarPDFComercio(c) {
     } catch(e){ logoB64=null; }
 
     // ══════════════════════════
-    // CABECERA — pizarra + línea dorada
+    // CABECERA — degradado celeste→azul cielo
     // ══════════════════════════
-    pdfDoc2.setFillColor(...HEAD_BG);
-    pdfDoc2.rect(0,0,W,46,'F');
+    // Degradado simulado: 46 líneas horizontales de HEAD_L a HEAD_BG
+    for (let _gi = 0; _gi < 46; _gi++) {
+        const _t = _gi / 45;
+        const _r = Math.round(HEAD_L[0] + (HEAD_BG[0]-HEAD_L[0])*_t);
+        const _g = Math.round(HEAD_L[1] + (HEAD_BG[1]-HEAD_L[1])*_t);
+        const _b = Math.round(HEAD_L[2] + (HEAD_BG[2]-HEAD_L[2])*_t);
+        pdfDoc2.setFillColor(_r,_g,_b);
+        pdfDoc2.rect(0,_gi,W,1.1,'F');
+    }
+    // Línea dorada inferior
     pdfDoc2.setFillColor(...ACCENT);
     pdfDoc2.rect(0,46,W,1.2,'F');
 
     if (logoB64) {
         try { pdfDoc2.addImage(logoB64,'PNG',M,7,46,28); } catch(e){}
-        sf(6.5,'normal',[160,175,200]);
+        sf(6.5,'normal',[210,230,250]);
         pdfDoc2.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', M, 40);
     } else {
         sf(17,'bold',WHITE);
         pdfDoc2.text('HABITAT-CAR', M, 22);
-        sf(6.5,'normal',[160,175,200]);
+        sf(6.5,'normal',[210,230,250]);
         pdfDoc2.text('NEGOCIOS INMOBILIARIOS Y GESTIONES DEL AUTOMOTOR', M, 30);
     }
 
     sf(11,'bold',WHITE);
     pdfDoc2.text('REPORTE MENSUAL', W-M, 16,{align:'right'});
-    sf(8,'normal',[180,195,220]);
+    sf(8,'normal',[210,230,250]);
     pdfDoc2.text(mesAnio, W-M, 24,{align:'right'});
-    sf(6.5,'normal',[140,158,185]);
+    sf(6.5,'normal',[185,210,240]);
     pdfDoc2.text(fechaRep, W-M, 31,{align:'right'});
-    rr(W-M-26, 36, 26, 6, [ACCENT[0],ACCENT[1],ACCENT[2]], null, 3);
-    sf(6,'bold',HEAD_BG);
+    // Badge dorado
+    pdfDoc2.setFillColor(...ACCENT);
+    pdfDoc2.roundedRect(W-M-26,36,26,6,2,2,'F');
+    sf(6,'bold',[60,40,0]);
     pdfDoc2.text('CONFIDENCIAL', W-M-13, 40.5,{align:'center'});
 
     y = 54;
@@ -512,8 +532,8 @@ async function generarPDFComercio(c) {
     pieCtx.shadowBlur = 8;
 
     const sectors = [
-        { pct:pLeads, color:'#3d7d6e' },  // teal — LEADS
-        { pct:pVips,  color:'#b85555' },  // rosa-rojo — VIP
+        { pct:pLeads, color:'#3f51b5' },  // azul lavanda pastel — LEADS
+        { pct:pVips,  color:'#1b855e' },  // verde menta — VIP
     ];
     let ang = -Math.PI/2;
     sectors.forEach(s => {
@@ -545,7 +565,7 @@ async function generarPDFComercio(c) {
     try { pdfDoc2.addImage(pieB64,'PNG', M, y, PMM, PMM); } catch(e){}
 
     // Centro del donut — texto
-    sf(11,'bold',C1_TXT);
+    sf(11,'bold',C2_TXT);
     pdfDoc2.text(pLeads+'%', M+PMM/2, y+PMM/2+2,{align:'center'});
     sf(6,'normal',T_SOFT);
     pdfDoc2.text('LEADS', M+PMM/2, y+PMM/2+7,{align:'center'});
