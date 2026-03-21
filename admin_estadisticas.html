@@ -81,24 +81,36 @@
         .faja-stats {
             background: var(--gris-oscuro);
             padding: 15px 25px;
-            display: flex; align-items: center; justify-content: space-between;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             border-bottom: 2px solid var(--azul-claro);
-            flex-shrink: 0; flex-wrap: wrap; gap: 15px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+            gap: 15px;
         }
         .stat-group { display: flex; gap: 10px; flex-wrap: wrap; }
         .btn-stat-com {
             background: #1a1a1a; border: 1px solid var(--azul-claro);
             padding: 8px 12px; border-radius: 5px;
-            font-size: 0.8em; font-weight: bold; white-space: nowrap;
+            font-size: 0.8em; font-weight: bold;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
-        .btn-stat-com span { color: var(--oro); margin-left: 5px; font-weight: 800; }
+        .btn-stat-com span { color: var(--oro); font-weight: 800; }
         .btn-verde { border-color: var(--verde); color: var(--verde); }
         .btn-verde span { color: white; }
         .btn-stat-user {
             border: 2px solid #ff5722; color: #ff5722;
-            padding: 8px 12px; border-radius: 5px; font-weight: bold; font-size: 0.8em; background: transparent;
+            padding: 8px 12px; border-radius: 5px;
+            font-weight: bold; font-size: 0.8em; background: transparent;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
         }
-        .btn-stat-user span { color: white; margin-left: 5px; }
+        .btn-stat-user span { color: white; }
         .total-users { background: var(--celeste-habitat); border: 2px solid white; color: white; }
         .temporal-group { display: flex; flex-direction: column; align-items: center; min-width: 220px; }
         .temporal-labels {
@@ -132,9 +144,17 @@
         .table-container { flex: 1; padding: 0 25px 25px; overflow-y: auto; }
         table { width: 100%; border-collapse: collapse; background: var(--azul-medio); border-radius: 8px; overflow: hidden; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
         thead th {
-            position: sticky; top: 0; background: var(--azul-oscuro); color: var(--oro);
-            padding: 15px 12px; text-align: left; font-size: 0.8em;
-            text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid var(--celeste-habitat);
+            position: sticky;
+            top: 0;
+            background: var(--azul-oscuro);
+            color: var(--oro);
+            padding: 15px 12px;
+            text-align: left;
+            font-size: 0.8em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--celeste-habitat);
+            z-index: 20;
         }
         tbody tr { transition: background 0.2s; }
         tbody tr:hover { background: rgba(255,255,255,0.05); }
@@ -152,14 +172,64 @@
             margin-left: 8px; vertical-align: middle; width: 36px; height: 32px;
         }
         .btn-send-row:hover { background: #004a99; transform: scale(1.05); }
+        
+        /* MODAL PARA NOTIFICACIONES */
+        .modal-notificacion {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--azul-medio);
+            border: 2px solid var(--dorado);
+            border-radius: 12px;
+            padding: 20px 30px;
+            z-index: 10000;
+            text-align: center;
+            box-shadow: 0 0 30px rgba(0,0,0,0.5);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            gap: 12px;
+            min-width: 300px;
+        }
+        .modal-notificacion i {
+            font-size: 40px;
+            color: var(--verde);
+        }
+        .modal-notificacion h3 {
+            margin: 0;
+            color: var(--oro);
+        }
+        .modal-notificacion p {
+            margin: 0;
+            font-size: 14px;
+        }
+        .modal-notificacion .email-destino {
+            color: var(--oro);
+            font-weight: bold;
+            background: rgba(0,0,0,0.3);
+            padding: 6px 12px;
+            border-radius: 8px;
+            font-family: monospace;
+        }
+        
         @media (max-width:1200px) {
             .faja-stats { flex-direction: column; align-items: stretch; }
             .stat-group { justify-content: center; }
             .temporal-group { align-self: center; }
+            .btn-stat-com, .btn-stat-user { justify-content: center; }
         }
     </style>
 </head>
 <body>
+
+    <!-- MODAL DE NOTIFICACIÓN -->
+    <div id="modalNotificacion" class="modal-notificacion">
+        <i class="fas fa-check-circle"></i>
+        <h3>✅ REPORTE ENVIADO</h3>
+        <p>El reporte ha sido enviado exitosamente a:</p>
+        <p id="emailDestino" class="email-destino">comercio@ejemplo.com</p>
+    </div>
 
     <header class="header">
         <div class="logo-container">
@@ -200,7 +270,7 @@
         <div class="right-stats">
             <div class="stat-group">
                 <div class="btn-stat-user">Leads: <span id="count-leads">0</span></div>
-                <div class="btn-stat-user">Vips: <span id="count-vips">0</span></div>
+                <div class="btn-stat-user">VIP: <span id="count-vips">0</span></div>
                 <div class="btn-stat-user total-users">Total Usuarios: <span id="count-total-users">0</span></div>
             </div>
             <div class="temporal-group">
@@ -225,23 +295,23 @@
     </div>
 
     <div class="table-container">
-          <table>
+        <table>
             <thead>
-                  <tr>
+                 <tr>
                     <th>Comercio</th>
                     <th>Total Histórico</th>
                     <th style="color:var(--oro)">Leads</th>
-                    <th style="color:var(--oro)">Vips</th>
+                    <th style="color:var(--oro)">VIP</th>
                     <th>Hoy</th>
                     <th>Semana</th>
                     <th>Mes</th>
                     <th>Año</th>
                     <th>Último Envío</th>
                     <th>Frecuencia / Acción</th>
-                  </tr>
+                 </tr>
             </thead>
             <tbody id="tabla-body"></tbody>
-          </table>
+        </table>
     </div>
 
     <script type="module">
@@ -265,6 +335,19 @@
 
         const enviarReportePorEmail = httpsCallable(functions, 'enviarReporteEmail');
         let listaComercios = [];
+
+        // =============================================
+        // MOSTRAR MODAL DE NOTIFICACIÓN
+        // =============================================
+        function mostrarModalNotificacion(email) {
+            const modal = document.getElementById('modalNotificacion');
+            const emailSpan = document.getElementById('emailDestino');
+            emailSpan.textContent = email;
+            modal.style.display = 'flex';
+            setTimeout(() => {
+                modal.style.display = 'none';
+            }, 3000);
+        }
 
         // =============================================
         // CONTADORES NAV
@@ -440,7 +523,7 @@
         }
 
         // =============================================
-        // GENERAR PDF - VERSIÓN CORREGIDA
+        // GENERAR PDF
         // =============================================
         async function generarPDFComercio(c) {
             const { jsPDF } = window.jspdf;
@@ -624,7 +707,7 @@
             pdfDoc2.setLineWidth(0.2);
             y += BAR_H+22;
 
-            // GRÁFICO TORTA CON DATOS REALES Y NÚMEROS DENTRO DE LOS RECUADROS
+            // GRÁFICO TORTA
             chk(56);
             sf(7,'bold',T_SOFT);
             pdfDoc2.text('COMPOSICIÓN DE AUDIENCIA', M, y);
@@ -679,7 +762,6 @@
             const DW = AW-PMM-8;
             const DH = PMM;
 
-            // Tarjeta LEADS (ajustada)
             rr(DX, y, DW/2-2, DH/2-2, C2_BG, null, 2);
             pdfDoc2.setFillColor(...C2_TXT);
             pdfDoc2.roundedRect(DX, y, DW/2-2, 3.5, 2,2,'F');
@@ -690,7 +772,6 @@
             sf(6.5,'normal',T_SOFT);
             pdfDoc2.text(pLeads+'% del total', DX+4, y+29);
 
-            // Tarjeta VIP (ajustada)
             const VX = DX+DW/2+1;
             const VW = DW/2-1;
             rr(VX, y, VW, DH/2-2, C3_BG, null, 2);
@@ -767,7 +848,7 @@
             });
             y += 8;
 
-            // FRANJAS HORARIAS CON DATOS REALES
+            // FRANJAS HORARIAS
             chk(40);
             sf(7,'bold',T_SOFT);
             pdfDoc2.text('FRANJAS HORARIAS', M, y);
@@ -822,7 +903,8 @@
                     const base64data = reader.result.split(',')[1];
                     try {
                         const result = await enviarReportePorEmail({
-                            email: c.emailDueno, comercio: c.nombre,
+                            email: c.emailDueno, 
+                            comercio: c.nombre,
                             pdfBase64: base64data,
                             stats: { total: parseInt(c.totalUsos||0)+parseInt(c.totalVips||0), leads: parseInt(c.totalUsos||0), vips: parseInt(c.totalVips||0) }
                         });
@@ -830,9 +912,12 @@
                             const ahoraStr = new Date().toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
                             await updateDoc(doc(db, "comercios", id), { lastSubmission: ahoraStr });
                             await registrarLogEnvio(c.nombre, c.emailDueno, "Enviado");
-                            alert(`✅ Reporte enviado a ${c.nombre}`);
+                            // Mostrar modal en lugar de alert
+                            mostrarModalNotificacion(c.emailDueno);
                             renderTabla();
-                        } else { throw new Error("Error en el envío"); }
+                        } else { 
+                            throw new Error("Error en el envío"); 
+                        }
                     } catch (emailError) {
                         await registrarLogEnvio(c.nombre, c.emailDueno, "Error: " + emailError.message);
                         alert("❌ Error al enviar el reporte");
