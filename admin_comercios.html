@@ -20,6 +20,7 @@
 --rojo: #dc3545;
 --oro: #ffc107;
 --naranja: #ff8c00;
+--dorado: #d4af37;
 }
 body {
 font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -508,11 +509,15 @@ min-height: 60px;
 <input type="text" id="maps-url" class="full" placeholder="UBICACIÓN MAPS (URL de Google Maps)">
 <input type="email" id="email-input" class="full" placeholder="Email Dueño">
 <input type="password" id="password-input" class="full" placeholder="CONTRASEÑA DUEÑO (OBLIGATORIO)" style="border: 2px solid var(--oro)">
+
+<!-- CAMBIO IMPORTANTE: AGREGADA OPCIÓN DIARIO -->
 <select id="reporte-input" class="full">
-<option value="Semanal">Reporte Semanal</option>
-<option value="Quincenal">Reporte Quincenal</option>
-<option value="Mensual">Reporte Mensual</option>
+    <option value="Diario">Reporte Diario</option>
+    <option value="Semanal">Reporte Semanal</option>
+    <option value="Quincenal">Reporte Quincenal</option>
+    <option value="Mensual">Reporte Mensual</option>
 </select>
+
 </div>
 <button class="btn-submit" onclick="guardar()" id="btn-guardar">GUARDAR COMERCIO ✅</button>
 <button id="btn-cancel-edit" class="btn-op" style="display:none; width:100%; margin-top:10px; background:#666" onclick="window.clear()">CANCELAR EDICIÓN</button>
@@ -555,11 +560,8 @@ const idForzado = urlParams.get('id');
 const esModoAdmin = urlParams.get('admin') === 'true';
 let COMERCIOS = [];
 let FILTRO_ESTADO = 'todos';
-let MI_COMERCIO = null; // Guardará el comercio del comerciante
+let MI_COMERCIO = null;
 
-// ============================================
-// DETECTAR SI ES COMERCIANTE
-// ============================================
 const esComerciante = idForzado !== null && esModoAdmin;
 
 console.log("URL Params - id:", idForzado, "admin:", esModoAdmin, "esComerciante:", esComerciante);
@@ -610,14 +612,12 @@ ciudadSelect.innerHTML = '<option value="">Error al cargar</option>';
 
 window.addEventListener('load', () => {
 if (esComerciante) {
-// Ocultar herramientas de admin para comerciantes
 const nav = document.getElementById('nav-menu-principal');
 const faja = document.getElementById('faja-herramientas');
 if(nav) nav.style.display = 'none';
 if(faja) faja.style.display = 'none';
 console.log("Modo comerciante activado - ocultando herramientas");
 } else {
-// Mostrar todo para admin
 const capa = document.getElementById('capa-seguridad');
 if(capa) capa.style.display = 'none';
 const faja = document.getElementById('faja-herramientas');
@@ -636,15 +636,9 @@ return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '
 } catch (e) { return "---"; }
 };
 
-// ============================================
-// CARGA DE COMERCIOS - VERSIÓN FORZADA
-// ============================================
 if (esComerciante) {
     console.log("🔍 Buscando comercio con ID:", idForzado);
-    
-    // Query para buscar SOLO el comercio del comerciante
     const q = query(collection(db, "comercios"), where("idComercio", "==", idForzado));
-    
     onSnapshot(q, (snap) => {
         if (snap.empty) {
             console.error("❌ No se encontró comercio con ID:", idForzado);
@@ -652,8 +646,6 @@ if (esComerciante) {
         } else {
             COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
             console.log("✅ Comercio encontrado:", COMERCIOS[0].nombre);
-            
-            // Auto-editar el comercio para el comerciante
             setTimeout(() => {
                 if (COMERCIOS.length > 0) {
                     window.edit(null, COMERCIOS[0].fbId);
@@ -664,10 +656,8 @@ if (esComerciante) {
     }, (error) => {
         console.error("❌ Error en la consulta:", error);
     });
-    
 } else {
     console.log("Cargando TODOS los comercios");
-    
     onSnapshot(collection(db, "comercios"), (snap) => {
         COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
         window.render();
@@ -766,15 +756,9 @@ const box = document.getElementById('lista-comercios');
 if(!box) return;
 box.innerHTML = "";
 
-// ============================================
-// SOLUCIÓN FORZADA: Si es comerciante, filtrar manualmente
-// ============================================
 if (esComerciante) {
     console.log("Render para comerciante - COMERCIOS:", COMERCIOS.length);
-    
-    // Filtrar manualmente para asegurar que solo se muestra su comercio
     const miComercio = COMERCIOS.find(c => c.idComercio === idForzado);
-    
     if (miComercio) {
         mostrarComercio(miComercio);
         console.log("Mostrando comercio:", miComercio.nombre);
@@ -785,7 +769,6 @@ if (esComerciante) {
     return;
 }
 
-// SI ES ADMIN: calcula contadores y filtra
 const masterSearchInput = document.getElementById('masterSearch');
 const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 
@@ -838,7 +821,6 @@ if(event) event.preventDefault();
 const c = COMERCIOS.find(x => x.fbId === id);
 if(!c) return;
 
-// Si es comerciante, verificar que sea SU comercio
 if (esComerciante && c.idComercio !== idForzado) {
 alert("No tienes permiso para editar otros comercios");
 return;
@@ -883,19 +865,16 @@ document.getElementById('email-input').value = c.emailDueno || "";
 document.getElementById('password-input').value = c.password || "";
 document.getElementById('reporte-input').value = c.frecuenciaReporte || "Semanal";
 
-// Configurar el formulario según el tipo de usuario
 if (esComerciante) {
-// Modo comerciante: solo puede editar ciertos campos
 document.getElementById('nombre-input').readOnly = true;
 document.getElementById('rubro-input').readOnly = true;
 document.getElementById('id-input').classList.remove('read-only');
 document.getElementById('id-input').classList.add('read-only-comerciante');
 document.getElementById('token-input').classList.remove('read-only');
 document.getElementById('token-input').classList.add('read-only-comerciante');
-document.getElementById('reporte-input').disabled = true;
+document.getElementById('reporte-input').disabled = false;
 document.getElementById('titulo-form').innerText = "📝 EDITAR MI COMERCIO";
 } else {
-// Modo admin: todo editable
 document.getElementById('nombre-input').readOnly = false;
 document.getElementById('rubro-input').readOnly = false;
 document.getElementById('id-input').classList.remove('read-only-comerciante');
@@ -1022,7 +1001,6 @@ document.getElementById('rubro-input').value = "";
 document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
 document.getElementById('btn-cancel-edit').style.display = 'none';
 
-// Restaurar permisos de edición (por si acaso)
 document.getElementById('nombre-input').readOnly = false;
 document.getElementById('rubro-input').readOnly = false;
 document.getElementById('id-input').classList.remove('read-only-comerciante');
@@ -1036,7 +1014,7 @@ configurarFechaMinima();
 
 window.genID = () => {
 if(document.getElementById('edit-id').value) return;
-if (esComerciante) return; // Los comerciantes no pueden generar IDs
+if (esComerciante) return;
 const n = document.getElementById('nombre-input').value;
 const id = n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "");
 document.getElementById('id-input').value = id;
@@ -1044,19 +1022,19 @@ document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000
 };
 
 window.toggleEstado = async (e, id, est) => {
-if (esComerciante) return; // Los comerciantes no pueden pausar/activar
+if (esComerciante) return;
 await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' });
 };
 
 window.del = async (e, id) => {
-if (esComerciante) return; // Los comerciantes no pueden borrar
+if (esComerciante) return;
 if(confirm("¿Borrar comercio?")) await deleteDoc(doc(db, "comercios", id));
 };
 
 window.zoom = (u) => { document.getElementById('modal-img').src = u; document.getElementById('modal').style.display='flex'; };
 
 window.cambiarFiltro = (f, id) => {
-if (esComerciante) return; // Los comerciantes no pueden filtrar
+if (esComerciante) return;
 FILTRO_ESTADO = f;
 document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
 document.getElementById(id).classList.add('active');
