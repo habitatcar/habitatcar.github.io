@@ -17,6 +17,7 @@
             --rojo: #dc3545;
             --verde-oliva: #6b8c42;
             --dorado: #d4af37;
+            --naranja: #ff8c00;
         }
 
         body { 
@@ -99,7 +100,6 @@
             flex-shrink: 0;
         }
 
-        /* ESTILOS NUEVOS PARA EL GENERADOR GRUPAL */
         .group-generator {
             margin-top: 20px;
             padding-top: 20px;
@@ -175,10 +175,7 @@
             box-shadow: 0 10px 30px rgba(0,0,0,0.3);
         }
 
-        table { 
-            width: 100%; 
-            border-collapse: collapse; 
-        }
+        table { width: 100%; border-collapse: collapse; }
 
         thead {
             position: sticky;
@@ -291,9 +288,9 @@
         </div>
 
         <div class="table-container">
-             <table>
+            <table>
                 <thead>
-                     <tr>
+                    <tr>
                         <th>TOKEN / ORIGEN</th>
                         <th>ESTADO</th>
                         <th>WHATSAPP</th>
@@ -301,16 +298,16 @@
                         <th>USO</th>
                         <th>LINK INDIVIDUAL</th>
                         <th>ACCIÓN</th>
-                     </tr>
+                    </tr>
                 </thead>
                 <tbody id="lista-tokens"></tbody>
-             </table>
+            </table>
         </div>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, getDocs, getDocs as getDocsAlias } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, addDoc, onSnapshot, query, orderBy, doc, deleteDoc, getDocs, where } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -335,14 +332,18 @@
             }
             const el = (id) => document.getElementById(id);
             try {
+                // Total leads
                 const todosSnap = await getDocs(collection(db, "leads"));
                 const totalRaw = todosSnap.size;
 
+                // VIPs: convertidoVIP === true
                 const vipsSnap = await getDocs(query(collection(db, "leads"), where("convertidoVIP", "==", true)));
                 const totalVips = vipsSnap.size;
 
+                // Leads = total - VIPs
                 const totalLeads = totalRaw - totalVips;
 
+                // Comercios
                 const comerciosSnap = await getDocs(collection(db, "comercios"));
                 const totalComercios = comerciosSnap.size;
 
@@ -350,11 +351,13 @@
                 if (el('cont-leads')) el('cont-leads').innerText = totalLeads;
                 if (el('cont-vips')) el('cont-vips').innerText = totalVips;
 
+                // Tutoriales
                 try {
                     const tutSnap = await getDocs(collection(db, "tutoriales"));
                     if (el('cont-tutoriales')) el('cont-tutoriales').innerText = tutSnap.size;
                 } catch(e) {}
 
+                // Validaciones pendientes - postulaciones_comercios
                 let vCom = 0;
                 try {
                     const s = await getDocs(query(collection(db, "postulaciones_comercios"), where("estado", "==", "pendiente")));
@@ -362,6 +365,7 @@
                 } catch(e) {}
                 if (el('cont-validaciones-comercios')) el('cont-validaciones-comercios').innerText = vCom;
 
+                // Validaciones pendientes - postulaciones_martilleros
                 let vMar = 0;
                 try {
                     const s = await getDocs(query(collection(db, "postulaciones_martilleros"), where("estado", "==", "pendiente")));
@@ -369,6 +373,7 @@
                 } catch(e) {}
                 if (el('cont-validaciones-martilleros')) el('cont-validaciones-martilleros').innerText = vMar;
 
+                // Validaciones pendientes - postulaciones_colaboradores
                 let vCol = 0;
                 try {
                     const s = await getDocs(query(collection(db, "postulaciones_colaboradores"), where("estado", "==", "pendiente")));
@@ -429,7 +434,7 @@
                             }
                             <button class="btn-delete" onclick="eliminarUno('${idDoc}')">ELIMINAR</button>
                         </td>
-                     </tr>
+                    </tr>
                 `;
             });
         });
