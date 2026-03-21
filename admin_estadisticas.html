@@ -225,9 +225,9 @@
     </div>
 
     <div class="table-container">
-         <table>
+          <table>
             <thead>
-                 <tr>
+                  <tr>
                     <th>Comercio</th>
                     <th>Total Histórico</th>
                     <th style="color:var(--oro)">Leads</th>
@@ -238,10 +238,10 @@
                     <th>Año</th>
                     <th>Último Envío</th>
                     <th>Frecuencia / Acción</th>
-                 </tr>
+                  </tr>
             </thead>
             <tbody id="tabla-body"></tbody>
-         </table>
+          </table>
     </div>
 
     <script type="module">
@@ -405,7 +405,6 @@
         // =============================================
         async function calcularFranjasHorarias(comercioNombre) {
             try {
-                // Buscar logs de canje para este comercio
                 const logsSnap = await getDocs(query(
                     collection(db, "logs_actividad"),
                     where("comercio", "==", comercioNombre)
@@ -427,7 +426,7 @@
                     }
                 });
                 
-                if (total === 0) return { manana: 33, tarde: 34, noche: 33 }; // valores por defecto
+                if (total === 0) return { manana: 33, tarde: 34, noche: 33 };
                 
                 return {
                     manana: Math.round((manana / total) * 100),
@@ -441,7 +440,7 @@
         }
 
         // =============================================
-        // GENERAR PDF - VERSIÓN CORREGIDA CON DATOS REALES
+        // GENERAR PDF - VERSIÓN CORREGIDA
         // =============================================
         async function generarPDFComercio(c) {
             const { jsPDF } = window.jspdf;
@@ -449,29 +448,20 @@
             const W = 210, M = 12, AW = W - M * 2;
             let y = 0;
 
-            // DATOS REALES DEL COMERCIO
             const leadHist = parseInt(c.totalUsos    || 0);
             const vipHist  = parseInt(c.totalVips    || 0);
             const total    = leadHist + vipHist;
-            
-            // DATOS TEMPORALES REALES
             const sumaHoy  = parseInt(c.usosHoy     || 0) + parseInt(c.vipsHoy    || 0);
             const sumaSem  = parseInt(c.usosSemana  || 0) + parseInt(c.vipsSemana || 0);
             const sumaMes  = parseInt(c.usosMes     || 0) + parseInt(c.vipsMes    || 0);
             const sumaAnio = parseInt(c.usosAnio    || 0) + parseInt(c.vipsAnio   || 0);
-            
-            // PROPORCIÓN REAL
             const pLeads = total > 0 ? Math.round((leadHist / total) * 100) : 50;
             const pVips  = total > 0 ? Math.round((vipHist  / total) * 100) : 50;
             const tasaConv = total > 0 ? pVips + '%' : '0%';
-            
             const fechaRep = new Date().toLocaleString('es-AR',{day:'2-digit',month:'long',year:'numeric'});
             const mesAnio  = new Date().toLocaleString('es-AR',{month:'long',year:'numeric'}).toUpperCase();
-
-            // FRANJAS HORARIAS REALES
             const franjas = await calcularFranjasHorarias(c.nombre);
             
-            // PALETA DE COLORES
             const F_SLATE   = [250, 252, 255];
             const C1_BG  = [224, 242, 254]; const C1_TXT = [14,  107, 168];
             const C2_BG  = [232, 234, 255]; const C2_TXT = [63,  81,  181];
@@ -496,7 +486,6 @@
             };
             const chk = (n) => { if (y + n > 276) { pdfDoc2.addPage(); y = 14; } };
 
-            // Logo
             let logoB64 = null;
             try {
                 logoB64 = await new Promise(res => {
@@ -512,7 +501,6 @@
                 });
             } catch(e){ logoB64=null; }
 
-            // CABECERA
             for (let _gi = 0; _gi < 46; _gi++) {
                 const _t = _gi / 45;
                 const _r = Math.round(HEAD_L[0] + (HEAD_BG[0]-HEAD_L[0])*_t);
@@ -547,8 +535,6 @@
             pdfDoc2.text('CONFIDENCIAL', W-M-13, 40.5,{align:'center'});
 
             y = 54;
-
-            // FICHA DEL COMERCIO
             rr(0, y, W, 18, F_SLATE, null, 0);
             pdfDoc2.setFillColor(...C1_TXT);
             pdfDoc2.rect(0, y, 3, 18,'F');
@@ -561,8 +547,6 @@
             pdfDoc2.text('Último envío: '+(c.lastSubmission||'Nunca'), W-M, y+15,{align:'right'});
 
             y += 24;
-
-            // 4 TARJETAS MÉTRICAS CON DATOS REALES
             sf(7,'bold',T_SOFT);
             pdfDoc2.text('RESUMEN EJECUTIVO', M, y);
             y += 5;
@@ -589,7 +573,6 @@
             });
             y += CARD_H + 10;
 
-            // GRÁFICO BARRAS APILADAS CON DATOS REALES
             chk(55);
             sf(7,'bold',T_SOFT);
             pdfDoc2.text('RENDIMIENTO TEMPORAL', M, y);
@@ -641,7 +624,7 @@
             pdfDoc2.setLineWidth(0.2);
             y += BAR_H+22;
 
-            // GRÁFICO TORTA CON DATOS REALES
+            // GRÁFICO TORTA CON DATOS REALES Y NÚMEROS DENTRO DE LOS RECUADROS
             chk(56);
             sf(7,'bold',T_SOFT);
             pdfDoc2.text('COMPOSICIÓN DE AUDIENCIA', M, y);
@@ -696,27 +679,29 @@
             const DW = AW-PMM-8;
             const DH = PMM;
 
+            // Tarjeta LEADS (ajustada)
             rr(DX, y, DW/2-2, DH/2-2, C2_BG, null, 2);
             pdfDoc2.setFillColor(...C2_TXT);
             pdfDoc2.roundedRect(DX, y, DW/2-2, 3.5, 2,2,'F');
             sf(7.5,'bold',C2_TXT);
-            pdfDoc2.text('LEADS', DX+4, y+11);
-            sf(18,'bold',C2_TXT);
-            pdfDoc2.text(String(leadHist), DX+4, y+24);
+            pdfDoc2.text('LEADS', DX+4, y+9);
+            sf(15,'bold',C2_TXT);
+            pdfDoc2.text(String(leadHist), DX+4, y+22);
             sf(6.5,'normal',T_SOFT);
-            pdfDoc2.text(pLeads+'% del total', DX+4, y+31);
+            pdfDoc2.text(pLeads+'% del total', DX+4, y+29);
 
+            // Tarjeta VIP (ajustada)
             const VX = DX+DW/2+1;
             const VW = DW/2-1;
             rr(VX, y, VW, DH/2-2, C3_BG, null, 2);
             pdfDoc2.setFillColor(...C3_TXT);
             pdfDoc2.roundedRect(VX, y, VW, 3.5, 2,2,'F');
             sf(7.5,'bold',C3_TXT);
-            pdfDoc2.text('VIP', VX+4, y+11);
-            sf(18,'bold',C3_TXT);
-            pdfDoc2.text(String(vipHist), VX+4, y+24);
+            pdfDoc2.text('VIP', VX+4, y+9);
+            sf(15,'bold',C3_TXT);
+            pdfDoc2.text(String(vipHist), VX+4, y+22);
             sf(6.5,'normal',T_SOFT);
-            pdfDoc2.text(pVips+'% del total', VX+4, y+31);
+            pdfDoc2.text(pVips+'% del total', VX+4, y+29);
 
             const BRY = y+DH/2;
             rr(DX, BRY, DW, DH/2-2, F_SLATE, LINE, 2);
@@ -740,7 +725,7 @@
 
             y += PMM+10;
 
-            // TABLA TEMPORAL CON DATOS REALES
+            // TABLA TEMPORAL
             chk(56);
             sf(7,'bold',T_SOFT);
             pdfDoc2.text('DETALLE TEMPORAL', M, y);
