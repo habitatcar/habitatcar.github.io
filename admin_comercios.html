@@ -1169,7 +1169,7 @@ window.render();
 };
 
 // =============================================
-// FUNCIÓN DE CONTADORES - CORREGIDA
+// FUNCIÓN DE CONTADORES - CORREGIDA (LEADS y VIP separados)
 // =============================================
 async function actualizarContadores() {
     console.log("🔄 Actualizando contadores...");
@@ -1181,18 +1181,32 @@ async function actualizarContadores() {
     }
     
     try {
-        const comerciosSnap = await getDocs(collection(db, "comercios"));
-        const contComercios = document.getElementById('cont-comercios');
-        if (contComercios) contComercios.innerText = comerciosSnap.size;
+        // Obtener TODOS los leads
+        const todosLosLeadsSnap = await getDocs(collection(db, "leads"));
+        const totalLeadsRaw = todosLosLeadsSnap.size;
         
-        const leadsSnap = await getDocs(collection(db, "leads"));
-        const contLeads = document.getElementById('cont-leads');
-        if (contLeads) contLeads.innerText = leadsSnap.size;
-        
+        // Contar VIPs (los que tienen rol 'vip')
         const vipsSnap = await getDocs(query(collection(db, "leads"), where("rol", "==", "vip")));
-        const contVips = document.getElementById('cont-vips');
-        if (contVips) contVips.innerText = vipsSnap.size;
+        const totalVips = vipsSnap.size;
         
+        // LEADS = total - VIPs
+        const totalLeads = totalLeadsRaw - totalVips;
+        
+        // Contar comercios
+        const comerciosSnap = await getDocs(collection(db, "comercios"));
+        const totalComercios = comerciosSnap.size;
+        
+        // Actualizar DOM
+        const contComercios = document.getElementById('cont-comercios');
+        if (contComercios) contComercios.innerText = totalComercios;
+        
+        const contLeads = document.getElementById('cont-leads');
+        if (contLeads) contLeads.innerText = totalLeads;
+        
+        const contVips = document.getElementById('cont-vips');
+        if (contVips) contVips.innerText = totalVips;
+        
+        // Tutoriales
         let totalTutoriales = 0;
         try {
             const tutorialesSnap = await getDocs(collection(db, "tutoriales"));
@@ -1201,6 +1215,7 @@ async function actualizarContadores() {
         const contTutoriales = document.getElementById('cont-tutoriales');
         if (contTutoriales) contTutoriales.innerText = totalTutoriales;
         
+        // Validaciones comercios
         let totalValidacionesComercios = 0;
         try {
             const validacionesComerciosSnap = await getDocs(query(collection(db, "comercios"), where("validado", "==", false)));
@@ -1209,6 +1224,7 @@ async function actualizarContadores() {
         const contValidacionesComercios = document.getElementById('cont-validaciones-comercios');
         if (contValidacionesComercios) contValidacionesComercios.innerText = totalValidacionesComercios;
         
+        // Validaciones martilleros
         let totalValidacionesMartilleros = 0;
         try {
             const validacionesMartillerosSnap = await getDocs(query(collection(db, "martilleros"), where("validado", "==", false)));
@@ -1217,6 +1233,7 @@ async function actualizarContadores() {
         const contValidacionesMartilleros = document.getElementById('cont-validaciones-martilleros');
         if (contValidacionesMartilleros) contValidacionesMartilleros.innerText = totalValidacionesMartilleros;
         
+        // Validaciones colaboradores
         let totalValidacionesColaboradores = 0;
         try {
             const validacionesColaboradoresSnap = await getDocs(query(collection(db, "colaboradores"), where("validado", "==", false)));
@@ -1226,9 +1243,9 @@ async function actualizarContadores() {
         if (contValidacionesColaboradores) contValidacionesColaboradores.innerText = totalValidacionesColaboradores;
         
         console.log("✅ Contadores actualizados:", {
-            comercios: comerciosSnap.size,
-            leads: leadsSnap.size,
-            vips: vipsSnap.size,
+            comercios: totalComercios,
+            leads: totalLeads,
+            vips: totalVips,
             tutoriales: totalTutoriales
         });
         
