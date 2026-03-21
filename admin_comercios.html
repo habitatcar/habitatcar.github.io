@@ -643,76 +643,6 @@ min-height: 60px;
 <img id="modal-img" src="">
 </div>
 
-<script>
-// Función para actualizar contadores (mejorada con 3 contadores para validaciones)
-async function actualizarContadores() {
-    if (typeof db === 'undefined') return;
-    try {
-        // Contar comercios
-        const comerciosSnap = await getDocs(collection(db, "comercios"));
-        const contComercios = document.getElementById('cont-comercios');
-        if (contComercios) contComercios.innerText = comerciosSnap.size;
-        
-        // Contar leads
-        const leadsSnap = await getDocs(collection(db, "leads"));
-        const contLeads = document.getElementById('cont-leads');
-        if (contLeads) contLeads.innerText = leadsSnap.size;
-        
-        // Contar VIPs (leads con rol vip)
-        const vipsSnap = await getDocs(query(collection(db, "leads"), where("rol", "==", "vip")));
-        const contVips = document.getElementById('cont-vips');
-        if (contVips) contVips.innerText = vipsSnap.size;
-        
-        // Contar tutoriales
-        const tutorialesSnap = await getDocs(collection(db, "tutoriales"));
-        const contTutoriales = document.getElementById('cont-tutoriales');
-        if (contTutoriales) contTutoriales.innerText = tutorialesSnap.size;
-        
-        // =============================================
-        // CONTADORES DE VALIDACIONES (preparado para 3 tipos)
-        // =============================================
-        
-        // Validaciones para comercios (pendientes de aprobación)
-        let totalValidacionesComercios = 0;
-        try {
-            const validacionesComerciosSnap = await getDocs(query(collection(db, "comercios"), where("validado", "==", false)));
-            totalValidacionesComercios = validacionesComerciosSnap.size;
-        } catch(e) { console.log("Colección comercios para validaciones no existe aún"); }
-        const contValidacionesComercios = document.getElementById('cont-validaciones-comercios');
-        if (contValidacionesComercios) contValidacionesComercios.innerText = totalValidacionesComercios;
-        
-        // Validaciones para martilleros (colección "martilleros" pendientes)
-        let totalValidacionesMartilleros = 0;
-        try {
-            const validacionesMartillerosSnap = await getDocs(query(collection(db, "martilleros"), where("validado", "==", false)));
-            totalValidacionesMartilleros = validacionesMartillerosSnap.size;
-        } catch(e) { console.log("Colección martilleros no existe aún"); }
-        const contValidacionesMartilleros = document.getElementById('cont-validaciones-martilleros');
-        if (contValidacionesMartilleros) contValidacionesMartilleros.innerText = totalValidacionesMartilleros;
-        
-        // Validaciones para colaboradores (colección "colaboradores" pendientes)
-        let totalValidacionesColaboradores = 0;
-        try {
-            const validacionesColaboradoresSnap = await getDocs(query(collection(db, "colaboradores"), where("validado", "==", false)));
-            totalValidacionesColaboradores = validacionesColaboradoresSnap.size;
-        } catch(e) { console.log("Colección colaboradores no existe aún"); }
-        const contValidacionesColaboradores = document.getElementById('cont-validaciones-colaboradores');
-        if (contValidacionesColaboradores) contValidacionesColaboradores.innerText = totalValidacionesColaboradores;
-        
-    } catch (error) {
-        console.error("Error actualizando contadores:", error);
-    }
-}
-
-// Ejecutar cuando la página cargue
-setTimeout(() => {
-    if (typeof db !== 'undefined') {
-        actualizarContadores();
-        setInterval(actualizarContadores, 30000);
-    }
-}, 2000);
-</script>
-
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -813,10 +743,6 @@ if(faja) faja.style.display = 'flex';
 console.log("Modo admin activado - mostrando herramientas");
 }
 configurarFechaMinima();
-// Actualizar contadores después de cargar
-setTimeout(() => {
-    if (typeof actualizarContadores === 'function') actualizarContadores();
-}, 1000);
 });
 
 const formatearFecha = (ts) => {
@@ -853,10 +779,6 @@ if (esComerciante) {
     onSnapshot(collection(db, "comercios"), (snap) => {
         COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
         window.render();
-        // Actualizar contadores después de cargar comercios
-        setTimeout(() => {
-            if (typeof actualizarContadores === 'function') actualizarContadores();
-        }, 500);
     });
 }
 
@@ -1245,6 +1167,82 @@ document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active')
 document.getElementById(id).classList.add('active');
 window.render();
 };
+
+// =============================================
+// FUNCIÓN DE CONTADORES - CORREGIDA
+// =============================================
+async function actualizarContadores() {
+    console.log("🔄 Actualizando contadores...");
+    
+    if (typeof db === 'undefined' || !db) {
+        console.log("⏳ Firebase no disponible, reintentando en 2 segundos...");
+        setTimeout(actualizarContadores, 2000);
+        return;
+    }
+    
+    try {
+        const comerciosSnap = await getDocs(collection(db, "comercios"));
+        const contComercios = document.getElementById('cont-comercios');
+        if (contComercios) contComercios.innerText = comerciosSnap.size;
+        
+        const leadsSnap = await getDocs(collection(db, "leads"));
+        const contLeads = document.getElementById('cont-leads');
+        if (contLeads) contLeads.innerText = leadsSnap.size;
+        
+        const vipsSnap = await getDocs(query(collection(db, "leads"), where("rol", "==", "vip")));
+        const contVips = document.getElementById('cont-vips');
+        if (contVips) contVips.innerText = vipsSnap.size;
+        
+        let totalTutoriales = 0;
+        try {
+            const tutorialesSnap = await getDocs(collection(db, "tutoriales"));
+            totalTutoriales = tutorialesSnap.size;
+        } catch(e) {}
+        const contTutoriales = document.getElementById('cont-tutoriales');
+        if (contTutoriales) contTutoriales.innerText = totalTutoriales;
+        
+        let totalValidacionesComercios = 0;
+        try {
+            const validacionesComerciosSnap = await getDocs(query(collection(db, "comercios"), where("validado", "==", false)));
+            totalValidacionesComercios = validacionesComerciosSnap.size;
+        } catch(e) {}
+        const contValidacionesComercios = document.getElementById('cont-validaciones-comercios');
+        if (contValidacionesComercios) contValidacionesComercios.innerText = totalValidacionesComercios;
+        
+        let totalValidacionesMartilleros = 0;
+        try {
+            const validacionesMartillerosSnap = await getDocs(query(collection(db, "martilleros"), where("validado", "==", false)));
+            totalValidacionesMartilleros = validacionesMartillerosSnap.size;
+        } catch(e) {}
+        const contValidacionesMartilleros = document.getElementById('cont-validaciones-martilleros');
+        if (contValidacionesMartilleros) contValidacionesMartilleros.innerText = totalValidacionesMartilleros;
+        
+        let totalValidacionesColaboradores = 0;
+        try {
+            const validacionesColaboradoresSnap = await getDocs(query(collection(db, "colaboradores"), where("validado", "==", false)));
+            totalValidacionesColaboradores = validacionesColaboradoresSnap.size;
+        } catch(e) {}
+        const contValidacionesColaboradores = document.getElementById('cont-validaciones-colaboradores');
+        if (contValidacionesColaboradores) contValidacionesColaboradores.innerText = totalValidacionesColaboradores;
+        
+        console.log("✅ Contadores actualizados:", {
+            comercios: comerciosSnap.size,
+            leads: leadsSnap.size,
+            vips: vipsSnap.size,
+            tutoriales: totalTutoriales
+        });
+        
+    } catch (error) {
+        console.error("❌ Error en contadores:", error);
+    }
+}
+
+// Iniciar contadores después de que la página cargue
+setTimeout(() => {
+    actualizarContadores();
+    setInterval(actualizarContadores, 30000);
+}, 3000);
+
 </script>
 </body>
 </html>
