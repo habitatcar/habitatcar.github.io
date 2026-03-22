@@ -523,21 +523,21 @@
     <!-- FILTROS COMPACTOS -->
     <div class="filtros-container">
         <div class="fila-filtros">
-            <select id="filtroProvincia" class="filtro-select" onchange="aplicarFiltros()">
+            <select id="filtroProvincia" class="filtro-select" onchange="cambiarFiltroProvincia(this.value)">
                 <option value="">TODAS LAS PROVINCIAS</option>
             </select>
-            <select id="filtroLocalidad" class="filtro-select" onchange="aplicarFiltros()">
+            <select id="filtroLocalidad" class="filtro-select" onchange="cambiarFiltroLocalidad(this.value)">
                 <option value="">TODAS LAS LOCALIDADES</option>
             </select>
         </div>
         <div class="fila-filtros">
-            <button id="btnFiltroProvincia" class="filtro-boton" onclick="filtrarPorProvincia()">
+            <button id="btnFiltroProvincia" class="filtro-boton" onclick="toggleFiltroProvincia()">
                 📍 MI PROVINCIA
             </button>
-            <button id="btnFiltroLocalidad" class="filtro-boton" onclick="filtrarPorLocalidad()">
+            <button id="btnFiltroLocalidad" class="filtro-boton" onclick="toggleFiltroLocalidad()">
                 🏘️ MI LOCALIDAD
             </button>
-            <button id="btnFiltroCercanos" class="filtro-boton" onclick="filtrarPorCercania()">
+            <button id="btnFiltroCercanos" class="filtro-boton" onclick="toggleFiltroCercania()">
                 📱 CERCA DE MÍ
             </button>
         </div>
@@ -642,7 +642,7 @@
 
     <script type="module">
         // ===========================================
-        // CÓDIGO PRINCIPAL CON GEOLOCALIZACIÓN Y FILTROS
+        // CÓDIGO PRINCIPAL CON GEOLOCALIZACIÓN Y FILTROS CORREGIDOS
         // ===========================================
         
         // Verificar si es VIP
@@ -678,7 +678,11 @@
         let usuarioData = null;
         let provinciasCargadas = false;
         let todasLasProvincias = [];
-        let todasLasLocalidades = [];
+
+        // Estado de los filtros rápidos (toggle)
+        let filtroProvinciaActivo = false;
+        let filtroLocalidadActivo = false;
+        let filtroCercaniaActivo = false;
 
         // Guardar posición del scroll
         let scrollPosition = 0;
@@ -740,7 +744,6 @@
             });
         }
 
-        // Fórmula de Haversine para calcular distancia en km
         function calcularDistancia(lat1, lng1, lat2, lng2) {
             const R = 6371;
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -778,9 +781,9 @@
             try {
                 const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provincia)}&max=500&campos=nombre`);
                 const data = await res.json();
-                todasLasLocalidades = (data.municipios || []).map(m => m.nombre);
-                todasLasLocalidades.sort();
-                todasLasLocalidades.forEach(loc => {
+                const localidades = (data.municipios || []).map(m => m.nombre);
+                localidades.sort();
+                localidades.forEach(loc => {
                     const opt = document.createElement('option');
                     opt.value = loc;
                     opt.textContent = loc;
@@ -789,16 +792,143 @@
             } catch(e) { console.error("Error cargando localidades:", e); }
         }
 
-        document.getElementById('filtroProvincia').addEventListener('change', (e) => {
-            cargarLocalidades(e.target.value);
+        // ============================================
+        // FUNCIONES DE FILTRO - CORREGIDAS (TOGGLE)
+        // ============================================
+        
+        // Resetea todos los filtros rápidos (desactiva los botones)
+        function resetearFiltrosRapidos() {
+            filtroProvinciaActivo = false;
+            filtroLocalidadActivo = false;
+            filtroCercaniaActivo = false;
+            
+            document.getElementById('btnFiltroProvincia').classList.remove('activo');
+            document.getElementById('btnFiltroLocalidad').classList.remove('activo');
+            document.getElementById('btnFiltroCercanos').classList.remove('activo');
+            document.getElementById('btnFiltroCercanos').classList.remove('ubicacion-activa');
+        }
+        
+        // Toggle para filtro por provincia
+        window.toggleFiltroProvincia = () => {
+            if (!usuarioData || !usuarioData.provincia) {
+                alert("No tenemos tu provincia registrada. Completá tus datos en el perfil.");
+                return;
+            }
+            
+            if (filtroProvinciaActivo) {
+                // Si ya estaba activo, lo desactivamos
+                filtroProvinciaActivo = false;
+                document.getElementById('btnFiltroProvincia').classList.remove('activo');
+                document.getElementById('infoTexto').innerHTML = ``;
+                document.getElementById('infoUbicacion').style.display = 'none';
+                // Resetear también otros filtros rápidos
+                filtroLocalidadActivo = false;
+                filtroCercaniaActivo = false;
+                document.getElementById('btnFiltroLocalidad').classList.remove('activo');
+                document.getElementById('btnFiltroCercanos').classList.remove('activo');
+                document.getElementById('btnFiltroCercanos').classList.remove('ubicacion-activa');
+            } else {
+                // Activar filtro por provincia
+                resetearFiltrosRapidos();
+                filtroProvinciaActivo = true;
+                document.getElementById('btnFiltroProvincia').classList.add('activo');
+                document.getElementById('infoTexto').innerHTML = `📍 Mostrando comercios de ${usuarioData.provincia}`;
+                document.getElementById('infoUbicacion').style.display = 'flex';
+            }
             aplicarFiltros();
-        });
-
-        // ============================================
-        // FILTROS
-        // ============================================
-        let filtroActivo = 'todos';
-        let comerciosRenderizados = [];
+        };
+        
+        // Toggle para filtro por localidad
+        window.toggleFiltroLocalidad = () => {
+            if (!usuarioData || !usuarioData.localidad) {
+                alert("No tenemos tu localidad registrada. Completá tus datos en el perfil.");
+                return;
+            }
+            
+            if (filtroLocalidadActivo) {
+                filtroLocalidadActivo = false;
+                document.getElementById('btnFiltroLocalidad').classList.remove('activo');
+                document.getElementById('infoTexto').innerHTML = ``;
+                document.getElementById('infoUbicacion').style.display = 'none';
+                filtroProvinciaActivo = false;
+                filtroCercaniaActivo = false;
+                document.getElementById('btnFiltroProvincia').classList.remove('activo');
+                document.getElementById('btnFiltroCercanos').classList.remove('activo');
+                document.getElementById('btnFiltroCercanos').classList.remove('ubicacion-activa');
+            } else {
+                resetearFiltrosRapidos();
+                filtroLocalidadActivo = true;
+                document.getElementById('btnFiltroLocalidad').classList.add('activo');
+                document.getElementById('infoTexto').innerHTML = `🏘️ Mostrando comercios de ${usuarioData.localidad}`;
+                document.getElementById('infoUbicacion').style.display = 'flex';
+            }
+            aplicarFiltros();
+        };
+        
+        // Toggle para filtro por cercanía
+        window.toggleFiltroCercania = async () => {
+            if (filtroCercaniaActivo) {
+                filtroCercaniaActivo = false;
+                document.getElementById('btnFiltroCercanos').classList.remove('activo');
+                document.getElementById('btnFiltroCercanos').classList.remove('ubicacion-activa');
+                document.getElementById('infoTexto').innerHTML = ``;
+                document.getElementById('infoUbicacion').style.display = 'none';
+                filtroProvinciaActivo = false;
+                filtroLocalidadActivo = false;
+                document.getElementById('btnFiltroProvincia').classList.remove('activo');
+                document.getElementById('btnFiltroLocalidad').classList.remove('activo');
+                aplicarFiltros();
+                return;
+            }
+            
+            // Activar filtro por cercanía
+            resetearFiltrosRapidos();
+            
+            document.getElementById('infoTexto').innerHTML = `📍 Obteniendo ubicación...`;
+            document.getElementById('infoUbicacion').style.display = 'flex';
+            
+            await obtenerUbicacion();
+            
+            if (ubicacionUsuario) {
+                filtroCercaniaActivo = true;
+                document.getElementById('btnFiltroCercanos').classList.add('activo');
+                document.getElementById('btnFiltroCercanos').classList.add('ubicacion-activa');
+                document.getElementById('infoTexto').innerHTML = `🗺️ Comercios a menos de 10km de tu ubicación`;
+                aplicarFiltros();
+            } else {
+                filtroCercaniaActivo = false;
+                document.getElementById('btnFiltroCercanos').classList.remove('activo');
+                document.getElementById('infoTexto').innerHTML = `❌ No se pudo obtener ubicación`;
+                setTimeout(() => {
+                    if (!filtroCercaniaActivo) {
+                        document.getElementById('infoUbicacion').style.display = 'none';
+                    }
+                }, 3000);
+            }
+        };
+        
+        // Cambio de provincia en el select (filtro normal)
+        window.cambiarFiltroProvincia = (provincia) => {
+            // Al seleccionar una provincia, desactivamos los filtros rápidos
+            resetearFiltrosRapidos();
+            
+            // Si la provincia es vacía (TODAS LAS PROVINCIAS), limpiamos la localidad también
+            if (!provincia) {
+                document.getElementById('filtroLocalidad').value = "";
+                document.getElementById('filtroLocalidad').innerHTML = '<option value="">TODAS LAS LOCALIDADES</option>';
+            } else {
+                // Cargar localidades de la provincia seleccionada
+                cargarLocalidades(provincia);
+            }
+            aplicarFiltros();
+        };
+        
+        // Cambio de localidad en el select
+        window.cambiarFiltroLocalidad = (localidad) => {
+            // Al seleccionar una localidad, desactivamos los filtros rápidos
+            resetearFiltrosRapidos();
+            aplicarFiltros();
+        };
 
         function aplicarFiltros() {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
@@ -813,30 +943,30 @@
                 filtrados = filtrados.filter(c => (c.nombre || '').toLowerCase().includes(texto));
             }
             
-            // Filtrar por provincia
-            if (provSeleccionada) {
-                filtrados = filtrados.filter(c => (c.provincia || '') === provSeleccionada);
-            }
-            
-            // Filtrar por localidad
-            if (locSeleccionada) {
-                filtrados = filtrados.filter(c => (c.localidad || c.ciudad || '') === locSeleccionada);
-            }
-            
-            // Filtrar por cercanía (si está activo)
-            if (filtroActivo === 'cercanos' && ubicacionUsuario) {
+            // FILTROS RÁPIDOS (toggle)
+            if (filtroProvinciaActivo && usuarioData && usuarioData.provincia) {
+                filtrados = filtrados.filter(c => c.provincia === usuarioData.provincia);
+            } else if (filtroLocalidadActivo && usuarioData && usuarioData.localidad) {
+                filtrados = filtrados.filter(c => (c.localidad || c.ciudad) === usuarioData.localidad);
+            } else if (filtroCercaniaActivo && ubicacionUsuario) {
                 filtrados = filtrados.filter(c => {
                     if (c.coordenadas && c.coordenadas.lat && c.coordenadas.lng) {
                         const dist = calcularDistancia(ubicacionUsuario.lat, ubicacionUsuario.lng, c.coordenadas.lat, c.coordenadas.lng);
-                        return dist <= 10; // radio 10km
+                        c.distanciaCalculada = dist;
+                        return dist <= 10;
                     }
                     return false;
                 });
-                filtrados.sort((a, b) => (a.distancia || 999) - (b.distancia || 999));
-            } else if (filtroActivo === 'provincia' && usuarioData && usuarioData.provincia) {
-                filtrados = filtrados.filter(c => c.provincia === usuarioData.provincia);
-            } else if (filtroActivo === 'localidad' && usuarioData && usuarioData.localidad) {
-                filtrados = filtrados.filter(c => (c.localidad || c.ciudad) === usuarioData.localidad);
+                filtrados.sort((a, b) => (a.distanciaCalculada || 999) - (b.distanciaCalculada || 999));
+            }
+            // FILTROS NORMALES (selects)
+            else {
+                if (provSeleccionada) {
+                    filtrados = filtrados.filter(c => c.provincia === provSeleccionada);
+                }
+                if (locSeleccionada) {
+                    filtrados = filtrados.filter(c => (c.localidad || c.ciudad) === locSeleccionada);
+                }
             }
             
             // Filtrar por vencimiento
@@ -886,9 +1016,8 @@
                 
                 // Calcular distancia si está activo filtro cercanos
                 let distanciaHtml = '';
-                if (filtroActivo === 'cercanos' && ubicacionUsuario && c.coordenadas) {
-                    const dist = calcularDistancia(ubicacionUsuario.lat, ubicacionUsuario.lng, c.coordenadas.lat, c.coordenadas.lng);
-                    distanciaHtml = `<span class="badge-distancia">📍 a ${dist.toFixed(1)}km</span>`;
+                if (filtroCercaniaActivo && ubicacionUsuario && c.coordenadas && c.distanciaCalculada) {
+                    distanciaHtml = `<span class="badge-distancia">📍 a ${c.distanciaCalculada.toFixed(1)}km</span>`;
                 }
                 
                 const htmlLogo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c" onerror="this.src='https://via.placeholder.com/120?text=Logo'"></div>` : '';
@@ -944,58 +1073,6 @@
         }
 
         // ============================================
-        // FILTROS RÁPIDOS
-        // ============================================
-        window.filtrarPorProvincia = () => {
-            if (usuarioData && usuarioData.provincia) {
-                filtroActivo = 'provincia';
-                document.getElementById('btnFiltroProvincia').classList.add('activo');
-                document.getElementById('btnFiltroLocalidad').classList.remove('activo');
-                document.getElementById('btnFiltroCercanos').classList.remove('activo');
-                document.getElementById('infoTexto').innerHTML = `📍 Mostrando comercios de ${usuarioData.provincia}`;
-                document.getElementById('infoUbicacion').style.display = 'flex';
-                aplicarFiltros();
-            } else {
-                alert("No tenemos tu provincia registrada. Completá tus datos en el perfil.");
-            }
-        };
-        
-        window.filtrarPorLocalidad = () => {
-            if (usuarioData && usuarioData.localidad) {
-                filtroActivo = 'localidad';
-                document.getElementById('btnFiltroLocalidad').classList.add('activo');
-                document.getElementById('btnFiltroProvincia').classList.remove('activo');
-                document.getElementById('btnFiltroCercanos').classList.remove('activo');
-                document.getElementById('infoTexto').innerHTML = `🏘️ Mostrando comercios de ${usuarioData.localidad}`;
-                document.getElementById('infoUbicacion').style.display = 'flex';
-                aplicarFiltros();
-            } else {
-                alert("No tenemos tu localidad registrada. Completá tus datos en el perfil.");
-            }
-        };
-        
-        window.filtrarPorCercania = async () => {
-            document.getElementById('btnFiltroCercanos').classList.add('activo');
-            document.getElementById('btnFiltroProvincia').classList.remove('activo');
-            document.getElementById('btnFiltroLocalidad').classList.remove('activo');
-            document.getElementById('infoTexto').innerHTML = `📍 Obteniendo ubicación...`;
-            document.getElementById('infoUbicacion').style.display = 'flex';
-            
-            await obtenerUbicacion();
-            
-            if (ubicacionUsuario) {
-                filtroActivo = 'cercanos';
-                document.getElementById('btnFiltroCercanos').classList.add('ubicacion-activa');
-                document.getElementById('infoTexto').innerHTML = `🗺️ Comercios a menos de 10km de tu ubicación`;
-                aplicarFiltros();
-            } else {
-                filtroActivo = 'todos';
-                document.getElementById('btnFiltroCercanos').classList.remove('activo');
-                document.getElementById('btnFiltroCercanos').classList.remove('ubicacion-activa');
-            }
-        };
-
-        // ============================================
         // CARGA DE COMERCIOS EN TIEMPO REAL
         // ============================================
         onSnapshot(collection(db, "comercios"), (snap) => {
@@ -1010,7 +1087,7 @@
         });
 
         // ============================================
-        // FUNCIONES AUXILIARES (popups, QR, canjes)
+        // FUNCIONES AUXILIARES (popups, QR, canjes) - SE MANTIENEN IGUAL
         // ============================================
         let scanner = null;
         let idEnProceso = "";
