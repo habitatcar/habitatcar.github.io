@@ -1025,36 +1025,42 @@
             const provSeleccionada = document.getElementById('filtroProvincia').value;
             const locSeleccionada = document.getElementById('filtroLocalidad').value;
             
-            // Si solo hay filtro de texto y ya hay cards renderizadas, filtrar sobre el DOM
             const hayFiltroGeografico = filtroProvinciaActivo || filtroLocalidadActivo || filtroCercaniaActivo || provSeleccionada || locSeleccionada;
             const hayFiltroVencimiento = vencimiento !== 'todos';
-            
+
+            // Filtro rápido sobre DOM cuando solo hay texto — sin re-renderizar
             if (texto && !hayFiltroGeografico && !hayFiltroVencimiento) {
-                // Filtro rápido sobre DOM — sin re-renderizar ni llamar Firestore
-                document.querySelectorAll('.card-vip').forEach(card => {
-                    const nombre = (card.dataset.nombre || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    const rubro  = (card.dataset.rubro  || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    card.style.display = (nombre.includes(texto) || rubro.includes(texto)) ? '' : 'none';
-                });
-                return;
+                const cardsExistentes = document.querySelectorAll('.card-vip');
+                if (cardsExistentes.length > 0) {
+                    cardsExistentes.forEach(card => {
+                        const nombre = (card.dataset.nombre || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        const rubro  = (card.dataset.rubro  || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                        card.style.display = (nombre.includes(texto) || rubro.includes(texto)) ? '' : 'none';
+                    });
+                    return;
+                }
+                // Si no hay cards todavía, cae al render completo abajo
             }
-            
-            // Si no hay texto o hay filtros geográficos/vencimiento, re-renderizar completo
-            if (!texto) {
-                document.querySelectorAll('.card-vip').forEach(card => card.style.display = '');
-                if (hayFiltroGeografico || hayFiltroVencimiento) {
-                    // continuar con el filtrado completo abajo
-                } else {
+
+            // Si se borra el texto, mostrar todas las cards sin re-renderizar
+            if (!texto && !hayFiltroGeografico && !hayFiltroVencimiento) {
+                const cardsExistentes = document.querySelectorAll('.card-vip');
+                if (cardsExistentes.length > 0) {
+                    cardsExistentes.forEach(card => card.style.display = '');
                     return;
                 }
             }
-            
+
             let filtrados = [...comerciosCompletos];
             
             if (texto) {
                 filtrados = filtrados.filter(c => {
                     const nom = (c.nombre || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                     const rub = (c.rubro  || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    return nom.includes(texto) || rub.includes(texto);
+                });
+            }
+                const rub = (c.rubro  || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
                     return nom.includes(texto) || rub.includes(texto);
                 });
             }
