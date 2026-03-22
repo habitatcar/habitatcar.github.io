@@ -1142,10 +1142,13 @@
             let html = "";
             const inicios = JSON.parse(localStorage.getItem('inicios_cupones_vip') || "{}");
             
+            const leadIdRender = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
             for (const c of comercios) {
-                const usosRealizados = await getUsosRealizadosDesdeFirestore(c.id);
+                // Leer usos desde localStorage (instantáneo) — Firestore actualiza en segundo plano
+                const usosRealizados = parseInt(localStorage.getItem('uso_vip_' + c.id) || '0');
                 const usosPermitidos = parseInt(c.usosVip) || 0;
-                const esAgotado = (usosPermitidos > 0 && usosRealizados >= usosPermitidos);
+                const yaAgotadoLocal = leadIdRender ? localStorage.getItem(`agotado_vip_${leadIdRender}_${c.id}`) === 'true' : false;
+                const esAgotado = yaAgotadoLocal || (usosPermitidos > 0 && usosRealizados >= usosPermitidos);
                 
                 const vigenciaTotal = parseInt(c.vigenciaVip) || 0;
                 let diasRestantes = vigenciaTotal;
@@ -1218,7 +1221,40 @@
             
             localStorage.setItem('inicios_cupones_vip', JSON.stringify(inicios));
             contenedor.innerHTML = html;
-            
+
+            // ── Actualizar usos desde Firestore en segundo plano (una sola lectura) ──
+            (async () => {
+                const leadIdBG = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
+                if (!leadIdBG) return;
+                try {
+                    const leadDoc = await getDoc(doc(db, "leads", leadIdBG));
+                    if (!leadDoc.exists()) return;
+                    const canjes = leadDoc.data().canjes_por_comercio || {};
+                    for (const com of comercios) {
+                        const key = (com.nombre || '').replace(/\s+/g, '_');
+                        const usos = canjes[key]?.cantidad_usos || 0;
+                        const perm = parseInt(com.usosVip) || 0;
+                        // Actualizar localStorage
+                        localStorage.setItem('uso_vip_' + com.id, usos);
+                        cacheUsos[com.id] = { valor: usos, timestamp: Date.now() };
+                        // Actualizar botón si cambió
+                        const btnU = document.getElementById(`btn-usar-${com.id}`);
+                        const btnV = document.getElementById(`btn-val-${com.id}`);
+                        if (!btnU) continue;
+                        if (perm > 0 && usos >= perm) {
+                            btnU.innerHTML = 'AGOTADO';
+                            btnU.disabled = true;
+                            btnU.classList.remove('activo');
+                            if (btnV) { btnV.disabled = true; btnV.style.opacity = '0.4'; btnV.onclick = null; }
+                            if (leadIdBG) localStorage.setItem(`agotado_vip_${leadIdBG}_${com.id}`, 'true');
+                        } else if (perm > 0) {
+                            if (!btnU.classList.contains('activo'))
+                                btnU.innerHTML = `Usar beneficio <span class="contador-inline">${usos}/${perm}</span>`;
+                        }
+                    }
+                } catch(e) { console.error('BG update error:', e); }
+            })();
+
             setTimeout(async () => {
                 for (const c of comercios) {
                     if (c.titulo_sorteo) {
