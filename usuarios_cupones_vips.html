@@ -760,8 +760,6 @@
                 if (leadDoc.exists()) {
                     const data = leadDoc.data();
                     const canjes = data.canjes_por_comercio || {};
-                    // finalizarVIP guarda con el NOMBRE del comercio, no con el ID
-                    // → buscar por nombre usando listaComercios
                     const comercioObj = listaComercios.find(x => x.id === comercioId);
                     const claveNombre = comercioObj ? comercioObj.nombre.replace(/\s+/g, '_') : comercioId.replace(/\s+/g, '_');
                     const usos = canjes[claveNombre]?.cantidad_usos || 0;
@@ -799,10 +797,8 @@
                 btnUsar.innerHTML = 'AGOTADO';
                 btnUsar.disabled = true;
                 btnUsar.classList.remove('activo');
-                // Bloquear también el botón de escaneo QR
                 const btnVal = document.getElementById(`btn-val-${comercioId}`);
                 if (btnVal) { btnVal.disabled = true; btnVal.style.opacity = '0.4'; btnVal.onclick = null; }
-                // Persistir estado agotado en localStorage (sobrevive recargas)
                 if (leadIdAct) localStorage.setItem(`agotado_vip_${leadIdAct}_${comercioId}`, 'true');
             } else {
                 if (usosPermitidos > 0) {
@@ -1020,49 +1016,15 @@
         };
 
         function aplicarFiltros() {
-            const texto = document.getElementById('filtroNombre').value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            const texto = document.getElementById('filtroNombre').value.toLowerCase();
             const vencimiento = document.getElementById('filtroVence').value;
             const provSeleccionada = document.getElementById('filtroProvincia').value;
             const locSeleccionada = document.getElementById('filtroLocalidad').value;
             
-            const hayFiltroGeografico = filtroProvinciaActivo || filtroLocalidadActivo || filtroCercaniaActivo || provSeleccionada || locSeleccionada;
-            const hayFiltroVencimiento = vencimiento !== 'todos';
-
-            // Filtro rápido sobre DOM cuando solo hay texto — sin re-renderizar
-            if (texto && !hayFiltroGeografico && !hayFiltroVencimiento) {
-                const cardsExistentes = document.querySelectorAll('.card-vip');
-                if (cardsExistentes.length > 0) {
-                    cardsExistentes.forEach(card => {
-                        const nombre = (card.dataset.nombre || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                        const rubro  = (card.dataset.rubro  || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                        card.style.display = (nombre.includes(texto) || rubro.includes(texto)) ? '' : 'none';
-                    });
-                    return;
-                }
-                // Si no hay cards todavía, cae al render completo abajo
-            }
-
-            // Si se borra el texto, mostrar todas las cards sin re-renderizar
-            if (!texto && !hayFiltroGeografico && !hayFiltroVencimiento) {
-                const cardsExistentes = document.querySelectorAll('.card-vip');
-                if (cardsExistentes.length > 0) {
-                    cardsExistentes.forEach(card => card.style.display = '');
-                    return;
-                }
-            }
-
             let filtrados = [...comerciosCompletos];
             
             if (texto) {
-                filtrados = filtrados.filter(c => {
-                    const nom = (c.nombre || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    const rub = (c.rubro  || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    return nom.includes(texto) || rub.includes(texto);
-                });
-            }
-                const rub = (c.rubro  || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-                    return nom.includes(texto) || rub.includes(texto);
-                });
+                filtrados = filtrados.filter(c => (c.nombre || '').toLowerCase().includes(texto));
             }
             
             if (filtroProvinciaActivo && usuarioData && usuarioData.provincia) {
@@ -1236,7 +1198,7 @@
                 }
                 
                 html += `
-                    <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}" data-rubro="${(c.rubro || '').toLowerCase()}" data-id="${c.id}">
+                    <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}" data-id="${c.id}">
                         ${htmlLogo}
                         <div class="nombre-c">${c.nombre || ''}</div>
                         <div class="beneficio-c">${beneficioCompleto}</div>
@@ -1337,7 +1299,7 @@
                 return;
             }
             
-            // Verificar si ya está agotado en localStorage (persiste entre recargas)
+            // Verificar localStorage primero (persiste entre recargas)
             const leadIdChk = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
             if (leadIdChk && localStorage.getItem(`agotado_vip_${leadIdChk}_${id}`) === 'true') {
                 btn.innerHTML = 'AGOTADO'; btn.disabled = true; btn.classList.remove('activo');
@@ -1345,13 +1307,11 @@
                 if (bv) { bv.disabled = true; bv.style.opacity = '0.4'; bv.onclick = null; }
                 return;
             }
-
-            // Forzar lectura desde Firestore (ignora caché) para evitar doble uso
+            // Forzar lectura Firestore para verificar límite
             const usosActuales = await getUsosRealizadosDesdeFirestore(id, true);
             const comercio = listaComercios.find(c => c.id === id);
             if (comercio) {
                 const usosPermitidos = parseInt(comercio.usosVip) || 0;
-                
                 if (usosPermitidos > 0 && usosActuales >= usosPermitidos) {
                     alert(`❌ Este cupón ya ha sido usado ${usosPermitidos} vez/veces y no tiene más usos disponibles.`);
                     await actualizarBotonComercio(id, true);
@@ -1437,20 +1397,18 @@
                 };
                 localStorage.setItem('uso_vip_' + id, nuevosUsos);
                 
-                // ⭐ ACTUALIZAR EL BOTÓN DIRECTO — sin ir a Firestore (evita problema de timing)
+                // ⭐ ACTUALIZAR BOTÓN DIRECTO con valores ya calculados (sin Firestore)
                 const btnUsarFinal = document.getElementById(`btn-usar-${id}`);
                 const btnValFinal  = document.getElementById(`btn-val-${id}`);
                 const leadIdFinal  = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
                 if (btnUsarFinal) {
                     if (usosPermitidos > 0 && nuevosUsos >= usosPermitidos) {
-                        // AGOTADO
                         btnUsarFinal.innerHTML = 'AGOTADO';
                         btnUsarFinal.disabled = true;
                         btnUsarFinal.classList.remove('activo');
                         if (btnValFinal) { btnValFinal.disabled = true; btnValFinal.style.opacity = '0.4'; btnValFinal.onclick = null; }
                         if (leadIdFinal) localStorage.setItem(`agotado_vip_${leadIdFinal}_${id}`, 'true');
                     } else {
-                        // Actualizar contador
                         if (usosPermitidos > 0) {
                             btnUsarFinal.innerHTML = `Usar beneficio <span class="contador-inline">${nuevosUsos}/${usosPermitidos}</span>`;
                         } else {
@@ -1493,7 +1451,6 @@
                     if(s <= 0) { 
                         clearInterval(t); 
                         document.getElementById('pantalla-exito').style.display = 'none';
-                        // Scroll a la card del comercio para que el usuario vea el botón AGOTADO
                         const card = document.querySelector(`.card-vip[data-id="${id}"]`);
                         if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     } 
