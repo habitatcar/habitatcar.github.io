@@ -4,55 +4,199 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Leads | Hábitat-Car</title>
+
+    <!-- Librerías para generación de PDF y gráficos -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
     <style>
         :root {
-            --azul-oscuro: #0a192f; --azul-medio: #172a45; --azul-claro: #334766;
-            --celeste-habitat: #004a99; --blanco-suave: #e6f1ff; --oro: #ffc107;
-            --rojo: #dc3545; --verde: #28a745; --naranja: #ff9800;
-            --verde-oliva: #6b8c42; --dorado: #d4af37;
+            --azul-oscuro: #0a192f;
+            --azul-medio: #172a45; 
+            --azul-claro: #334766;
+            --celeste-habitat: #004a99;
+            --blanco-suave: #e6f1ff;
+            --oro: #ffc107;
+            --rojo: #dc3545;
+            --verde: #28a745;
+            --naranja: #ff9800;
+            --verde-oliva: #6b8c42;
+            --dorado: #d4af37;
         }
-        html, body { height: 100%; margin: 0; overflow: hidden; font-family: 'Segoe UI', sans-serif; background-color: var(--azul-oscuro); color: var(--blanco-suave); }
+
+        html, body {
+            height: 100%;
+            margin: 0;
+            overflow: hidden;
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--azul-oscuro);
+            color: var(--blanco-suave);
+        }
+
         body { display: flex; flex-direction: column; }
-        .header { background: #004a99; padding: 12px 30px; display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid var(--dorado); position: sticky; top: 0; z-index: 1100; }
+
+        /* HEADER REDISEÑADO - MISMO QUE COMERCIOS */
+        .header {
+            background: #004a99;
+            padding: 12px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 3px solid var(--dorado);
+            position: sticky;
+            top: 0;
+            z-index: 1100;
+        }
         .logo-container { flex-shrink: 0; }
         .logo { height: 80px; width: auto; display: block; }
         .nav-menu { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-        .nav-link { padding: 10px 18px; border-radius: 8px; text-decoration: none; color: white; font-weight: bold; background: transparent; border: 2px solid var(--verde-oliva); transition: all 0.3s ease; font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; display: inline-flex; align-items: center; gap: 8px; }
-        .nav-link:hover { background: var(--naranja); border-color: var(--naranja); color: white; transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2); }
+        .nav-link {
+            padding: 10px 18px; border-radius: 8px; text-decoration: none;
+            color: white; font-weight: bold; background: transparent;
+            border: 2px solid var(--verde-oliva); transition: all 0.3s ease;
+            font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
+            display: inline-flex; align-items: center; gap: 8px;
+        }
+        .nav-link:hover {
+            background: var(--naranja); border-color: var(--naranja); color: white;
+            transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
         .nav-link.active { background: var(--naranja); border-color: var(--naranja); color: white; }
         .nav-link-validaciones { background: var(--naranja); border-color: var(--naranja); }
         .nav-link-validaciones:hover { background: #e67e22; border-color: #e67e22; }
-        .contador-badge { background: #6b8c42; border-radius: 20px; padding: 2px 8px; font-size: 10px; font-weight: bold; color: white; transition: all 0.2s; min-width: 24px; text-align: center; display: inline-block; }
+        .contador-badge {
+            background: #6b8c42; border-radius: 20px; padding: 2px 8px;
+            font-size: 10px; font-weight: bold; color: white; transition: all 0.2s;
+            min-width: 24px; text-align: center; display: inline-block;
+        }
         .contador-badge-group { display: inline-flex; gap: 4px; margin-left: 4px; }
         .nav-link:hover .contador-badge { background: rgba(0,0,0,0.5); color: white; }
-        @media (max-width: 1200px) { .header { flex-direction: column; padding: 15px; gap: 15px; } .logo-container { text-align: center; } .nav-menu { justify-content: center; } .nav-link { padding: 8px 12px; font-size: 10px; } .contador-badge { font-size: 8px; padding: 1px 6px; min-width: 18px; } .contador-badge-group { gap: 2px; } }
+        @media (max-width: 1200px) {
+            .header { flex-direction: column; padding: 15px; gap: 15px; }
+            .logo-container { text-align: center; }
+            .nav-menu { justify-content: center; }
+            .nav-link { padding: 8px 12px; font-size: 10px; }
+            .contador-badge { font-size: 8px; padding: 1px 6px; min-width: 18px; }
+            .contador-badge-group { gap: 2px; }
+        }
         @media (max-width: 768px) { .nav-link { padding: 6px 10px; font-size: 9px; } }
+
         .search-area { padding: 15px 30px; flex-shrink: 0; background: #112240; }
-        .search-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
-        .search-bar input, .search-bar select { background: var(--azul-oscuro); padding: 10px 15px; border-radius: 8px; border: 1px solid var(--celeste-habitat); color: white; font-size: 13px; outline: none; }
+        .search-bar {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .search-bar input, .search-bar select {
+            background: var(--azul-oscuro);
+            padding: 10px 15px;
+            border-radius: 8px;
+            border: 1px solid var(--celeste-habitat);
+            color: white;
+            font-size: 13px;
+            outline: none;
+        }
         .input-busqueda { width: 250px; }
-        .contador-naranja { background: black; color: var(--oro); padding: 8px 12px; border-radius: 8px; border: 2px solid var(--oro); font-weight: bold; min-width: 25px; text-align: center; }
-        .table-wrapper { flex: 1; overflow-y: auto; padding: 0 30px 30px 30px; }
+        .contador-naranja {
+            background: black;
+            color: var(--oro);
+            padding: 8px 12px;
+            border-radius: 8px;
+            border: 2px solid var(--oro);
+            font-weight: bold;
+            min-width: 25px;
+            text-align: center;
+        }
+
+        .table-wrapper {
+            flex: 1;
+            overflow-y: auto;
+            padding: 0 30px 30px 30px;
+        }
+
         table { width: 100%; border-collapse: separate; border-spacing: 0; }
-        thead th { position: sticky; top: 0; background: var(--azul-oscuro); color: var(--oro); padding: 15px; text-align: left; z-index: 20; font-size: 12px; border-bottom: 2px solid var(--celeste-habitat); cursor: pointer; }
+        thead th {
+            position: sticky;
+            top: 0;
+            background: var(--azul-oscuro);
+            color: var(--oro);
+            padding: 15px;
+            text-align: left;
+            z-index: 20;
+            font-size: 12px;
+            border-bottom: 2px solid var(--celeste-habitat);
+            cursor: pointer;
+        }
+
         td { padding: 12px 15px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 13px; }
         tr:hover { background: rgba(255,255,255,0.03); }
-        .btn-action { padding: 8px 10px; border-radius: 6px; border: none; cursor: pointer; font-weight: bold; color: white; margin-right: 5px; transition: 0.2s; text-transform: uppercase; font-size: 10px; display: inline-flex; align-items: center; justify-content: center; gap: 4px; min-height: 36px; height: 36px; box-sizing: border-box; }
+
+        .btn-action {
+            padding: 8px 10px;
+            border-radius: 6px;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            color: white;
+            margin-right: 5px;
+            transition: 0.2s;
+            text-transform: uppercase;
+            font-size: 10px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            min-height: 36px;
+            height: 36px;
+            box-sizing: border-box;
+        }
         .btn-vip { background: var(--oro); color: black; }
         .btn-reset { background: #0056b3; }
         .btn-suspend { background: var(--naranja); }
         .btn-del { background: var(--rojo); }
+        .btn-del span { font-size: 16px; }
         .btn-action span { font-size: 16px !important; }
-        .acciones-bloque, .acciones-header { display: flex; justify-content: center; align-items: center; flex-wrap: wrap; gap: 6px; }
-        .checkbox-multi { width: 18px; height: 18px; cursor: pointer; accent-color: var(--oro); }
+
+        .acciones-bloque,
+        .acciones-header {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+
+        .checkbox-multi {
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+            accent-color: var(--oro);
+        }
+
         .col-checkbox { width: 32px; padding-left: 8px; text-align: center; }
         .col-usos { color: var(--rojo); font-weight: bold; font-size: 16px; text-align: center; }
-        #modal-bienvenida { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 1000; justify-content: center; align-items: center; }
-        .cartel { background: white; color: #0a192f; padding: 40px; border-radius: 20px; text-align: center; max-width: 450px; border: 8px solid var(--oro); }
+
+        #modal-bienvenida {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+        .cartel {
+            background: white;
+            color: #0a192f;
+            padding: 40px;
+            border-radius: 20px;
+            text-align: center;
+            max-width: 450px;
+            border: 8px solid var(--oro);
+        }
     </style>
 </head>
 <body>
@@ -67,6 +211,7 @@
         </div>
     </div>
 
+    <!-- HEADER REDISEÑADO - CON CLASE ACTIVE EN LEADS -->
     <header class="header">
         <div class="logo-container">
             <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo" alt="Habitat-Car">
@@ -80,12 +225,12 @@
             <a href="admin_estadisticas.html" class="nav-link">ESTADÍSTICAS</a>
             <a href="admin_logs.html" class="nav-link">LOG</a>
             <a href="admin_tutoriales.html" class="nav-link" data-contador="tutoriales">TUTORIALES <span class="contador-badge" id="cont-tutoriales">0</span></a>
-            <a href="admin_validaciones.html" class="nav-link nav-link-validaciones">
+            <a href="admin_validaciones.html" class="nav-link nav-link-validaciones" data-contador="validaciones">
                 VALIDACIONES
                 <span class="contador-badge-group">
-                    <span class="contador-badge" id="cont-validaciones-comercios">0</span>
-                    <span class="contador-badge" id="cont-validaciones-martilleros">0</span>
-                    <span class="contador-badge" id="cont-validaciones-colaboradores">0</span>
+                    <span class="contador-badge" id="cont-validaciones-comercios" title="Comercios pendientes">0</span>
+                    <span class="contador-badge" id="cont-validaciones-martilleros" title="Martilleros pendientes">0</span>
+                    <span class="contador-badge" id="cont-validaciones-colaboradores" title="Colaboradores pendientes">0</span>
                 </span>
             </a>
             <a href="index.html" class="nav-link">PANEL DE INGRESO</a>
@@ -97,26 +242,31 @@
     <div class="search-area">
         <div class="search-bar">
             <input type="text" id="buscador" class="input-busqueda" placeholder="Buscar por apellido o WhatsApp..." onkeyup="filtrarLeads()">
+            
             <select id="filtro-provincia" onchange="cargarLocalidades(this.value); filtrarLeads();">
                 <option value="">PROVINCIA</option>
             </select>
             <div class="contador-naranja" id="count-prov">0</div>
+
             <select id="filtro-localidad" onchange="filtrarLeads();">
                 <option value="">LOCALIDAD</option>
             </select>
             <div class="contador-naranja" id="count-loc">0</div>
+
             <select onchange="validarYRestablecerMasivo(this.value); this.value='';" style="border-color: var(--celeste-habitat); font-weight: bold;">
                 <option value="">RESTABLECER CUPONES</option>
                 <option value="localidad">POR LOCALIDAD</option>
                 <option value="provincia">POR PROVINCIA</option>
                 <option value="pais">A TODO EL PAÍS</option>
             </select>
+
             <select onchange="generarReportePDF(this.value); this.value='';" style="border-color: var(--celeste-habitat); font-weight: bold;">
                 <option value="">REPORTE PDF</option>
                 <option value="localidad">POR LOCALIDAD</option>
                 <option value="provincia">POR PROVINCIA</option>
                 <option value="pais">PAÍS (REPORTE GENERAL)</option>
             </select>
+
             <div style="margin-left: auto; font-weight: bold; color: var(--oro);">
                 Total: <span id="contador-total">0</span>
             </div>
@@ -124,9 +274,9 @@
     </div>
 
     <div class="table-wrapper">
-        <table>
+         <table>
             <thead>
-                <tr>
+                 <tr>
                     <th onclick="ordenar('fechaRegistro')">REGISTRO ↕</th>
                     <th onclick="ordenar('lastSubmission')">ÚLT. ACTIVIDAD ↕</th>
                     <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE ↕</th>
@@ -134,12 +284,14 @@
                     <th>PROVINCIA</th>
                     <th>CIUDAD</th>
                     <th style="text-align: center;" onclick="ordenar('usos_count')">CANT. USOS ↕</th>
-                    <th class="col-acciones"><div class="acciones-header">ACCIONES</div></th>
+                    <th class="col-acciones">
+                        <div class="acciones-header">ACCIONES</div>
+                    </th>
                     <th class="col-checkbox"><input type="checkbox" id="select-all" onclick="seleccionarTodos(this.checked)"></th>
-                </tr>
+                 </tr>
             </thead>
             <tbody id="lista-leads"></tbody>
-        </table>
+         </table>
     </div>
 
     <script type="module">
@@ -164,7 +316,175 @@
         let todasLasLocalidades = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
 
-        /* ── REGISTRAR ACTIVIDAD EN LOG ── */
+        // =============================================
+        // CONTADORES NAV (mismo que comercios)
+        // =============================================
+        async function actualizarContadores() {
+            if (typeof db === 'undefined' || !db) {
+                setTimeout(actualizarContadores, 2000);
+                return;
+            }
+            const el = (id) => document.getElementById(id);
+            try {
+                const todosSnap = await getDocs(collection(db, "leads"));
+                const totalRaw = todosSnap.size;
+                const vipsSnap = await getDocs(query(collection(db, "leads"), where("convertidoVIP", "==", true)));
+                const totalVips = vipsSnap.size;
+                const totalLeads = totalRaw - totalVips;
+                const comerciosSnap = await getDocs(collection(db, "comercios"));
+                const totalComercios = comerciosSnap.size;
+                if (el('cont-comercios')) el('cont-comercios').innerText = totalComercios;
+                if (el('cont-leads')) el('cont-leads').innerText = totalLeads;
+                if (el('cont-vips')) el('cont-vips').innerText = totalVips;
+                try {
+                    const tutSnap = await getDocs(collection(db, "tutoriales"));
+                    if (el('cont-tutoriales')) el('cont-tutoriales').innerText = tutSnap.size;
+                } catch(e) {}
+                let vCom = 0;
+                try { const s = await getDocs(query(collection(db, "postulaciones_comercios"), where("estado", "==", "pendiente"))); vCom = s.size; } catch(e) {}
+                if (el('cont-validaciones-comercios')) el('cont-validaciones-comercios').innerText = vCom;
+                let vMar = 0;
+                try { const s = await getDocs(query(collection(db, "postulaciones_martilleros"), where("estado", "==", "pendiente"))); vMar = s.size; } catch(e) {}
+                if (el('cont-validaciones-martilleros')) el('cont-validaciones-martilleros').innerText = vMar;
+                let vCol = 0;
+                try { const s = await getDocs(query(collection(db, "postulaciones_colaboradores"), where("estado", "==", "pendiente"))); vCol = s.size; } catch(e) {}
+                if (el('cont-validaciones-colaboradores')) el('cont-validaciones-colaboradores').innerText = vCol;
+            } catch(error) { console.error("Error en contadores:", error); }
+        }
+        setTimeout(() => { actualizarContadores(); setInterval(actualizarContadores, 30000); }, 3000);
+
+        async function cargarProvincias() {
+            try {
+                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
+                const data = await res.json();
+                const combo = document.getElementById('filtro-provincia');
+                combo.innerHTML = '<option value="">PROVINCIA</option>';
+                todasLasProvincias = data.provincias.map(p => p.nombre.toLowerCase());
+                todasLasProvincias.sort((a,b) => a.localeCompare(b));
+                todasLasProvincias.forEach(nombreProv => {
+                    let opt = document.createElement('option');
+                    opt.value = nombreProv; opt.textContent = pascalCase(nombreProv);
+                    combo.appendChild(opt);
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        function pascalCase(str) {
+            return str.replace(/\w\S*/g, (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase());
+        }
+
+        window.cargarLocalidades = async (provNombreNormalized) => {
+            const comboLoc = document.getElementById('filtro-localidad');
+            comboLoc.innerHTML = '<option value="">LOCALIDAD</option>';
+            if(!provNombreNormalized || !todasLasProvincias.includes(provNombreNormalized)) { todasLasLocalidades = []; filtrarLeads(); return; }
+            try {
+                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provNombreNormalized.toLowerCase())}&max=1000&campos=nombre`);
+                const data = await res.json();
+                todasLasLocalidades = data.municipios.map(m => m.nombre.toLowerCase());
+                todasLasLocalidades.sort((a,b) => a.localeCompare(b));
+                todasLasLocalidades.forEach(nombreLoc => {
+                    let opt = document.createElement('option');
+                    opt.value = nombreLoc; opt.textContent = pascalCase(nombreLoc);
+                    comboLoc.appendChild(opt);
+                });
+            } catch (e) { console.error(e); }
+        }
+        cargarProvincias();
+
+        const q = query(collection(db, "leads"), where("convertidoVIP", "!=", true));
+        onSnapshot(q, (snapshot) => {
+            todosLosLeads = [];
+            snapshot.forEach(docSnap => {
+                const data = docSnap.data();
+                let detalleHtml = "<div class='detalle-comercios'>";
+                Object.keys(data).forEach(key => {
+                    if (data[key] && typeof data[key] === 'object' && data[key].usos !== undefined) {
+                        detalleHtml += `<span class="tag-comercio">${key}: <b>${data[key].usos}</b></span>`;
+                    }
+                });
+                detalleHtml += "</div>";
+                todosLosLeads.push({
+                    id: docSnap.id, ...data,
+                    provincia_normalized: (data.provincia || '').toLowerCase(),
+                    localidad_normalized: (data.localidad || '').toLowerCase(),
+                    detalle_comercios_html: detalleHtml === "<div class='detalle-comercios'></div>" ? "-" : detalleHtml
+                });
+            });
+            aplicarOrdenYRender();
+        }, (error) => { console.error("Error en tiempo real:", error); });
+
+        function aplicarOrdenYRender() {
+            const { campo, asc } = ordenActual;
+            todosLosLeads.sort((a, b) => {
+                let valA = a[campo] ?? ''; let valB = b[campo] ?? '';
+                if (typeof valA === 'string') { valA = valA.toLowerCase(); valB = valB.toLowerCase(); }
+                return asc ? (valA > valB ? 1 : -1) : (valA < valB ? 1 : -1);
+            });
+            filtrarLeads();
+        }
+
+        window.ordenar = (campo) => {
+            ordenActual.asc = (ordenActual.campo === campo) ? !ordenActual.asc : true;
+            ordenActual.campo = campo;
+            aplicarOrdenYRender();
+        };
+
+        window.filtrarLeads = () => {
+            const busq = document.getElementById('buscador').value.toLowerCase();
+            const prov = document.getElementById('filtro-provincia').value;
+            const loc = document.getElementById('filtro-localidad').value;
+            const filtrados = todosLosLeads.filter(l => {
+                const nombreComp = `${l.apellido || ''} ${l.nombres || ''}`.toLowerCase();
+                const matchBusq = nombreComp.includes(busq) || (l.whatsapp && l.whatsapp.includes(busq));
+                const matchProv = prov === "" || l.provincia_normalized === prov;
+                const matchLoc = loc === "" || l.localidad_normalized === loc;
+                return matchBusq && matchProv && matchLoc;
+            });
+            document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l => l.provincia_normalized === prov).length : 0;
+            document.getElementById('count-loc').innerText = loc ? todosLosLeads.filter(l => l.localidad_normalized === loc).length : 0;
+            renderizar(filtrados);
+        };
+
+        function renderizar(datos) {
+            const lista = document.getElementById('lista-leads');
+            lista.innerHTML = "";
+            document.getElementById('contador-total').innerText = datos.length;
+            datos.forEach(l => {
+                const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
+                const lastSub = (l.lastSubmission || l.fechaRegistro) ? new Date(l.lastSubmission || l.fechaRegistro).toLocaleString() : '---';
+                const suspendido = l.estado === 'suspendido';
+                const nombreFull = `${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}`;
+                lista.innerHTML += `
+                    <tr style="${suspendido ? 'opacity: 0.5; background: rgba(220,53,69,0.05)' : ''}">
+                        <td style="color: #8892b0;">${fechaReg}</td>
+                        <td style="color: var(--oro); font-size: 0.9em;">${lastSub}</td>
+                        <td><b>${nombreFull}</b></td>
+                        <td>${l.whatsapp || '---'}</td>
+                        <td style="color: #8892b0">${pascalCase(l.provincia || '')}</td>
+                        <td style="color: #8892b0">${pascalCase(l.localidad || '')}</td>
+                        <td class="col-usos">${l.usos_count || 0}</td>
+                        <td class="col-acciones">
+                            <div class="acciones-bloque">
+                                <button class="btn-action btn-vip" onclick="hacerVIP('${l.id}', '${nombreFull.replace(/'/g,"\\'")}')"><span>💎</span> VIP</button>
+                                <button class="btn-action btn-reset" onclick="restablecerCupones('${l.id}', '${nombreFull.replace(/'/g,"\\'")}')"><span>🔄</span> RESTABLECER</button>
+                                <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}', '${l.estado || 'activo'}', '${nombreFull.replace(/'/g,"\\'")}')"><span>${suspendido ? '✅' : '🚫'}</span> ${suspendido ? 'ACTIVAR' : 'SUSPENDER'}</button>
+                                <button class="btn-action btn-del" onclick="borrarLead('${l.id}', '${nombreFull.replace(/'/g,"\\'")}')">
+                                    <span>🗑️</span> ELIMINAR LEAD
+                                </button>
+                            </div>
+                        </td>
+                        <td class="col-checkbox">
+                            <input type="checkbox" class="checkbox-multi lead-checkbox" value="${l.id}">
+                        </td>
+                     </tr>
+                `;
+            });
+        }
+
+        // =============================================
+        // FUNCIÓN CENTRAL DE LOG — escribe en logs_actividad
+        // tipo: "VIP" | "GESTION LEAD" | "LEAD"
+        // =============================================
         async function registrarActividad(usuarioId, nombre, accion, tipo = "LEAD", detalle = "") {
             try {
                 await addDoc(collection(db, "logs_actividad"), {
@@ -176,277 +496,246 @@
                     timestamp: Date.now(),
                     fecha:     new Date().toLocaleString()
                 });
-            } catch(e) { console.error("Error log:", e); }
+            } catch (e) { console.error("Error log:", e); }
         }
 
-        /* ── CONTADORES NAVBAR ── */
-        async function actualizarContadores() {
-            if (!db) { setTimeout(actualizarContadores, 2000); return; }
-            const el = id => document.getElementById(id);
-            try {
-                const [todosSnap, vipsSnap, comSnap] = await Promise.all([
-                    getDocs(collection(db, "leads")),
-                    getDocs(query(collection(db, "leads"), where("convertidoVIP", "==", true))),
-                    getDocs(collection(db, "comercios")),
-                ]);
-                if (el('cont-comercios')) el('cont-comercios').innerText = comSnap.size;
-                if (el('cont-leads'))     el('cont-leads').innerText     = todosSnap.size - vipsSnap.size;
-                if (el('cont-vips'))      el('cont-vips').innerText      = vipsSnap.size;
-                try { const t = await getDocs(collection(db,"tutoriales")); if(el('cont-tutoriales')) el('cont-tutoriales').innerText = t.size; } catch(e){}
-                for (const [col, elId] of [
-                    ['postulaciones_comercios','cont-validaciones-comercios'],
-                    ['postulaciones_martilleros','cont-validaciones-martilleros'],
-                    ['postulaciones_colaboradores','cont-validaciones-colaboradores'],
-                ]) {
-                    try { const s = await getDocs(query(collection(db,col),where("estado","==","pendiente"))); if(el(elId)) el(elId).innerText = s.size; } catch(e){}
-                }
-            } catch(e) { console.error(e); }
-        }
-        setTimeout(() => { actualizarContadores(); setInterval(actualizarContadores, 30000); }, 3000);
-
-        /* ── PROVINCIAS / LOCALIDADES ── */
-        async function cargarProvincias() {
-            try {
-                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
-                const data = await res.json();
-                const combo = document.getElementById('filtro-provincia');
-                combo.innerHTML = '<option value="">PROVINCIA</option>';
-                todasLasProvincias = data.provincias.map(p => p.nombre.toLowerCase());
-                todasLasProvincias.sort((a,b) => a.localeCompare(b));
-                todasLasProvincias.forEach(n => {
-                    const o = document.createElement('option');
-                    o.value = n; o.textContent = pascalCase(n); combo.appendChild(o);
-                });
-            } catch(e) { console.error(e); }
-        }
-
-        window.cargarLocalidades = async (prov) => {
-            const combo = document.getElementById('filtro-localidad');
-            combo.innerHTML = '<option value="">LOCALIDAD</option>';
-            if (!prov || !todasLasProvincias.includes(prov)) { todasLasLocalidades = []; filtrarLeads(); return; }
-            try {
-                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(prov)}&max=1000&campos=nombre`);
-                const data = await res.json();
-                todasLasLocalidades = data.municipios.map(m => m.nombre.toLowerCase());
-                todasLasLocalidades.sort((a,b) => a.localeCompare(b));
-                todasLasLocalidades.forEach(n => {
-                    const o = document.createElement('option');
-                    o.value = n; o.textContent = pascalCase(n); combo.appendChild(o);
-                });
-            } catch(e) { console.error(e); }
-        };
-        cargarProvincias();
-
-        /* ── SNAPSHOT LEADS ── */
-        const q = query(collection(db, "leads"), where("convertidoVIP", "!=", true));
-        onSnapshot(q, snap => {
-            todosLosLeads = [];
-            snap.forEach(d => {
-                const data = d.data();
-                todosLosLeads.push({
-                    id: d.id, ...data,
-                    provincia_normalized: (data.provincia||'').toLowerCase(),
-                    localidad_normalized: (data.localidad||'').toLowerCase(),
-                });
-            });
-            aplicarOrdenYRender();
-        }, e => console.error(e));
-
-        function aplicarOrdenYRender() {
-            const { campo, asc } = ordenActual;
-            todosLosLeads.sort((a,b) => {
-                let vA = a[campo]??'', vB = b[campo]??'';
-                if (typeof vA === 'string') { vA = vA.toLowerCase(); vB = vB.toLowerCase(); }
-                return asc ? (vA > vB ? 1 : -1) : (vA < vB ? 1 : -1);
-            });
-            filtrarLeads();
-        }
-
-        window.ordenar = campo => {
-            ordenActual.asc = (ordenActual.campo === campo) ? !ordenActual.asc : true;
-            ordenActual.campo = campo;
-            aplicarOrdenYRender();
-        };
-
-        window.filtrarLeads = () => {
-            const busq = document.getElementById('buscador').value.toLowerCase();
-            const prov = document.getElementById('filtro-provincia').value;
-            const loc  = document.getElementById('filtro-localidad').value;
-            const filtrados = todosLosLeads.filter(l => {
-                const nom = `${l.apellido||''} ${l.nombres||''}`.toLowerCase();
-                return (nom.includes(busq)||(l.whatsapp&&l.whatsapp.includes(busq)))
-                    && (prov===''||l.provincia_normalized===prov)
-                    && (loc===''||l.localidad_normalized===loc);
-            });
-            document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l=>l.provincia_normalized===prov).length : 0;
-            document.getElementById('count-loc').innerText  = loc  ? todosLosLeads.filter(l=>l.localidad_normalized===loc).length  : 0;
-            renderizar(filtrados);
-        };
-
-        function renderizar(datos) {
-            const lista = document.getElementById('lista-leads');
-            lista.innerHTML = "";
-            document.getElementById('contador-total').innerText = datos.length;
-            datos.forEach(l => {
-                const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
-                const lastSub  = (l.lastSubmission||l.fechaRegistro) ? new Date(l.lastSubmission||l.fechaRegistro).toLocaleString() : '---';
-                const suspendido = l.estado === 'suspendido';
-                const nombreFull = `${(l.apellido||'').toUpperCase()}, ${(l.nombres||'').toUpperCase()}`;
-                lista.innerHTML += `
-                    <tr style="${suspendido ? 'opacity:0.5;background:rgba(220,53,69,0.05)' : ''}">
-                        <td style="color:#8892b0">${fechaReg}</td>
-                        <td style="color:var(--oro);font-size:0.9em">${lastSub}</td>
-                        <td><b>${nombreFull}</b></td>
-                        <td>${l.whatsapp||'---'}</td>
-                        <td style="color:#8892b0">${pascalCase(l.provincia||'')}</td>
-                        <td style="color:#8892b0">${pascalCase(l.localidad||'')}</td>
-                        <td class="col-usos">${l.usos_count||0}</td>
-                        <td class="col-acciones">
-                            <div class="acciones-bloque">
-                                <button class="btn-action btn-vip"     onclick="hacerVIP('${l.id}','${nombreFull.replace(/'/g,"\\'")}')"><span>💎</span> VIP</button>
-                                <button class="btn-action btn-reset"   onclick="restablecerCupones('${l.id}','${nombreFull.replace(/'/g,"\\'")}')"><span>🔄</span> RESTABLECER</button>
-                                <button class="btn-action btn-suspend" onclick="toggleEstado('${l.id}','${l.estado||'activo'}','${nombreFull.replace(/'/g,"\\'")}')"><span>${suspendido?'✅':'🚫'}</span> ${suspendido?'ACTIVAR':'SUSPENDER'}</button>
-                                <button class="btn-action btn-del"     onclick="borrarLead('${l.id}','${nombreFull.replace(/'/g,"\\'")}')"><span>🗑️</span> ELIMINAR LEAD</button>
-                            </div>
-                        </td>
-                        <td class="col-checkbox"><input type="checkbox" class="checkbox-multi lead-checkbox" value="${l.id}"></td>
-                    </tr>`;
-            });
-        }
-
-        /* ── ACCIONES CON LOG ── */
-
-        window.hacerVIP = async (id, nombre) => {
-            if (!confirm(`¿Convertir a ${nombre} en VIP?`)) return;
-            await updateDoc(doc(db,"leads",id), { convertidoVIP: true, fechaVIP: Date.now() });
-            /* ── LOG ── tipo VIP para que aparezca con badge dorado */
-            await registrarActividad(id, nombre, "CONVERTIDO A VIP", "VIP",
-                `${nombre} fue promovido a socio VIP desde el panel`);
-            document.getElementById('nombre-socio').innerText = nombre;
-            document.getElementById('modal-bienvenida').style.display = 'flex';
-        };
-
+        // =============================================
+        // CAMBIO 1: restablecerCupones — ahora recibe nombre y loguea
+        // =============================================
         window.restablecerCupones = async (id, nombre) => {
-            if (!confirm(`¿Restablecer TODOS los cupones de ${nombre}?`)) return;
-            try {
-                await updateDoc(doc(db,"leads",id), {
-                    usos_count: 0,
-                    canjes_por_comercio: deleteField()
-                });
-                /* ── LOG ── */
-                await registrarActividad(id, nombre, "RESTABLECER CUPONES", "LEAD",
-                    `Cupones de ${nombre} restablecidos desde el panel`);
-                alert("Cupones restablecidos con éxito.");
-            } catch(e) { console.error(e); alert("Error al restablecer."); }
+            if(confirm("¿Estás seguro de restablecer TODOS los beneficios para este usuario?")) {
+                try {
+                    const leadRef = doc(db, "leads", id);
+                    await updateDoc(leadRef, { 
+                        usos_count: 0,
+                        canjes_por_comercio: deleteField() 
+                    });
+                    // LOG
+                    await registrarActividad(id, nombre, "RESTABLECER CUPONES", "GESTION LEAD",
+                        `Cupones de ${nombre} restablecidos desde el panel admin`);
+                    alert("Beneficios restablecidos con éxito.");
+                } catch(e) { 
+                    console.error(e); 
+                    alert("Error al restablecer."); 
+                }
+            }
+        };
+
+        async function registrarActividadLegacy(usuarioId, nombre, accion) {
+            // mantener compatibilidad con llamadas internas antiguas
+            await registrarActividad(usuarioId, nombre, accion);
+        }
+
+        // =============================================
+        // CAMBIO 2: hacerVIP — agrega log con tipo VIP
+        // =============================================
+        window.hacerVIP = async (id, nombre) => {
+            if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
+                await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
+                // LOG — tipo VIP para que aparezca con badge dorado en logs
+                await registrarActividad(id, nombre, "CONVERTIDO A VIP", "VIP",
+                    `${nombre} fue promovido a socio VIP desde el panel admin`);
+                document.getElementById('nombre-socio').innerText = nombre;
+                document.getElementById('modal-bienvenida').style.display = 'flex';
+            }
         };
 
         window.toggleEstado = async (id, estadoActual, nombre) => {
-            const nuevo   = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
-            const accion  = nuevo === 'suspendido' ? 'SUSPENDER LEAD' : 'ACTIVAR LEAD';
-            if (!confirm(`¿${nuevo==='suspendido'?'Suspender':'Activar'} a ${nombre}?`)) return;
-            try {
-                await updateDoc(doc(db,"leads",id), { estado: nuevo, fechaModificacionEstado: Date.now() });
-                /* ── LOG ── tipo "GESTION LEAD" para distinguir de inscripción */
-                await registrarActividad(id, nombre, accion, "GESTION LEAD",
-                    `${nombre} fue ${nuevo==='suspendido'?'suspendido':'reactivado'} desde el panel`);
-            } catch(e) { console.error(e); alert("Error al cambiar estado."); }
+            const nuevoEstado = estadoActual === 'suspendido' ? 'activo' : 'suspendido';
+            const accionTexto = nuevoEstado === 'suspendido' ? 'SUSPENDER LEAD' : 'ACTIVAR LEAD';
+            if(confirm(`¿Estás seguro de ${nuevoEstado === 'suspendido' ? 'SUSPENDER' : 'ACTIVAR'} a ${nombre}?\n\nNota: Si lo suspendes, no podrá visualizar ni usar sus cupones.`)) {
+                try {
+                    const leadRef = doc(db, "leads", id);
+                    await updateDoc(leadRef, { 
+                        estado: nuevoEstado,
+                        fechaModificacionEstado: Date.now() 
+                    });
+                    // LOG — tipo GESTION LEAD (no inscripción)
+                    await registrarActividad(id, nombre, accionTexto, "GESTION LEAD",
+                        `${nombre} fue ${nuevoEstado === 'suspendido' ? 'suspendido' : 'reactivado'} desde el panel admin`);
+                    alert(`Usuario ${nombre} ha sido ${nuevoEstado === 'suspendido' ? 'suspendido' : 'reactivado'}.`);
+                } catch (e) {
+                    console.error("Error al cambiar estado:", e);
+                    alert("Error al procesar la solicitud.");
+                }
+            }
         };
 
+        // =============================================
+        // CAMBIO 3: borrarLead — recibe nombre y loguea ANTES de borrar
+        // =============================================
         window.borrarLead = async (id, nombre) => {
-            if (!confirm(`¿Eliminar definitivamente a ${nombre}?`)) return;
-            /* ── LOG antes de borrar para preservar nombre ── */
-            await registrarActividad(id, nombre, "ELIMINAR LEAD", "GESTION LEAD",
-                `${nombre} fue eliminado del sistema`);
-            await deleteDoc(doc(db,"leads",id));
+            if (confirm(`¿Eliminar definitivamente a ${nombre}?`)) {
+                // LOG antes de borrar para conservar el nombre
+                await registrarActividad(id, nombre, "ELIMINAR LEAD", "GESTION LEAD",
+                    `${nombre} fue eliminado del sistema desde el panel admin`);
+                await deleteDoc(doc(db, "leads", id));
+            }
         };
 
-        window.validarYRestablecerMasivo = async tipo => {
+        // =============================================
+        // CAMBIO 4: validarYRestablecerMasivo — loguea cada usuario
+        // =============================================
+        window.validarYRestablecerMasivo = async (tipo) => {
             if (!tipo) return;
             const pass = prompt("Clave ADMIN:");
-            if (pass !== "admin1234") return alert("Clave incorrecta");
+            if (pass !== "admin1234") return alert("Clave Incorrecta");
 
             let filtrados = [];
-            if      (tipo==="pais")      filtrados = todosLosLeads;
-            else if (tipo==="provincia") filtrados = todosLosLeads.filter(l=>l.provincia_normalized===document.getElementById('filtro-provincia').value);
-            else if (tipo==="localidad") filtrados = todosLosLeads.filter(l=>l.localidad_normalized===document.getElementById('filtro-localidad').value);
+            if (tipo === "pais") filtrados = todosLosLeads;
+            else if (tipo === "provincia") filtrados = todosLosLeads.filter(l => l.provincia_normalized === document.getElementById('filtro-provincia').value);
+            else if (tipo === "localidad") filtrados = todosLosLeads.filter(l => l.localidad_normalized === document.getElementById('filtro-localidad').value);
 
-            if (!confirm(`¿Restablecer cupones de ${filtrados.length} usuarios?`)) return;
-
-            const batch = writeBatch(db);
-            const ahora = Date.now();
-            filtrados.forEach(l => {
-                batch.update(doc(db,"leads",l.id), {
-                    usos_count: 0, lastSubmission: ahora, canjes_por_comercio: deleteField()
+            if(confirm(`¿Restablecer cupones de ${filtrados.length} usuarios?`)) {
+                const batch = writeBatch(db);
+                const ahora = Date.now();
+                filtrados.forEach(l => {
+                    const leadRef = doc(db, "leads", l.id);
+                    batch.update(leadRef, { 
+                        usos_count: 0, 
+                        lastSubmission: ahora,
+                        canjes_por_comercio: deleteField() 
+                    });
                 });
-            });
-            await batch.commit();
+                await batch.commit();
 
-            /* ── LOG uno por usuario ── */
-            for (const l of filtrados) {
-                const nombre = `${(l.apellido||'').toUpperCase()}, ${(l.nombres||'').toUpperCase()}`;
-                await registrarActividad(l.id, nombre, "RESTABLECER CUPONES (MASIVO)", "GESTION LEAD",
-                    `Restablecimiento masivo (${tipo}) — ${nombre}`);
+                // LOG uno por usuario
+                for (const l of filtrados) {
+                    const nombre = `${(l.apellido||'').toUpperCase()}, ${(l.nombres||'').toUpperCase()}`;
+                    await registrarActividad(l.id, nombre, "RESTABLECER CUPONES (MASIVO)", "GESTION LEAD",
+                        `Restablecimiento masivo (${tipo}) — ${nombre}`);
+                }
+
+                alert("Restablecimiento masivo completado.");
+                location.reload();
             }
-            alert("Restablecimiento masivo completado.");
-            location.reload();
         };
 
-        window.seleccionarTodos = checked => {
+        window.seleccionarTodos = (checked) => {
             document.querySelectorAll('.lead-checkbox').forEach(cb => cb.checked = checked);
         };
 
-        function pascalCase(str) {
-            return (str||'').replace(/\w\S*/g, t => t.charAt(0).toUpperCase() + t.substr(1).toLowerCase());
-        }
-
-        /* ── REPORTE PDF (sin cambios) ── */
-        window.generarReportePDF = async nivel => {
+        window.generarReportePDF = async (nivel) => {
             if (!nivel) return;
             const { jsPDF } = window.jspdf;
-            const pdf = new jsPDF();
-            let filtrados = [], tituloFiltro = "";
-            if (nivel==="pais")      { filtrados = todosLosLeads; tituloFiltro = "REPORTE GENERAL - PAÍS"; }
-            else if (nivel==="provincia") {
+            const doc = new jsPDF();
+
+            let filtrados = [];
+            let tituloFiltro = "";
+
+            if (nivel === "pais") {
+                filtrados = todosLosLeads;
+                tituloFiltro = "REPORTE GENERAL - PAÍS";
+            } else if (nivel === "provincia") {
                 const prov = document.getElementById('filtro-provincia').value;
                 if (!prov) return alert("Selecciona una provincia");
-                filtrados = todosLosLeads.filter(l=>l.provincia_normalized===prov);
+                filtrados = todosLosLeads.filter(l => l.provincia_normalized === prov);
                 tituloFiltro = `PROVINCIA: ${prov.toUpperCase()}`;
-            } else if (nivel==="localidad") {
+            } else if (nivel === "localidad") {
                 const loc = document.getElementById('filtro-localidad').value;
                 if (!loc) return alert("Selecciona una localidad");
-                filtrados = todosLosLeads.filter(l=>l.localidad_normalized===loc);
+                filtrados = todosLosLeads.filter(l => l.localidad_normalized === loc);
                 tituloFiltro = `LOCALIDAD: ${loc.toUpperCase()}`;
             }
-            if (!filtrados.length) return alert("No hay datos");
 
-            const total = filtrados.length;
-            const usos  = filtrados.reduce((s,l)=>s+(l.usos_count||0),0);
-            const act   = filtrados.filter(l=>l.estado!=='suspendido').length;
+            if (filtrados.length === 0) return alert("No hay datos para el reporte");
 
-            pdf.setFillColor(10,25,47); pdf.rect(0,0,210,50,'F');
-            pdf.setTextColor(255,255,255); pdf.setFontSize(20); pdf.setFont("helvetica","bold");
-            pdf.text("HÁBITAT-CAR",15,30);
-            pdf.setFontSize(10); pdf.setFont("helvetica","normal");
-            pdf.text(`Fecha: ${new Date().toLocaleString()}`,15,42);
-            pdf.setTextColor(0,74,153); pdf.setFontSize(14); pdf.setFont("helvetica","bold");
-            pdf.text(tituloFiltro,15,65);
-            pdf.setFontSize(9); pdf.setFont("helvetica","normal"); pdf.setTextColor(0,0,0);
-            pdf.text(`Total: ${total}   Usos: ${usos}   Activos: ${act}   Susp: ${total-act}`,15,75);
+            const totalLeads = filtrados.length;
+            const usosTotales = filtrados.reduce((sum, l) => sum + (l.usos_count || 0), 0);
+            const activos = filtrados.filter(l => l.estado !== 'suspendido').length;
+            const suspendidos = totalLeads - activos;
+            const promedioUsos = totalLeads > 0 ? (usosTotales / totalLeads).toFixed(1) : 0;
 
-            pdf.autoTable({
-                startY: 82,
-                head: [['#','Socio Lead','WhatsApp','Localidad','Usos','Estado','Alta']],
-                body: filtrados.map((l,i)=>[
-                    i+1,
-                    `${(l.apellido||'').toUpperCase()}, ${(l.nombres||'').toUpperCase()}`,
-                    l.whatsapp||'---', pascalCase(l.localidad||'---'),
-                    l.usos_count||0, l.estado==='suspendido'?'SUSP.':'ACT.',
-                    l.fechaRegistro?new Date(l.fechaRegistro).toLocaleDateString():'---'
-                ]),
-                headStyles:{fillColor:[0,74,153],textColor:255,fontSize:9},
-                styles:{fontSize:8},theme:'grid'
+            const logoUrl = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
+            let logoImg = null;
+            try {
+                const response = await fetch(logoUrl);
+                const blob = await response.blob();
+                logoImg = await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) { console.warn("No se pudo cargar el logo:", e); }
+
+            doc.setFillColor(10, 25, 47);
+            doc.rect(0, 0, 210, 50, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(24);
+            doc.setFont("helvetica", "bold");
+            if (logoImg) {
+                doc.addImage(logoImg, 'PNG', 15, 8, 30, 30);
+                doc.text("HÁBITAT-CAR", 50, 28);
+            } else {
+                doc.text("HÁBITAT-CAR", 15, 28);
+            }
+            doc.setFontSize(12);
+            doc.setFont("helvetica", "normal");
+            doc.text("SISTEMA DE GESTIÓN LEADS - REPORTE OFICIAL", logoImg ? 50 : 15, 36);
+            doc.text(`Fecha: ${new Date().toLocaleString()}`, logoImg ? 50 : 15, 42);
+
+            doc.setTextColor(0, 74, 153);
+            doc.setFontSize(16);
+            doc.setFont("helvetica", "bold");
+            doc.text(tituloFiltro, 15, 65);
+
+            doc.setFontSize(10);
+            doc.setFont("helvetica", "bold");
+            doc.text("TOTAL", 15, 75);
+            doc.text("LEADS", 45, 75);
+            doc.text("USOS TOTALES", 80, 75);
+            doc.text("ACTIVOS / SUSP.", 130, 75);
+            doc.text("PROMEDIO USOS", 175, 75);
+
+            doc.setFont("helvetica", "normal");
+            doc.text(totalLeads.toString(), 15, 82);
+            doc.text(totalLeads.toString(), 45, 82);
+            doc.text(usosTotales.toString(), 80, 82);
+            doc.text(`${activos} / ${suspendidos}`, 130, 82);
+            doc.text(promedioUsos.toString(), 175, 82);
+
+            doc.setFont("helvetica", "bold");
+            doc.text("Distribución y Rendimiento", 15, 95);
+            doc.text("Listado Detallado de Beneficiarios", 15, 102);
+
+            const filas = filtrados.map((l, idx) => [
+                (idx + 1).toString(),
+                `${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}`,
+                l.whatsapp || '---',
+                pascalCase(l.localidad || '---'),
+                (l.usos_count || 0).toString(),
+                l.estado === 'suspendido' ? "SUSP." : "ACT.",
+                l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---'
+            ]);
+
+            doc.autoTable({
+                startY: 108,
+                head: [['#', 'Socio Lead', 'WhatsApp', 'Localidad', 'Usos', 'Estado', 'Alta']],
+                body: filas,
+                headStyles: { fillColor: [0, 74, 153], textColor: 255, fontSize: 10, fontStyle: 'bold' },
+                bodyStyles: { fontSize: 9 },
+                alternateRowStyles: { fillColor: [245, 245, 245] },
+                columnStyles: {
+                    0: { cellWidth: 10, halign: 'center' },
+                    1: { cellWidth: 50 },
+                    2: { cellWidth: 30 },
+                    3: { cellWidth: 40 },
+                    4: { cellWidth: 15, halign: 'center' },
+                    5: { cellWidth: 20, halign: 'center' },
+                    6: { cellWidth: 25, halign: 'center' }
+                },
+                theme: 'grid'
             });
-            pdf.save(`Reporte_Leads_${nivel}_${Date.now()}.pdf`);
+
+            const pageCount = doc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                doc.setPage(i);
+                doc.setFontSize(8);
+                doc.setTextColor(100);
+                doc.text(`Hábitat-Car - Reporte Confidencial - Página ${i}`, 15, 285);
+            }
+
+            doc.save(`Reporte_Leads_${nivel}_${new Date().getTime()}.pdf`);
         };
     </script>
 </body>
