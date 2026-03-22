@@ -274,9 +274,9 @@
     </div>
 
     <div class="table-wrapper">
-         <table>
+          <table>
             <thead>
-                 <tr>
+                  <tr>
                     <th onclick="ordenar('fechaRegistro')">REGISTRO ↕</th>
                     <th onclick="ordenar('lastSubmission')">ÚLT. ACTIVIDAD ↕</th>
                     <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE ↕</th>
@@ -288,10 +288,10 @@
                         <div class="acciones-header">ACCIONES</div>
                     </th>
                     <th class="col-checkbox"><input type="checkbox" id="select-all" onclick="seleccionarTodos(this.checked)"></th>
-                 </tr>
+                  </tr>
             </thead>
             <tbody id="lista-leads"></tbody>
-         </table>
+          </table>
     </div>
 
     <script type="module">
@@ -476,7 +476,7 @@
                         <td class="col-checkbox">
                             <input type="checkbox" class="checkbox-multi lead-checkbox" value="${l.id}">
                         </td>
-                     </tr>
+                      </tr>
                 `;
             });
         }
@@ -500,10 +500,9 @@
         }
 
         // =============================================
-        // CAMBIO 1: restablecerCupones — lee nombre desde todosLosLeads (no del HTML)
+        // restablecerCupones - CORREGIDO (guarda ultimoResetGlobal)
         // =============================================
         window.restablecerCupones = async (id) => {
-            // Buscar el lead en memoria para obtener el nombre real sin problemas de escape
             const lead = todosLosLeads.find(l => l.id === id);
             const nombre = lead
                 ? `${(lead.apellido || '').toUpperCase()}, ${(lead.nombres || '').toUpperCase()}`
@@ -513,9 +512,10 @@
                     const leadRef = doc(db, "leads", id);
                     await updateDoc(leadRef, { 
                         usos_count: 0,
-                        canjes_por_comercio: deleteField() 
+                        canjes_por_comercio: deleteField(),
+                        // Guardar timestamp de último reset para que la app del usuario lo detecte
+                        ultimoResetGlobal: Date.now()
                     });
-                    // LOG con nombre real
                     await registrarActividad(id, nombre, "RESTABLECER CUPONES", "GESTION LEAD",
                         `Cupones de ${nombre} restablecidos desde el panel admin`);
                     alert("Beneficios restablecidos con éxito.");
@@ -526,18 +526,12 @@
             }
         };
 
-        async function registrarActividadLegacy(usuarioId, nombre, accion) {
-            // mantener compatibilidad con llamadas internas antiguas
-            await registrarActividad(usuarioId, nombre, accion);
-        }
-
         // =============================================
-        // CAMBIO 2: hacerVIP — agrega log con tipo VIP
+        // hacerVIP — agrega log con tipo VIP
         // =============================================
         window.hacerVIP = async (id, nombre) => {
             if(confirm(`¿Convertir a ${nombre} en VIP?`)) {
                 await updateDoc(doc(db, "leads", id), { convertidoVIP: true, fechaVIP: Date.now() });
-                // LOG — tipo VIP para que aparezca con badge dorado en logs
                 await registrarActividad(id, nombre, "CONVERTIDO A VIP", "VIP",
                     `${nombre} fue promovido a socio VIP desde el panel admin`);
                 document.getElementById('nombre-socio').innerText = nombre;
@@ -555,7 +549,6 @@
                         estado: nuevoEstado,
                         fechaModificacionEstado: Date.now() 
                     });
-                    // LOG — tipo GESTION LEAD (no inscripción)
                     await registrarActividad(id, nombre, accionTexto, "GESTION LEAD",
                         `${nombre} fue ${nuevoEstado === 'suspendido' ? 'suspendido' : 'reactivado'} desde el panel admin`);
                     alert(`Usuario ${nombre} ha sido ${nuevoEstado === 'suspendido' ? 'suspendido' : 'reactivado'}.`);
@@ -567,11 +560,10 @@
         };
 
         // =============================================
-        // CAMBIO 3: borrarLead — recibe nombre y loguea ANTES de borrar
+        // borrarLead — recibe nombre y loguea ANTES de borrar
         // =============================================
         window.borrarLead = async (id, nombre) => {
             if (confirm(`¿Eliminar definitivamente a ${nombre}?`)) {
-                // LOG antes de borrar para conservar el nombre
                 await registrarActividad(id, nombre, "ELIMINAR LEAD", "GESTION LEAD",
                     `${nombre} fue eliminado del sistema desde el panel admin`);
                 await deleteDoc(doc(db, "leads", id));
@@ -579,7 +571,7 @@
         };
 
         // =============================================
-        // CAMBIO 4: validarYRestablecerMasivo — loguea cada usuario
+        // validarYRestablecerMasivo — loguea cada usuario
         // =============================================
         window.validarYRestablecerMasivo = async (tipo) => {
             if (!tipo) return;
@@ -599,12 +591,12 @@
                     batch.update(leadRef, { 
                         usos_count: 0, 
                         lastSubmission: ahora,
-                        canjes_por_comercio: deleteField() 
+                        canjes_por_comercio: deleteField(),
+                        ultimoResetGlobal: ahora
                     });
                 });
                 await batch.commit();
 
-                // LOG uno por usuario
                 for (const l of filtrados) {
                     const nombre = `${(l.apellido||'').toUpperCase()}, ${(l.nombres||'').toUpperCase()}`;
                     await registrarActividad(l.id, nombre, "RESTABLECER CUPONES (MASIVO)", "GESTION LEAD",
