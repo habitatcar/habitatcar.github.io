@@ -167,7 +167,7 @@ td b{color:#fff;}
   <!-- TOOLS BAR -->
   <div class="tb">
 
-    <!-- PROVINCIA: select + contador en la misma línea -->
+    <!-- PROVINCIA -->
     <div class="fg">
       <select id="fp" class="fs" onchange="onProv(this.value)">
         <option value="">TODAS LAS PROVINCIAS</option>
@@ -187,7 +187,7 @@ td b{color:#fff;}
       </div>
     </div>
 
-    <!-- LOCALIDAD: select + contador en la misma línea -->
+    <!-- LOCALIDAD -->
     <div class="fg">
       <select id="fl" class="fs" onchange="renderTabla()">
         <option value="">TODAS LAS LOCALIDADES</option>
@@ -209,22 +209,22 @@ td b{color:#fff;}
 
     <!-- Buscador -->
     <div class="sw">
-      <span class="si">&#128269;</span>
+      <span class="si">🔍</span>
       <input type="text" id="buscador" class="si-inp" placeholder="Buscar comercio..." oninput="renderTabla()">
     </div>
 
     <button class="bs" onclick="ordenar('nombre')">A-Z</button>
     <button class="bs" onclick="ordenar('creacion')">CREACIÓN</button>
-    <button class="bs bs-m" onclick="envioMasivo()">&#128640; ENVÍO MASIVO</button>
+    <button class="bs bs-m" onclick="envioMasivo()">🚀 ENVÍO MASIVO</button>
   </div>
 
 </div>
 
 <!-- TABLA -->
 <div class="tc">
-   <table>
+  <table>
     <thead>
-       <tr>
+      <tr>
         <th>Comercio</th>
         <th>Histórico</th>
         <th style="color:#f9c74f">Leads hist.</th>
@@ -235,10 +235,10 @@ td b{color:#fff;}
         <th>Año</th>
         <th>Último Envío</th>
         <th>Frecuencia / Acción</th>
-       </tr>
+      </tr>
     </thead>
     <tbody id="tbody"></tbody>
-   </table>
+  </table>
 </div>
 
 <script type="module">
@@ -261,10 +261,10 @@ window.db = db;
 const envFn = httpsCallable(fns,'enviarReporteEmail');
 
 /* ══ ESTADO GLOBAL ══ */
-let comercios  = [];      // documentos de comercios enriquecidos
-let idxCanjes  = {};      // { nombreComercio: [{ts, esVip}] } - ACTUALIZADO EN TIEMPO REAL
-let todosLogsU = {};      // { uid: {esVip, provincia, localidad} }
-let idToNom    = {};      // { firestoreDocId: nombreComercio }
+let comercios  = [];
+let idxCanjes  = {};
+let todosLogsU = {};
+let idToNom    = {};
 
 /* ══ HELPERS ══ */
 const norm  = s => (s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
@@ -284,7 +284,6 @@ const IA=()=>{const d=new Date();d.setMonth(0,1);d.setHours(0,0,0,0);return d.ge
 
 /* ══ ACTUALIZAR ÍNDICE DE CANJES EN TIEMPO REAL ══ */
 function iniciarSnapshotLogs() {
-  // Primero cargamos leads para tener mapa uid → provincia/localidad
   onSnapshot(collection(db,'leads'), (snap) => {
     todosLogsU = {};
     snap.forEach(d => {
@@ -295,15 +294,11 @@ function iniciarSnapshotLogs() {
         localidad: norm(data.localidad||data.ciudad||''),
       };
     });
-    renderTabla(); // refrescar contadores de usuarios por provincia/localidad
+    renderTabla();
   });
 
-  // Escuchar logs_actividad en tiempo real
   onSnapshot(collection(db,'logs_actividad'), (snap) => {
-    // Reiniciar índice (o actualizar incrementalmente)
-    // Por simplicidad, recalculamos todo desde cero cada vez que hay cambio
     idxCanjes = {};
-    
     snap.forEach(d => {
       const data   = d.data();
       const accion = (data.accion||'').toUpperCase().trim();
@@ -315,9 +310,7 @@ function iniciarSnapshotLogs() {
 
       if (accion === 'CANJE VIP') {
         esVip = true;
-        // usar comercioId para obtener el nombre real desde el mapa idToNom
         nombreComercio = idToNom[data.comercioId] || '';
-        // fallback
         if (!nombreComercio && data.nombre) {
           const i = data.nombre.lastIndexOf(' en ');
           nombreComercio = i>=0 ? data.nombre.substring(i+4).trim() : '';
@@ -326,7 +319,7 @@ function iniciarSnapshotLogs() {
         esVip = false;
         nombreComercio = (data.nombreComercio || data.comercio || '').trim();
       } else {
-        return; // ignorar logs que no son canjes
+        return;
       }
 
       if (!nombreComercio) return;
@@ -334,13 +327,10 @@ function iniciarSnapshotLogs() {
       if (!idxCanjes[nombreComercio]) idxCanjes[nombreComercio] = [];
       idxCanjes[nombreComercio].push({ ts, esVip });
     });
-    
-    console.log(`Canjes indexados en tiempo real: ${Object.keys(idxCanjes).length} comercios`);
-    renderTabla(); // actualizar vista
+    renderTabla();
   });
 }
 
-/* ══ contar canjes de un comercio desde cierta fecha ══ */
 function canjes(nombre, desde) {
   const list = idxCanjes[nombre]||[];
   let L=0,V=0;
@@ -349,7 +339,6 @@ function canjes(nombre, desde) {
 }
 const canjesHist = n => canjes(n, 0);
 
-/* ══ franjas horarias ══ */
 function franjas(nombre) {
   const list=idxCanjes[nombre]||[];
   let m=0,t=0,n2=0;
@@ -364,14 +353,12 @@ function franjas(nombre) {
   return {manana:Math.round((m/tot)*100),tarde:Math.round((t/tot)*100),noche:Math.round((n2/tot)*100)};
 }
 
-/* ══ MODAL ══ */
 function mostrarModal(email){
   ge('mn-em').textContent=email;
   ge('mn').style.display='flex';
   setTimeout(()=>{ge('mn').style.display='none';},3000);
 }
 
-/* ══ BADGES NAVBAR (se actualizan cada 30s) ══ */
 async function badges() {
   try {
     const [tod,vip,com]=await Promise.all([
@@ -388,7 +375,6 @@ async function badges() {
 }
 setTimeout(()=>{badges();setInterval(badges,30000);},3000);
 
-/* ══ STATS USUARIOS (temporales) ══ */
 async function statsU() {
   try {
     const snap=await getDocs(collection(db,'leads'));
@@ -408,10 +394,9 @@ async function statsU() {
     se('t-a',fechas.filter(f=>f>=IAv).length);
   }catch(e){console.error(e);}
 }
-setInterval(statsU, 60000); // actualizar cada minuto
+setInterval(statsU, 60000);
 statsU();
 
-/* ══ PROVINCIAS / LOCALIDADES ══ */
 async function cargarProvs() {
   try {
     const r=await fetch('https://apis.datos.gob.ar/georef/api/provincias?campos=nombre&max=100');
@@ -440,14 +425,11 @@ window.onProv = async provNorm => {
   renderTabla();
 };
 
-/* ══ SNAPSHOT COMERCIOS (actualiza mapa id→nombre y lista) ══ */
 function iniciarSnapComercios() {
   onSnapshot(collection(db,'comercios'), (snap) => {
-    // Actualizar mapa id→nombre
     idToNom = {};
     snap.forEach(d => { idToNom[d.id] = (d.data().nombre||'').trim(); });
     
-    // Actualizar lista de comercios
     comercios = snap.docs.map(d => {
       const data = d.data();
       const nom = data.nombre||'';
@@ -464,7 +446,6 @@ function iniciarSnapComercios() {
   });
 }
 
-/* ══ RENDER TABLA (se ejecuta cada vez que cambian logs, comercios, filtros) ══ */
 window.renderTabla = function renderTabla() {
   const body=ge('tbody'); if(!body) return;
   body.innerHTML='';
@@ -483,7 +464,6 @@ window.renderTabla = function renderTabla() {
   const aP={cL:0,cV:0,uL:0,uV:0,com:0};
   const aL={cL:0,cV:0,uL:0,uV:0,com:0};
 
-  // usuarios por prov/loc desde todosLogsU
   Object.values(todosLogsU).forEach(u=>{
     if(!provSel||u.provincia===provSel){
       u.esVip?aP.uV++:aP.uL++;
@@ -515,17 +495,17 @@ window.renderTabla = function renderTabla() {
 
     const fr=c.frecuenciaReportes||'nunca';
     const row=document.createElement('tr');
-    row.innerHTML=`
-       <td><b>${c.nombre||'Sin Nombre'}</b>}
-       <td class="tH">${hist.T}}
-       <td class="tL">${hist.L}}
-       <td class="tV">${hist.V}}
-       <td class="t0">${hHo.T}}
-       <td class="t1">${hSe.T}}
-       <td class="t2">${hMe.T}}
-       <td class="t3">${hAn.T}}
-       <td class="tE">${envio}}
-       <td>
+    row.innerHTML = `
+      <td><b>${c.nombre||'Sin Nombre'}</b></td>
+      <td class="tH">${hist.T}</td>
+      <td class="tL">${hist.L}</td>
+      <td class="tV">${hist.V}</td>
+      <td class="t0">${hHo.T}</td>
+      <td class="t1">${hSe.T}</td>
+      <td class="t2">${hMe.T}</td>
+      <td class="t3">${hAn.T}</td>
+      <td class="tE">${envio}</td>
+      <td>
         <select class="mf" onchange="updateFreq('${c.id}',this.value)">
           <option value="nunca"     ${fr==='nunca'    ?'selected':''}>Nunca</option>
           <option value="diario"    ${fr==='diario'   ?'selected':''}>Diario</option>
@@ -533,8 +513,8 @@ window.renderTabla = function renderTabla() {
           <option value="quincenal" ${fr==='quincenal'?'selected':''}>Quincenal</option>
           <option value="mensual"   ${fr==='mensual'  ?'selected':''}>Mensual</option>
         </select>
-        <button class="bsr" onclick="enviarReporte('${c.id}')" title="Enviar">&#9993;</button>
-       }
+        <button class="bsr" onclick="enviarReporte('${c.id}')" title="Enviar">✉</button>
+       </td>
     `;
     body.appendChild(row);
   });
@@ -566,12 +546,10 @@ window.updateFreq = async(id,val) => {
   catch(e){console.error(e);alert('Error al actualizar');}
 };
 
-/* ══ LOG ENVÍO ══ */
 async function logEnvio(com,email,estado){
   try{await addDoc(collection(db,'historico_envios_reportes'),{fecha:new Date().toLocaleString(),timestamp:Date.now(),comercio:com,email,estado});}catch(e){}
 }
 
-/* ══ PDF ══ (misma función que antes, se mantiene) ══ */
 async function generarPDF(c) {
   const {jsPDF}=window.jspdf;
   const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
@@ -743,7 +721,6 @@ async function generarPDF(c) {
   return pdf;
 }
 
-/* ══ ENVÍO ══ */
 window.enviarReporte = async id => {
   const c=comercios.find(x=>x.id===id);
   if(!c)            return alert('Comercio no encontrado');
@@ -780,11 +757,11 @@ window.envioMasivo = async () => {
 };
 
 /* ══ INICIO ══ */
-cargarProvs();                      // cargar provincias
-iniciarSnapshotLogs();              // escucha logs_actividad en tiempo real
-iniciarSnapComercios();             // escucha comercios en tiempo real
-statsU();                           // stats de usuarios (temporales)
-setInterval(statsU, 60000);         // refrescar cada minuto
+cargarProvs();
+iniciarSnapshotLogs();
+iniciarSnapComercios();
+statsU();
+setInterval(statsU, 60000);
 </script>
 </body>
 </html>
