@@ -747,11 +747,11 @@
         // ============================================
         // FUNCIÓN: Obtener usos desde Firestore con caché
         // ============================================
-        async function getUsosRealizadosDesdeFirestore(comercioId) {
+        async function getUsosRealizadosDesdeFirestore(comercioId, forzar = false) {
             const leadIdLocal = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
             if (!leadIdLocal) return 0;
             
-            if (cacheUsos[comercioId] && cacheUsos[comercioId].timestamp > Date.now() - 5000) {
+            if (!forzar && cacheUsos[comercioId] && cacheUsos[comercioId].timestamp > Date.now() - 5000) {
                 return cacheUsos[comercioId].valor;
             }
             
@@ -780,7 +780,7 @@
         // ============================================
         // ⭐ FUNCIÓN PARA ACTUALIZAR SOLO EL BOTÓN DE UN COMERCIO
         // ============================================
-        async function actualizarBotonComercio(comercioId) {
+        async function actualizarBotonComercio(comercioId, forzar = false) {
             const comercio = listaComercios.find(c => c.id === comercioId);
             if (!comercio) return;
             
@@ -788,13 +788,19 @@
             if (!btnUsar) return;
             
             const usosPermitidos = parseInt(comercio.usosVip) || 0;
-            const usosRealizados = await getUsosRealizadosDesdeFirestore(comercioId);
+            const usosRealizados = await getUsosRealizadosDesdeFirestore(comercioId, forzar);
             const esAgotado = (usosPermitidos > 0 && usosRealizados >= usosPermitidos);
+            const leadIdAct = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
             
             if (esAgotado) {
                 btnUsar.innerHTML = 'AGOTADO';
                 btnUsar.disabled = true;
                 btnUsar.classList.remove('activo');
+                // Bloquear también el botón de escaneo QR
+                const btnVal = document.getElementById(`btn-val-${comercioId}`);
+                if (btnVal) { btnVal.disabled = true; btnVal.style.opacity = '0.4'; btnVal.onclick = null; }
+                // Persistir estado agotado en localStorage (sobrevive recargas)
+                if (leadIdAct) localStorage.setItem(`agotado_vip_${leadIdAct}_${comercioId}`, 'true');
             } else {
                 if (usosPermitidos > 0) {
                     btnUsar.innerHTML = `Usar beneficio <span class="contador-inline">${usosRealizados}/${usosPermitidos}</span>`;
@@ -1294,15 +1300,24 @@
                 return;
             }
             
-            // Actualizar usos antes de verificar
-            const usosActuales = await getUsosRealizadosDesdeFirestore(id);
+            // Verificar si ya está agotado en localStorage (persiste entre recargas)
+            const leadIdChk = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
+            if (leadIdChk && localStorage.getItem(`agotado_vip_${leadIdChk}_${id}`) === 'true') {
+                btn.innerHTML = 'AGOTADO'; btn.disabled = true; btn.classList.remove('activo');
+                const bv = document.getElementById(`btn-val-${id}`);
+                if (bv) { bv.disabled = true; bv.style.opacity = '0.4'; bv.onclick = null; }
+                return;
+            }
+
+            // Forzar lectura desde Firestore (ignora caché) para evitar doble uso
+            const usosActuales = await getUsosRealizadosDesdeFirestore(id, true);
             const comercio = listaComercios.find(c => c.id === id);
             if (comercio) {
                 const usosPermitidos = parseInt(comercio.usosVip) || 0;
                 
                 if (usosPermitidos > 0 && usosActuales >= usosPermitidos) {
                     alert(`❌ Este cupón ya ha sido usado ${usosPermitidos} vez/veces y no tiene más usos disponibles.`);
-                    await actualizarBotonComercio(id);
+                    await actualizarBotonComercio(id, true);
                     return;
                 }
             }
@@ -1385,8 +1400,8 @@
                 };
                 localStorage.setItem('uso_vip_' + id, nuevosUsos);
                 
-                // ⭐ ACTUALIZAR EL BOTÓN DEL COMERCIO (esto es lo que faltaba)
-                await actualizarBotonComercio(id);
+                // ⭐ ACTUALIZAR EL BOTÓN DEL COMERCIO — forzando lectura de Firestore
+                await actualizarBotonComercio(id, true);
                 
                 // Generar código de barras
                 JsBarcode("#barcodeVIP", codigoIdentidad, { format: "CODE128", lineColor: "#000", width: 2, height: 40, displayValue: true, fontSize: 14 });
