@@ -778,12 +778,31 @@
         }
 
         // ============================================
-        // FUNCIÓN: Verificar si puede usar el cupón
+        // ⭐ FUNCIÓN PARA ACTUALIZAR SOLO EL BOTÓN DE UN COMERCIO
         // ============================================
-        async function puedeUsarCupon(comercioId, usosPermitidos) {
-            if (usosPermitidos === 0) return true;
-            const usosActuales = await getUsosRealizadosDesdeFirestore(comercioId);
-            return usosActuales < usosPermitidos;
+        async function actualizarBotonComercio(comercioId) {
+            const comercio = listaComercios.find(c => c.id === comercioId);
+            if (!comercio) return;
+            
+            const btnUsar = document.getElementById(`btn-usar-${comercioId}`);
+            if (!btnUsar) return;
+            
+            const usosPermitidos = parseInt(comercio.usosVip) || 0;
+            const usosRealizados = await getUsosRealizadosDesdeFirestore(comercioId);
+            const esAgotado = (usosPermitidos > 0 && usosRealizados >= usosPermitidos);
+            
+            if (esAgotado) {
+                btnUsar.innerHTML = 'AGOTADO';
+                btnUsar.disabled = true;
+                btnUsar.classList.remove('activo');
+            } else {
+                if (usosPermitidos > 0) {
+                    btnUsar.innerHTML = `Usar beneficio <span class="contador-inline">${usosRealizados}/${usosPermitidos}</span>`;
+                } else {
+                    btnUsar.innerHTML = `Usar beneficio <span class="contador-inline">${usosRealizados}</span>`;
+                }
+                btnUsar.disabled = false;
+            }
         }
 
         // ============================================
@@ -1111,7 +1130,7 @@
         window.cerrarModalGanadores = () => document.getElementById('overlay-ganadores').style.display = 'none';
 
         // ============================================
-        // ⭐ RENDERIZAR COMERCIOS (CORREGIDO)
+        // ⭐ RENDERIZAR COMERCIOS
         // ============================================
         async function renderizarComercios(comercios) {
             const contenedor = document.getElementById('contenedor-vip');
@@ -1174,7 +1193,7 @@
                 }
                 
                 html += `
-                    <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">
+                    <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}" data-id="${c.id}">
                         ${htmlLogo}
                         <div class="nombre-c">${c.nombre || ''}</div>
                         <div class="beneficio-c">${beneficioCompleto}</div>
@@ -1275,16 +1294,15 @@
                 return;
             }
             
+            // Actualizar usos antes de verificar
+            const usosActuales = await getUsosRealizadosDesdeFirestore(id);
             const comercio = listaComercios.find(c => c.id === id);
             if (comercio) {
                 const usosPermitidos = parseInt(comercio.usosVip) || 0;
-                const usosActuales = await getUsosRealizadosDesdeFirestore(id);
                 
                 if (usosPermitidos > 0 && usosActuales >= usosPermitidos) {
                     alert(`❌ Este cupón ya ha sido usado ${usosPermitidos} vez/veces y no tiene más usos disponibles.`);
-                    btn.innerHTML = 'AGOTADO';
-                    btn.disabled = true;
-                    btn.classList.remove('activo');
+                    await actualizarBotonComercio(id);
                     return;
                 }
             }
@@ -1297,7 +1315,7 @@
         };
 
         // ============================================
-        // ⭐ FINALIZAR VIP (CORREGIDO - Respeta límite de usos)
+        // ⭐ FINALIZAR VIP (CORREGIDO - Actualiza el botón después del uso)
         // ============================================
         window.finalizarVIP = async (id, nom, ben) => {
             document.getElementById('alerta-cajero')?.remove();
@@ -1316,17 +1334,12 @@
                 const dataCom = snapComercio.data();
                 const usosPermitidos = parseInt(dataCom.usosVip) || 0;
                 
-                // ⭐ Verificar nuevamente desde Firestore ANTES de procesar
+                // Verificar nuevamente desde Firestore ANTES de procesar
                 const usosActuales = await getUsosRealizadosDesdeFirestore(id);
                 
                 if (usosPermitidos > 0 && usosActuales >= usosPermitidos) {
                     alert(`❌ Este cupón ya ha sido usado ${usosPermitidos} vez/veces y no tiene más usos disponibles.`);
-                    const btnUsar = document.getElementById(`btn-usar-${id}`);
-                    if (btnUsar) {
-                        btnUsar.innerHTML = 'AGOTADO';
-                        btnUsar.disabled = true;
-                        btnUsar.classList.remove('activo');
-                    }
+                    await actualizarBotonComercio(id);
                     return;
                 }
                 
@@ -1365,32 +1378,21 @@
                     lastSubmission: Date.now()
                 });
                 
-                // Actualizar caché
+                // Actualizar caché inmediatamente
                 cacheUsos[id] = {
                     valor: nuevosUsos,
                     timestamp: Date.now()
                 };
                 localStorage.setItem('uso_vip_' + id, nuevosUsos);
                 
+                // ⭐ ACTUALIZAR EL BOTÓN DEL COMERCIO (esto es lo que faltaba)
+                await actualizarBotonComercio(id);
+                
                 // Generar código de barras
                 JsBarcode("#barcodeVIP", codigoIdentidad, { format: "CODE128", lineColor: "#000", width: 2, height: 40, displayValue: true, fontSize: 14 });
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-beneficio').innerText = ben;
                 document.getElementById('pantalla-exito').style.display = 'flex';
-                
-                // Actualizar botón
-                const btnUsar = document.getElementById(`btn-usar-${id}`);
-                if (btnUsar) {
-                    btnUsar.classList.remove('activo');
-                    if (usosPermitidos > 0 && nuevosUsos >= usosPermitidos) {
-                        btnUsar.innerHTML = 'AGOTADO';
-                        btnUsar.disabled = true;
-                    } else if (usosPermitidos > 0) {
-                        btnUsar.innerHTML = `Usar beneficio <span class="contador-inline">${nuevosUsos}/${usosPermitidos}</span>`;
-                    } else {
-                        btnUsar.innerHTML = `Usar beneficio <span class="contador-inline">${nuevosUsos}</span>`;
-                    }
-                }
                 
                 // Registrar logs
                 await addDoc(collection(db, "logs_actividad"), { 
@@ -1420,7 +1422,6 @@
                     if(s <= 0) { 
                         clearInterval(t); 
                         document.getElementById('pantalla-exito').style.display = 'none'; 
-                        location.reload(); 
                     } 
                 }, 1000);
                 
