@@ -59,7 +59,6 @@
             border-bottom: 1px solid var(--azul-claro);
         }
 
-        /* título compacto */
         .filter-bar h2 {
             margin: 0;
             color: var(--oro);
@@ -79,7 +78,6 @@
         }
         .search-box:focus { outline: none; border-color: var(--celeste-habitat); }
 
-        /* selects de provincia, localidad, módulo */
         .filtro-sel {
             padding: 8px 10px;
             border-radius: 5px;
@@ -123,7 +121,10 @@
             letter-spacing: 0.5px;
             border-bottom: 2px solid var(--celeste-habitat);
             box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+            cursor: pointer;
+            user-select: none;
         }
+        thead th:hover { background: #1a2a45; }
 
         tbody tr { transition: background 0.15s; }
         tbody tr:nth-child(even) { background: rgba(255,255,255,0.02); }
@@ -140,29 +141,24 @@
         .modulo-col { font-weight: bold; font-size: 0.9em; }
         .detalle-col { color: #c8dff5; font-size: 0.86em; max-width: 380px; word-break: break-word; }
 
-        /* ── BADGES DE TIPO (AGREGADAS 25% MÁS GRANDES) ── */
+        /* ── BADGES DE TIPO ── */
         .badge {
-            padding: 4px 12px;        /* era 3px 9px → +25% más grande */
-            border-radius: 5px;       /* antes 4px, ahora 5px */
-            font-size: 0.9em;         /* era 0.72em → +25% */
+            padding: 4px 12px;
+            border-radius: 5px;
+            font-size: 0.9em;
             font-weight: bold;
             white-space: nowrap;
             display: inline-block;
             line-height: 1.3;
         }
-        /* CANJE lead o vip */
         .b-canje-lead { background: #1b6e2e; color: #90ee90; border: 1px solid #28a745; }
         .b-canje-vip  { background: #4a3800; color: #ffc107; border: 1px solid #ffc107; }
-        /* VIP acciones */
         .b-vip        { background: #5a3e00; color: #ffd54f; border: 1px solid #ffc107; }
-        /* Inscripción nueva */
         .b-inscripcion { background: #3a1a6e; color: #ce93d8; border: 1px solid #6f42c1; }
-        /* Gestión lead (suspender, activar, eliminar, restablecer) */
         .b-gestion-lead { background: #00394a; color: #80deea; border: 1px solid #00bcd4; }
-        /* Gestión VIP */
         .b-gestion-vip  { background: #4a1a00; color: #ffab40; border: 1px solid #ff6f00; }
-        /* Sistema / otros */
         .b-sistema { background: var(--celeste-habitat); color: white; }
+        .b-nuevo-vip { background: linear-gradient(135deg, #5a3e00, #ffc107); color: #000; border: 1px solid var(--dorado); font-weight: bold; }
 
         .btn-del-log {
             background: rgba(220,53,69,0.15); color: var(--rojo);
@@ -170,6 +166,36 @@
             border-radius: 4px; cursor: pointer; transition: 0.2s; font-size: 12px;
         }
         .btn-del-log:hover { background: var(--rojo); color: white; }
+        
+        .indicador-orden {
+            font-size: 10px;
+            margin-left: 5px;
+        }
+        
+        .filtros-activos {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 8px;
+        }
+        .filtro-chip {
+            background: rgba(255,193,7,0.2);
+            border: 1px solid var(--oro);
+            border-radius: 20px;
+            padding: 4px 12px;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .filtro-chip button {
+            background: none;
+            border: none;
+            color: var(--oro);
+            cursor: pointer;
+            font-weight: bold;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -199,16 +225,14 @@
         </nav>
     </header>
 
-    <!-- BARRA DE FILTROS COMPACTA -->
+    <!-- BARRA DE FILTROS -->
     <div class="filter-bar">
-        <h2>Registro de Actividad</h2>
+        <h2>📋 Registro de Actividad</h2>
 
-        <!-- Buscador texto libre -->
         <input type="text" id="buscadorTexto" class="search-box"
             placeholder="🔍 Buscar nombre, detalle..."
             oninput="filtrar()">
 
-        <!-- Filtro Módulo / Tipo (los cuadros verdes de la imagen) -->
         <select id="filtroModulo" class="filtro-sel" onchange="filtrar()">
             <option value="">TODOS LOS MÓDULOS</option>
             <option value="CANJE">CANJES</option>
@@ -218,28 +242,35 @@
             <option value="INSCRIPCION">INSCRIPCIONES</option>
         </select>
 
-        <!-- Filtro Provincia -->
         <select id="filtroProvincia" class="filtro-sel" onchange="onProvLog(this.value)">
             <option value="">TODAS LAS PROVINCIAS</option>
         </select>
 
-        <!-- Filtro Localidad -->
         <select id="filtroLocalidad" class="filtro-sel" onchange="filtrar()">
             <option value="">TODAS LAS LOCALIDADES</option>
         </select>
 
+        <select id="filtroFecha" class="filtro-sel" onchange="filtrar()">
+            <option value="">TODAS LAS FECHAS</option>
+            <option value="hoy">HOY</option>
+            <option value="7d">ÚLTIMOS 7 DÍAS</option>
+            <option value="30d">ÚLTIMOS 30 DÍAS</option>
+        </select>
+
         <button class="btn-borrar" onclick="limpiarLogs()">🗑️ BORRAR HISTORIAL</button>
     </div>
+    
+    <div class="filtros-activos" id="filtrosActivos"></div>
 
     <div class="table-container">
         <table>
             <thead>
                 <tr>
-                    <th style="width:130px">Fecha y Hora</th>
-                    <th style="width:200px">Módulo / Acción</th>
-                    <th>Nombre / Detalle</th>
-                    <th style="width:140px">Tipo</th>
-                    <th style="width:50px">Del.</th>
+                    <th style="width:140px" onclick="ordenarPor('timestamp')">📅 Fecha y Hora <span id="orden-timestamp" class="indicador-orden">▼</span></th>
+                    <th style="width:180px" onclick="ordenarPor('modulo')">📌 Módulo / Acción <span id="orden-modulo" class="indicador-orden"></span></th>
+                    <th onclick="ordenarPor('detalle')">📝 Nombre / Detalle <span id="orden-detalle" class="indicador-orden"></span></th>
+                    <th style="width:130px" onclick="ordenarPor('tipoLabel')">🏷️ Tipo <span id="orden-tipoLabel" class="indicador-orden"></span></th>
+                    <th style="width:50px">🗑️</th>
                 </tr>
             </thead>
             <tbody id="lista-logs"></tbody>
@@ -262,12 +293,18 @@
         };
 
         const app = initializeApp(firebaseConfig);
-        const db  = getFirestore(app);
+        const db = getFirestore(app);
         window.db = db;
 
-        /* ── estado ── */
-        let todosLosLogs = [];      // todos los docs del snapshot
-        let mapaLeads    = {};      // { uid: { provincia, localidad } }
+        let todosLosLogs = [];
+        let logsFiltrados = [];
+        let mapaLeads = {};
+        
+        // Estado de ordenamiento
+        let estadoOrden = {
+            campo: 'timestamp',
+            direccion: 'desc'
+        };
 
         /* ── CONTADORES NAVBAR ── */
         async function actualizarContadores() {
@@ -286,13 +323,14 @@
                     try{const s=await getDocs(query(collection(db,col),where("estado","==","pendiente")));if(el(elId))el(elId).innerText=s.size;}catch(e){}
                 }
 
-                /* cargar mapa provincia/localidad desde leads */
+                // cargar mapa provincia/localidad desde leads
                 mapaLeads = {};
                 todosSnap.forEach(d => {
                     const data = d.data();
                     mapaLeads[d.id] = {
                         provincia: (data.provincia||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(),
                         localidad: (data.localidad||data.ciudad||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(),
+                        nombreCompleto: `${data.apellido || ''} ${data.nombres || ''}`.trim()
                     };
                 });
             } catch(e){console.error(e);}
@@ -333,9 +371,10 @@
         };
         cargarProvinciasLog();
 
-        /* ── SNAPSHOT LOGS ── */
-        const qLogs = query(collection(db,"logs_actividad"), orderBy("timestamp","desc"), limit(300));
+        /* ── SNAPSHOT LOGS EN TIEMPO REAL ── */
+        const qLogs = query(collection(db,"logs_actividad"), orderBy("timestamp","desc"), limit(1000));
         onSnapshot(qLogs, snap => {
+            console.log("Snapshot logs recibido, cambios:", snap.docChanges().length);
             todosLosLogs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             filtrar();
         });
@@ -344,52 +383,150 @@
         function clasificar(log) {
             const accion = (log.accion||'').toUpperCase();
             const tipo   = (log.tipo||'').toUpperCase();
-            const modulo = tipo;
+            
+            // NUEVO REGISTRO VIP / INSCRIPCIÓN VIP
+            if (accion.includes('NUEVO REGISTRO VIP') || accion.includes('INSCRIPCIÓN VIP') || accion.includes('NUEVO VIP')) {
+                return { cls:'b-nuevo-vip', label:'⭐ NUEVO VIP', tipoLabel: 'INSCRIPCIÓN VIP' };
+            }
+            
+            // INSCRIPCIÓN nueva (genérica)
+            if (accion.includes('INSCRIPCIÓN') || accion.includes('INSCRIPCION') || tipo.includes('INSCRIPCION')) {
+                return { cls:'b-inscripcion', label:'📝 INSCRIPCIÓN', tipoLabel: 'INSCRIPCIÓN' };
+            }
+            
+            // CANJES
+            if (accion.includes('CANJE VIP') || (accion.includes('CANJE') && tipo==='VIP')) {
+                return { cls:'b-canje-vip', label:'💎 CANJE VIP', tipoLabel: 'CANJE VIP' };
+            }
+            if (accion.includes('CANJE LEAD') || (accion.includes('CANJE') && tipo==='LEAD')) {
+                return { cls:'b-canje-lead', label:'🔄 CANJE LEAD', tipoLabel: 'CANJE LEAD' };
+            }
 
-            /* CANJES */
-            if (accion.includes('CANJE VIP')   || (accion.includes('CANJE')&&tipo==='VIPS'))
-                return { cls:'b-canje-vip',  label:'CANJE VIP' };
-            if (accion.includes('CANJE LEADS') || accion.includes('CANJE LEAD') || (accion.includes('CANJE')&&tipo!=='VIPS'))
-                return { cls:'b-canje-lead', label:'CANJE LEAD' };
+            // GESTIÓN VIP (suspender/activar/restablecer/eliminar)
+            if (tipo==='VIP' || accion.includes('SUSPENDER VIP') || accion.includes('ACTIVAR VIP') || 
+                accion.includes('BAJA VIP') || accion.includes('RESTABLECER CUPONES VIP') || accion.includes('ELIMINAR VIP')) {
+                if (accion.includes('BAJA VIP')) return { cls:'b-gestion-vip', label:'⬇️ BAJA VIP', tipoLabel: 'BAJA VIP' };
+                if (accion.includes('RESTABLECER')) return { cls:'b-gestion-vip', label:'🔄 RESTABLECER', tipoLabel: 'RESTABLECER' };
+                if (accion.includes('ELIMINAR')) return { cls:'b-gestion-vip', label:'🗑️ ELIMINAR VIP', tipoLabel: 'ELIMINAR' };
+                return { cls:'b-gestion-vip', label:'⚙️ GESTIÓN VIP', tipoLabel: 'GESTIÓN VIP' };
+            }
 
-            /* CONVERTIDO A VIP */
-            if (accion.includes('CONVERTIDO A VIP') || accion.includes('NUEVO REGISTRO VIP') || accion.includes('INSCRIPCIÓN VIP'))
-                return { cls:'b-vip', label:'⭐ NUEVO VIP' };
+            // GESTIÓN LEAD
+            if (tipo==='GESTION LEAD' || accion.includes('SUSPENDER LEAD') || accion.includes('ACTIVAR LEAD') || 
+                accion.includes('ELIMINAR LEAD') || accion.includes('RESTABLECER LEAD')) {
+                return { cls:'b-gestion-lead', label:'⚙️ GESTIÓN LEAD', tipoLabel: 'GESTIÓN LEAD' };
+            }
 
-            /* BAJA VIP */
-            if (accion.includes('BAJA VIP'))
-                return { cls:'b-gestion-vip', label:'BAJA VIP' };
+            // LEAD genérico
+            if (tipo==='LEAD') {
+                return { cls:'b-gestion-lead', label:'👤 LEAD', tipoLabel: 'LEAD' };
+            }
 
-            /* GESTIÓN VIP (suspender/activar/restablecer/eliminar) */
-            if (tipo==='VIP')
-                return { cls:'b-gestion-vip', label:'GESTIÓN VIP' };
-
-            /* INSCRIPCIÓN nueva */
-            if (accion.includes('INSCRIPCIÓN') || accion.includes('INSCRIPCION') || accion.includes('NUEVA INSCRIPCIÓN') || tipo.includes('INSCRIPCION'))
-                return { cls:'b-inscripcion', label:'INSCRIPCIÓN' };
-
-            /* GESTIÓN LEAD (suspender/activar/eliminar/restablecer) */
-            if (tipo==='GESTION LEAD' || accion.includes('SUSPENDER LEAD') || accion.includes('ACTIVAR LEAD') || accion.includes('ELIMINAR LEAD') || accion.includes('RESTABLECER'))
-                return { cls:'b-gestion-lead', label:'GESTIÓN LEAD' };
-
-            /* LEAD genérico */
-            if (tipo==='LEAD')
-                return { cls:'b-gestion-lead', label:'LEAD' };
-
-            return { cls:'b-sistema', label: tipo || 'SISTEMA' };
+            return { cls:'b-sistema', label:'💻 SISTEMA', tipoLabel: tipo || 'SISTEMA' };
         }
 
         /* ── CATEGORÍA para el filtro de módulo ── */
         function categoriaModulo(log) {
             const accion = (log.accion||'').toUpperCase();
             const tipo   = (log.tipo||'').toUpperCase();
+            
+            if (accion.includes('NUEVO REGISTRO VIP') || accion.includes('INSCRIPCIÓN VIP')) return 'INSCRIPCION';
             if (accion.includes('CANJE')) return 'CANJE';
             if (tipo==='VIP' || tipo==='VIPS') return 'VIP';
-            if (tipo==='GESTION LEAD' || accion.includes('SUSPENDER LEAD') || accion.includes('ACTIVAR LEAD') || accion.includes('ELIMINAR LEAD') || accion.includes('RESTABLECER')) return 'GESTION';
+            if (tipo==='GESTION LEAD' || accion.includes('SUSPENDER LEAD') || accion.includes('ACTIVAR LEAD') || 
+                accion.includes('ELIMINAR LEAD') || accion.includes('RESTABLECER')) return 'GESTION';
             if (tipo==='LEAD') return 'LEAD';
-            if (accion.includes('INSCRIPCIÓN') || accion.includes('INSCRIPCION') || tipo.includes('INSCRIPCION')) return 'INSCRIPCION';
+            if (accion.includes('INSCRIPCIÓN') || accion.includes('INSCRIPCION')) return 'INSCRIPCION';
             return 'OTRO';
         }
+        
+        function esFechaEnRango(timestamp, rango) {
+            if (!timestamp) return false;
+            const fecha = new Date(timestamp);
+            const hoy = new Date();
+            hoy.setHours(0, 0, 0, 0);
+            
+            if (rango === 'hoy') {
+                const fechaInicio = new Date(fecha);
+                fechaInicio.setHours(0, 0, 0, 0);
+                return fechaInicio.getTime() === hoy.getTime();
+            }
+            
+            if (rango === '7d') {
+                const hace7Dias = new Date();
+                hace7Dias.setDate(hace7Dias.getDate() - 7);
+                return fecha >= hace7Dias;
+            }
+            
+            if (rango === '30d') {
+                const hace30Dias = new Date();
+                hace30Dias.setDate(hace30Dias.getDate() - 30);
+                return fecha >= hace30Dias;
+            }
+            
+            return true;
+        }
+
+        /* ── ORDENAMIENTO ── */
+        function ordenarLogs(logs, campo, direccion) {
+            const sorted = [...logs];
+            sorted.sort((a, b) => {
+                let valA = a[campo];
+                let valB = b[campo];
+                
+                if (campo === 'modulo') {
+                    const badgeA = clasificar(a);
+                    const badgeB = clasificar(b);
+                    valA = badgeA.tipoLabel || '';
+                    valB = badgeB.tipoLabel || '';
+                }
+                
+                if (campo === 'tipoLabel') {
+                    const badgeA = clasificar(a);
+                    const badgeB = clasificar(b);
+                    valA = badgeA.label || '';
+                    valB = badgeB.label || '';
+                }
+                
+                if (campo === 'detalle') {
+                    valA = (a.detalle || a.nombre || '').toLowerCase();
+                    valB = (b.detalle || b.nombre || '').toLowerCase();
+                }
+                
+                if (valA === undefined || valA === null) valA = '';
+                if (valB === undefined || valB === null) valB = '';
+                
+                if (direccion === 'asc') {
+                    return valA > valB ? 1 : (valA < valB ? -1 : 0);
+                } else {
+                    return valA < valB ? 1 : (valA > valB ? -1 : 0);
+                }
+            });
+            return sorted;
+        }
+        
+        function actualizarIndicadoresOrden(campo, direccion) {
+            const campos = ['timestamp', 'modulo', 'detalle', 'tipoLabel'];
+            campos.forEach(c => {
+                const span = document.getElementById(`orden-${c}`);
+                if (span) span.innerHTML = '';
+            });
+            const spanActual = document.getElementById(`orden-${campo}`);
+            if (spanActual) {
+                spanActual.innerHTML = direccion === 'asc' ? '▲' : '▼';
+            }
+        }
+        
+        window.ordenarPor = (campo) => {
+            if (estadoOrden.campo === campo) {
+                estadoOrden.direccion = estadoOrden.direccion === 'asc' ? 'desc' : 'asc';
+            } else {
+                estadoOrden.campo = campo;
+                estadoOrden.direccion = campo === 'timestamp' ? 'desc' : 'asc';
+            }
+            actualizarIndicadoresOrden(estadoOrden.campo, estadoOrden.direccion);
+            filtrar();
+        };
 
         /* ── FILTRAR Y RENDERIZAR ── */
         window.filtrar = () => {
@@ -397,50 +534,82 @@
             const modulo  = document.getElementById('filtroModulo').value;
             const provSel = document.getElementById('filtroProvincia').value;
             const locSel  = document.getElementById('filtroLocalidad').value;
+            const fechaRango = document.getElementById('filtroFecha').value;
 
-            const filtrados = todosLosLogs.filter(log => {
-                /* texto libre sobre nombre + detalle + accion + nombreComercio */
-                const haystack = `${log.nombre||''} ${log.detalle||''} ${log.accion||''} ${log.nombreComercio||''}`.toLowerCase();
+            let filtrados = todosLosLogs.filter(log => {
+                const haystack = `${log.nombre||''} ${log.detalle||''} ${log.accion||''}`.toLowerCase();
                 if (texto && !haystack.includes(texto)) return false;
-
-                /* módulo / categoría */
                 if (modulo && categoriaModulo(log) !== modulo) return false;
+                if (fechaRango && !esFechaEnRango(log.timestamp, fechaRango)) return false;
 
-                /* provincia y localidad via mapaLeads */
                 if (provSel || locSel) {
                     const uid  = log.usuarioId || '';
                     const info = mapaLeads[uid] || { provincia:'', localidad:'' };
                     if (provSel && info.provincia !== provSel) return false;
                     if (locSel  && info.localidad !== locSel)  return false;
                 }
-
                 return true;
             });
-
-            renderizar(filtrados);
+            
+            logsFiltrados = ordenarLogs(filtrados, estadoOrden.campo, estadoOrden.direccion);
+            renderizar(logsFiltrados);
+            actualizarChipsFiltros();
         };
+        
+        function actualizarChipsFiltros() {
+            const container = document.getElementById('filtrosActivos');
+            const texto = document.getElementById('buscadorTexto').value;
+            const modulo = document.getElementById('filtroModulo').value;
+            const prov = document.getElementById('filtroProvincia').value;
+            const loc = document.getElementById('filtroLocalidad').value;
+            const fecha = document.getElementById('filtroFecha').value;
+            
+            let chips = [];
+            if (texto) chips.push({ label: `🔍 "${texto}"`, limpiar: () => { document.getElementById('buscadorTexto').value = ''; filtrar(); } });
+            if (modulo) chips.push({ label: `📌 ${modulo}`, limpiar: () => { document.getElementById('filtroModulo').value = ''; filtrar(); } });
+            if (prov) chips.push({ label: `📍 Provincia`, limpiar: () => { document.getElementById('filtroProvincia').value = ''; document.getElementById('filtroLocalidad').innerHTML = '<option value="">TODAS LAS LOCALIDADES</option>'; filtrar(); } });
+            if (loc) chips.push({ label: `🏘️ Localidad`, limpiar: () => { document.getElementById('filtroLocalidad').value = ''; filtrar(); } });
+            if (fecha) {
+                let textoFecha = fecha === 'hoy' ? 'HOY' : fecha === '7d' ? 'ÚLTIMOS 7 DÍAS' : 'ÚLTIMOS 30 DÍAS';
+                chips.push({ label: `📅 ${textoFecha}`, limpiar: () => { document.getElementById('filtroFecha').value = ''; filtrar(); } });
+            }
+            
+            if (chips.length === 0) {
+                container.innerHTML = '';
+                return;
+            }
+            
+            container.innerHTML = chips.map(chip => `
+                <div class="filtro-chip">
+                    ${chip.label}
+                    <button onclick="(function(){ ${chip.limpiar.toString()} })()">✕</button>
+                </div>
+            `).join('');
+        }
 
         function renderizar(logs) {
             const lista = document.getElementById('lista-logs');
             lista.innerHTML = '';
+            
+            if (logs.length === 0) {
+                lista.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:40px;">📭 No hay registros de actividad que coincidan con los filtros</td></tr>';
+                return;
+            }
+            
             logs.forEach(log => {
-                const fecha  = log.timestamp ? new Date(log.timestamp).toLocaleString('es-AR') : (log.fecha||'---');
+                const fecha  = log.timestamp ? new Date(log.timestamp).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' }) : (log.fecha||'---');
                 const badge  = clasificar(log);
-                const modAcc = `${log.tipo?.toUpperCase()||'SISTEMA'} / ${log.accion||'ACTIVIDAD'}`;
+                const modAcc = `${badge.tipoLabel || log.tipo || 'SISTEMA'}`;
 
-                /* ── Construir detalle según el tipo de log ── */
                 let detalle = '';
-
                 const accionUp = (log.accion||'').toUpperCase();
 
-                if (accionUp === 'CANJE LEADS' || accionUp === 'CANJE LEAD') {
-                    /* log de la app: usar campos propios del canje lead */
+                if (accionUp === 'CANJE LEAD' || accionUp === 'CANJE LEADS') {
                     const comercio  = log.nombreComercio || log.comercio || '';
-                    const codigo    = log.idValidacion   || '';
-                    const usoNum    = log.usoNumero      != null ? log.usoNumero    : '';
-                    const usosTot   = log.usosTotales    != null ? log.usosTotales  : '';
-                    const usuario   = log.nombre         || '';
-                    /* formato espejo del VIP: "HAB-0001 canjeó beneficio en LUBRIFIL (uso 2 de 3)" */
+                    const codigo    = log.idValidacion || '';
+                    const usoNum    = log.usoNumero != null ? log.usoNumero : '';
+                    const usosTot   = log.usosTotales != null ? log.usosTotales : '';
+                    const usuario   = log.nombre || '';
                     if (comercio) {
                         detalle = `${codigo ? codigo + ' — ' : ''}canjeó beneficio en <b>${comercio}</b>`;
                         if (usoNum !== '' && usosTot !== '') detalle += ` (uso ${usoNum} de ${usosTot})`;
@@ -449,10 +618,10 @@
                         detalle = log.detalle || log.nombre || '---';
                     }
                 } else if (accionUp === 'CANJE VIP') {
-                    /* log de la app VIP: usar campo nombre que ya trae el texto completo */
                     detalle = log.nombre || log.detalle || '---';
+                } else if (accionUp.includes('NUEVO REGISTRO VIP') || accionUp.includes('INSCRIPCIÓN VIP')) {
+                    detalle = `✨ ${log.detalle || log.nombre || 'Nuevo socio VIP'} ✨`;
                 } else {
-                    /* cualquier otro log (gestión, inscripción, etc.) */
                     detalle = log.detalle || log.nombre || '---';
                 }
 
@@ -474,11 +643,28 @@
         };
 
         window.limpiarLogs = async () => {
-            if (!confirm("¿BORRAR TODO EL HISTORIAL DE ACTIVIDAD?")) return;
+            if (!confirm("⚠️ ¿BORRAR TODO EL HISTORIAL DE ACTIVIDAD?\nEsta acción no se puede deshacer.")) return;
+            const pass = prompt("🔒 Clave ADMIN para borrar historial:");
+            if (pass !== "admin1234") { alert("Clave incorrecta"); return; }
+            
             const snap = await getDocs(collection(db,"logs_actividad"));
-            await Promise.all(snap.docs.map(d => deleteDoc(doc(db,"logs_actividad",d.id))));
-            alert("Historial limpiado.");
+            let contador = 0;
+            for (const doc of snap.docs) {
+                await deleteDoc(doc.ref);
+                contador++;
+            }
+            alert(`✅ ${contador} registros eliminados del historial.`);
         };
+        
+        // Inicializar indicadores de orden
+        actualizarIndicadoresOrden('timestamp', 'desc');
+        
+        // Exponer funciones globales
+        window.borrarLog = window.borrarLog;
+        window.limpiarLogs = window.limpiarLogs;
+        window.ordenarPor = window.ordenarPor;
+        window.filtrar = window.filtrar;
+        window.onProvLog = window.onProvLog;
     </script>
 </body>
 </html>
