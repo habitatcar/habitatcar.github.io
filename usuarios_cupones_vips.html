@@ -745,6 +745,30 @@
         let todasLasLocalidades = [];
 
         // ============================================
+        // ⭐ FUNCIÓN CORREGIDA: Obtener usos desde Firestore
+        // ============================================
+        async function getUsosRealizadosDesdeFirestore(comercioId) {
+            const leadIdLocal = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
+            if (!leadIdLocal) return 0;
+            
+            try {
+                const leadDoc = await getDoc(doc(db, "leads", leadIdLocal));
+                if (leadDoc.exists()) {
+                    const data = leadDoc.data();
+                    const canjes = data.canjes_por_comercio || {};
+                    const idComercioLimpio = comercioId.replace(/\s+/g, '_');
+                    const usos = canjes[idComercioLimpio]?.cantidad_usos || 0;
+                    // También actualizar localStorage para mantener compatibilidad
+                    localStorage.setItem('uso_vip_' + comercioId, usos);
+                    return usos;
+                }
+            } catch (e) {
+                console.error("Error obteniendo usos desde Firestore:", e);
+            }
+            return 0;
+        }
+
+        // ============================================
         // FUNCIONES DE GEOLOCALIZACIÓN
         // ============================================
         function obtenerUbicacion() {
@@ -1079,16 +1103,16 @@
 
         window.cerrarModalGanadores = () => document.getElementById('overlay-ganadores').style.display = 'none';
 
-        const getUsosRealizados = (comercioId) => parseInt(localStorage.getItem('uso_vip_' + comercioId) || "0");
-
-        function renderizarComercios(comercios) {
+        // ⭐ FUNCIÓN CORREGIDA: renderizarComercios ahora usa Firestore
+        async function renderizarComercios(comercios) {
             const contenedor = document.getElementById('contenedor-vip');
             let html = "";
             const inicios = JSON.parse(localStorage.getItem('inicios_cupones_vip') || "{}");
             
-            comercios.forEach(c => {
+            for (const c of comercios) {
+                // ⭐ Obtener usos desde Firestore en lugar de localStorage
+                const usosRealizados = await getUsosRealizadosDesdeFirestore(c.id);
                 const usosPermitidos = parseInt(c.usosVip) || 0;
-                const usosRealizados = getUsosRealizados(c.id);
                 const esAgotado = (usosPermitidos > 0 && usosRealizados >= usosPermitidos);
                 
                 const vigenciaTotal = parseInt(c.vigenciaVip) || 0;
@@ -1158,7 +1182,7 @@
                             </button>
                         </div>
                     </div>`;
-            });
+            }
             
             localStorage.setItem('inicios_cupones_vip', JSON.stringify(inicios));
             contenedor.innerHTML = html;
@@ -1252,7 +1276,8 @@
                 const snapComercio = await getDoc(comercioRef);
                 const dataCom = snapComercio.data();
                 const usosPermitidos = parseInt(dataCom.usosVip) || 0;
-                const usosRealizados = getUsosRealizados(id);
+                // ⭐ Obtener usos desde Firestore
+                const usosRealizados = await getUsosRealizadosDesdeFirestore(id);
                 const nuevosUsos = usosRealizados + 1;
                 if (usosPermitidos > 0 && nuevosUsos > usosPermitidos) { alert("❌ Ya has agotado todos los usos de este cupón"); return; }
                 const proximoNro = (dataCom.totalVips || 0) + 1;
@@ -1263,12 +1288,13 @@
                     const idComercioLimpio = nom.replace(/\s+/g, '_');
                     const horaL = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
                     const nUso = new Date().toLocaleDateString();
-                    await updateDoc(doc(db, "leads", leadIdLocal), { [`canjes_por_comercio.${idComercioLimpio}`]: { comercio: nom, codigo: codigoIdentidad, fecha: nUso, hora: horaL, cantidad_usos: increment(1) }, usos_count: increment(1) });
+                    await updateDoc(doc(db, "leads", leadIdLocal), { [`canjes_por_comercio.${idComercioLimpio}`]: { comercio: nom, codigo: codigoIdentidad, fecha: nUso, hora: horaL, cantidad_usos: nuevosUsos }, usos_count: increment(1) });
                 }
                 JsBarcode("#barcodeVIP", codigoIdentidad, { format: "CODE128", lineColor: "#000", width: 2, height: 40, displayValue: true, fontSize: 14 });
                 document.getElementById('exito-comercio').innerText = nom;
                 document.getElementById('exito-beneficio').innerText = ben;
                 document.getElementById('pantalla-exito').style.display = 'flex';
+                // ⭐ Actualizar localStorage para mantener compatibilidad
                 localStorage.setItem('uso_vip_' + id, nuevosUsos);
                 const btnUsar = document.getElementById(`btn-usar-${id}`);
                 if (btnUsar) {
