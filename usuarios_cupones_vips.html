@@ -1020,15 +1020,43 @@
         };
 
         function aplicarFiltros() {
-            const texto = document.getElementById('filtroNombre').value.toLowerCase();
+            const texto = document.getElementById('filtroNombre').value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
             const vencimiento = document.getElementById('filtroVence').value;
             const provSeleccionada = document.getElementById('filtroProvincia').value;
             const locSeleccionada = document.getElementById('filtroLocalidad').value;
             
+            // Si solo hay filtro de texto y ya hay cards renderizadas, filtrar sobre el DOM
+            const hayFiltroGeografico = filtroProvinciaActivo || filtroLocalidadActivo || filtroCercaniaActivo || provSeleccionada || locSeleccionada;
+            const hayFiltroVencimiento = vencimiento !== 'todos';
+            
+            if (texto && !hayFiltroGeografico && !hayFiltroVencimiento) {
+                // Filtro rápido sobre DOM — sin re-renderizar ni llamar Firestore
+                document.querySelectorAll('.card-vip').forEach(card => {
+                    const nombre = (card.dataset.nombre || '').normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const rubro  = (card.dataset.rubro  || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    card.style.display = (nombre.includes(texto) || rubro.includes(texto)) ? '' : 'none';
+                });
+                return;
+            }
+            
+            // Si no hay texto o hay filtros geográficos/vencimiento, re-renderizar completo
+            if (!texto) {
+                document.querySelectorAll('.card-vip').forEach(card => card.style.display = '');
+                if (hayFiltroGeografico || hayFiltroVencimiento) {
+                    // continuar con el filtrado completo abajo
+                } else {
+                    return;
+                }
+            }
+            
             let filtrados = [...comerciosCompletos];
             
             if (texto) {
-                filtrados = filtrados.filter(c => (c.nombre || '').toLowerCase().includes(texto));
+                filtrados = filtrados.filter(c => {
+                    const nom = (c.nombre || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    const rub = (c.rubro  || '').toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                    return nom.includes(texto) || rub.includes(texto);
+                });
             }
             
             if (filtroProvinciaActivo && usuarioData && usuarioData.provincia) {
@@ -1202,7 +1230,7 @@
                 }
                 
                 html += `
-                    <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}" data-id="${c.id}">
+                    <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}" data-rubro="${(c.rubro || '').toLowerCase()}" data-id="${c.id}">
                         ${htmlLogo}
                         <div class="nombre-c">${c.nombre || ''}</div>
                         <div class="beneficio-c">${beneficioCompleto}</div>
@@ -1403,8 +1431,27 @@
                 };
                 localStorage.setItem('uso_vip_' + id, nuevosUsos);
                 
-                // ⭐ ACTUALIZAR EL BOTÓN DEL COMERCIO — forzando lectura de Firestore
-                await actualizarBotonComercio(id, true);
+                // ⭐ ACTUALIZAR EL BOTÓN DIRECTO — sin ir a Firestore (evita problema de timing)
+                const btnUsarFinal = document.getElementById(`btn-usar-${id}`);
+                const btnValFinal  = document.getElementById(`btn-val-${id}`);
+                const leadIdFinal  = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
+                if (btnUsarFinal) {
+                    if (usosPermitidos > 0 && nuevosUsos >= usosPermitidos) {
+                        // AGOTADO
+                        btnUsarFinal.innerHTML = 'AGOTADO';
+                        btnUsarFinal.disabled = true;
+                        btnUsarFinal.classList.remove('activo');
+                        if (btnValFinal) { btnValFinal.disabled = true; btnValFinal.style.opacity = '0.4'; btnValFinal.onclick = null; }
+                        if (leadIdFinal) localStorage.setItem(`agotado_vip_${leadIdFinal}_${id}`, 'true');
+                    } else {
+                        // Actualizar contador
+                        if (usosPermitidos > 0) {
+                            btnUsarFinal.innerHTML = `Usar beneficio <span class="contador-inline">${nuevosUsos}/${usosPermitidos}</span>`;
+                        } else {
+                            btnUsarFinal.innerHTML = `Usar beneficio <span class="contador-inline">${nuevosUsos}</span>`;
+                        }
+                    }
+                }
                 
                 // Generar código de barras
                 JsBarcode("#barcodeVIP", codigoIdentidad, { format: "CODE128", lineColor: "#000", width: 2, height: 40, displayValue: true, fontSize: 14 });
@@ -1439,7 +1486,10 @@
                     document.getElementById('countdown').innerText = s; 
                     if(s <= 0) { 
                         clearInterval(t); 
-                        document.getElementById('pantalla-exito').style.display = 'none'; 
+                        document.getElementById('pantalla-exito').style.display = 'none';
+                        // Scroll a la card del comercio para que el usuario vea el botón AGOTADO
+                        const card = document.querySelector(`.card-vip[data-id="${id}"]`);
+                        if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
                     } 
                 }, 1000);
                 
