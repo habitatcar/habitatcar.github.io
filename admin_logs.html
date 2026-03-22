@@ -395,8 +395,8 @@
             const locSel  = document.getElementById('filtroLocalidad').value;
 
             const filtrados = todosLosLogs.filter(log => {
-                /* texto libre sobre nombre + detalle + accion */
-                const haystack = `${log.nombre||''} ${log.detalle||''} ${log.accion||''}`.toLowerCase();
+                /* texto libre sobre nombre + detalle + accion + nombreComercio */
+                const haystack = `${log.nombre||''} ${log.detalle||''} ${log.accion||''} ${log.nombreComercio||''}`.toLowerCase();
                 if (texto && !haystack.includes(texto)) return false;
 
                 /* módulo / categoría */
@@ -424,8 +424,33 @@
                 const badge  = clasificar(log);
                 const modAcc = `${log.tipo?.toUpperCase()||'SISTEMA'} / ${log.accion||'ACTIVIDAD'}`;
 
-                /* Detalle: priorizar campo detalle, sino nombre, sino '---' */
-                const detalle = log.detalle || log.nombre || '---';
+                /* ── Construir detalle según el tipo de log ── */
+                let detalle = '';
+
+                const accionUp = (log.accion||'').toUpperCase();
+
+                if (accionUp === 'CANJE LEADS' || accionUp === 'CANJE LEAD') {
+                    /* log de la app: usar campos propios del canje lead */
+                    const comercio  = log.nombreComercio || log.comercio || '';
+                    const codigo    = log.idValidacion   || '';
+                    const usoNum    = log.usoNumero      != null ? log.usoNumero    : '';
+                    const usosTot   = log.usosTotales    != null ? log.usosTotales  : '';
+                    const usuario   = log.nombre         || '';
+                    /* formato espejo del VIP: "HAB-0001 canjeó beneficio en LUBRIFIL (uso 2 de 3)" */
+                    if (comercio) {
+                        detalle = `${codigo ? codigo + ' — ' : ''}canjeó beneficio en <b>${comercio}</b>`;
+                        if (usoNum !== '' && usosTot !== '') detalle += ` (uso ${usoNum} de ${usosTot})`;
+                        if (usuario) detalle += ` · usuario: ${usuario}`;
+                    } else {
+                        detalle = log.detalle || log.nombre || '---';
+                    }
+                } else if (accionUp === 'CANJE VIP') {
+                    /* log de la app VIP: usar campo nombre que ya trae el texto completo */
+                    detalle = log.nombre || log.detalle || '---';
+                } else {
+                    /* cualquier otro log (gestión, inscripción, etc.) */
+                    detalle = log.detalle || log.nombre || '---';
+                }
 
                 const tr = document.createElement('tr');
                 tr.innerHTML = `
