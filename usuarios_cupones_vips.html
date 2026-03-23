@@ -15,6 +15,7 @@
 
     <script src="https://unpkg.com/html5-qrcode"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
     <style>
         :root {
@@ -30,8 +31,9 @@
             --facebook: #1877f2;
             --instagram: #e4405f;
             --tiktok: #000000;
-            /* ✅ COLOR CAMBIADO: Azul más oscuro para mejor contraste con texto blanco */
             --azul-web: #0066cc;
+            --verde-claro: #4caf50;
+            --gris-texto: #cccccc;
         }
 
         body { 
@@ -63,9 +65,127 @@
             background: rgba(0,0,0,0.5); text-transform: uppercase;
         }
 
-        .search-area { padding: 0 15px 15px; display: flex; gap: 8px; }
-        .input-search { width: 45%; padding: 12px; border-radius: 8px; border: 1px solid var(--dorado); background: #1a1a1a; color: white; font-size: 1em; text-align: center; }
-        .select-vence { width: 55%; padding: 12px; border-radius: 8px; border: 1px solid var(--dorado); background: #1a1a1a; color: white; font-size: 1em; }
+        /* ========== FILTROS AGREGADOS ========== */
+        .filtros-container {
+            background: rgba(0,0,0,0.6);
+            padding: 10px 15px;
+            border-bottom: 1px solid var(--dorado);
+        }
+        
+        .fila-filtros {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+        
+        .fila-filtros:last-child {
+            margin-bottom: 0;
+        }
+        
+        .filtro-select {
+            flex: 1;
+            padding: 10px 8px;
+            border-radius: 10px;
+            border: 1px solid var(--dorado);
+            font-size: 13px;
+            font-weight: 500;
+            background: #1a1a1a;
+            color: white;
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        .filtro-boton {
+            flex: 1;
+            padding: 10px 8px;
+            border-radius: 10px;
+            border: 1px solid var(--dorado);
+            font-size: 12px;
+            font-weight: 600;
+            background: var(--azul-lindo);
+            color: white;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .filtro-boton.activo {
+            background: var(--verde);
+            box-shadow: 0 0 0 2px white, 0 0 0 4px var(--verde);
+        }
+        
+        .filtro-boton.ubicacion-activa {
+            background: var(--naranja-sorteo);
+            animation: pulsoSuave 1.5s infinite;
+        }
+        
+        @keyframes pulsoSuave {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.02); opacity: 0.9; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+        
+        .filtro-busqueda {
+            flex: 2;
+            position: relative;
+        }
+        
+        .filtro-busqueda input {
+            width: 100%;
+            padding: 10px 10px 10px 32px;
+            border-radius: 10px;
+            border: 1px solid var(--dorado);
+            font-size: 13px;
+            box-sizing: border-box;
+            background: #1a1a1a;
+            color: white;
+        }
+        
+        .filtro-busqueda::before {
+            content: "🔍";
+            position: absolute;
+            left: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 1;
+        }
+        
+        .info-ubicacion {
+            font-size: 11px;
+            text-align: center;
+            color: rgba(255,255,255,0.8);
+            margin-top: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+        
+        .badge-distancia {
+            background: var(--verde);
+            color: white;
+            padding: 2px 6px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 600;
+            margin-left: 6px;
+            white-space: nowrap;
+        }
+
+        .info-txt { 
+            display: block; 
+            font-size: 12px; 
+            color: var(--gris-texto); 
+            margin: 5px 0; 
+            font-weight: 500; 
+        }
+        .ico-large { font-size: 14px; vertical-align: middle; margin-right: 4px; }
+        /* ========== FIN FILTROS ========== */
 
         .grilla { padding: 5px 20px; }
         .card-vip { 
@@ -122,7 +242,6 @@
             100% { box-shadow: 0 0 5px var(--dorado); border-color: var(--dorado); }
         }
 
-        /* ✅ ANIMACIÓN DE DESTELLO CENTRÍFUGO MEJORADA (MÁS VISIBLE) */
         @keyframes destello-centrifugo {
             0% { 
                 box-shadow: 0 0 0 0 rgba(245, 124, 0, 0.9);
@@ -138,7 +257,6 @@
             }
         }
 
-        /* ✅ SEGUNDA ANIMACIÓN PARA BORDE BRILLANTE */
         @keyframes borde-brillante {
             0%, 100% { 
                 border-color: var(--naranja-sorteo);
@@ -158,7 +276,6 @@
             z-index: 1;
         }
 
-        /* ✅ EFECTO DE ONDA EXPANSIVA ADICIONAL */
         .btn-sorteo.animar-pulso::before {
             content: '';
             position: absolute;
@@ -186,7 +303,6 @@
             }
         }
 
-        /* Clase para quitar la animación tras el primer toque */
         .sin-pulso {
             animation: none !important;
         }
@@ -196,7 +312,6 @@
 
         .contador-nube { background: var(--dorado); color: black; padding: 4px 12px; border-radius: 10px; margin-left: 10px; font-size: 1.2em; font-weight: 900; }
 
-        /* ✅ CORRECCIÓN: REDES SOCIALES CENTRADAS */
         .redes-overlay {
             position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85);
             display:flex; justify-content:center; align-items:center; z-index:8000;
@@ -307,16 +422,45 @@
         <a href="usuarios_tutoriales.html" class="btn-top">Tutorial</a>
     </div>
 
-    <div class="search-area">
-        <input type="text" id="filtroNombre" class="input-search" placeholder="🔍 Buscar..." onkeyup="filtrar()">
-        <select id="filtroVence" class="select-vence" onchange="filtrar()">
-            <option value="todos">Vence en...</option>
-            <option value="3">3 días</option>
-            <option value="5">5 días</option>
-            <option value="7">7 días</option>
-            <option value="15">15 días</option>
-        </select>
+    <!-- ========== FILTROS AGREGADOS ========== -->
+    <div class="filtros-container">
+        <div class="fila-filtros">
+            <select id="filtroProvincia" class="filtro-select" onchange="cambiarFiltroProvincia(this.value)">
+                <option value="">TODAS LAS PROVINCIAS</option>
+            </select>
+            <select id="filtroLocalidad" class="filtro-select" onchange="cambiarFiltroLocalidad(this.value)">
+                <option value="">TODAS LAS LOCALIDADES</option>
+            </select>
+        </div>
+        <div class="fila-filtros">
+            <button id="btnFiltroProvincia" class="filtro-boton" onclick="toggleFiltroProvincia()">
+                📍 MI PROVINCIA
+            </button>
+            <button id="btnFiltroLocalidad" class="filtro-boton" onclick="toggleFiltroLocalidad()">
+                🏘️ MI LOCALIDAD
+            </button>
+            <button id="btnFiltroCercanos" class="filtro-boton" onclick="toggleFiltroCercania()">
+                📱 CERCA DE MÍ
+            </button>
+        </div>
+        <div class="fila-filtros">
+            <div class="filtro-busqueda">
+                <input type="text" id="filtroNombre" placeholder="Buscar comercio..." onkeyup="aplicarFiltros()">
+            </div>
+            <select id="filtroVence" class="filtro-select" style="flex: 0.8;" onchange="aplicarFiltros()">
+                <option value="todos">VENCE</option>
+                <option value="3">3 días</option>
+                <option value="5">5 días</option>
+                <option value="7">7 días</option>
+                <option value="15">15 días</option>
+            </select>
+        </div>
+        <div id="infoUbicacion" class="info-ubicacion" style="display: none;">
+            <i>📍</i> <span id="infoTexto"></span>
+            <span id="infoDistancia" class="badge-distancia"></span>
+        </div>
     </div>
+    <!-- ========== FIN FILTROS ========== -->
 
     <div class="grilla" id="contenedor-vip"></div>
 
@@ -385,54 +529,344 @@
 
         let scanner = null;
         let listaComercios = [];
+        let comerciosCompletos = [];
+        let ubicacionUsuario = null;
+        let usuarioData = null;
+        let scrollPosition = 0;
+        
+        // Estado de los filtros
+        let filtroProvinciaActivo = false;
+        let filtroLocalidadActivo = false;
+        let filtroCercaniaActivo = false;
+        let todasLasProvincias = [];
+        let todasLasLocalidades = [];
 
-        onSnapshot(collection(db, "comercios"), (snap) => {
+        // ============================================
+        // FUNCIONES DE GEOLOCALIZACIÓN
+        // ============================================
+        function obtenerUbicacion() {
+            return new Promise((resolve) => {
+                if (!navigator.geolocation) {
+                    resolve(null);
+                    return;
+                }
+                navigator.geolocation.getCurrentPosition(
+                    (pos) => {
+                        ubicacionUsuario = {
+                            lat: pos.coords.latitude,
+                            lng: pos.coords.longitude
+                        };
+                        document.getElementById('infoTexto').innerHTML = `📍 Ubicación obtenida`;
+                        document.getElementById('infoUbicacion').style.display = 'flex';
+                        resolve(ubicacionUsuario);
+                    },
+                    (error) => {
+                        let mensaje = "❌ No se pudo obtener ubicación";
+                        if (error.code === 1) mensaje = "❌ Permiso denegado";
+                        if (error.code === 2) mensaje = "❌ Ubicación no disponible";
+                        if (error.code === 3) mensaje = "⏳ Tiempo agotado";
+                        document.getElementById('infoTexto').innerHTML = mensaje;
+                        document.getElementById('infoUbicacion').style.display = 'flex';
+                        resolve(null);
+                    },
+                    { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+                );
+            });
+        }
+
+        function calcularDistancia(lat1, lng1, lat2, lng2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLng = (lng2 - lng1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLng/2) * Math.sin(dLng/2);
+            const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            return R * c;
+        }
+
+        // ============================================
+        // CARGAR PROVINCIAS Y LOCALIDADES
+        // ============================================
+        async function cargarProvincias() {
+            try {
+                const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre&max=100");
+                const data = await res.json();
+                const comboProv = document.getElementById('filtroProvincia');
+                comboProv.innerHTML = '<option value="">TODAS LAS PROVINCIAS</option>';
+                todasLasProvincias = data.provincias.map(p => p.nombre);
+                todasLasProvincias.sort();
+                todasLasProvincias.forEach(prov => {
+                    const opt = document.createElement('option');
+                    opt.value = prov;
+                    opt.textContent = prov;
+                    comboProv.appendChild(opt);
+                });
+            } catch(e) { console.error("Error cargando provincias:", e); }
+        }
+
+        window.cargarLocalidades = async (provincia) => {
+            const comboLoc = document.getElementById('filtroLocalidad');
+            comboLoc.innerHTML = '<option value="">TODAS LAS LOCALIDADES</option>';
+            if (!provincia) return;
+            try {
+                const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provincia)}&max=500&campos=nombre`);
+                const data = await res.json();
+                todasLasLocalidades = (data.municipios || []).map(m => m.nombre);
+                todasLasLocalidades.sort();
+                todasLasLocalidades.forEach(loc => {
+                    const opt = document.createElement('option');
+                    opt.value = loc;
+                    opt.textContent = loc;
+                    comboLoc.appendChild(opt);
+                });
+            } catch(e) { console.error("Error cargando localidades:", e); }
+        };
+
+        // ============================================
+        // OBTENER DATOS DEL USUARIO
+        // ============================================
+        const leadId = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
+        if (leadId) {
+            getDoc(doc(db, "leads", leadId)).then(docSnap => {
+                if (docSnap.exists()) {
+                    usuarioData = docSnap.data();
+                    if (!window.provinciasCargadas) {
+                        cargarProvincias();
+                        window.provinciasCargadas = true;
+                    }
+                }
+            }).catch(e => console.error("Error cargando usuario:", e));
+        } else {
+            cargarProvincias();
+        }
+
+        // ============================================
+        // FUNCIONES DE FILTRO
+        // ============================================
+        function resetearFiltrosRapidos() {
+            filtroProvinciaActivo = false;
+            filtroLocalidadActivo = false;
+            filtroCercaniaActivo = false;
+            document.getElementById('btnFiltroProvincia').classList.remove('activo');
+            document.getElementById('btnFiltroLocalidad').classList.remove('activo');
+            document.getElementById('btnFiltroCercanos').classList.remove('activo');
+            document.getElementById('btnFiltroCercanos').classList.remove('ubicacion-activa');
+        }
+        
+        window.toggleFiltroProvincia = () => {
+            if (!usuarioData || !usuarioData.provincia) {
+                alert("No tenemos tu provincia registrada.");
+                return;
+            }
+            if (filtroProvinciaActivo) {
+                filtroProvinciaActivo = false;
+                document.getElementById('btnFiltroProvincia').classList.remove('activo');
+                document.getElementById('infoTexto').innerHTML = ``;
+                document.getElementById('infoUbicacion').style.display = 'none';
+                resetearFiltrosRapidos();
+            } else {
+                resetearFiltrosRapidos();
+                filtroProvinciaActivo = true;
+                document.getElementById('btnFiltroProvincia').classList.add('activo');
+                document.getElementById('infoTexto').innerHTML = `📍 Mostrando comercios de ${usuarioData.provincia}`;
+                document.getElementById('infoUbicacion').style.display = 'flex';
+            }
+            aplicarFiltros();
+        };
+        
+        window.toggleFiltroLocalidad = () => {
+            if (!usuarioData || !usuarioData.localidad) {
+                alert("No tenemos tu localidad registrada.");
+                return;
+            }
+            if (filtroLocalidadActivo) {
+                filtroLocalidadActivo = false;
+                document.getElementById('btnFiltroLocalidad').classList.remove('activo');
+                document.getElementById('infoTexto').innerHTML = ``;
+                document.getElementById('infoUbicacion').style.display = 'none';
+                resetearFiltrosRapidos();
+            } else {
+                resetearFiltrosRapidos();
+                filtroLocalidadActivo = true;
+                document.getElementById('btnFiltroLocalidad').classList.add('activo');
+                document.getElementById('infoTexto').innerHTML = `🏘️ Mostrando comercios de ${usuarioData.localidad}`;
+                document.getElementById('infoUbicacion').style.display = 'flex';
+            }
+            aplicarFiltros();
+        };
+        
+        window.toggleFiltroCercania = async () => {
+            if (filtroCercaniaActivo) {
+                filtroCercaniaActivo = false;
+                document.getElementById('btnFiltroCercanos').classList.remove('activo');
+                document.getElementById('btnFiltroCercanos').classList.remove('ubicacion-activa');
+                document.getElementById('infoTexto').innerHTML = ``;
+                document.getElementById('infoUbicacion').style.display = 'none';
+                resetearFiltrosRapidos();
+                aplicarFiltros();
+                return;
+            }
+            resetearFiltrosRapidos();
+            document.getElementById('infoTexto').innerHTML = `📍 Obteniendo ubicación...`;
+            document.getElementById('infoUbicacion').style.display = 'flex';
+            await obtenerUbicacion();
+            if (ubicacionUsuario) {
+                filtroCercaniaActivo = true;
+                document.getElementById('btnFiltroCercanos').classList.add('activo');
+                document.getElementById('btnFiltroCercanos').classList.add('ubicacion-activa');
+                document.getElementById('infoTexto').innerHTML = `🗺️ Comercios a menos de 10km`;
+                aplicarFiltros();
+            } else {
+                filtroCercaniaActivo = false;
+                document.getElementById('btnFiltroCercanos').classList.remove('activo');
+                document.getElementById('infoTexto').innerHTML = `❌ No se pudo obtener ubicación`;
+                setTimeout(() => {
+                    if (!filtroCercaniaActivo) {
+                        document.getElementById('infoUbicacion').style.display = 'none';
+                    }
+                }, 3000);
+            }
+        };
+        
+        window.cambiarFiltroProvincia = (provincia) => {
+            resetearFiltrosRapidos();
+            if (!provincia) {
+                document.getElementById('filtroLocalidad').value = "";
+                document.getElementById('filtroLocalidad').innerHTML = '<option value="">TODAS LAS LOCALIDADES</option>';
+            } else {
+                window.cargarLocalidades(provincia);
+            }
+            aplicarFiltros();
+        };
+        
+        window.cambiarFiltroLocalidad = (localidad) => {
+            resetearFiltrosRapidos();
+            aplicarFiltros();
+        };
+
+        function aplicarFiltros() {
+            const texto = document.getElementById('filtroNombre').value.toLowerCase();
+            const vencimiento = document.getElementById('filtroVence').value;
+            const provSeleccionada = document.getElementById('filtroProvincia').value;
+            const locSeleccionada = document.getElementById('filtroLocalidad').value;
+            
+            let filtrados = [...comerciosCompletos];
+            
+            if (texto) {
+                filtrados = filtrados.filter(c => (c.nombre || '').toLowerCase().includes(texto));
+            }
+            
+            if (filtroProvinciaActivo && usuarioData && usuarioData.provincia) {
+                filtrados = filtrados.filter(c => c.provincia === usuarioData.provincia);
+            } else if (filtroLocalidadActivo && usuarioData && usuarioData.localidad) {
+                filtrados = filtrados.filter(c => (c.localidad || c.ciudad) === usuarioData.localidad);
+            } else if (filtroCercaniaActivo && ubicacionUsuario) {
+                filtrados = filtrados.filter(c => {
+                    if (c.coordenadas && c.coordenadas.lat && c.coordenadas.lng) {
+                        const dist = calcularDistancia(ubicacionUsuario.lat, ubicacionUsuario.lng, c.coordenadas.lat, c.coordenadas.lng);
+                        c.distanciaCalculada = dist;
+                        return dist <= 10;
+                    }
+                    return false;
+                });
+                filtrados.sort((a, b) => (a.distanciaCalculada || 999) - (b.distanciaCalculada || 999));
+            } else {
+                if (provSeleccionada) {
+                    filtrados = filtrados.filter(c => c.provincia === provSeleccionada);
+                }
+                if (locSeleccionada) {
+                    filtrados = filtrados.filter(c => (c.localidad || c.ciudad) === locSeleccionada);
+                }
+            }
+            
+            if (vencimiento !== 'todos') {
+                const diasLimite = parseInt(vencimiento);
+                filtrados = filtrados.filter(c => {
+                    const vigencia = parseInt(c.vigenciaVip) || 0;
+                    if (vigencia === 0) return true;
+                    const inicios = JSON.parse(localStorage.getItem('inicios_cupones_vip') || "{}");
+                    const inicio = inicios[c.id] || Date.now();
+                    const transcurrido = Date.now() - inicio;
+                    const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
+                    const diasRestantes = vigencia - diasPasados;
+                    return diasRestantes <= diasLimite && diasRestantes >= 0;
+                });
+            }
+            
+            renderizarComercios(filtrados);
+        }
+
+        // ============================================
+        // RENDERIZAR COMERCIOS (MODIFICADO PARA MOSTRAR DISTANCIA)
+        // ============================================
+        function renderizarComercios(comercios) {
             const contenedor = document.getElementById('contenedor-vip');
             let html = "";
-            listaComercios = [];
-
-            snap.forEach(d => {
-                const c = d.data();
-                if (c.estado === "inactivo") return;
-                const id = d.id;
-                listaComercios.push({id, ...c});
+            const inicios = JSON.parse(localStorage.getItem('inicios_cupones_vip') || "{}");
+            
+            comercios.forEach(c => {
+                const nUso = parseInt(localStorage.getItem('uso_vip_' + c.id) || "0");
+                const vigenciaTotal = parseInt(c.vigenciaVip) || 0;
+                let diasRestantes = vigenciaTotal;
+                let mostrarReloj = vigenciaTotal > 0;
+                if (mostrarReloj) {
+                    if (!inicios[c.id]) inicios[c.id] = Date.now();
+                    const transcurrido = Date.now() - inicios[c.id];
+                    const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
+                    diasRestantes = vigenciaTotal - diasPasados;
+                }
+                if (mostrarReloj && diasRestantes < 0) return;
                 
-                const nUso = parseInt(localStorage.getItem('uso_vip_' + id) || "0");
+                let distanciaHtml = '';
+                if (filtroCercaniaActivo && ubicacionUsuario && c.coordenadas && c.distanciaCalculada) {
+                    distanciaHtml = `<span class="badge-distancia">📍 a ${c.distanciaCalculada.toFixed(1)}km</span>`;
+                }
+                
+                const htmlLogo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : '';
                 const tieneRedes = (c.facebook || c.instagram || c.web || c.sitioWeb);
-                const htmlLogo = c.logoUrl 
-                    ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` 
-                    : '';
-
-                const tieneSorteoOPromo = (c.titulo_sorteo || c.titulo_promo);
-                const yaTocado = localStorage.getItem('toco_sorteo_' + id) === 'true';
+                const tieneSorteo = c.titulo_sorteo ? true : false;
+                const tienePromo = c.titulo_promo ? true : false;
+                const tieneSorteoOPromo = tieneSorteo || tienePromo;
+                const yaTocado = localStorage.getItem('toco_sorteo_' + c.id) === 'true';
                 const claseAnimacion = yaTocado ? 'sin-pulso' : 'animar-pulso';
                 
                 const botonSorteo = tieneSorteoOPromo ? 
-                    `<button class="btn-act btn-sorteo ${claseAnimacion}" 
-                             id="btn-sorteo-${id}" 
-                             onclick="tocarSorteo('${id}', '${c.nombre}')">
-                        🎁 SORTEOS y PROMOS
-                    </button>` : '';
+                    `<button class="btn-act btn-sorteo ${claseAnimacion}" id="btn-sorteo-${c.id}" onclick="tocarSorteo('${c.id}', '${c.nombre}')">🎁 SORTEOS y PROMOS</button>` : '';
+                
+                const mapsUrl = c.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`;
+                
+                let infoVencimiento = '';
+                if (!mostrarReloj) {
+                    infoVencimiento = `★ Sin vencimiento ★`;
+                } else {
+                    infoVencimiento = `★ Vence en ${diasRestantes} días ★`;
+                }
                 
                 html += `
                     <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">
                         ${htmlLogo}
                         <div class="nombre-c">${c.nombre || ''}</div>
                         <div class="beneficio-c">${c.valVip || 0}% OFF</div>
-                        <div class="vence-vip">★ Vence en ${c.vigenciaVip || 'X'} días ★</div>
+                        <div class="vence-vip">${infoVencimiento} ${distanciaHtml}</div>
+                        ${c.direccion ? `<div class="info-txt"><span class="ico-large">📍</span>${c.direccion}</div>` : ""}
                         <div class="btn-stack">
-                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${id}')">Conozca el comercio</button>` : ''}
+                            ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${c.id}')">Conozca el comercio</button>` : ''}
                             ${botonSorteo}
-                            <button class="btn-act btn-llegar" onclick="window.open('${c.mapsUrl ? c.mapsUrl : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar" id="btn-val-${id}" onclick="abrirQR('${id}', '${c.tokenQR}')">Validar con QR</button>
-                            <button class="btn-act btn-usar" id="btn-usar-${id}" onclick="preguntarCajeroVIP('${id}', '${c.nombre}', '${c.valVip}% OFF')">
+                            <button class="btn-act btn-llegar" onclick="window.open('${mapsUrl}')">Cómo llegar</button>
+                            <button class="btn-act btn-validar" id="btn-val-${c.id}" onclick="abrirQR('${c.id}', '${c.tokenQR}')">Validar con QR</button>
+                            <button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarCajeroVIP('${c.id}', '${c.nombre}', '${c.valVip}% OFF')">
                                 Usar beneficio <span class="contador-nube">${nUso}</span>
                             </button>
                         </div>
                     </div>`;
             });
+            
+            localStorage.setItem('inicios_cupones_vip', JSON.stringify(inicios));
             contenedor.innerHTML = html;
-        });
+            
+            if (scrollPosition > 0) setTimeout(() => window.scrollTo({ top: scrollPosition, behavior: 'auto' }), 100);
+        }
 
         window.tocarSorteo = (id, nombre) => {
             const btn = document.getElementById(`btn-sorteo-${id}`);
@@ -465,6 +899,7 @@
         };
 
         window.abrirQR = (id, token) => {
+            scrollPosition = window.pageYOffset;
             document.getElementById('modal-qr').style.display = 'flex';
             scanner = new Html5Qrcode("reader");
             scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
@@ -539,13 +974,13 @@
                     lastSubmission: fechaLegible 
                 });
 
-                const leadId = localStorage.getItem('leadId_v16');
-                if (leadId) {
+                const leadIdLocal = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
+                if (leadIdLocal) {
                     const idComercioLimpio = nom.replace(/\s+/g, '_');
                     const horaL = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
                     const nUso = new Date().toLocaleDateString();
 
-                    await updateDoc(doc(db, "leads", leadId), {
+                    await updateDoc(doc(db, "leads", leadIdLocal), {
                         [`canjes_por_comercio.${idComercioLimpio}`]: {
                             comercio: nom,
                             codigo: codigoIdentidad,
@@ -609,12 +1044,17 @@
             }
         };
 
-        window.filtrar = () => {
-            const texto = document.getElementById('filtroNombre').value.toLowerCase();
-            document.querySelectorAll('.card-vip').forEach(c => {
-                c.style.display = c.dataset.nombre.includes(texto) ? 'block' : 'none';
-            });
-        };
+        onSnapshot(collection(db, "comercios"), async (snap) => {
+            const comercios = [];
+            for (const d of snap.docs) {
+                const c = d.data();
+                if (c.estado === "inactivo") continue;
+                comercios.push({ id: d.id, ...c });
+            }
+            comerciosCompletos = comercios;
+            listaComercios = comercios;
+            aplicarFiltros();
+        });
     </script>
 </body>
 </html>
