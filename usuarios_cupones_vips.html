@@ -708,7 +708,7 @@
         })();
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -836,8 +836,7 @@
         }
 
         // ============================================
-        // FUNCIONES DE FILTRO — expuestas como window.*
-        // para que los onclick del HTML puedan llamarlas
+        // FUNCIONES DE FILTRO
         // ============================================
         function resetearFiltrosRapidos() {
             filtroProvinciaActivo = false;
@@ -941,7 +940,7 @@
         };
 
         // ============================================
-        // APLICAR FILTROS — expuesta como window.*
+        // APLICAR FILTROS
         // ============================================
         function aplicarFiltros() {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
@@ -1146,6 +1145,9 @@
             document.body.appendChild(alerta);
         };
 
+        // ============================================
+        // FINALIZAR VIP — CON LOG COMPLETO (nombre, apellido, whatsapp)
+        // ============================================
         window.finalizarVIP = async (id, nom, ben) => {
             document.getElementById('alerta-cajero').remove();
             
@@ -1169,16 +1171,26 @@
                 });
 
                 const leadIdLocal = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
+
+                // ── Calcular nUsoLocal ANTES de usarlo en el log ──
+                const nUsoLocal = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
+
+                // ── Nombre, apellido y whatsapp del usuario ──
+                const nombreUsuario = usuarioData
+                    ? `${(usuarioData.apellido || '').toUpperCase()}, ${(usuarioData.nombres || usuarioData.nombre || '').toUpperCase()}`.trim().replace(/^,\s*/, '')
+                    : '';
+                const whatsappUsuario = usuarioData ? (usuarioData.whatsapp || '') : '';
+
                 if (leadIdLocal) {
                     const idComercioLimpio = nom.replace(/\s+/g, '_');
                     const horaL = new Date().toLocaleTimeString('es-AR', { hour: '2-digit', minute: '2-digit' });
-                    const nUso = new Date().toLocaleDateString();
+                    const fechaD = new Date().toLocaleDateString();
 
                     await updateDoc(doc(db, "leads", leadIdLocal), {
                         [`canjes_por_comercio.${idComercioLimpio}`]: {
                             comercio: nom,
                             codigo: codigoIdentidad,
-                            fecha: nUso,
+                            fecha: fechaD,
                             hora: horaL,
                             cantidad_usos: increment(1)
                         },
@@ -1200,15 +1212,20 @@
                 document.getElementById('exito-beneficio').innerText = ben;
                 document.getElementById('pantalla-exito').style.display = 'flex';
 
-                const nUsoLocal = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
-                
+                // ── LOG COMPLETO: igual que CANJE LEAD ──
                 await addDoc(collection(db, "logs_actividad"), {
                     timestamp: ahora,
                     tipo: "canje",
                     accion: "CANJE VIP",
-                    nombre: `${codigoIdentidad} canjeó ${ben} en ${nom}`,
+                    nombreComercio: nom,
+                    idValidacion: codigoIdentidad,
+                    usoNumero: nUsoLocal,
+                    nombre: nombreUsuario,
+                    whatsapp: whatsappUsuario,
+                    usuarioId: leadIdLocal || '',
                     comercioId: id,
-                    modulo: "VIPS"
+                    modulo: "VIPS",
+                    detalle: `${nombreUsuario}${whatsappUsuario ? ' · ' + whatsappUsuario : ''} canjeó beneficio VIP en ${nom} (uso ${nUsoLocal})`
                 });
 
                 await addDoc(collection(db, "logs_vip"), { 
@@ -1218,7 +1235,9 @@
                     uso_nro: nUsoLocal,
                     tipo: "VIP",
                     beneficio: ben,
-                    codigoGenerado: codigoIdentidad
+                    codigoGenerado: codigoIdentidad,
+                    nombre: nombreUsuario,
+                    whatsapp: whatsappUsuario
                 });
 
                 localStorage.setItem('uso_vip_' + id, nUsoLocal);
