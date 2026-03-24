@@ -1187,10 +1187,17 @@
                 await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
                 
                 try {
+                    const nombreUsuario = usuarioData
+                        ? `${(usuarioData.apellido || '').toUpperCase()}, ${(usuarioData.nombres || usuarioData.nombre || '').toUpperCase()}`.trim().replace(/^,\s*/, '')
+                        : '';
+                    const whatsappUsuario = usuarioData ? (usuarioData.whatsapp || '') : '';
                     await addDoc(collection(db, "logs_actividad"), {
                         timestamp, tipo: "canje", accion: "CANJE LEADS",
                         nombreComercio: nom, usuarioId: leadId, idValidacion: idManual,
-                        usoNumero: nuevosUsos, usosTotales: usosPermitidos
+                        usoNumero: nuevosUsos, usosTotales: usosPermitidos,
+                        nombre: nombreUsuario,
+                        whatsapp: whatsappUsuario,
+                        detalle: `${nombreUsuario}${whatsappUsuario ? ' · ' + whatsappUsuario : ''} canjeó beneficio en ${nom} (uso ${nuevosUsos} de ${usosPermitidos})`
                     });
                 } catch(eLog) { console.error("Error Log:", eLog); }
                 
