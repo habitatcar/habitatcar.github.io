@@ -445,7 +445,7 @@
         </div>
         <div class="fila-filtros">
             <div class="filtro-busqueda">
-                <input type="text" id="filtroNombre" placeholder="Buscar comercio..." onkeyup="aplicarFiltros()">
+                <input type="text" id="filtroNombre" placeholder="Buscar comercio..." oninput="aplicarFiltros()">
             </div>
             <select id="filtroVence" class="filtro-select" style="flex: 0.8;" onchange="aplicarFiltros()">
                 <option value="todos">VENCE</option>
@@ -642,7 +642,8 @@
         }
 
         // ============================================
-        // FUNCIONES DE FILTRO
+        // FUNCIONES DE FILTRO — expuestas como window.*
+        // para que los onclick del HTML puedan llamarlas
         // ============================================
         function resetearFiltrosRapidos() {
             filtroProvinciaActivo = false;
@@ -745,6 +746,9 @@
             aplicarFiltros();
         };
 
+        // ============================================
+        // APLICAR FILTROS — expuesta como window.*
+        // ============================================
         function aplicarFiltros() {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
             const vencimiento = document.getElementById('filtroVence').value;
@@ -796,9 +800,10 @@
             
             renderizarComercios(filtrados);
         }
+        window.aplicarFiltros = aplicarFiltros;
 
         // ============================================
-        // RENDERIZAR COMERCIOS (MODIFICADO PARA MOSTRAR DISTANCIA)
+        // RENDERIZAR COMERCIOS
         // ============================================
         function renderizarComercios(comercios) {
             const contenedor = document.getElementById('contenedor-vip');
@@ -823,25 +828,20 @@
                     distanciaHtml = `<span class="badge-distancia">📍 a ${c.distanciaCalculada.toFixed(1)}km</span>`;
                 }
                 
-                const htmlLogo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c"></div>` : '';
+                const htmlLogo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c" loading="lazy"></div>` : '';
                 const tieneRedes = (c.facebook || c.instagram || c.web || c.sitioWeb);
-                const tieneSorteo = c.titulo_sorteo ? true : false;
-                const tienePromo = c.titulo_promo ? true : false;
-                const tieneSorteoOPromo = tieneSorteo || tienePromo;
+                const tieneSorteoOPromo = c.titulo_sorteo || c.titulo_promo;
                 const yaTocado = localStorage.getItem('toco_sorteo_' + c.id) === 'true';
                 const claseAnimacion = yaTocado ? 'sin-pulso' : 'animar-pulso';
                 
                 const botonSorteo = tieneSorteoOPromo ? 
-                    `<button class="btn-act btn-sorteo ${claseAnimacion}" id="btn-sorteo-${c.id}" onclick="tocarSorteo('${c.id}', '${c.nombre}')">🎁 SORTEOS y PROMOS</button>` : '';
+                    `<button class="btn-act btn-sorteo ${claseAnimacion}" id="btn-sorteo-${c.id}" onclick="tocarSorteo('${c.id}', '${(c.nombre||'').replace(/'/g,"\\'")}')">🎁 SORTEOS y PROMOS</button>` : '';
                 
                 const mapsUrl = c.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`;
                 
-                let infoVencimiento = '';
-                if (!mostrarReloj) {
-                    infoVencimiento = `★ Sin vencimiento ★`;
-                } else {
-                    infoVencimiento = `★ Vence en ${diasRestantes} días ★`;
-                }
+                const infoVencimiento = !mostrarReloj
+                    ? `★ Sin vencimiento ★`
+                    : `★ Vence en ${diasRestantes} días ★`;
                 
                 html += `
                     <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">
@@ -855,7 +855,7 @@
                             ${botonSorteo}
                             <button class="btn-act btn-llegar" onclick="window.open('${mapsUrl}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" id="btn-val-${c.id}" onclick="abrirQR('${c.id}', '${c.tokenQR}')">Validar con QR</button>
-                            <button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarCajeroVIP('${c.id}', '${c.nombre}', '${c.valVip}% OFF')">
+                            <button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarCajeroVIP('${c.id}', '${(c.nombre||'').replace(/'/g,"\\'")}', '${c.valVip || 0}% OFF')">
                                 Usar beneficio <span class="contador-nube">${nUso}</span>
                             </button>
                         </div>
@@ -945,7 +945,7 @@
                     <h3 style="color:red;">⚠️ ATENCIÓN</h3>
                     <p>¿Avisaste al cajero que usarás el cupón <b>VIP</b>?<br><br><b>Si no avisaste, perderás el beneficio.</b></p>
                     <div style="display:flex; gap:10px;">
-                        <button class="btn-si" onclick="finalizarVIP('${id}', '${nombre}', '${beneficio}')">SÍ</button>
+                        <button class="btn-si" onclick="finalizarVIP('${id}', '${nombre.replace(/'/g,"\\'")}', '${beneficio}')">SÍ</button>
                         <button class="btn-no" onclick="document.getElementById('alerta-cajero').remove()">NO</button>
                     </div>
                 </div>`;
