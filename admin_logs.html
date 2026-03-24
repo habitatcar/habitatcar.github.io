@@ -521,7 +521,6 @@
             const fechaRango = document.getElementById('filtroFecha').value;
 
             let filtrados = todosLosLogs.filter(log => {
-                // También buscar en whatsapp
                 const haystack = `${log.nombre||''} ${log.detalle||''} ${log.accion||''} ${log.whatsapp||''}`.toLowerCase();
                 if (texto && !haystack.includes(texto)) return false;
                 if (modulo && categoriaModulo(log) !== modulo) return false;
@@ -589,6 +588,7 @@
                 const accionUp = (log.accion||'').toUpperCase();
 
                 if (accionUp === 'CANJE LEAD' || accionUp === 'CANJE LEADS') {
+                    // ── CANJE LEAD: muestra código, comercio, uso, nombre y whatsapp ──
                     const comercio = log.nombreComercio || log.comercio || '';
                     const codigo   = log.idValidacion || '';
                     const usoNum   = log.usoNumero != null ? log.usoNumero : '';
@@ -604,10 +604,24 @@
                     } else {
                         detalle = log.detalle || log.nombre || '---';
                     }
+
                 } else if (accionUp === 'CANJE VIP') {
-                    const wapp = log.whatsapp || '';
-                    detalle = log.nombre || log.detalle || '---';
-                    if (wapp) detalle += ` <span class="wapp-badge">📱 ${wapp}</span>`;
+                    // ── CANJE VIP: mismo formato que CANJE LEAD ──
+                    const comercio = log.nombreComercio || log.comercio || '';
+                    const codigo   = log.idValidacion || '';
+                    const usoNum   = log.usoNumero != null ? log.usoNumero : '';
+                    const usuario  = log.nombre || '';
+                    const wapp     = log.whatsapp || '';
+
+                    if (comercio) {
+                        detalle = `${codigo ? '<span style="color:var(--dorado);font-weight:bold;">' + codigo + '</span> — ' : ''}canjeó beneficio VIP en <b>${comercio}</b>`;
+                        if (usoNum !== '') detalle += ` <span style="color:#8892b0;">(uso ${usoNum})</span>`;
+                        if (usuario) detalle += ` · <b>${usuario}</b>`;
+                        if (wapp)    detalle += ` <span class="wapp-badge">📱 ${wapp}</span>`;
+                    } else {
+                        detalle = log.detalle || log.nombre || '---';
+                    }
+
                 } else if (accionUp.includes('NUEVO REGISTRO VIP') || accionUp.includes('INSCRIPCIÓN VIP')) {
                     detalle = `✨ ${log.detalle || log.nombre || 'Nuevo socio VIP'} ✨`;
                 } else {
