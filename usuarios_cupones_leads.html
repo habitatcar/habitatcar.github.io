@@ -254,13 +254,13 @@ transform: translateY(-2px);
 100% { background-color: white; }
 }
 @keyframes destello-centrifugo {
-0% { box-shadow: 0 0 0 0 rgba(245, 124, 0, 0.9); transform: scale(1); }
-50% { box-shadow: 0 0 0 25px rgba(245, 124, 0, 0.4); transform: scale(1.03); }
-100% { box-shadow: 0 0 0 45px rgba(245, 124, 0, 0); transform: scale(1); }
+0% { box-shadow: 0 0 0 0 rgba(245,124,0,0.9); transform: scale(1); }
+50% { box-shadow: 0 0 0 25px rgba(245,124,0,0.4); transform: scale(1.03); }
+100% { box-shadow: 0 0 0 45px rgba(245,124,0,0); transform: scale(1); }
 }
 @keyframes borde-brillante {
-0%, 100% { border-color: var(--naranja-sorteo); box-shadow: 0 0 10px var(--naranja-sorteo); }
-50% { border-color: #ff9800; box-shadow: 0 0 25px var(--naranja-sorteo); }
+0%, 100% { border-color: var(--naranja-sorteo); box-shadow: 0 0 10px var(--naranja-sorteo), 0 0 20px rgba(245,124,0,0.5); }
+50% { border-color: #ff9800; box-shadow: 0 0 25px var(--naranja-sorteo), 0 0 50px rgba(245,124,0,0.8); }
 }
 @keyframes onda-expansiva {
 0% { width: 100%; height: 100%; opacity: 1; }
@@ -315,7 +315,7 @@ transform: translate(-50%, -50%);
 width: 100%;
 height: 100%;
 border-radius: 8px;
-background: rgba(245, 124, 0, 0.3);
+background: rgba(245,124,0,0.3);
 animation: onda-expansiva 1.5s infinite;
 z-index: -1;
 }
@@ -554,7 +554,7 @@ width: 90%;
 max-width: 380px;
 text-align: center;
 border: 3px solid var(--dorado);
-box-shadow: 0 0 50px rgba(212, 175, 55, 0.3);
+box-shadow: 0 0 50px rgba(212,175,55,0.3);
 animation: aparecerModal 0.5s ease;
 }
 @keyframes aparecerModal {
@@ -780,7 +780,20 @@ let filtroCercaniaActivo = false;
 let scrollPosition = 0;
 
 // ============================================
-// ⭐ CORRECCIÓN: Verificar reset SOLO cuando hay cambio real
+// ⭐ FUNCIÓN PARA GENERAR CÓDIGO ALEATORIO ÚNICO (4 letras + 4 números)
+// ============================================
+function generarCodigoLeadAleatorio() {
+    const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+    let parteLetras = '';
+    for (let i = 0; i < 4; i++) {
+        parteLetras += letras.charAt(Math.floor(Math.random() * letras.length));
+    }
+    const numeros = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+    return `${parteLetras}-${numeros}`;
+}
+
+// ============================================
+// VERIFICAR RESET
 // ============================================
 async function verificarYAplicarResetCupones() {
     if (!leadId || leadId.startsWith('invitado_')) return;
@@ -791,29 +804,21 @@ async function verificarYAplicarResetCupones() {
         const resetGlobalFirestore = data.ultimoResetGlobal || null;
         const resetGlobalLocal = localStorage.getItem('ultimoResetGlobal_local');
         
-        // ⭐ Solo actuar si hay un NUEVO reset (timestamp diferente y mayor)
         if (resetGlobalFirestore && resetGlobalLocal) {
             const firestoreTime = parseInt(resetGlobalFirestore);
             const localTime = parseInt(resetGlobalLocal);
-            // Solo si el timestamp de Firestore es MAYOR al local
             if (firestoreTime > localTime) {
                 console.log("🔄 Detectado reset global NUEVO. Limpiando contadores de cupones...");
-                // Limpiar solo contadores de cupones (NO tocar progreso VIP)
                 Object.keys(localStorage).forEach(key => {
                     if (key.startsWith('uso_lead_') || key.startsWith('toco_sorteo_')) {
                         localStorage.removeItem(key);
                     }
                 });
-                // Limpiar inicios de cupones
                 localStorage.removeItem('inicios_cupones');
-                // Actualizar el timestamp local para sincronizar
                 localStorage.setItem('ultimoResetGlobal_local', resetGlobalFirestore.toString());
-                // Mostrar notificación amigable
                 mostrarNotificacionReset();
             }
         } else if (resetGlobalFirestore && !resetGlobalLocal) {
-            // ⭐ Primera vez que el usuario entra después de que admin implementó el reset
-            // Guardar el timestamp pero NO limpiar nada (el usuario ya tiene sus contadores)
             localStorage.setItem('ultimoResetGlobal_local', resetGlobalFirestore.toString());
             console.log("📝 Timestamp de reset guardado por primera vez");
         }
@@ -822,9 +827,6 @@ async function verificarYAplicarResetCupones() {
     }
 }
 
-// ============================================
-// MOSTRAR NOTIFICACIÓN DE RESET (UX amigable)
-// ============================================
 function mostrarNotificacionReset() {
     const notif = document.createElement('div');
     notif.style.cssText = `
@@ -843,29 +845,17 @@ function mostrarNotificacionReset() {
     }, 4000);
 }
 
-// ============================================
-// FUNCIÓN PARA NORMALIZAR TEXTO (sin acentos)
-// ============================================
 function normalizarTexto(texto) {
     if (!texto) return '';
-    return texto
-        .toLowerCase()
-        .normalize('NFD')
-        .replace(/[\u0300-\u036f]/g, '')
-        .trim();
+    return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
 }
 
-// ============================================
-// FUNCIÓN PARA ACTUALIZAR CONTADOR DE PROGRESO VIP
-// Usa el campo USOS_PARA_VIP (que NUNCA se resetea)
-// ============================================
 async function actualizarContadorProgreso() {
     if (!leadId || leadId.startsWith('invitado_')) return;
     try {
         const docSnap = await getDoc(doc(db, "leads", leadId));
         if (docSnap.exists()) {
             const data = docSnap.data();
-            // ⭐ USAR EL CAMPO EXCLUSIVO PARA VIP (no se resetea)
             const usosVip = data.usos_para_vip || 0;
             usosParaVip = usosVip;
             const porcentaje = Math.min(100, (usosVip / 100) * 100);
@@ -880,7 +870,6 @@ async function actualizarContadorProgreso() {
             } else {
                 medallaIcono.innerHTML = '🏅';
             }
-            // Verificar si alcanzó 100 usos y mostrar modal
             const yaRecibioRecompensa = localStorage.getItem('recompensa_vip_100') === 'true';
             if (usosVip >= 100 && !yaRecibioRecompensa && !modalVipMostrado) {
                 mostrarModalRecompensaVIP(usosVip);
@@ -893,9 +882,6 @@ async function actualizarContadorProgreso() {
     }
 }
 
-// ============================================
-// MOSTRAR MODAL DE RECOMPENSA VIP
-// ============================================
 function mostrarModalRecompensaVIP(usos) {
     const overlay = document.createElement('div');
     overlay.className = 'modal-vip-recompensa';
@@ -915,7 +901,6 @@ function mostrarModalRecompensaVIP(usos) {
         </div>
     `;
     document.body.appendChild(overlay);
-    // Guardar en Firestore que ya recibió la recompensa
     if (leadId && !leadId.startsWith('invitado_')) {
         updateDoc(doc(db, "leads", leadId), {
             recompensa_vip_recibida: true,
@@ -924,9 +909,6 @@ function mostrarModalRecompensaVIP(usos) {
     }
 }
 
-// ============================================
-// FUNCIONES DE GEOLOCALIZACIÓN
-// ============================================
 function obtenerUbicacion() {
     return new Promise((resolve) => {
         if (!navigator.geolocation) {
@@ -969,9 +951,6 @@ function calcularDistancia(lat1, lng1, lat2, lng2) {
     return R * c;
 }
 
-// ============================================
-// CARGAR PROVINCIAS Y LOCALIDADES
-// ============================================
 async function cargarProvincias() {
     try {
         const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre&max=100");
@@ -1006,9 +985,6 @@ async function cargarLocalidades(provincia) {
     } catch(e) { console.error("Error cargando localidades:", e); }
 }
 
-// ============================================
-// FUNCIONES DE FILTRO (TOGGLE)
-// ============================================
 function resetearFiltrosRapidos() {
     filtroProvinciaActivo = false;
     filtroLocalidadActivo = false;
@@ -1238,9 +1214,6 @@ onSnapshot(collection(db, "comercios"), (snap) => {
     aplicarFiltros();
 });
 
-// ============================================
-// FUNCIONES AUXILIARES
-// ============================================
 let scanner = null;
 let idEnProceso = "";
 let tokenEsperado = "";
@@ -1329,8 +1302,10 @@ window.finalizar = async (id, nom) => {
             alert("❌ Ya has agotado todos los usos de este cupón");
             return;
         }
-        const totalActual = (dataCom.totalUsos || 0) + 1;
-        const idManual = "HAB-" + String(totalActual).padStart(4, '0');
+        
+        // ⭐ GENERAR CÓDIGO ALEATORIO ÚNICO (4 letras + 4 números)
+        const idManual = generarCodigoLeadAleatorio();
+        
         await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
         try {
             const nombreUsuario = usuarioData
@@ -1350,17 +1325,13 @@ window.finalizar = async (id, nom) => {
         const leadRef = doc(db, "leads", leadId);
         const leadDoc = await getDoc(leadRef);
         const leadData = leadDoc.data();
-        const usosActualesParaVip = leadData.usos_para_vip || 0;
-        // ⭐ ACTUALIZAR CON DOS CONTADORES SEPARADOS:
-        // - usos_count: se resetea (para mostrar en admin)
-        // - usos_para_vip: NUNCA se resetea (para el progreso VIP)
         await updateDoc(leadRef, {
             [`canjes_por_comercio.${idComercioLimpio}`]: {
                 comercio: nom, codigo: idManual, fecha: fechaLegible,
                 hora: horaLegible, cantidad_usos: increment(1)
             },
-            usos_count: increment(1),                    // SE RESETEA
-            usos_para_vip: increment(1),                 // ⭐ NUNCA SE RESETEA
+            usos_count: increment(1),
+            usos_para_vip: increment(1),
             cupones_detallados: arrayUnion({
                 comercio: nom, fecha: fechaLegible, hora: horaLegible,
                 codigo: idManual, timestamp: timestamp, usoNumero: nuevosUsos
@@ -1368,7 +1339,6 @@ window.finalizar = async (id, nom) => {
             lastSubmission: timestamp
         });
         localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
-        // Actualizar contador de progreso después del canje
         setTimeout(actualizarContadorProgreso, 500);
         const btnUsar = document.getElementById(`btn-usar-${id}`);
         if (btnUsar) {
@@ -1415,14 +1385,8 @@ window.abrirPopupPostulaciones = () => {
     overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 };
 
-// ============================================
-// ⭐ INICIALIZACIÓN CORREGIDA
-// ============================================
 async function inicializarApp() {
-    // 1️⃣ Primero verificar si hay reset pendiente (solo si hay cambio real)
     await verificarYAplicarResetCupones();
-    
-    // 2️⃣ Luego cargar datos del usuario y contador VIP
     if (leadId && !leadId.startsWith('invitado_')) {
         try {
             const docSnap = await getDoc(doc(db, "leads", leadId));
@@ -1441,8 +1405,6 @@ async function inicializarApp() {
         cargarProvincias();
     }
 }
-
-// Ejecutar inicialización
 inicializarApp();
 </script>
 <script>
