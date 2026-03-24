@@ -420,7 +420,7 @@
             border: none;
             cursor: pointer;
             font-family: 'Inter', sans-serif;
-            height: 18px;
+            height: 28px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -1079,6 +1079,13 @@
                     : '';
                 const beneficioVipTexto = [descVipDisplay, detalleVip].filter(Boolean).join(' ') || 'Consultar';
                 const beneficioVipParaLog = beneficioVipTexto.replace(/'/g, "\\'");
+
+                // ── BOTÓN USAR BENEFICIO: verificar límite de usos ──
+                const limitUsos = parseInt(c.usosVip) || 0;
+                const usosAgotados = limitUsos > 0 && nUso >= limitUsos;
+                const botonUsarBeneficio = usosAgotados
+                    ? `<button class="btn-act btn-usar" id="btn-usar-${c.id}" style="background:#111;color:#444;border-color:#333;pointer-events:none;cursor:not-allowed;">Beneficio agotado <span class="contador-nube" style="background:#444;">${nUso}/${limitUsos}</span></button>`
+                    : `<button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarCajeroVIP('${c.id}', '${(c.nombre||'').replace(/'/g,"\\'")}', '${beneficioVipParaLog}')">Usar beneficio <span class="contador-nube">${nUso}</span></button>`;
                 
                 html += `
                     <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">
@@ -1092,14 +1099,10 @@
                             ${botonSorteo}
                             <button class="btn-act btn-llegar" onclick="window.open('${mapsUrl}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" id="btn-val-${c.id}" onclick="abrirQR('${c.id}', '${c.tokenQR}')">Validar con QR</button>
-                            ${(() => {
-                                const limitUsos = parseInt(c.usosVip) || 0;
-                                const agotado = limitUsos > 0 && nUso >= limitUsos;
-                                if (agotado) {
-                                    return `<button class="btn-act btn-usar" id="btn-usar-${c.id}" style="background:#111;color:#444;border-color:#333;pointer-events:none;cursor:not-allowed;">Beneficio agotado <span class="contador-nube" style="background:#444;">${nUso}/${limitUsos}</span></button>`;
-                                }
-                                return `<button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarCajeroVIP('${c.id}', '${(c.nombre||'').replace(/'/g,"\\'")}', '${beneficioVipParaLog}')">Usar beneficio <span class="contador-nube">${nUso}</span></button>`;
-                            })()}
+                            ${botonUsarBeneficio}
+                        </div>
+                    </div>`;
+            });
             
             localStorage.setItem('inicios_cupones_vip', JSON.stringify(inicios));
             contenedor.innerHTML = html;
