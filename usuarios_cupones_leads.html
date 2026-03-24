@@ -125,7 +125,7 @@
         }
         /* ========== FIN CONTADOR ========== */
 
-        /* FILTROS COMPACTOS */
+        /* FILTROS COMPACTOS - REORGANIZADOS */
         .filtros-container {
             background: rgba(255,255,255,0.12);
             padding: 8px 12px;
@@ -135,7 +135,8 @@
         .fila-filtros {
             display: flex;
             gap: 8px;
-            margin-bottom: 6px;
+            margin-bottom: 8px;
+            flex-wrap: wrap;
         }
         
         .fila-filtros:last-child {
@@ -144,6 +145,21 @@
         
         .filtro-select {
             flex: 1;
+            padding: 10px 6px;
+            border-radius: 10px;
+            border: none;
+            font-size: 13px;
+            font-weight: 500;
+            font-family: 'Inter', sans-serif;
+            background: white;
+            color: var(--azul-habitat);
+            text-align: center;
+            cursor: pointer;
+        }
+        
+        /* Selector de provincia ocupa todo el ancho en móvil */
+        .filtro-select-provincia {
+            width: 100%;
             padding: 10px 6px;
             border-radius: 10px;
             border: none;
@@ -669,7 +685,7 @@
         <img src="https://raw.githubusercontent.com/habitatcar/habitatcar.github.io/main/logo.png" alt="Habitat Car">
     </div>
 
-    <!-- ========== CONTADOR DE PROGRESO VIP - VERSIÓN FINA ========== -->
+    <!-- ========== CONTADOR DE PROGRESO VIP ========== -->
     <div class="progreso-vip" id="progresoContainer">
         <div class="progreso-info">
             <span>🏆 TU PROGRESO VIP</span>
@@ -682,12 +698,14 @@
     </div>
     <!-- ========== FIN CONTADOR ========== -->
 
-    <!-- FILTROS COMPACTOS -->
+    <!-- FILTROS COMPACTOS - REORGANIZADOS (LOCALIDAD DEBAJO DE PROVINCIA) -->
     <div class="filtros-container">
         <div class="fila-filtros">
-            <select id="filtroProvincia" class="filtro-select" onchange="cambiarFiltroProvincia(this.value)">
+            <select id="filtroProvincia" class="filtro-select-provincia" onchange="cambiarFiltroProvincia(this.value)">
                 <option value="">TODAS LAS PROVINCIAS</option>
             </select>
+        </div>
+        <div class="fila-filtros">
             <select id="filtroLocalidad" class="filtro-select" onchange="cambiarFiltroLocalidad(this.value)">
                 <option value="">TODAS LAS LOCALIDADES</option>
             </select>
@@ -922,7 +940,7 @@
         }
 
         // ============================================
-        // VERIFICAR RESET GLOBAL DEL USUARIO
+        // VERIFICAR RESET GLOBAL - IMPORTANTE: NO RESETEA usos_count
         // ============================================
         async function verificarResetGlobal() {
             if (!leadId || leadId.startsWith('invitado_')) return;
@@ -934,8 +952,11 @@
                     const resetTimestamp = data.ultimoResetGlobal || 0;
                     
                     if (resetTimestamp > parseInt(ultimoResetDetectado)) {
-                        console.log("🔄 Reset global detectado. Limpiando localStorage...");
+                        console.log("🔄 Reset global detectado. Limpiando localStorage de cupones individuales...");
+                        console.log("⚠️ IMPORTANTE: El contador de progreso VIP NO se resetea.");
                         
+                        // Limpiar SOLO los usos individuales de cada comercio
+                        // NO tocar usos_count (contador de progreso VIP)
                         const keys = Object.keys(localStorage);
                         keys.forEach(key => {
                             if (key.startsWith('uso_lead_')) {
@@ -949,6 +970,7 @@
                         ultimoResetDetectado = resetTimestamp.toString();
                         localStorage.setItem('ultimoResetDetectado', ultimoResetDetectado);
                         
+                        // Recargar la página para refrescar los cupones
                         location.reload();
                     }
                 }
@@ -1444,7 +1466,7 @@
                         comercio: nom, codigo: idManual, fecha: fechaLegible,
                         hora: horaLegible, cantidad_usos: increment(1)
                     },
-                    usos_count: increment(1),
+                    usos_count: increment(1),  // ⭐ ESTE ES EL CONTADOR DE PROGRESO VIP - NO SE RESETEA
                     cupones_detallados: arrayUnion({
                         comercio: nom, fecha: fechaLegible, hora: horaLegible,
                         codigo: idManual, timestamp: timestamp, usoNumero: nuevosUsos
