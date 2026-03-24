@@ -465,7 +465,7 @@ font-size: 11px;
 border: none;
 cursor: pointer;
 font-family: 'Inter', sans-serif;
-height: 18px;
+height: 28px;
 display: flex;
 align-items: center;
 justify-content: center;
@@ -780,9 +780,7 @@ let filtroCercaniaActivo = false;
 let scrollPosition = 0;
 
 // ============================================
-// ⭐ NUEVA FUNCIÓN: VERIFICAR Y APLICAR RESET DE CUPONES
-// Compara ultimoResetGlobal de Firestore con localStorage
-// Si hay diferencia → limpia contadores de cupones (NO toca VIP)
+// ⭐ CORRECCIÓN: Verificar reset SOLO cuando hay cambio real
 // ============================================
 async function verificarYAplicarResetCupones() {
     if (!leadId || leadId.startsWith('invitado_')) return;
@@ -792,21 +790,32 @@ async function verificarYAplicarResetCupones() {
         const data = docSnap.data();
         const resetGlobalFirestore = data.ultimoResetGlobal || null;
         const resetGlobalLocal = localStorage.getItem('ultimoResetGlobal_local');
-        // ⭐ Si hay un nuevo reset en Firestore → aplicar limpieza
-        if (resetGlobalFirestore && resetGlobalFirestore !== resetGlobalLocal) {
-            console.log("🔄 Detectado reset global. Limpiando contadores de cupones...");
-            // Limpiar solo contadores de cupones (NO tocar progreso VIP)
-            Object.keys(localStorage).forEach(key => {
-                if (key.startsWith('uso_lead_') || key.startsWith('toco_sorteo_')) {
-                    localStorage.removeItem(key);
-                }
-            });
-            // Limpiar inicios de cupones
-            localStorage.removeItem('inicios_cupones');
-            // Actualizar el timestamp local para sincronizar
+        
+        // ⭐ Solo actuar si hay un NUEVO reset (timestamp diferente y mayor)
+        if (resetGlobalFirestore && resetGlobalLocal) {
+            const firestoreTime = parseInt(resetGlobalFirestore);
+            const localTime = parseInt(resetGlobalLocal);
+            // Solo si el timestamp de Firestore es MAYOR al local
+            if (firestoreTime > localTime) {
+                console.log("🔄 Detectado reset global NUEVO. Limpiando contadores de cupones...");
+                // Limpiar solo contadores de cupones (NO tocar progreso VIP)
+                Object.keys(localStorage).forEach(key => {
+                    if (key.startsWith('uso_lead_') || key.startsWith('toco_sorteo_')) {
+                        localStorage.removeItem(key);
+                    }
+                });
+                // Limpiar inicios de cupones
+                localStorage.removeItem('inicios_cupones');
+                // Actualizar el timestamp local para sincronizar
+                localStorage.setItem('ultimoResetGlobal_local', resetGlobalFirestore.toString());
+                // Mostrar notificación amigable
+                mostrarNotificacionReset();
+            }
+        } else if (resetGlobalFirestore && !resetGlobalLocal) {
+            // ⭐ Primera vez que el usuario entra después de que admin implementó el reset
+            // Guardar el timestamp pero NO limpiar nada (el usuario ya tiene sus contadores)
             localStorage.setItem('ultimoResetGlobal_local', resetGlobalFirestore.toString());
-            // Mostrar notificación amigable
-            mostrarNotificacionReset();
+            console.log("📝 Timestamp de reset guardado por primera vez");
         }
     } catch(e) {
         console.error("Error verificando reset:", e);
@@ -833,15 +842,6 @@ function mostrarNotificacionReset() {
         setTimeout(() => notif.remove(), 300);
     }, 4000);
 }
-// Animación para la notificación
-const style = document.createElement('style');
-style.textContent = `
-@keyframes slideDown {
-    from { transform: translate(-50%, -100px); opacity: 0; }
-    to { transform: translate(-50%, 0); opacity: 1; }
-}
-`;
-document.head.appendChild(style);
 
 // ============================================
 // FUNCIÓN PARA NORMALIZAR TEXTO (sin acentos)
@@ -1416,10 +1416,10 @@ window.abrirPopupPostulaciones = () => {
 };
 
 // ============================================
-// ⭐ INICIALIZACIÓN: VERIFICAR RESET + CARGAR DATOS
+// ⭐ INICIALIZACIÓN CORREGIDA
 // ============================================
 async function inicializarApp() {
-    // 1️⃣ Primero verificar si hay reset pendiente
+    // 1️⃣ Primero verificar si hay reset pendiente (solo si hay cambio real)
     await verificarYAplicarResetCupones();
     
     // 2️⃣ Luego cargar datos del usuario y contador VIP
