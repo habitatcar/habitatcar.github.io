@@ -425,7 +425,7 @@
         let todasLasLocalidades = [];
 
         // ============================================
-        // ⭐ FUNCIÓN PARA GENERAR CÓDIGO VIP ALEATORIO ÚNICO (4 letras + 4 números)
+        // FUNCIÓN PARA GENERAR CÓDIGO VIP ALEATORIO ÚNICO (4 letras + 4 números)
         // ============================================
         function generarCodigoVipAleatorio() {
             const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
@@ -695,6 +695,7 @@
             const inicios = JSON.parse(localStorage.getItem('inicios_cupones_vip') || "{}");
             comercios.forEach(c => {
                 const nUso = parseInt(localStorage.getItem('uso_vip_' + c.id) || "0");
+                const limitUsos = parseInt(c.usosVip) || 0;
                 const vigenciaTotal = parseInt(c.vigenciaVip) || 0;
                 let diasRestantes = vigenciaTotal;
                 let mostrarReloj = vigenciaTotal > 0;
@@ -726,11 +727,19 @@
                 const beneficioVipTexto = [descVipDisplay, detalleVip].filter(Boolean).join(' ') || 'Consultar';
                 const beneficioVipParaLog = beneficioVipTexto.replace(/'/g, "\\'");
 
-                const limitUsos = parseInt(c.usosVip) || 0;
-                const usosAgotados = limitUsos > 0 && nUso >= limitUsos;
-                const botonUsarBeneficio = usosAgotados
-                    ? `<button class="btn-act btn-usar" id="btn-usar-${c.id}" style="background:#111;color:#444;border-color:#333;pointer-events:none;cursor:not-allowed;">Beneficio agotado <span class="contador-nube" style="background:#444;">${nUso}/${limitUsos}</span></button>`
-                    : `<button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarCajeroVIP('${c.id}', '${(c.nombre||'').replace(/'/g,"\\'")}', '${beneficioVipParaLog}')">Usar beneficio <span class="contador-nube">${nUso}</span></button>`;
+                // ⭐ CONTADOR CORREGIDO: muestra usos_realizados / usos_totales
+                let textoBoton = '';
+                if (limitUsos > 0) {
+                    textoBoton = `Usar beneficio <span class="contador-nube">${nUso}/${limitUsos}</span>`;
+                } else {
+                    textoBoton = `Usar beneficio <span class="contador-nube">${nUso}</span>`;
+                }
+
+                // Verificar si está agotado
+                const esAgotado = limitUsos > 0 && nUso >= limitUsos;
+                const botonUsarBeneficio = esAgotado
+                    ? `<button class="btn-act btn-usar" id="btn-usar-${c.id}" style="background:#111;color:#444;border-color:#333;pointer-events:none;cursor:not-allowed;">AGOTADO <span class="contador-nube" style="background:#444;">${nUso}/${limitUsos}</span></button>`
+                    : `<button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarCajeroVIP('${c.id}', '${(c.nombre||'').replace(/'/g,"\\'")}', '${beneficioVipParaLog}')">${textoBoton}</button>`;
 
                 html += `
                     <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">
@@ -837,8 +846,9 @@
                 const comercioRef = doc(db, "comercios", id);
                 const snapComercio = await getDoc(comercioRef);
                 const dataCom = snapComercio.data();
+                const limitUsos = parseInt(dataCom.usosVip) || 0;
                 
-                // ⭐ GENERAR CÓDIGO VIP ALEATORIO ÚNICO (4 letras + 4 números)
+                // ⭐ GENERAR CÓDIGO VIP ALEATORIO ÚNICO
                 const codigoIdentidad = generarCodigoVipAleatorio();
 
                 await updateDoc(comercioRef, {
@@ -879,7 +889,7 @@
                     nombreComercio: nom, idValidacion: codigoIdentidad, usoNumero: nUsoLocal,
                     nombre: nombreUsuario, whatsapp: whatsappUsuario,
                     usuarioId: leadIdLocal || '', comercioId: id, modulo: "VIPS",
-                    detalle: `${nombreUsuario}${whatsappUsuario ? ' · ' + whatsappUsuario : ''} canjeó beneficio VIP en ${nom} (uso ${nUsoLocal})`
+                    detalle: `${nombreUsuario}${whatsappUsuario ? ' · ' + whatsappUsuario : ''} canjeó beneficio VIP en ${nom} (uso ${nUsoLocal}${limitUsos > 0 ? '/' + limitUsos : ''})`
                 });
 
                 await addDoc(collection(db, "logs_vip"), { 
