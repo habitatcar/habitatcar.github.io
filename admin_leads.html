@@ -274,9 +274,9 @@
     </div>
 
     <div class="table-wrapper">
-          <table>
+           <table>
             <thead>
-                  <tr>
+                   <tr>
                     <th onclick="ordenar('fechaRegistro')">REGISTRO ↕</th>
                     <th onclick="ordenar('lastSubmission')">ÚLT. ACTIVIDAD ↕</th>
                     <th onclick="ordenar('apellido')">APELLIDO Y NOMBRE ↕</th>
@@ -288,10 +288,10 @@
                         <div class="acciones-header">ACCIONES</div>
                     </th>
                     <th class="col-checkbox"><input type="checkbox" id="select-all" onclick="seleccionarTodos(this.checked)"></th>
-                  </tr>
+                   </tr>
             </thead>
             <tbody id="lista-leads"></tbody>
-          </table>
+           </table>
     </div>
 
     <script type="module">
@@ -476,7 +476,7 @@
                         <td class="col-checkbox">
                             <input type="checkbox" class="checkbox-multi lead-checkbox" value="${l.id}">
                         </td>
-                      </tr>
+                       </tr>
                 `;
             });
         }
@@ -500,16 +500,18 @@
         }
 
         // =============================================
-        // restablecerCupones - CORREGIDO (guarda ultimoResetGlobal)
+        // ⭐ restablecerCupones - CORREGIDO: NO TOCA usos_para_vip
         // =============================================
         window.restablecerCupones = async (id) => {
             const lead = todosLosLeads.find(l => l.id === id);
             const nombre = lead
                 ? `${(lead.apellido || '').toUpperCase()}, ${(lead.nombres || '').toUpperCase()}`
                 : id;
-            if(confirm(`¿Restablecer TODOS los beneficios de ${nombre}?`)) {
+            if(confirm(`¿Restablecer TODOS los beneficios de ${nombre}?\n\n⚠️ IMPORTANTE: El contador de progreso VIP (usos_para_vip) NO se verá afectado.`)) {
                 try {
                     const leadRef = doc(db, "leads", id);
+                    // ⭐ Solo resetear usos_count y canjes_por_comercio
+                    // ⭐ NO tocar usos_para_vip (es el contador exclusivo para progreso VIP)
                     await updateDoc(leadRef, { 
                         usos_count: 0,
                         canjes_por_comercio: deleteField(),
@@ -517,8 +519,8 @@
                         ultimoResetGlobal: Date.now()
                     });
                     await registrarActividad(id, nombre, "RESTABLECER CUPONES", "GESTION LEAD",
-                        `Cupones de ${nombre} restablecidos desde el panel admin`);
-                    alert("Beneficios restablecidos con éxito.");
+                        `Cupones de ${nombre} restablecidos desde el panel admin (contador VIP usos_para_vip conservado)`);
+                    alert("✅ Beneficios restablecidos con éxito.\n📊 El progreso VIP del usuario NO se ha modificado.");
                 } catch(e) { 
                     console.error(e); 
                     alert("Error al restablecer."); 
@@ -571,7 +573,7 @@
         };
 
         // =============================================
-        // validarYRestablecerMasivo — loguea cada usuario
+        // ⭐ validarYRestablecerMasivo — NO TOCA usos_para_vip
         // =============================================
         window.validarYRestablecerMasivo = async (tipo) => {
             if (!tipo) return;
@@ -583,11 +585,13 @@
             else if (tipo === "provincia") filtrados = todosLosLeads.filter(l => l.provincia_normalized === document.getElementById('filtro-provincia').value);
             else if (tipo === "localidad") filtrados = todosLosLeads.filter(l => l.localidad_normalized === document.getElementById('filtro-localidad').value);
 
-            if(confirm(`¿Restablecer cupones de ${filtrados.length} usuarios?`)) {
+            if(confirm(`⚠️ ¿Restablecer cupones de ${filtrados.length} usuarios?\n\n📊 El contador de progreso VIP (usos_para_vip) NO se modificará.`)) {
                 const batch = writeBatch(db);
                 const ahora = Date.now();
                 filtrados.forEach(l => {
                     const leadRef = doc(db, "leads", l.id);
+                    // ⭐ Solo resetear usos_count y canjes_por_comercio
+                    // ⭐ NO tocar usos_para_vip
                     batch.update(leadRef, { 
                         usos_count: 0, 
                         lastSubmission: ahora,
@@ -600,10 +604,10 @@
                 for (const l of filtrados) {
                     const nombre = `${(l.apellido||'').toUpperCase()}, ${(l.nombres||'').toUpperCase()}`;
                     await registrarActividad(l.id, nombre, "RESTABLECER CUPONES (MASIVO)", "GESTION LEAD",
-                        `Restablecimiento masivo (${tipo}) — ${nombre}`);
+                        `Restablecimiento masivo (${tipo}) — ${nombre} (contador VIP conservado)`);
                 }
 
-                alert("Restablecimiento masivo completado.");
+                alert(`✅ Restablecimiento masivo completado.\n📊 Los ${filtrados.length} usuarios conservan su progreso VIP.`);
                 location.reload();
             }
         };
