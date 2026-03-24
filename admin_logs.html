@@ -196,6 +196,20 @@
             font-weight: bold;
             font-size: 14px;
         }
+
+        /* ── WHATSAPP BADGE ── */
+        .wapp-badge {
+            display: inline-block;
+            background: rgba(37,211,102,0.15);
+            color: #25d366;
+            border: 1px solid #25d366;
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 0.82em;
+            font-weight: 600;
+            margin-left: 4px;
+            white-space: nowrap;
+        }
     </style>
 </head>
 <body>
@@ -284,7 +298,7 @@
             from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
-            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+            apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoX5k9PD8SUXM",
             authDomain: "habitatcar-pro.firebaseapp.com",
             projectId: "habitatcar-pro",
             storageBucket: "habitatcar-pro.firebasestorage.app",
@@ -300,7 +314,6 @@
         let logsFiltrados = [];
         let mapaLeads = {};
         
-        // Estado de ordenamiento
         let estadoOrden = {
             campo: 'timestamp',
             direccion: 'desc'
@@ -323,14 +336,14 @@
                     try{const s=await getDocs(query(collection(db,col),where("estado","==","pendiente")));if(el(elId))el(elId).innerText=s.size;}catch(e){}
                 }
 
-                // cargar mapa provincia/localidad desde leads
                 mapaLeads = {};
                 todosSnap.forEach(d => {
                     const data = d.data();
                     mapaLeads[d.id] = {
                         provincia: (data.provincia||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(),
                         localidad: (data.localidad||data.ciudad||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim(),
-                        nombreCompleto: `${data.apellido || ''} ${data.nombres || ''}`.trim()
+                        nombreCompleto: `${data.apellido || ''} ${data.nombres || ''}`.trim(),
+                        whatsapp: data.whatsapp || ''
                     };
                 });
             } catch(e){console.error(e);}
@@ -338,7 +351,7 @@
         actualizarContadores();
         setInterval(actualizarContadores, 30000);
 
-        /* ── PROVINCIAS / LOCALIDADES para el filtro del log ── */
+        /* ── PROVINCIAS / LOCALIDADES ── */
         async function cargarProvinciasLog() {
             try {
                 const res  = await fetch('https://apis.datos.gob.ar/georef/api/provincias?campos=nombre&max=100');
@@ -374,35 +387,27 @@
         /* ── SNAPSHOT LOGS EN TIEMPO REAL ── */
         const qLogs = query(collection(db,"logs_actividad"), orderBy("timestamp","desc"), limit(1000));
         onSnapshot(qLogs, snap => {
-            console.log("Snapshot logs recibido, cambios:", snap.docChanges().length);
             todosLosLogs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
             filtrar();
         });
 
-        /* ── CLASIFICAR TIPO para el badge ── */
+        /* ── CLASIFICAR TIPO ── */
         function clasificar(log) {
             const accion = (log.accion||'').toUpperCase();
             const tipo   = (log.tipo||'').toUpperCase();
             
-            // NUEVO REGISTRO VIP / INSCRIPCIÓN VIP
             if (accion.includes('NUEVO REGISTRO VIP') || accion.includes('INSCRIPCIÓN VIP') || accion.includes('NUEVO VIP')) {
                 return { cls:'b-nuevo-vip', label:'⭐ NUEVO VIP', tipoLabel: 'INSCRIPCIÓN VIP' };
             }
-            
-            // INSCRIPCIÓN nueva (genérica)
             if (accion.includes('INSCRIPCIÓN') || accion.includes('INSCRIPCION') || tipo.includes('INSCRIPCION')) {
                 return { cls:'b-inscripcion', label:'📝 INSCRIPCIÓN', tipoLabel: 'INSCRIPCIÓN' };
             }
-            
-            // CANJES
             if (accion.includes('CANJE VIP') || (accion.includes('CANJE') && tipo==='VIP')) {
                 return { cls:'b-canje-vip', label:'💎 CANJE VIP', tipoLabel: 'CANJE VIP' };
             }
-            if (accion.includes('CANJE LEAD') || (accion.includes('CANJE') && tipo==='LEAD')) {
+            if (accion.includes('CANJE LEAD') || (accion.includes('CANJE') && tipo==='LEAD') || tipo==='CANJE') {
                 return { cls:'b-canje-lead', label:'🔄 CANJE LEAD', tipoLabel: 'CANJE LEAD' };
             }
-
-            // GESTIÓN VIP (suspender/activar/restablecer/eliminar)
             if (tipo==='VIP' || accion.includes('SUSPENDER VIP') || accion.includes('ACTIVAR VIP') || 
                 accion.includes('BAJA VIP') || accion.includes('RESTABLECER CUPONES VIP') || accion.includes('ELIMINAR VIP')) {
                 if (accion.includes('BAJA VIP')) return { cls:'b-gestion-vip', label:'⬇️ BAJA VIP', tipoLabel: 'BAJA VIP' };
@@ -410,22 +415,17 @@
                 if (accion.includes('ELIMINAR')) return { cls:'b-gestion-vip', label:'🗑️ ELIMINAR VIP', tipoLabel: 'ELIMINAR' };
                 return { cls:'b-gestion-vip', label:'⚙️ GESTIÓN VIP', tipoLabel: 'GESTIÓN VIP' };
             }
-
-            // GESTIÓN LEAD
             if (tipo==='GESTION LEAD' || accion.includes('SUSPENDER LEAD') || accion.includes('ACTIVAR LEAD') || 
                 accion.includes('ELIMINAR LEAD') || accion.includes('RESTABLECER LEAD')) {
                 return { cls:'b-gestion-lead', label:'⚙️ GESTIÓN LEAD', tipoLabel: 'GESTIÓN LEAD' };
             }
-
-            // LEAD genérico
             if (tipo==='LEAD') {
                 return { cls:'b-gestion-lead', label:'👤 LEAD', tipoLabel: 'LEAD' };
             }
-
             return { cls:'b-sistema', label:'💻 SISTEMA', tipoLabel: tipo || 'SISTEMA' };
         }
 
-        /* ── CATEGORÍA para el filtro de módulo ── */
+        /* ── CATEGORÍA MÓDULO ── */
         function categoriaModulo(log) {
             const accion = (log.accion||'').toUpperCase();
             const tipo   = (log.tipo||'').toUpperCase();
@@ -445,25 +445,21 @@
             const fecha = new Date(timestamp);
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
-            
             if (rango === 'hoy') {
                 const fechaInicio = new Date(fecha);
                 fechaInicio.setHours(0, 0, 0, 0);
                 return fechaInicio.getTime() === hoy.getTime();
             }
-            
             if (rango === '7d') {
                 const hace7Dias = new Date();
                 hace7Dias.setDate(hace7Dias.getDate() - 7);
                 return fecha >= hace7Dias;
             }
-            
             if (rango === '30d') {
                 const hace30Dias = new Date();
                 hace30Dias.setDate(hace30Dias.getDate() - 30);
                 return fecha >= hace30Dias;
             }
-            
             return true;
         }
 
@@ -473,29 +469,20 @@
             sorted.sort((a, b) => {
                 let valA = a[campo];
                 let valB = b[campo];
-                
                 if (campo === 'modulo') {
-                    const badgeA = clasificar(a);
-                    const badgeB = clasificar(b);
-                    valA = badgeA.tipoLabel || '';
-                    valB = badgeB.tipoLabel || '';
+                    valA = clasificar(a).tipoLabel || '';
+                    valB = clasificar(b).tipoLabel || '';
                 }
-                
                 if (campo === 'tipoLabel') {
-                    const badgeA = clasificar(a);
-                    const badgeB = clasificar(b);
-                    valA = badgeA.label || '';
-                    valB = badgeB.label || '';
+                    valA = clasificar(a).label || '';
+                    valB = clasificar(b).label || '';
                 }
-                
                 if (campo === 'detalle') {
                     valA = (a.detalle || a.nombre || '').toLowerCase();
                     valB = (b.detalle || b.nombre || '').toLowerCase();
                 }
-                
                 if (valA === undefined || valA === null) valA = '';
                 if (valB === undefined || valB === null) valB = '';
-                
                 if (direccion === 'asc') {
                     return valA > valB ? 1 : (valA < valB ? -1 : 0);
                 } else {
@@ -506,15 +493,12 @@
         }
         
         function actualizarIndicadoresOrden(campo, direccion) {
-            const campos = ['timestamp', 'modulo', 'detalle', 'tipoLabel'];
-            campos.forEach(c => {
+            ['timestamp', 'modulo', 'detalle', 'tipoLabel'].forEach(c => {
                 const span = document.getElementById(`orden-${c}`);
                 if (span) span.innerHTML = '';
             });
             const spanActual = document.getElementById(`orden-${campo}`);
-            if (spanActual) {
-                spanActual.innerHTML = direccion === 'asc' ? '▲' : '▼';
-            }
+            if (spanActual) spanActual.innerHTML = direccion === 'asc' ? '▲' : '▼';
         }
         
         window.ordenarPor = (campo) => {
@@ -537,7 +521,8 @@
             const fechaRango = document.getElementById('filtroFecha').value;
 
             let filtrados = todosLosLogs.filter(log => {
-                const haystack = `${log.nombre||''} ${log.detalle||''} ${log.accion||''}`.toLowerCase();
+                // También buscar en whatsapp
+                const haystack = `${log.nombre||''} ${log.detalle||''} ${log.accion||''} ${log.whatsapp||''}`.toLowerCase();
                 if (texto && !haystack.includes(texto)) return false;
                 if (modulo && categoriaModulo(log) !== modulo) return false;
                 if (fechaRango && !esFechaEnRango(log.timestamp, fechaRango)) return false;
@@ -574,10 +559,7 @@
                 chips.push({ label: `📅 ${textoFecha}`, limpiar: () => { document.getElementById('filtroFecha').value = ''; filtrar(); } });
             }
             
-            if (chips.length === 0) {
-                container.innerHTML = '';
-                return;
-            }
+            if (chips.length === 0) { container.innerHTML = ''; return; }
             
             container.innerHTML = chips.map(chip => `
                 <div class="filtro-chip">
@@ -597,28 +579,35 @@
             }
             
             logs.forEach(log => {
-                const fecha  = log.timestamp ? new Date(log.timestamp).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' }) : (log.fecha||'---');
+                const fecha  = log.timestamp
+                    ? new Date(log.timestamp).toLocaleString('es-AR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit' })
+                    : (log.fecha||'---');
                 const badge  = clasificar(log);
-                const modAcc = `${badge.tipoLabel || log.tipo || 'SISTEMA'}`;
+                const modAcc = badge.tipoLabel || log.tipo || 'SISTEMA';
 
                 let detalle = '';
                 const accionUp = (log.accion||'').toUpperCase();
 
                 if (accionUp === 'CANJE LEAD' || accionUp === 'CANJE LEADS') {
-                    const comercio  = log.nombreComercio || log.comercio || '';
-                    const codigo    = log.idValidacion || '';
-                    const usoNum    = log.usoNumero != null ? log.usoNumero : '';
-                    const usosTot   = log.usosTotales != null ? log.usosTotales : '';
-                    const usuario   = log.nombre || '';
+                    const comercio = log.nombreComercio || log.comercio || '';
+                    const codigo   = log.idValidacion || '';
+                    const usoNum   = log.usoNumero != null ? log.usoNumero : '';
+                    const usosTot  = log.usosTotales != null ? log.usosTotales : '';
+                    const usuario  = log.nombre || '';
+                    const wapp     = log.whatsapp || '';
+
                     if (comercio) {
-                        detalle = `${codigo ? codigo + ' — ' : ''}canjeó beneficio en <b>${comercio}</b>`;
-                        if (usoNum !== '' && usosTot !== '') detalle += ` (uso ${usoNum} de ${usosTot})`;
-                        if (usuario) detalle += ` · usuario: ${usuario}`;
+                        detalle = `${codigo ? '<span style="color:var(--oro);font-weight:bold;">' + codigo + '</span> — ' : ''}canjeó beneficio en <b>${comercio}</b>`;
+                        if (usoNum !== '' && usosTot !== '') detalle += ` <span style="color:#8892b0;">(uso ${usoNum} de ${usosTot})</span>`;
+                        if (usuario) detalle += ` · <b>${usuario}</b>`;
+                        if (wapp)    detalle += ` <span class="wapp-badge">📱 ${wapp}</span>`;
                     } else {
                         detalle = log.detalle || log.nombre || '---';
                     }
                 } else if (accionUp === 'CANJE VIP') {
+                    const wapp = log.whatsapp || '';
                     detalle = log.nombre || log.detalle || '---';
+                    if (wapp) detalle += ` <span class="wapp-badge">📱 ${wapp}</span>`;
                 } else if (accionUp.includes('NUEVO REGISTRO VIP') || accionUp.includes('INSCRIPCIÓN VIP')) {
                     detalle = `✨ ${log.detalle || log.nombre || 'Nuevo socio VIP'} ✨`;
                 } else {
@@ -649,17 +638,15 @@
             
             const snap = await getDocs(collection(db,"logs_actividad"));
             let contador = 0;
-            for (const doc of snap.docs) {
-                await deleteDoc(doc.ref);
+            for (const d of snap.docs) {
+                await deleteDoc(d.ref);
                 contador++;
             }
             alert(`✅ ${contador} registros eliminados del historial.`);
         };
         
-        // Inicializar indicadores de orden
         actualizarIndicadoresOrden('timestamp', 'desc');
         
-        // Exponer funciones globales
         window.borrarLog = window.borrarLog;
         window.limpiarLogs = window.limpiarLogs;
         window.ordenarPor = window.ordenarPor;
