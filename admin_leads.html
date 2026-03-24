@@ -523,7 +523,7 @@
                     alert("✅ Beneficios restablecidos con éxito.\n📊 El progreso VIP del usuario NO se ha modificado.");
                 } catch(e) { 
                     console.error(e); 
-                    alert("Error al restablecer."); 
+                    alert("Error al restablecer: " + e.message); 
                 }
             }
         };
@@ -577,21 +577,37 @@
         // =============================================
         window.validarYRestablecerMasivo = async (tipo) => {
             if (!tipo) return;
-            const pass = prompt("Clave ADMIN:");
-            if (pass !== "admin1234") return alert("Clave Incorrecta");
+            const pass = prompt("🔐 Clave ADMIN:");
+            if (pass !== "admin1234") return alert("❌ Clave Incorrecta");
 
             let filtrados = [];
-            if (tipo === "pais") filtrados = todosLosLeads;
-            else if (tipo === "provincia") filtrados = todosLosLeads.filter(l => l.provincia_normalized === document.getElementById('filtro-provincia').value);
-            else if (tipo === "localidad") filtrados = todosLosLeads.filter(l => l.localidad_normalized === document.getElementById('filtro-localidad').value);
+            let descripcion = "";
+            
+            if (tipo === "pais") {
+                filtrados = todosLosLeads;
+                descripcion = "TODO EL PAÍS";
+            } else if (tipo === "provincia") {
+                const prov = document.getElementById('filtro-provincia').value;
+                if (!prov) return alert("⚠️ Selecciona una provincia primero");
+                filtrados = todosLosLeads.filter(l => l.provincia_normalized === prov);
+                descripcion = `PROVINCIA: ${prov.toUpperCase()}`;
+            } else if (tipo === "localidad") {
+                const loc = document.getElementById('filtro-localidad').value;
+                if (!loc) return alert("⚠️ Selecciona una localidad primero");
+                filtrados = todosLosLeads.filter(l => l.localidad_normalized === loc);
+                descripcion = `LOCALIDAD: ${loc.toUpperCase()}`;
+            }
 
-            if(confirm(`⚠️ ¿Restablecer cupones de ${filtrados.length} usuarios?\n\n📊 El contador de progreso VIP (usos_para_vip) NO se modificará.`)) {
+            if(filtrados.length === 0) return alert("⚠️ No hay usuarios para restablecer con este filtro");
+
+            if(confirm(`⚠️ CONFIRMACIÓN DE RESTABLECIMIENTO MASIVO\n\n📋 Filtro: ${descripcion}\n👥 Usuarios afectados: ${filtrados.length}\n\n✅ Se restablecerán: usos_count y canjes_por_comercio\n🔒 Se CONSERVARÁ: usos_para_vip (progreso VIP)\n\n¿Continuar?`)) {
                 const batch = writeBatch(db);
                 const ahora = Date.now();
+                
                 filtrados.forEach(l => {
                     const leadRef = doc(db, "leads", l.id);
                     // ⭐ Solo resetear usos_count y canjes_por_comercio
-                    // ⭐ NO tocar usos_para_vip
+                    // ⭐ NO tocar usos_para_vip (contador VIP)
                     batch.update(leadRef, { 
                         usos_count: 0, 
                         lastSubmission: ahora,
@@ -599,15 +615,17 @@
                         ultimoResetGlobal: ahora
                     });
                 });
+                
                 await batch.commit();
 
+                // Registrar logs individuales
                 for (const l of filtrados) {
                     const nombre = `${(l.apellido||'').toUpperCase()}, ${(l.nombres||'').toUpperCase()}`;
                     await registrarActividad(l.id, nombre, "RESTABLECER CUPONES (MASIVO)", "GESTION LEAD",
-                        `Restablecimiento masivo (${tipo}) — ${nombre} (contador VIP conservado)`);
+                        `Restablecimiento masivo [${descripcion}] — ${nombre} (contador VIP usos_para_vip CONSERVADO)`);
                 }
 
-                alert(`✅ Restablecimiento masivo completado.\n📊 Los ${filtrados.length} usuarios conservan su progreso VIP.`);
+                alert(`✅ Restablecimiento masivo COMPLETADO\n\n📊 ${filtrados.length} usuarios procesados\n🔒 Progreso VIP conservado en todos los casos`);
                 location.reload();
             }
         };
