@@ -1035,12 +1035,22 @@
                 const infoVencimiento = !mostrarReloj
                     ? `★ Sin vencimiento ★`
                     : `★ Vence en ${diasRestantes} días ★`;
+
+                // ── BENEFICIO VIP: leer descVip y detalleVip de Firestore (igual que admin_comercios) ──
+                const descVipRaw   = (c.descVip   || '').toString().trim();
+                const detalleVip   = (c.detalleVip || '').toString().trim();
+                const descVipDisplay = descVipRaw
+                    ? (descVipRaw.includes('%') ? descVipRaw : descVipRaw + '%')
+                    : '';
+                const beneficioVipTexto = [descVipDisplay, detalleVip].filter(Boolean).join(' ') || 'Consultar';
+                // Se usa también en el botón USAR y en el log
+                const beneficioVipParaLog = beneficioVipTexto.replace(/'/g, "\\'");
                 
                 html += `
                     <div class="card-vip" data-nombre="${(c.nombre || '').toLowerCase()}">
                         ${htmlLogo}
                         <div class="nombre-c">${c.nombre || ''}</div>
-                        <div class="beneficio-c">${c.valVip || 0}% OFF</div>
+                        <div class="beneficio-c">${beneficioVipTexto}</div>
                         <div class="vence-vip">${infoVencimiento} ${distanciaHtml}</div>
                         ${c.direccion ? `<div class="info-txt"><span class="ico-large">📍</span>${c.direccion}</div>` : ""}
                         <div class="btn-stack">
@@ -1048,7 +1058,7 @@
                             ${botonSorteo}
                             <button class="btn-act btn-llegar" onclick="window.open('${mapsUrl}')">Cómo llegar</button>
                             <button class="btn-act btn-validar" id="btn-val-${c.id}" onclick="abrirQR('${c.id}', '${c.tokenQR}')">Validar con QR</button>
-                            <button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarCajeroVIP('${c.id}', '${(c.nombre||'').replace(/'/g,"\\'")}', '${c.valVip || 0}% OFF')">
+                            <button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarCajeroVIP('${c.id}', '${(c.nombre||'').replace(/'/g,"\\'")}', '${beneficioVipParaLog}')">
                                 Usar beneficio <span class="contador-nube">${nUso}</span>
                             </button>
                         </div>
