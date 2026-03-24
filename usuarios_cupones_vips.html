@@ -378,7 +378,7 @@
         .aviso-cajero-vip { margin-top: 15px; padding: 12px; font-size: 19px; font-weight: 900; color: var(--dorado-brillante); animation: parpadeoVIP 1.2s infinite; }
         @keyframes parpadeoVIP { 0% { background: transparent; } 50% { background: rgba(212, 175, 55, 0.5); } 100% { background: transparent; } }
 
-        /* ========== FOOTER CON BOTONES NUEVOS ========== */
+        /* ========== FOOTER CON BOTONES ARMONIZADOS ========== */
         .footer-identificacion {
             position: fixed;
             bottom: 0;
@@ -386,11 +386,11 @@
             width: 100%;
             background: white;
             border-top: 4px solid var(--dorado);
-            padding: 6px 0;
+            padding: 8px 0;
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 2px;
+            gap: 6px;
             z-index: 900;
         }
         
@@ -405,33 +405,34 @@
         
         .footer-link {
             text-decoration: none;
-            color: #000;
-            font-weight: 600;
-            font-size: 12px;
+            color: var(--celeste);
+            font-weight: 700;
+            font-size: 14px;
         }
         
         .btn-footer {
-            padding: 5px 12px;
-            border-radius: 18px;
+            padding: 6px 16px;
+            border-radius: 20px;
             text-decoration: none;
             color: white;
             font-weight: 600;
-            font-size: 11px;
+            font-size: 12px;
             border: none;
             cursor: pointer;
             font-family: 'Inter', sans-serif;
-            height: 28px;
+            height: 32px;
             display: flex;
             align-items: center;
             justify-content: center;
+            box-sizing: border-box;
         }
         
         .btn-instalar-footer {
             background: var(--dorado);
-            width: 30px;
-            height: 30px;
+            width: 32px;
+            height: 32px;
             border-radius: 50%;
-            font-size: 14px;
+            font-size: 16px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -682,7 +683,7 @@
         </div>
     </div>
 
-    <!-- ========== FOOTER NUEVO CON BOTONES ========== -->
+    <!-- ========== FOOTER CON BOTONES ARMONIZADOS ========== -->
     <footer class="footer-identificacion">
         <div class="footer-row" style="position: relative;">
             <button id="btn-instalar-footer" class="btn-instalar-footer">📲</button>
@@ -734,6 +735,18 @@
         let filtroCercaniaActivo = false;
         let todasLasProvincias = [];
         let todasLasLocalidades = [];
+
+        // ============================================
+        // FUNCIÓN PARA NORMALIZAR TEXTO (sin acentos, minúsculas)
+        // ============================================
+        function normalizarTexto(texto) {
+            if (!texto) return '';
+            return texto
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim();
+        }
 
         // ============================================
         // FUNCIONES DE GEOLOCALIZACIÓN
@@ -940,10 +953,11 @@
         };
 
         // ============================================
-        // APLICAR FILTROS
+        // APLICAR FILTROS - CON BÚSQUEDA SIN ACENTOS
         // ============================================
         function aplicarFiltros() {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
+            const textoNormalizado = normalizarTexto(texto);
             const vencimiento = document.getElementById('filtroVence').value;
             const provSeleccionada = document.getElementById('filtroProvincia').value;
             const locSeleccionada = document.getElementById('filtroLocalidad').value;
@@ -951,7 +965,10 @@
             let filtrados = [...comerciosCompletos];
             
             if (texto) {
-                filtrados = filtrados.filter(c => (c.nombre || '').toLowerCase().includes(texto));
+                filtrados = filtrados.filter(c => {
+                    const nombreNormalizado = normalizarTexto(c.nombre || '');
+                    return nombreNormalizado.includes(textoNormalizado);
+                });
             }
             
             if (filtroProvinciaActivo && usuarioData && usuarioData.provincia) {
@@ -1036,14 +1053,13 @@
                     ? `★ Sin vencimiento ★`
                     : `★ Vence en ${diasRestantes} días ★`;
 
-                // ── BENEFICIO VIP: leer descVip y detalleVip de Firestore (igual que admin_comercios) ──
+                // ── BENEFICIO VIP: leer descVip y detalleVip de Firestore ──
                 const descVipRaw   = (c.descVip   || '').toString().trim();
                 const detalleVip   = (c.detalleVip || '').toString().trim();
                 const descVipDisplay = descVipRaw
                     ? (descVipRaw.includes('%') ? descVipRaw : descVipRaw + '%')
                     : '';
                 const beneficioVipTexto = [descVipDisplay, detalleVip].filter(Boolean).join(' ') || 'Consultar';
-                // Se usa también en el botón USAR y en el log
                 const beneficioVipParaLog = beneficioVipTexto.replace(/'/g, "\\'");
                 
                 html += `
@@ -1156,7 +1172,7 @@
         };
 
         // ============================================
-        // FINALIZAR VIP — CON LOG COMPLETO (nombre, apellido, whatsapp)
+        // FINALIZAR VIP — CON LOG COMPLETO
         // ============================================
         window.finalizarVIP = async (id, nom, ben) => {
             document.getElementById('alerta-cajero').remove();
@@ -1182,10 +1198,8 @@
 
                 const leadIdLocal = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
 
-                // ── Calcular nUsoLocal ANTES de usarlo en el log ──
                 const nUsoLocal = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
 
-                // ── Nombre, apellido y whatsapp del usuario ──
                 const nombreUsuario = usuarioData
                     ? `${(usuarioData.apellido || '').toUpperCase()}, ${(usuarioData.nombres || usuarioData.nombre || '').toUpperCase()}`.trim().replace(/^,\s*/, '')
                     : '';
@@ -1222,7 +1236,6 @@
                 document.getElementById('exito-beneficio').innerText = ben;
                 document.getElementById('pantalla-exito').style.display = 'flex';
 
-                // ── LOG COMPLETO: igual que CANJE LEAD ──
                 await addDoc(collection(db, "logs_actividad"), {
                     timestamp: ahora,
                     tipo: "canje",
