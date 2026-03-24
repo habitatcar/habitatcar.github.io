@@ -55,7 +55,7 @@
         }
         .header-white img { width: 100%; max-width: 280px; height: auto; display: block; margin: 0 auto; }
 
-        /* ========== CONTADOR DE PROGRESO VIP - VERSIÓN FINA ========== */
+        /* ========== CONTADOR DE PROGRESO VIP ========== */
         .progreso-vip {
             background: linear-gradient(135deg, #0f1a24, #0a121c);
             padding: 8px 15px;
@@ -157,7 +157,6 @@
             cursor: pointer;
         }
         
-        /* Selector de provincia ocupa todo el ancho en móvil */
         .filtro-select-provincia {
             width: 100%;
             padding: 10px 6px;
@@ -241,11 +240,6 @@
             align-items: center;
             justify-content: center;
             gap: 5px;
-        }
-        
-        .info-ubicacion i {
-            font-style: normal;
-            font-size: 12px;
         }
         
         .badge-distancia {
@@ -834,7 +828,7 @@
         localStorage.setItem('habitat_auth', 'true');
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -856,7 +850,7 @@
         let usuarioData = null;
         let provinciasCargadas = false;
         let todasLasProvincias = [];
-        let usosTotalesActuales = 0;
+        let usosParaVip = 0;
         let modalVipMostrado = false;
 
         let filtroProvinciaActivo = false;
@@ -864,10 +858,22 @@
         let filtroCercaniaActivo = false;
 
         let scrollPosition = 0;
-        let ultimoResetDetectado = localStorage.getItem('ultimoResetDetectado') || "0";
+
+        // ============================================
+        // FUNCIÓN PARA NORMALIZAR TEXTO (sin acentos)
+        // ============================================
+        function normalizarTexto(texto) {
+            if (!texto) return '';
+            return texto
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .trim();
+        }
 
         // ============================================
         // FUNCIÓN PARA ACTUALIZAR CONTADOR DE PROGRESO VIP
+        // Usa el campo USOS_PARA_VIP (que NUNCA se resetea)
         // ============================================
         async function actualizarContadorProgreso() {
             if (!leadId || leadId.startsWith('invitado_')) return;
@@ -876,26 +882,28 @@
                 const docSnap = await getDoc(doc(db, "leads", leadId));
                 if (docSnap.exists()) {
                     const data = docSnap.data();
-                    const usosTotales = data.usos_count || 0;
-                    usosTotalesActuales = usosTotales;
+                    // ⭐ USAR EL CAMPO EXCLUSIVO PARA VIP (no se resetea)
+                    const usosVip = data.usos_para_vip || 0;
+                    usosParaVip = usosVip;
                     
-                    const porcentaje = Math.min(100, (usosTotales / 100) * 100);
-                    document.getElementById('contadorUsosTotales').innerHTML = `${usosTotales}<span>/100</span>`;
+                    const porcentaje = Math.min(100, (usosVip / 100) * 100);
+                    document.getElementById('contadorUsosTotales').innerHTML = `${usosVip}<span>/100</span>`;
                     document.getElementById('barraProgreso').style.width = porcentaje + '%';
                     
                     const medallaIcono = document.getElementById('medallaIcono');
-                    if (usosTotales >= 100) {
+                    if (usosVip >= 100) {
                         medallaIcono.innerHTML = '👑';
-                    } else if (usosTotales >= 50) {
+                        medallaIcono.style.fontSize = '24px';
+                    } else if (usosVip >= 50) {
                         medallaIcono.innerHTML = '🏅';
                     } else {
                         medallaIcono.innerHTML = '🏅';
                     }
                     
-                    // Verificar si alcanzó 100 usos y mostrar modal si no se mostró antes
+                    // Verificar si alcanzó 100 usos y mostrar modal
                     const yaRecibioRecompensa = localStorage.getItem('recompensa_vip_100') === 'true';
-                    if (usosTotales >= 100 && !yaRecibioRecompensa && !modalVipMostrado) {
-                        mostrarModalRecompensaVIP();
+                    if (usosVip >= 100 && !yaRecibioRecompensa && !modalVipMostrado) {
+                        mostrarModalRecompensaVIP(usosVip);
                         modalVipMostrado = true;
                         localStorage.setItem('recompensa_vip_100', 'true');
                     }
@@ -908,7 +916,7 @@
         // ============================================
         // MOSTRAR MODAL DE RECOMPENSA VIP
         // ============================================
-        function mostrarModalRecompensaVIP() {
+        function mostrarModalRecompensaVIP(usos) {
             const overlay = document.createElement('div');
             overlay.className = 'modal-vip-recompensa';
             overlay.id = 'modalRecompensaVIP';
@@ -937,66 +945,6 @@
                     fecha_recompensa: Date.now()
                 }).catch(e => console.error("Error guardando recompensa:", e));
             }
-        }
-
-        // ============================================
-        // VERIFICAR RESET GLOBAL - IMPORTANTE: NO RESETEA usos_count
-        // ============================================
-        async function verificarResetGlobal() {
-            if (!leadId || leadId.startsWith('invitado_')) return;
-            
-            try {
-                const docSnap = await getDoc(doc(db, "leads", leadId));
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    const resetTimestamp = data.ultimoResetGlobal || 0;
-                    
-                    if (resetTimestamp > parseInt(ultimoResetDetectado)) {
-                        console.log("🔄 Reset global detectado. Limpiando localStorage de cupones individuales...");
-                        console.log("⚠️ IMPORTANTE: El contador de progreso VIP NO se resetea.");
-                        
-                        // Limpiar SOLO los usos individuales de cada comercio
-                        // NO tocar usos_count (contador de progreso VIP)
-                        const keys = Object.keys(localStorage);
-                        keys.forEach(key => {
-                            if (key.startsWith('uso_lead_')) {
-                                localStorage.removeItem(key);
-                            }
-                            if (key.startsWith('inicios_cupones')) {
-                                localStorage.removeItem(key);
-                            }
-                        });
-                        
-                        ultimoResetDetectado = resetTimestamp.toString();
-                        localStorage.setItem('ultimoResetDetectado', ultimoResetDetectado);
-                        
-                        // Recargar la página para refrescar los cupones
-                        location.reload();
-                    }
-                }
-            } catch(e) {
-                console.error("Error verificando reset global:", e);
-            }
-        }
-
-        // Verificar si el usuario está suspendido
-        if (leadId && !leadId.startsWith('invitado_')) {
-            onSnapshot(doc(db, "leads", leadId), (docSnap) => {
-                if (docSnap.exists()) {
-                    const data = docSnap.data();
-                    usuarioData = data;
-                    if (data.estado === 'suspendido') {
-                        document.body.innerHTML = `<div style="height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#0a192f;color:white;text-align:center;padding:20px;"><img src="https://raw.githubusercontent.com/habitatcar/habitatcar.github.io/main/logo.png" style="width:300px;margin-bottom:30px;"><h1 style="color:#ff9800;">ACCESO RESTRINGIDO</h1><p>Tu acceso a los beneficios ha sido suspendido temporalmente.</p><button onclick="location.reload()" style="margin-top:30px;padding:15px 30px;background:#004a99;color:white;border:none;border-radius:8px;cursor:pointer;">REINTENTAR</button></div>`;
-                        return;
-                    }
-                    if (!provinciasCargadas) {
-                        cargarProvincias();
-                        provinciasCargadas = true;
-                    }
-                    setTimeout(verificarResetGlobal, 1000);
-                    actualizarContadorProgreso();
-                }
-            });
         }
 
         // ============================================
@@ -1194,6 +1142,7 @@
 
         window.aplicarFiltros = function aplicarFiltros() {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
+            const textoNormalizado = normalizarTexto(texto);
             const vencimiento = document.getElementById('filtroVence').value;
             const provSeleccionada = document.getElementById('filtroProvincia').value;
             const locSeleccionada = document.getElementById('filtroLocalidad').value;
@@ -1201,7 +1150,10 @@
             let filtrados = [...comerciosCompletos];
             
             if (texto) {
-                filtrados = filtrados.filter(c => (c.nombre || '').toLowerCase().includes(texto));
+                filtrados = filtrados.filter(c => {
+                    const nombreNormalizado = normalizarTexto(c.nombre || '');
+                    return nombreNormalizado.includes(textoNormalizado);
+                });
             }
             
             if (filtroProvinciaActivo && usuarioData && usuarioData.provincia) {
@@ -1252,8 +1204,7 @@
             comercios.forEach(c => {
                 const usosPermitidos = parseInt(c.usosLead) || 1;
                 const usosRealizados = parseInt(localStorage.getItem(`uso_lead_${c.id}`) || "0");
-                const usosRestantes = usosPermitidos - usosRealizados;
-                const esAgotado = usosRestantes <= 0;
+                const esAgotado = usosRealizados >= usosPermitidos;
                 
                 const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
                 let diasRestantes = vigenciaTotal;
@@ -1461,12 +1412,21 @@
                 } catch(eLog) { console.error("Error Log:", eLog); }
                 
                 const idComercioLimpio = nom.replace(/\s+/g, '_');
-                await updateDoc(doc(db, "leads", leadId), {
+                const leadRef = doc(db, "leads", leadId);
+                const leadDoc = await getDoc(leadRef);
+                const leadData = leadDoc.data();
+                const usosActualesParaVip = leadData.usos_para_vip || 0;
+                
+                // ⭐ ACTUALIZAR CON DOS CONTADORES SEPARADOS:
+                // - usos_count: se resetea (para mostrar en admin)
+                // - usos_para_vip: NUNCA se resetea (para el progreso VIP)
+                await updateDoc(leadRef, {
                     [`canjes_por_comercio.${idComercioLimpio}`]: {
                         comercio: nom, codigo: idManual, fecha: fechaLegible,
                         hora: horaLegible, cantidad_usos: increment(1)
                     },
-                    usos_count: increment(1),  // ⭐ ESTE ES EL CONTADOR DE PROGRESO VIP - NO SE RESETEA
+                    usos_count: increment(1),                    // SE RESETEA
+                    usos_para_vip: increment(1),                 // ⭐ NUNCA SE RESETEA
                     cupones_detallados: arrayUnion({
                         comercio: nom, fecha: fechaLegible, hora: horaLegible,
                         codigo: idManual, timestamp: timestamp, usoNumero: nuevosUsos
@@ -1527,6 +1487,22 @@
             document.getElementById('btn-cerrar-postulaciones').addEventListener('click', () => overlay.remove());
             overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
         };
+        
+        // Cargar usuario y contador al inicio
+        if (leadId && !leadId.startsWith('invitado_')) {
+            getDoc(doc(db, "leads", leadId)).then(docSnap => {
+                if (docSnap.exists()) {
+                    usuarioData = docSnap.data();
+                    if (!provinciasCargadas) {
+                        cargarProvincias();
+                        provinciasCargadas = true;
+                    }
+                    actualizarContadorProgreso();
+                }
+            }).catch(e => console.error("Error cargando usuario:", e));
+        } else {
+            cargarProvincias();
+        }
     </script>
 
     <script>
