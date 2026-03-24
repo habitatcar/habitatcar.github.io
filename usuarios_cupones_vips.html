@@ -425,7 +425,20 @@
         let todasLasLocalidades = [];
 
         // ============================================
-        // RESET GLOBAL VIP — igual que en cupones leads
+        // ⭐ FUNCIÓN PARA GENERAR CÓDIGO VIP ALEATORIO ÚNICO (4 letras + 4 números)
+        // ============================================
+        function generarCodigoVipAleatorio() {
+            const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+            let parteLetras = '';
+            for (let i = 0; i < 4; i++) {
+                parteLetras += letras.charAt(Math.floor(Math.random() * letras.length));
+            }
+            const numeros = Math.floor(Math.random() * 10000).toString().padStart(4, '0');
+            return `${parteLetras}-${numeros}`;
+        }
+
+        // ============================================
+        // RESET GLOBAL VIP
         // ============================================
         const leadId = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
         let ultimoResetDetectadoVIP = localStorage.getItem('ultimoResetDetectadoVIP') || "0";
@@ -453,17 +466,11 @@
             }
         }
 
-        // ============================================
-        // NORMALIZAR TEXTO
-        // ============================================
         function normalizarTexto(texto) {
             if (!texto) return '';
             return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
         }
 
-        // ============================================
-        // GEOLOCALIZACIÓN
-        // ============================================
         function obtenerUbicacion() {
             return new Promise((resolve) => {
                 if (!navigator.geolocation) { resolve(null); return; }
@@ -498,9 +505,6 @@
             return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
         }
 
-        // ============================================
-        // CARGAR PROVINCIAS Y LOCALIDADES
-        // ============================================
         async function cargarProvincias() {
             try {
                 const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre&max=100");
@@ -534,9 +538,6 @@
             } catch(e) { console.error("Error cargando localidades:", e); }
         };
 
-        // ============================================
-        // OBTENER DATOS DEL USUARIO + VERIFICAR RESET
-        // ============================================
         if (leadId) {
             getDoc(doc(db, "leads", leadId)).then(docSnap => {
                 if (docSnap.exists()) {
@@ -545,7 +546,6 @@
                         cargarProvincias();
                         window.provinciasCargadas = true;
                     }
-                    // Verificar reset global VIP después de cargar el usuario
                     setTimeout(verificarResetGlobalVIP, 1000);
                 }
             }).catch(e => console.error("Error cargando usuario:", e));
@@ -553,9 +553,6 @@
             cargarProvincias();
         }
 
-        // ============================================
-        // FUNCIONES DE FILTRO
-        // ============================================
         function resetearFiltrosRapidos() {
             filtroProvinciaActivo = false;
             filtroLocalidadActivo = false;
@@ -647,9 +644,6 @@
             aplicarFiltros();
         };
 
-        // ============================================
-        // APLICAR FILTROS
-        // ============================================
         function aplicarFiltros() {
             const texto = document.getElementById('filtroNombre').value.toLowerCase();
             const textoNormalizado = normalizarTexto(texto);
@@ -695,9 +689,6 @@
         }
         window.aplicarFiltros = aplicarFiltros;
 
-        // ============================================
-        // RENDERIZAR COMERCIOS
-        // ============================================
         function renderizarComercios(comercios) {
             const contenedor = document.getElementById('contenedor-vip');
             let html = "";
@@ -735,7 +726,6 @@
                 const beneficioVipTexto = [descVipDisplay, detalleVip].filter(Boolean).join(' ') || 'Consultar';
                 const beneficioVipParaLog = beneficioVipTexto.replace(/'/g, "\\'");
 
-                // Verificar límite de usos
                 const limitUsos = parseInt(c.usosVip) || 0;
                 const usosAgotados = limitUsos > 0 && nUso >= limitUsos;
                 const botonUsarBeneficio = usosAgotados
@@ -847,8 +837,9 @@
                 const comercioRef = doc(db, "comercios", id);
                 const snapComercio = await getDoc(comercioRef);
                 const dataCom = snapComercio.data();
-                const proximoNro = (dataCom.totalVips || 0) + 1;
-                const codigoIdentidad = "VIP-" + proximoNro.toString().padStart(4, '0');
+                
+                // ⭐ GENERAR CÓDIGO VIP ALEATORIO ÚNICO (4 letras + 4 números)
+                const codigoIdentidad = generarCodigoVipAleatorio();
 
                 await updateDoc(comercioRef, {
                     totalVips: increment(1), vipsHoy: increment(1), vipsSemana: increment(1),
