@@ -306,6 +306,19 @@ animation: destello-centrifugo 1.5s infinite, borde-brillante 1.5s infinite;
 position: relative;
 z-index: 1;
 }
+.btn-sorteo.animar-pulso::before {
+content: '';
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+width: 100%;
+height: 100%;
+border-radius: 8px;
+background: rgba(245, 124, 0, 0.3);
+animation: onda-expansiva 1.5s infinite;
+z-index: -1;
+}
 .btn-sorteo.sin-pulso { animation: none !important; }
 .btn-sorteo.sin-pulso::before { display: none !important; }
 .btn-llegar { background: var(--verde); }
@@ -767,74 +780,79 @@ let filtroCercaniaActivo = false;
 let scrollPosition = 0;
 
 // ============================================
-// ⭐ FUNCIÓN CLAVE: VERIFICAR Y APLICAR RESET DE CUPONES
+// ⭐ NUEVA FUNCIÓN: VERIFICAR Y APLICAR RESET DE CUPONES
 // Compara ultimoResetGlobal de Firestore con localStorage
 // Si hay diferencia → limpia contadores de cupones (NO toca VIP)
 // ============================================
 async function verificarYAplicarResetCupones() {
-if (!leadId || leadId.startsWith('invitado_')) return;
-try {
-const docSnap = await getDoc(doc(db, "leads", leadId));
-if (!docSnap.exists()) return;
-const data = docSnap.data();
-const resetGlobalFirestore = data.ultimoResetGlobal || null;
-const resetGlobalLocal = localStorage.getItem('ultimoResetGlobal_local');
-// ⭐ Si hay un nuevo reset en Firestore → aplicar limpieza
-if (resetGlobalFirestore && resetGlobalFirestore !== resetGlobalLocal) {
-console.log("🔄 Detectado reset global. Limpiando contadores de cupones...");
-// Limpiar solo contadores de cupones (NO tocar progreso VIP)
-Object.keys(localStorage).forEach(key => {
-if (key.startsWith('uso_lead_') || key.startsWith('toco_sorteo_')) {
-localStorage.removeItem(key);
-}
-});
-// Limpiar inicios de cupones
-localStorage.removeItem('inicios_cupones');
-// Actualizar el timestamp local para sincronizar
-localStorage.setItem('ultimoResetGlobal_local', resetGlobalFirestore.toString());
-// Mostrar notificación amigable
-mostrarNotificacionReset();
-}
-} catch(e) {
-console.error("Error verificando reset:", e);
-}
+    if (!leadId || leadId.startsWith('invitado_')) return;
+    try {
+        const docSnap = await getDoc(doc(db, "leads", leadId));
+        if (!docSnap.exists()) return;
+        const data = docSnap.data();
+        const resetGlobalFirestore = data.ultimoResetGlobal || null;
+        const resetGlobalLocal = localStorage.getItem('ultimoResetGlobal_local');
+        // ⭐ Si hay un nuevo reset en Firestore → aplicar limpieza
+        if (resetGlobalFirestore && resetGlobalFirestore !== resetGlobalLocal) {
+            console.log("🔄 Detectado reset global. Limpiando contadores de cupones...");
+            // Limpiar solo contadores de cupones (NO tocar progreso VIP)
+            Object.keys(localStorage).forEach(key => {
+                if (key.startsWith('uso_lead_') || key.startsWith('toco_sorteo_')) {
+                    localStorage.removeItem(key);
+                }
+            });
+            // Limpiar inicios de cupones
+            localStorage.removeItem('inicios_cupones');
+            // Actualizar el timestamp local para sincronizar
+            localStorage.setItem('ultimoResetGlobal_local', resetGlobalFirestore.toString());
+            // Mostrar notificación amigable
+            mostrarNotificacionReset();
+        }
+    } catch(e) {
+        console.error("Error verificando reset:", e);
+    }
 }
 
 // ============================================
-// MOSTRAR NOTIFICACIÓN DE RESET (opcional, UX)
+// MOSTRAR NOTIFICACIÓN DE RESET (UX amigable)
 // ============================================
 function mostrarNotificacionReset() {
-const notif = document.createElement('div');
-notif.style.cssText = `
-position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
-background: var(--verde); color: white; padding: 12px 20px;
-border-radius: 10px; font-weight: 600; font-size: 14px;
-z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-display: flex; align-items: center; gap: 8px; animation: slideDown 0.3s ease;
-`;
-notif.innerHTML = `🔄 Tus cupones han sido restablecidos. ¡A disfrutar!`;
-document.body.appendChild(notif);
-setTimeout(() => {
-notif.style.opacity = '0';
-notif.style.transition = 'opacity 0.3s';
-setTimeout(() => notif.remove(), 300);
-}, 4000);
+    const notif = document.createElement('div');
+    notif.style.cssText = `
+        position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+        background: var(--verde); color: white; padding: 12px 20px;
+        border-radius: 10px; font-weight: 600; font-size: 14px;
+        z-index: 9999; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        display: flex; align-items: center; gap: 8px; animation: slideDown 0.3s ease;
+    `;
+    notif.innerHTML = `🔄 Tus cupones han sido restablecidos. ¡A disfrutar!`;
+    document.body.appendChild(notif);
+    setTimeout(() => {
+        notif.style.opacity = '0';
+        notif.style.transition = 'opacity 0.3s';
+        setTimeout(() => notif.remove(), 300);
+    }, 4000);
 }
+// Animación para la notificación
+const style = document.createElement('style');
+style.textContent = `
 @keyframes slideDown {
-from { transform: translate(-50%, -100px); opacity: 0; }
-to { transform: translate(-50%, 0); opacity: 1; }
+    from { transform: translate(-50%, -100px); opacity: 0; }
+    to { transform: translate(-50%, 0); opacity: 1; }
 }
+`;
+document.head.appendChild(style);
 
 // ============================================
 // FUNCIÓN PARA NORMALIZAR TEXTO (sin acentos)
 // ============================================
 function normalizarTexto(texto) {
-if (!texto) return '';
-return texto
-.toLowerCase()
-.normalize('NFD')
-.replace(/[\u0300-\u036f]/g, '')
-.trim();
+    if (!texto) return '';
+    return texto
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .trim();
 }
 
 // ============================================
@@ -842,382 +860,382 @@ return texto
 // Usa el campo USOS_PARA_VIP (que NUNCA se resetea)
 // ============================================
 async function actualizarContadorProgreso() {
-if (!leadId || leadId.startsWith('invitado_')) return;
-try {
-const docSnap = await getDoc(doc(db, "leads", leadId));
-if (docSnap.exists()) {
-const data = docSnap.data();
-// ⭐ USAR EL CAMPO EXCLUSIVO PARA VIP (no se resetea)
-const usosVip = data.usos_para_vip || 0;
-usosParaVip = usosVip;
-const porcentaje = Math.min(100, (usosVip / 100) * 100);
-document.getElementById('contadorUsosTotales').innerHTML = `${usosVip}<span>/100</span>`;
-document.getElementById('barraProgreso').style.width = porcentaje + '%';
-const medallaIcono = document.getElementById('medallaIcono');
-if (usosVip >= 100) {
-medallaIcono.innerHTML = '👑';
-medallaIcono.style.fontSize = '24px';
-} else if (usosVip >= 50) {
-medallaIcono.innerHTML = '🏅';
-} else {
-medallaIcono.innerHTML = '🏅';
-}
-// Verificar si alcanzó 100 usos y mostrar modal
-const yaRecibioRecompensa = localStorage.getItem('recompensa_vip_100') === 'true';
-if (usosVip >= 100 && !yaRecibioRecompensa && !modalVipMostrado) {
-mostrarModalRecompensaVIP(usosVip);
-modalVipMostrado = true;
-localStorage.setItem('recompensa_vip_100', 'true');
-}
-}
-} catch(e) {
-console.error("Error actualizando contador:", e);
-}
+    if (!leadId || leadId.startsWith('invitado_')) return;
+    try {
+        const docSnap = await getDoc(doc(db, "leads", leadId));
+        if (docSnap.exists()) {
+            const data = docSnap.data();
+            // ⭐ USAR EL CAMPO EXCLUSIVO PARA VIP (no se resetea)
+            const usosVip = data.usos_para_vip || 0;
+            usosParaVip = usosVip;
+            const porcentaje = Math.min(100, (usosVip / 100) * 100);
+            document.getElementById('contadorUsosTotales').innerHTML = `${usosVip}<span>/100</span>`;
+            document.getElementById('barraProgreso').style.width = porcentaje + '%';
+            const medallaIcono = document.getElementById('medallaIcono');
+            if (usosVip >= 100) {
+                medallaIcono.innerHTML = '👑';
+                medallaIcono.style.fontSize = '24px';
+            } else if (usosVip >= 50) {
+                medallaIcono.innerHTML = '🏅';
+            } else {
+                medallaIcono.innerHTML = '🏅';
+            }
+            // Verificar si alcanzó 100 usos y mostrar modal
+            const yaRecibioRecompensa = localStorage.getItem('recompensa_vip_100') === 'true';
+            if (usosVip >= 100 && !yaRecibioRecompensa && !modalVipMostrado) {
+                mostrarModalRecompensaVIP(usosVip);
+                modalVipMostrado = true;
+                localStorage.setItem('recompensa_vip_100', 'true');
+            }
+        }
+    } catch(e) {
+        console.error("Error actualizando contador:", e);
+    }
 }
 
 // ============================================
 // MOSTRAR MODAL DE RECOMPENSA VIP
 // ============================================
 function mostrarModalRecompensaVIP(usos) {
-const overlay = document.createElement('div');
-overlay.className = 'modal-vip-recompensa';
-overlay.id = 'modalRecompensaVIP';
-const nombreUsuario = usuarioData
-? `${(usuarioData.nombres || usuarioData.nombre || '').split(' ')[0]} ${(usuarioData.apellido || '')}`.trim()
-: 'Usuario';
-overlay.innerHTML = `
-<div class="modal-vip-contenido">
-<div class="icono-dorado">🏆👑🏆</div>
-<h2>¡FELICITACIONES!</h2>
-<p><strong style="color: var(--dorado);">${nombreUsuario}</strong>, has alcanzado los <strong style="color: var(--dorado);">100 USOS</strong> de cupones en nuestra plataforma.</p>
-<p>Por tu constancia y lealtad, <strong style="color: var(--dorado);">¡te has ganado el derecho a ser SOCIO VIP!</strong></p>
-<p>🌟 Accede a beneficios exclusivos, descuentos especiales y promociones únicas.</p>
-<a href="usuarios_registro_vip.html" class="btn-registro-vip">👉 REGISTRARME COMO VIP 👈</a>
-<button class="btn-cerrar-modal" onclick="document.getElementById('modalRecompensaVIP').remove()">🔒 RECORDAR MÁS TARDE</button>
-</div>
-`;
-document.body.appendChild(overlay);
-// Guardar en Firestore que ya recibió la recompensa
-if (leadId && !leadId.startsWith('invitado_')) {
-updateDoc(doc(db, "leads", leadId), {
-recompensa_vip_recibida: true,
-fecha_recompensa: Date.now()
-}).catch(e => console.error("Error guardando recompensa:", e));
-}
+    const overlay = document.createElement('div');
+    overlay.className = 'modal-vip-recompensa';
+    overlay.id = 'modalRecompensaVIP';
+    const nombreUsuario = usuarioData
+        ? `${(usuarioData.nombres || usuarioData.nombre || '').split(' ')[0]} ${(usuarioData.apellido || '')}`.trim()
+        : 'Usuario';
+    overlay.innerHTML = `
+        <div class="modal-vip-contenido">
+            <div class="icono-dorado">🏆👑🏆</div>
+            <h2>¡FELICITACIONES!</h2>
+            <p><strong style="color: var(--dorado);">${nombreUsuario}</strong>, has alcanzado los <strong style="color: var(--dorado);">100 USOS</strong> de cupones en nuestra plataforma.</p>
+            <p>Por tu constancia y lealtad, <strong style="color: var(--dorado);">¡te has ganado el derecho a ser SOCIO VIP!</strong></p>
+            <p>🌟 Accede a beneficios exclusivos, descuentos especiales y promociones únicas.</p>
+            <a href="usuarios_registro_vip.html" class="btn-registro-vip">👉 REGISTRARME COMO VIP 👈</a>
+            <button class="btn-cerrar-modal" onclick="document.getElementById('modalRecompensaVIP').remove()">🔒 RECORDAR MÁS TARDE</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    // Guardar en Firestore que ya recibió la recompensa
+    if (leadId && !leadId.startsWith('invitado_')) {
+        updateDoc(doc(db, "leads", leadId), {
+            recompensa_vip_recibida: true,
+            fecha_recompensa: Date.now()
+        }).catch(e => console.error("Error guardando recompensa:", e));
+    }
 }
 
 // ============================================
 // FUNCIONES DE GEOLOCALIZACIÓN
 // ============================================
 function obtenerUbicacion() {
-return new Promise((resolve) => {
-if (!navigator.geolocation) {
-resolve(null);
-return;
-}
-navigator.geolocation.getCurrentPosition(
-(pos) => {
-ubicacionUsuario = {
-lat: pos.coords.latitude,
-lng: pos.coords.longitude,
-precision: pos.coords.accuracy
-};
-document.getElementById('infoTexto').innerHTML = `📍 Ubicación obtenida`;
-document.getElementById('infoUbicacion').style.display = 'flex';
-resolve(ubicacionUsuario);
-},
-(error) => {
-let mensaje = "❌ No se pudo obtener ubicación";
-if (error.code === 1) mensaje = "❌ Permiso denegado. Activá ubicación en tu navegador";
-if (error.code === 2) mensaje = "❌ Ubicación no disponible";
-if (error.code === 3) mensaje = "⏳ Tiempo de espera agotado";
-document.getElementById('infoTexto').innerHTML = mensaje;
-document.getElementById('infoUbicacion').style.display = 'flex';
-resolve(null);
-},
-{ enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
-);
-});
+    return new Promise((resolve) => {
+        if (!navigator.geolocation) {
+            resolve(null);
+            return;
+        }
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                ubicacionUsuario = {
+                    lat: pos.coords.latitude,
+                    lng: pos.coords.longitude,
+                    precision: pos.coords.accuracy
+                };
+                document.getElementById('infoTexto').innerHTML = `📍 Ubicación obtenida`;
+                document.getElementById('infoUbicacion').style.display = 'flex';
+                resolve(ubicacionUsuario);
+            },
+            (error) => {
+                let mensaje = "❌ No se pudo obtener ubicación";
+                if (error.code === 1) mensaje = "❌ Permiso denegado. Activá ubicación en tu navegador";
+                if (error.code === 2) mensaje = "❌ Ubicación no disponible";
+                if (error.code === 3) mensaje = "⏳ Tiempo de espera agotado";
+                document.getElementById('infoTexto').innerHTML = mensaje;
+                document.getElementById('infoUbicacion').style.display = 'flex';
+                resolve(null);
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 60000 }
+        );
+    });
 }
 
 function calcularDistancia(lat1, lng1, lat2, lng2) {
-const R = 6371;
-const dLat = (lat2 - lat1) * Math.PI / 180;
-const dLng = (lng2 - lng1) * Math.PI / 180;
-const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-Math.sin(dLng/2) * Math.sin(dLng/2);
-const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-return R * c;
+    const R = 6371;
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLng = (lng2 - lng1) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
 }
 
 // ============================================
 // CARGAR PROVINCIAS Y LOCALIDADES
 // ============================================
 async function cargarProvincias() {
-try {
-const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre&max=100");
-const data = await res.json();
-const comboProv = document.getElementById('filtroProvincia');
-todasLasProvincias = data.provincias.map(p => p.nombre);
-todasLasProvincias.sort();
-todasLasProvincias.forEach(prov => {
-const opt = document.createElement('option');
-opt.value = prov;
-opt.textContent = prov;
-comboProv.appendChild(opt);
-});
-} catch(e) { console.error("Error cargando provincias:", e); }
+    try {
+        const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre&max=100");
+        const data = await res.json();
+        const comboProv = document.getElementById('filtroProvincia');
+        todasLasProvincias = data.provincias.map(p => p.nombre);
+        todasLasProvincias.sort();
+        todasLasProvincias.forEach(prov => {
+            const opt = document.createElement('option');
+            opt.value = prov;
+            opt.textContent = prov;
+            comboProv.appendChild(opt);
+        });
+    } catch(e) { console.error("Error cargando provincias:", e); }
 }
 
 async function cargarLocalidades(provincia) {
-const comboLoc = document.getElementById('filtroLocalidad');
-comboLoc.innerHTML = '<option value="">TODAS LAS LOCALIDADES</option>';
-if (!provincia) return;
-try {
-const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provincia)}&max=500&campos=nombre`);
-const data = await res.json();
-const localidades = (data.municipios || []).map(m => m.nombre);
-localidades.sort();
-localidades.forEach(loc => {
-const opt = document.createElement('option');
-opt.value = loc;
-opt.textContent = loc;
-comboLoc.appendChild(opt);
-});
-} catch(e) { console.error("Error cargando localidades:", e); }
+    const comboLoc = document.getElementById('filtroLocalidad');
+    comboLoc.innerHTML = '<option value="">TODAS LAS LOCALIDADES</option>';
+    if (!provincia) return;
+    try {
+        const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provincia)}&max=500&campos=nombre`);
+        const data = await res.json();
+        const localidades = (data.municipios || []).map(m => m.nombre);
+        localidades.sort();
+        localidades.forEach(loc => {
+            const opt = document.createElement('option');
+            opt.value = loc;
+            opt.textContent = loc;
+            comboLoc.appendChild(opt);
+        });
+    } catch(e) { console.error("Error cargando localidades:", e); }
 }
 
 // ============================================
 // FUNCIONES DE FILTRO (TOGGLE)
 // ============================================
 function resetearFiltrosRapidos() {
-filtroProvinciaActivo = false;
-filtroLocalidadActivo = false;
-filtroCercaniaActivo = false;
-document.getElementById('btnFiltroProvincia').classList.remove('activo');
-document.getElementById('btnFiltroLocalidad').classList.remove('activo');
-document.getElementById('btnFiltroCercanos').classList.remove('activo');
-document.getElementById('btnFiltroCercanos').classList.remove('ubicacion-activa');
+    filtroProvinciaActivo = false;
+    filtroLocalidadActivo = false;
+    filtroCercaniaActivo = false;
+    document.getElementById('btnFiltroProvincia').classList.remove('activo');
+    document.getElementById('btnFiltroLocalidad').classList.remove('activo');
+    document.getElementById('btnFiltroCercanos').classList.remove('activo');
+    document.getElementById('btnFiltroCercanos').classList.remove('ubicacion-activa');
 }
 
 window.toggleFiltroProvincia = () => {
-if (!usuarioData || !usuarioData.provincia) {
-alert("No tenemos tu provincia registrada. Completá tus datos en el perfil.");
-return;
-}
-if (filtroProvinciaActivo) {
-filtroProvinciaActivo = false;
-document.getElementById('btnFiltroProvincia').classList.remove('activo');
-document.getElementById('infoTexto').innerHTML = ``;
-document.getElementById('infoUbicacion').style.display = 'none';
-resetearFiltrosRapidos();
-} else {
-resetearFiltrosRapidos();
-filtroProvinciaActivo = true;
-document.getElementById('btnFiltroProvincia').classList.add('activo');
-document.getElementById('infoTexto').innerHTML = `📍 Mostrando comercios de ${usuarioData.provincia}`;
-document.getElementById('infoUbicacion').style.display = 'flex';
-}
-aplicarFiltros();
+    if (!usuarioData || !usuarioData.provincia) {
+        alert("No tenemos tu provincia registrada. Completá tus datos en el perfil.");
+        return;
+    }
+    if (filtroProvinciaActivo) {
+        filtroProvinciaActivo = false;
+        document.getElementById('btnFiltroProvincia').classList.remove('activo');
+        document.getElementById('infoTexto').innerHTML = ``;
+        document.getElementById('infoUbicacion').style.display = 'none';
+        resetearFiltrosRapidos();
+    } else {
+        resetearFiltrosRapidos();
+        filtroProvinciaActivo = true;
+        document.getElementById('btnFiltroProvincia').classList.add('activo');
+        document.getElementById('infoTexto').innerHTML = `📍 Mostrando comercios de ${usuarioData.provincia}`;
+        document.getElementById('infoUbicacion').style.display = 'flex';
+    }
+    aplicarFiltros();
 };
 
 window.toggleFiltroLocalidad = () => {
-if (!usuarioData || !usuarioData.localidad) {
-alert("No tenemos tu localidad registrada. Completá tus datos en el perfil.");
-return;
-}
-if (filtroLocalidadActivo) {
-filtroLocalidadActivo = false;
-document.getElementById('btnFiltroLocalidad').classList.remove('activo');
-document.getElementById('infoTexto').innerHTML = ``;
-document.getElementById('infoUbicacion').style.display = 'none';
-resetearFiltrosRapidos();
-} else {
-resetearFiltrosRapidos();
-filtroLocalidadActivo = true;
-document.getElementById('btnFiltroLocalidad').classList.add('activo');
-document.getElementById('infoTexto').innerHTML = `🏘️ Mostrando comercios de ${usuarioData.localidad}`;
-document.getElementById('infoUbicacion').style.display = 'flex';
-}
-aplicarFiltros();
+    if (!usuarioData || !usuarioData.localidad) {
+        alert("No tenemos tu localidad registrada. Completá tus datos en el perfil.");
+        return;
+    }
+    if (filtroLocalidadActivo) {
+        filtroLocalidadActivo = false;
+        document.getElementById('btnFiltroLocalidad').classList.remove('activo');
+        document.getElementById('infoTexto').innerHTML = ``;
+        document.getElementById('infoUbicacion').style.display = 'none';
+        resetearFiltrosRapidos();
+    } else {
+        resetearFiltrosRapidos();
+        filtroLocalidadActivo = true;
+        document.getElementById('btnFiltroLocalidad').classList.add('activo');
+        document.getElementById('infoTexto').innerHTML = `🏘️ Mostrando comercios de ${usuarioData.localidad}`;
+        document.getElementById('infoUbicacion').style.display = 'flex';
+    }
+    aplicarFiltros();
 };
 
 window.toggleFiltroCercania = async () => {
-if (filtroCercaniaActivo) {
-filtroCercaniaActivo = false;
-document.getElementById('btnFiltroCercanos').classList.remove('activo');
-document.getElementById('btnFiltroCercanos').classList.remove('ubicacion-activa');
-document.getElementById('infoTexto').innerHTML = ``;
-document.getElementById('infoUbicacion').style.display = 'none';
-resetearFiltrosRapidos();
-aplicarFiltros();
-return;
-}
-resetearFiltrosRapidos();
-document.getElementById('infoTexto').innerHTML = `📍 Obteniendo ubicación...`;
-document.getElementById('infoUbicacion').style.display = 'flex';
-await obtenerUbicacion();
-if (ubicacionUsuario) {
-filtroCercaniaActivo = true;
-document.getElementById('btnFiltroCercanos').classList.add('activo');
-document.getElementById('btnFiltroCercanos').classList.add('ubicacion-activa');
-document.getElementById('infoTexto').innerHTML = `🗺️ Comercios a menos de 10km de tu ubicación`;
-aplicarFiltros();
-} else {
-filtroCercaniaActivo = false;
-document.getElementById('btnFiltroCercanos').classList.remove('activo');
-document.getElementById('infoTexto').innerHTML = `❌ No se pudo obtener ubicación`;
-setTimeout(() => {
-if (!filtroCercaniaActivo) {
-document.getElementById('infoUbicacion').style.display = 'none';
-}
-}, 3000);
-}
+    if (filtroCercaniaActivo) {
+        filtroCercaniaActivo = false;
+        document.getElementById('btnFiltroCercanos').classList.remove('activo');
+        document.getElementById('btnFiltroCercanos').classList.remove('ubicacion-activa');
+        document.getElementById('infoTexto').innerHTML = ``;
+        document.getElementById('infoUbicacion').style.display = 'none';
+        resetearFiltrosRapidos();
+        aplicarFiltros();
+        return;
+    }
+    resetearFiltrosRapidos();
+    document.getElementById('infoTexto').innerHTML = `📍 Obteniendo ubicación...`;
+    document.getElementById('infoUbicacion').style.display = 'flex';
+    await obtenerUbicacion();
+    if (ubicacionUsuario) {
+        filtroCercaniaActivo = true;
+        document.getElementById('btnFiltroCercanos').classList.add('activo');
+        document.getElementById('btnFiltroCercanos').classList.add('ubicacion-activa');
+        document.getElementById('infoTexto').innerHTML = `🗺️ Comercios a menos de 10km de tu ubicación`;
+        aplicarFiltros();
+    } else {
+        filtroCercaniaActivo = false;
+        document.getElementById('btnFiltroCercanos').classList.remove('activo');
+        document.getElementById('infoTexto').innerHTML = `❌ No se pudo obtener ubicación`;
+        setTimeout(() => {
+            if (!filtroCercaniaActivo) {
+                document.getElementById('infoUbicacion').style.display = 'none';
+            }
+        }, 3000);
+    }
 };
 
 window.cambiarFiltroProvincia = (provincia) => {
-resetearFiltrosRapidos();
-if (!provincia) {
-document.getElementById('filtroLocalidad').value = "";
-document.getElementById('filtroLocalidad').innerHTML = '<option value="">TODAS LAS LOCALIDADES</option>';
-} else {
-cargarLocalidades(provincia);
-}
-aplicarFiltros();
+    resetearFiltrosRapidos();
+    if (!provincia) {
+        document.getElementById('filtroLocalidad').value = "";
+        document.getElementById('filtroLocalidad').innerHTML = '<option value="">TODAS LAS LOCALIDADES</option>';
+    } else {
+        cargarLocalidades(provincia);
+    }
+    aplicarFiltros();
 };
 
 window.cambiarFiltroLocalidad = (localidad) => {
-resetearFiltrosRapidos();
-aplicarFiltros();
+    resetearFiltrosRapidos();
+    aplicarFiltros();
 };
 
 window.aplicarFiltros = function aplicarFiltros() {
-const texto = document.getElementById('filtroNombre').value.toLowerCase();
-const textoNormalizado = normalizarTexto(texto);
-const vencimiento = document.getElementById('filtroVence').value;
-const provSeleccionada = document.getElementById('filtroProvincia').value;
-const locSeleccionada = document.getElementById('filtroLocalidad').value;
-let filtrados = [...comerciosCompletos];
-if (texto) {
-filtrados = filtrados.filter(c => {
-const nombreNormalizado = normalizarTexto(c.nombre || '');
-return nombreNormalizado.includes(textoNormalizado);
-});
-}
-if (filtroProvinciaActivo && usuarioData && usuarioData.provincia) {
-filtrados = filtrados.filter(c => c.provincia === usuarioData.provincia);
-} else if (filtroLocalidadActivo && usuarioData && usuarioData.localidad) {
-filtrados = filtrados.filter(c => (c.localidad || c.ciudad) === usuarioData.localidad);
-} else if (filtroCercaniaActivo && ubicacionUsuario) {
-filtrados = filtrados.filter(c => {
-if (c.coordenadas && c.coordenadas.lat && c.coordenadas.lng) {
-const dist = calcularDistancia(ubicacionUsuario.lat, ubicacionUsuario.lng, c.coordenadas.lat, c.coordenadas.lng);
-c.distanciaCalculada = dist;
-return dist <= 10;
-}
-return false;
-});
-filtrados.sort((a, b) => (a.distanciaCalculada || 999) - (b.distanciaCalculada || 999));
-} else {
-if (provSeleccionada) {
-filtrados = filtrados.filter(c => c.provincia === provSeleccionada);
-}
-if (locSeleccionada) {
-filtrados = filtrados.filter(c => (c.localidad || c.ciudad) === locSeleccionada);
-}
-}
-if (vencimiento !== 'todos') {
-const diasLimite = parseInt(vencimiento);
-filtrados = filtrados.filter(c => {
-const vigencia = parseInt(c.vigenciaLead) || 0;
-if (vigencia === 0) return true;
-const inicios = JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
-const inicio = inicios[c.id] || Date.now();
-const transcurrido = Date.now() - inicio;
-const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
-const diasRestantes = vigencia - diasPasados;
-return diasRestantes <= diasLimite && diasRestantes >= 0;
-});
-}
-renderizarComercios(filtrados);
+    const texto = document.getElementById('filtroNombre').value.toLowerCase();
+    const textoNormalizado = normalizarTexto(texto);
+    const vencimiento = document.getElementById('filtroVence').value;
+    const provSeleccionada = document.getElementById('filtroProvincia').value;
+    const locSeleccionada = document.getElementById('filtroLocalidad').value;
+    let filtrados = [...comerciosCompletos];
+    if (texto) {
+        filtrados = filtrados.filter(c => {
+            const nombreNormalizado = normalizarTexto(c.nombre || '');
+            return nombreNormalizado.includes(textoNormalizado);
+        });
+    }
+    if (filtroProvinciaActivo && usuarioData && usuarioData.provincia) {
+        filtrados = filtrados.filter(c => c.provincia === usuarioData.provincia);
+    } else if (filtroLocalidadActivo && usuarioData && usuarioData.localidad) {
+        filtrados = filtrados.filter(c => (c.localidad || c.ciudad) === usuarioData.localidad);
+    } else if (filtroCercaniaActivo && ubicacionUsuario) {
+        filtrados = filtrados.filter(c => {
+            if (c.coordenadas && c.coordenadas.lat && c.coordenadas.lng) {
+                const dist = calcularDistancia(ubicacionUsuario.lat, ubicacionUsuario.lng, c.coordenadas.lat, c.coordenadas.lng);
+                c.distanciaCalculada = dist;
+                return dist <= 10;
+            }
+            return false;
+        });
+        filtrados.sort((a, b) => (a.distanciaCalculada || 999) - (b.distanciaCalculada || 999));
+    } else {
+        if (provSeleccionada) {
+            filtrados = filtrados.filter(c => c.provincia === provSeleccionada);
+        }
+        if (locSeleccionada) {
+            filtrados = filtrados.filter(c => (c.localidad || c.ciudad) === locSeleccionada);
+        }
+    }
+    if (vencimiento !== 'todos') {
+        const diasLimite = parseInt(vencimiento);
+        filtrados = filtrados.filter(c => {
+            const vigencia = parseInt(c.vigenciaLead) || 0;
+            if (vigencia === 0) return true;
+            const inicios = JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
+            const inicio = inicios[c.id] || Date.now();
+            const transcurrido = Date.now() - inicio;
+            const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
+            const diasRestantes = vigencia - diasPasados;
+            return diasRestantes <= diasLimite && diasRestantes >= 0;
+        });
+    }
+    renderizarComercios(filtrados);
 }
 
 function renderizarComercios(comercios) {
-const contenedor = document.getElementById('contenedor-cupones');
-const inicios = JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
-let html = "";
-comercios.forEach(c => {
-const usosPermitidos = parseInt(c.usosLead) || 1;
-const usosRealizados = parseInt(localStorage.getItem(`uso_lead_${c.id}`) || "0");
-const esAgotado = usosRealizados >= usosPermitidos;
-const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
-let diasRestantes = vigenciaTotal;
-let mostrarReloj = vigenciaTotal > 0;
-if (mostrarReloj) {
-if (!inicios[c.id]) inicios[c.id] = Date.now();
-const transcurrido = Date.now() - inicios[c.id];
-const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
-diasRestantes = vigenciaTotal - diasPasados;
-}
-if (mostrarReloj && diasRestantes < 0) return;
-let distanciaHtml = '';
-if (filtroCercaniaActivo && ubicacionUsuario && c.coordenadas && c.distanciaCalculada) {
-distanciaHtml = `<span class="badge-distancia">📍 a ${c.distanciaCalculada.toFixed(1)}km</span>`;
-}
-const htmlLogo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c" onerror="this.src='https://via.placeholder.com/120?text=Logo'"></div>` : '';
-const beneficio = c.descLead ? `${c.descLead} ${c.detalleLead || ''}` : "Consultar";
-const tieneRedes = (c.instagram || c.facebook || c.web || c.sitioWeb);
-const btnConozcaHTML = tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${(c.nombre || '').replace(/'/g, "\\'")}', '${(c.instagram || '').replace(/'/g, "\\'")}', '${(c.sitioWeb || '').replace(/'/g, "\\'")}', '${(c.facebook || '').replace(/'/g, "\\'")}', '${(c.web || '').replace(/'/g, "\\'")}')">Conozca el comercio</button>` : '';
-const tieneSorteo = c.titulo_sorteo || c.titulo_promo;
-const yaTocado = localStorage.getItem('toco_sorteo_' + c.id) === 'true';
-const claseAnimacion = yaTocado ? 'sin-pulso' : 'animar-pulso';
-const botonSorteo = tieneSorteo ? `<button class="btn-act btn-sorteo ${claseAnimacion}" id="btn-sorteo-${c.id}" onclick="tocarSorteo('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')">🎁 SORTEOS y PROMOS</button>` : '';
-let infoVencimiento = "";
-if (!mostrarReloj) {
-infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento`;
-} else if (diasRestantes <= 3) {
-infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vence: ${diasRestantes} días</span>`;
-} else {
-infoVencimiento = `<span class="ico-large">⏳</span>Vence: ${diasRestantes} días`;
-}
-const contadorClase = esAgotado ? 'contador-inline agotado' : 'contador-inline';
-const textoBoton = esAgotado ? 'AGOTADO' : `USAR BENEFICIO <span class="${contadorClase}">${usosRealizados}/${usosPermitidos}</span>`;
-const mapsUrl = c.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`;
-html += `
-<div class="card ${esAgotado ? 'agotado' : ''}" data-nombre="${(c.nombre || '').toLowerCase()}" data-vence="${diasRestantes}">
-${htmlLogo}
-<div class="nombre-c">${c.nombre || 'Local'}</div>
-<div class="beneficio-c">${beneficio}</div>
-<span class="info-txt">${infoVencimiento} ${distanciaHtml}</span>
-${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
-<div class="btn-stack">
-${btnConozcaHTML}
-${botonSorteo}
-<button class="btn-act btn-llegar" onclick="window.open('${mapsUrl}')">Cómo llegar</button>
-<button class="btn-act btn-validar" onclick="abrirQR('${c.id}', '${c.tokenQR || ''}')">Validar Cupón con QR</button>
-<button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarAtencion('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')" ${esAgotado ? 'disabled' : ''}>
-${textoBoton}
-</button>
-</div>
-</div>`;
-});
-localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
-contenedor.innerHTML = html;
-if (scrollPosition > 0) {
-setTimeout(() => window.scrollTo({ top: scrollPosition, behavior: 'auto' }), 100);
-}
+    const contenedor = document.getElementById('contenedor-cupones');
+    const inicios = JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
+    let html = "";
+    comercios.forEach(c => {
+        const usosPermitidos = parseInt(c.usosLead) || 1;
+        const usosRealizados = parseInt(localStorage.getItem(`uso_lead_${c.id}`) || "0");
+        const esAgotado = usosRealizados >= usosPermitidos;
+        const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
+        let diasRestantes = vigenciaTotal;
+        let mostrarReloj = vigenciaTotal > 0;
+        if (mostrarReloj) {
+            if (!inicios[c.id]) inicios[c.id] = Date.now();
+            const transcurrido = Date.now() - inicios[c.id];
+            const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
+            diasRestantes = vigenciaTotal - diasPasados;
+        }
+        if (mostrarReloj && diasRestantes < 0) return;
+        let distanciaHtml = '';
+        if (filtroCercaniaActivo && ubicacionUsuario && c.coordenadas && c.distanciaCalculada) {
+            distanciaHtml = `<span class="badge-distancia">📍 a ${c.distanciaCalculada.toFixed(1)}km</span>`;
+        }
+        const htmlLogo = c.logoUrl ? `<div class="logo-container"><img src="${c.logoUrl}" class="logo-c" onerror="this.src='https://via.placeholder.com/120?text=Logo'"></div>` : '';
+        const beneficio = c.descLead ? `${c.descLead} ${c.detalleLead || ''}` : "Consultar";
+        const tieneRedes = (c.instagram || c.facebook || c.web || c.sitioWeb);
+        const btnConozcaHTML = tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${(c.nombre || '').replace(/'/g, "\\'")}', '${(c.instagram || '').replace(/'/g, "\\'")}', '${(c.sitioWeb || '').replace(/'/g, "\\'")}', '${(c.facebook || '').replace(/'/g, "\\'")}', '${(c.web || '').replace(/'/g, "\\'")}')">Conozca el comercio</button>` : '';
+        const tieneSorteo = c.titulo_sorteo || c.titulo_promo;
+        const yaTocado = localStorage.getItem('toco_sorteo_' + c.id) === 'true';
+        const claseAnimacion = yaTocado ? 'sin-pulso' : 'animar-pulso';
+        const botonSorteo = tieneSorteo ? `<button class="btn-act btn-sorteo ${claseAnimacion}" id="btn-sorteo-${c.id}" onclick="tocarSorteo('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')">🎁 SORTEOS y PROMOS</button>` : '';
+        let infoVencimiento = "";
+        if (!mostrarReloj) {
+            infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento`;
+        } else if (diasRestantes <= 3) {
+            infoVencimiento = `<span class="box-vence-3"><span class="ico-large">⏳</span>Vence: ${diasRestantes} días</span>`;
+        } else {
+            infoVencimiento = `<span class="ico-large">⏳</span>Vence: ${diasRestantes} días`;
+        }
+        const contadorClase = esAgotado ? 'contador-inline agotado' : 'contador-inline';
+        const textoBoton = esAgotado ? 'AGOTADO' : `USAR BENEFICIO <span class="${contadorClase}">${usosRealizados}/${usosPermitidos}</span>`;
+        const mapsUrl = c.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`;
+        html += `
+            <div class="card ${esAgotado ? 'agotado' : ''}" data-nombre="${(c.nombre || '').toLowerCase()}" data-vence="${diasRestantes}">
+                ${htmlLogo}
+                <div class="nombre-c">${c.nombre || 'Local'}</div>
+                <div class="beneficio-c">${beneficio}</div>
+                <span class="info-txt">${infoVencimiento} ${distanciaHtml}</span>
+                ${c.direccion ? `<span class="info-txt"><span class="ico-large">📍</span>${c.direccion}</span>` : ""}
+                <div class="btn-stack">
+                    ${btnConozcaHTML}
+                    ${botonSorteo}
+                    <button class="btn-act btn-llegar" onclick="window.open('${mapsUrl}')">Cómo llegar</button>
+                    <button class="btn-act btn-validar" onclick="abrirQR('${c.id}', '${c.tokenQR || ''}')">Validar Cupón con QR</button>
+                    <button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarAtencion('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')" ${esAgotado ? 'disabled' : ''}>
+                        ${textoBoton}
+                    </button>
+                </div>
+            </div>`;
+    });
+    localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
+    contenedor.innerHTML = html;
+    if (scrollPosition > 0) {
+        setTimeout(() => window.scrollTo({ top: scrollPosition, behavior: 'auto' }), 100);
+    }
 }
 
 onSnapshot(collection(db, "comercios"), (snap) => {
-const comercios = [];
-snap.forEach(docSnap => {
-const c = docSnap.data();
-if (c.estado === "inactivo") return;
-comercios.push({ id: docSnap.id, ...c });
-});
-comerciosCompletos = comercios;
-aplicarFiltros();
+    const comercios = [];
+    snap.forEach(docSnap => {
+        const c = docSnap.data();
+        if (c.estado === "inactivo") return;
+        comercios.push({ id: docSnap.id, ...c });
+    });
+    comerciosCompletos = comercios;
+    aplicarFiltros();
 });
 
 // ============================================
@@ -1231,237 +1249,239 @@ window.cerrarErrorQR = () => document.getElementById('overlay-error-qr').style.d
 window.cerrarAtencion = () => document.getElementById('overlay-atencion').style.display = 'none';
 window.cerrarPopup = () => document.getElementById('popup-redes').style.display = 'none';
 window.abrirPopup = (nom, ig, web, fb, tk) => {
-document.getElementById('pop-nombre').innerText = nom;
-const configurar = (id, link) => {
-const el = document.getElementById(id);
-if (link && link.trim() && link !== "#") {
-el.href = link.startsWith('http') ? link : `https://${link}`;
-el.style.display = "block";
-} else { el.style.display = "none"; }
-};
-configurar('lnk-ig', ig);
-configurar('lnk-fb', fb);
-configurar('lnk-tk', tk);
-configurar('lnk-web', web);
-document.getElementById('popup-redes').style.display = 'flex';
+    document.getElementById('pop-nombre').innerText = nom;
+    const configurar = (id, link) => {
+        const el = document.getElementById(id);
+        if (link && link.trim() && link !== "#") {
+            el.href = link.startsWith('http') ? link : `https://${link}`;
+            el.style.display = "block";
+        } else { el.style.display = "none"; }
+    };
+    configurar('lnk-ig', ig);
+    configurar('lnk-fb', fb);
+    configurar('lnk-tk', tk);
+    configurar('lnk-web', web);
+    document.getElementById('popup-redes').style.display = 'flex';
 };
 window.tocarSorteo = (id, nombre) => {
-const btn = document.getElementById(`btn-sorteo-${id}`);
-if (btn) { btn.classList.remove('animar-pulso'); btn.classList.add('sin-pulso'); }
-localStorage.setItem('toco_sorteo_' + id, 'true');
-window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`;
+    const btn = document.getElementById(`btn-sorteo-${id}`);
+    if (btn) { btn.classList.remove('animar-pulso'); btn.classList.add('sin-pulso'); }
+    localStorage.setItem('toco_sorteo_' + id, 'true');
+    window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`;
 };
 window.abrirQR = (id, token) => {
-idEnProceso = id;
-tokenEsperado = token;
-scrollPosition = window.pageYOffset;
-document.getElementById('modal-qr').style.display = 'flex';
-scanner = new Html5Qrcode("reader");
-scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
-if (text.trim() === tokenEsperado.trim()) {
-cerrarScanner();
-const btn = document.getElementById(`btn-usar-${idEnProceso}`);
-if(btn) btn.classList.add('activo');
-document.getElementById('overlay-validado').style.display = 'flex';
-} else {
-cerrarScanner();
-document.getElementById('overlay-error-qr').style.display = 'flex';
-}
-}).catch(e => console.error(e));
+    idEnProceso = id;
+    tokenEsperado = token;
+    scrollPosition = window.pageYOffset;
+    document.getElementById('modal-qr').style.display = 'flex';
+    scanner = new Html5Qrcode("reader");
+    scanner.start({ facingMode: "environment" }, { fps: 10, qrbox: 250 }, (text) => {
+        if (text.trim() === tokenEsperado.trim()) {
+            cerrarScanner();
+            const btn = document.getElementById(`btn-usar-${idEnProceso}`);
+            if(btn) btn.classList.add('activo');
+            document.getElementById('overlay-validado').style.display = 'flex';
+        } else {
+            cerrarScanner();
+            document.getElementById('overlay-error-qr').style.display = 'flex';
+        }
+    }).catch(e => console.error(e));
 };
 window.cerrarScanner = () => {
-document.getElementById('modal-qr').style.display = 'none';
-if(scanner) { scanner.stop().then(() => scanner.clear()).catch(err => console.log(err)); }
+    document.getElementById('modal-qr').style.display = 'none';
+    if(scanner) { scanner.stop().then(() => scanner.clear()).catch(err => console.log(err)); }
 };
 window.copiarID = () => {
-const idTexto = document.getElementById('exito-id-texto').innerText;
-navigator.clipboard.writeText(idTexto).then(() => alert("Código copiado: " + idTexto));
+    const idTexto = document.getElementById('exito-id-texto').innerText;
+    navigator.clipboard.writeText(idTexto).then(() => alert("Código copiado: " + idTexto));
 };
 window.preguntarAtencion = (id, nom) => {
-const btn = document.getElementById(`btn-usar-${id}`);
-if (!btn || !btn.classList.contains('activo')) {
-alert("⚠️ Primero debes validar el QR del comercio");
-return;
-}
-document.getElementById('overlay-atencion').style.display = 'flex';
-document.getElementById('btn-confirmar-final').onclick = () => {
-document.getElementById('overlay-atencion').style.display = 'none';
-finalizar(id, nom);
-};
+    const btn = document.getElementById(`btn-usar-${id}`);
+    if (!btn || !btn.classList.contains('activo')) {
+        alert("⚠️ Primero debes validar el QR del comercio");
+        return;
+    }
+    document.getElementById('overlay-atencion').style.display = 'flex';
+    document.getElementById('btn-confirmar-final').onclick = () => {
+        document.getElementById('overlay-atencion').style.display = 'none';
+        finalizar(id, nom);
+    };
 };
 window.finalizar = async (id, nom) => {
-try {
-if (!leadId || leadId.startsWith('invitado_')) {
-alert("Error: No se detectó una sesión válida. Por favor, regístrese nuevamente.");
-window.location.replace("usuarios_registro_lead.html");
-return;
-}
-scrollPosition = window.pageYOffset;
-const ahora = new Date();
-const fechaLegible = ahora.toLocaleDateString();
-const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-const timestamp = ahora.getTime();
-const refComercio = doc(db, "comercios", id);
-const snapCom = await getDoc(refComercio);
-const dataCom = snapCom.data();
-const usosPermitidos = parseInt(dataCom.usosLead) || 1;
-const usosRealizados = parseInt(localStorage.getItem(`uso_lead_${id}`) || "0");
-const nuevosUsos = usosRealizados + 1;
-if (nuevosUsos > usosPermitidos) {
-alert("❌ Ya has agotado todos los usos de este cupón");
-return;
-}
-const totalActual = (dataCom.totalUsos || 0) + 1;
-const idManual = "HAB-" + String(totalActual).padStart(4, '0');
-await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
-try {
-const nombreUsuario = usuarioData
-? `${(usuarioData.apellido || '').toUpperCase()}, ${(usuarioData.nombres || usuarioData.nombre || '').toUpperCase()}`.trim().replace(/^,\s*/, '')
-: '';
-const whatsappUsuario = usuarioData ? (usuarioData.whatsapp || '') : '';
-await addDoc(collection(db, "logs_actividad"), {
-timestamp, tipo: "canje", accion: "CANJE LEADS",
-nombreComercio: nom, usuarioId: leadId, idValidacion: idManual,
-usoNumero: nuevosUsos, usosTotales: usosPermitidos,
-nombre: nombreUsuario,
-whatsapp: whatsappUsuario,
-detalle: `${nombreUsuario}${whatsappUsuario ? ' · ' + whatsappUsuario : ''} canjeó beneficio en ${nom} (uso ${nuevosUsos} de ${usosPermitidos})`
-});
-} catch(eLog) { console.error("Error Log:", eLog); }
-const idComercioLimpio = nom.replace(/\s+/g, '_');
-const leadRef = doc(db, "leads", leadId);
-const leadDoc = await getDoc(leadRef);
-const leadData = leadDoc.data();
-const usosActualesParaVip = leadData.usos_para_vip || 0;
-// ⭐ ACTUALIZAR CON DOS CONTADORES SEPARADOS:
-// - usos_count: se resetea (para mostrar en admin)
-// - usos_para_vip: NUNCA se resetea (para el progreso VIP)
-await updateDoc(leadRef, {
-[`canjes_por_comercio.${idComercioLimpio}`]: {
-comercio: nom, codigo: idManual, fecha: fechaLegible,
-hora: horaLegible, cantidad_usos: increment(1)
-},
-usos_count: increment(1),                    // SE RESETEA
-usos_para_vip: increment(1),                 // ⭐ NUNCA SE RESETEA
-cupones_detallados: arrayUnion({
-comercio: nom, fecha: fechaLegible, hora: horaLegible,
-codigo: idManual, timestamp: timestamp, usoNumero: nuevosUsos
-}),
-lastSubmission: timestamp
-});
-localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
-// Actualizar contador de progreso después del canje
-setTimeout(actualizarContadorProgreso, 500);
-const btnUsar = document.getElementById(`btn-usar-${id}`);
-if (btnUsar) {
-btnUsar.classList.remove('activo');
-if (nuevosUsos >= usosPermitidos) {
-btnUsar.innerHTML = 'AGOTADO';
-} else {
-btnUsar.innerHTML = `USAR BENEFICIO <span class="contador-inline">${nuevosUsos}/${usosPermitidos}</span>`;
-}
-}
-document.getElementById('exito-comercio').innerText = nom;
-document.getElementById('exito-id-texto').innerText = idManual;
-JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
-document.getElementById('pantalla-exito').style.display = 'flex';
-let s = 30;
-const t = setInterval(() => {
-s--;
-document.getElementById('countdown').innerText = s;
-if(s <= 0) {
-clearInterval(t);
-document.getElementById('pantalla-exito').style.display = 'none';
-location.reload();
-}
-}, 1000);
-} catch(e) {
-console.error("Error de Validación:", e);
-alert("Error crítico: " + e.message);
-}
+    try {
+        if (!leadId || leadId.startsWith('invitado_')) {
+            alert("Error: No se detectó una sesión válida. Por favor, regístrese nuevamente.");
+            window.location.replace("usuarios_registro_lead.html");
+            return;
+        }
+        scrollPosition = window.pageYOffset;
+        const ahora = new Date();
+        const fechaLegible = ahora.toLocaleDateString();
+        const horaLegible = ahora.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const timestamp = ahora.getTime();
+        const refComercio = doc(db, "comercios", id);
+        const snapCom = await getDoc(refComercio);
+        const dataCom = snapCom.data();
+        const usosPermitidos = parseInt(dataCom.usosLead) || 1;
+        const usosRealizados = parseInt(localStorage.getItem(`uso_lead_${id}`) || "0");
+        const nuevosUsos = usosRealizados + 1;
+        if (nuevosUsos > usosPermitidos) {
+            alert("❌ Ya has agotado todos los usos de este cupón");
+            return;
+        }
+        const totalActual = (dataCom.totalUsos || 0) + 1;
+        const idManual = "HAB-" + String(totalActual).padStart(4, '0');
+        await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
+        try {
+            const nombreUsuario = usuarioData
+                ? `${(usuarioData.apellido || '').toUpperCase()}, ${(usuarioData.nombres || usuarioData.nombre || '').toUpperCase()}`.trim().replace(/^,\s*/, '')
+                : '';
+            const whatsappUsuario = usuarioData ? (usuarioData.whatsapp || '') : '';
+            await addDoc(collection(db, "logs_actividad"), {
+                timestamp, tipo: "canje", accion: "CANJE LEADS",
+                nombreComercio: nom, usuarioId: leadId, idValidacion: idManual,
+                usoNumero: nuevosUsos, usosTotales: usosPermitidos,
+                nombre: nombreUsuario,
+                whatsapp: whatsappUsuario,
+                detalle: `${nombreUsuario}${whatsappUsuario ? ' · ' + whatsappUsuario : ''} canjeó beneficio en ${nom} (uso ${nuevosUsos} de ${usosPermitidos})`
+            });
+        } catch(eLog) { console.error("Error Log:", eLog); }
+        const idComercioLimpio = nom.replace(/\s+/g, '_');
+        const leadRef = doc(db, "leads", leadId);
+        const leadDoc = await getDoc(leadRef);
+        const leadData = leadDoc.data();
+        const usosActualesParaVip = leadData.usos_para_vip || 0;
+        // ⭐ ACTUALIZAR CON DOS CONTADORES SEPARADOS:
+        // - usos_count: se resetea (para mostrar en admin)
+        // - usos_para_vip: NUNCA se resetea (para el progreso VIP)
+        await updateDoc(leadRef, {
+            [`canjes_por_comercio.${idComercioLimpio}`]: {
+                comercio: nom, codigo: idManual, fecha: fechaLegible,
+                hora: horaLegible, cantidad_usos: increment(1)
+            },
+            usos_count: increment(1),                    // SE RESETEA
+            usos_para_vip: increment(1),                 // ⭐ NUNCA SE RESETEA
+            cupones_detallados: arrayUnion({
+                comercio: nom, fecha: fechaLegible, hora: horaLegible,
+                codigo: idManual, timestamp: timestamp, usoNumero: nuevosUsos
+            }),
+            lastSubmission: timestamp
+        });
+        localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
+        // Actualizar contador de progreso después del canje
+        setTimeout(actualizarContadorProgreso, 500);
+        const btnUsar = document.getElementById(`btn-usar-${id}`);
+        if (btnUsar) {
+            btnUsar.classList.remove('activo');
+            if (nuevosUsos >= usosPermitidos) {
+                btnUsar.innerHTML = 'AGOTADO';
+            } else {
+                btnUsar.innerHTML = `USAR BENEFICIO <span class="contador-inline">${nuevosUsos}/${usosPermitidos}</span>`;
+            }
+        }
+        document.getElementById('exito-comercio').innerText = nom;
+        document.getElementById('exito-id-texto').innerText = idManual;
+        JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
+        document.getElementById('pantalla-exito').style.display = 'flex';
+        let s = 30;
+        const t = setInterval(() => {
+            s--;
+            document.getElementById('countdown').innerText = s;
+            if(s <= 0) {
+                clearInterval(t);
+                document.getElementById('pantalla-exito').style.display = 'none';
+                location.reload();
+            }
+        }, 1000);
+    } catch(e) {
+        console.error("Error de Validación:", e);
+        alert("Error crítico: " + e.message);
+    }
 };
 window.abrirPopupPostulaciones = () => {
-const overlay = document.createElement('div');
-overlay.className = 'popup-instalacion';
-overlay.innerHTML = `
-<div class="popup-contenido">
-<h3>¿QUÉ DESEAS POSTULAR?</h3>
-<button class="btn-popup-postulacion comercio" onclick="window.location.href='usuarios_comercios_postulacion.html'">🏪 COMERCIO</button>
-<button class="btn-popup-postulacion martillero" onclick="alert('Próximamente podrás postularte como MARTILLERO')">🔑 MARTILLERO (próximamente)</button>
-<button class="btn-popup-postulacion colaborador" onclick="alert('Próximamente podrás postularte como COLABORADOR')">👥 COLABORADOR (próximamente)</button>
-<button class="btn-popup-postulacion cerrar" id="btn-cerrar-postulaciones">CERRAR</button>
-</div>
-`;
-document.body.appendChild(overlay);
-document.getElementById('btn-cerrar-postulaciones').addEventListener('click', () => overlay.remove());
-overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+    const overlay = document.createElement('div');
+    overlay.className = 'popup-instalacion';
+    overlay.innerHTML = `
+        <div class="popup-contenido">
+            <h3>¿QUÉ DESEAS POSTULAR?</h3>
+            <button class="btn-popup-postulacion comercio" onclick="window.location.href='usuarios_comercios_postulacion.html'">🏪 COMERCIO</button>
+            <button class="btn-popup-postulacion martillero" onclick="alert('Próximamente podrás postularte como MARTILLERO')">🔑 MARTILLERO (próximamente)</button>
+            <button class="btn-popup-postulacion colaborador" onclick="alert('Próximamente podrás postularte como COLABORADOR')">👥 COLABORADOR (próximamente)</button>
+            <button class="btn-popup-postulacion cerrar" id="btn-cerrar-postulaciones">CERRAR</button>
+        </div>
+    `;
+    document.body.appendChild(overlay);
+    document.getElementById('btn-cerrar-postulaciones').addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
 };
 
 // ============================================
 // ⭐ INICIALIZACIÓN: VERIFICAR RESET + CARGAR DATOS
 // ============================================
 async function inicializarApp() {
-// 1️⃣ Primero verificar si hay reset pendiente
-await verificarYAplicarResetCupones();
-// 2️⃣ Luego cargar datos del usuario y contador VIP
-if (leadId && !leadId.startsWith('invitado_')) {
-try {
-const docSnap = await getDoc(doc(db, "leads", leadId));
-if (docSnap.exists()) {
-usuarioData = docSnap.data();
-if (!provinciasCargadas) {
-cargarProvincias();
-provinciasCargadas = true;
+    // 1️⃣ Primero verificar si hay reset pendiente
+    await verificarYAplicarResetCupones();
+    
+    // 2️⃣ Luego cargar datos del usuario y contador VIP
+    if (leadId && !leadId.startsWith('invitado_')) {
+        try {
+            const docSnap = await getDoc(doc(db, "leads", leadId));
+            if (docSnap.exists()) {
+                usuarioData = docSnap.data();
+                if (!provinciasCargadas) {
+                    cargarProvincias();
+                    provinciasCargadas = true;
+                }
+                actualizarContadorProgreso();
+            }
+        } catch(e) {
+            console.error("Error cargando usuario:", e);
+        }
+    } else {
+        cargarProvincias();
+    }
 }
-actualizarContadorProgreso();
-}
-} catch(e) {
-console.error("Error cargando usuario:", e);
-}
-} else {
-cargarProvincias();
-}
-}
+
 // Ejecutar inicialización
 inicializarApp();
 </script>
 <script>
 (function() {
-let deferredPrompt;
-const yaInstalado = localStorage.getItem('habitat_pwa_instalada') === 'true';
-window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
-function mostrarMensajeInstalacion() {
-const popupAnterior = document.querySelector('.popup-instalacion');
-if (popupAnterior) popupAnterior.remove();
-const overlay = document.createElement('div');
-overlay.className = 'popup-instalacion';
-if (yaInstalado) {
-overlay.innerHTML = `<div class="popup-contenido"><h3>✅ YA ESTÁ INSTALADA</h3><p>Buscá el ícono de Hábitat-Car entre tus aplicaciones.</p><button class="btn-popup-postulacion cerrar" id="btn-ok-instalada">ACEPTAR</button></div>`;
-} else if (!deferredPrompt) {
-overlay.innerHTML = `<div class="popup-contenido"><h3>📲 INSTALACIÓN</h3><p>Buscá en el menú de tu navegador la opción <strong>"Agregar a pantalla de inicio"</strong>.</p><button class="btn-popup-postulacion cerrar" id="btn-ok-soporte">ENTENDIDO</button></div>`;
-} else {
-overlay.innerHTML = `<div class="popup-contenido"><h3>📲 INSTALÁ LA APP</h3><p>Para no perderte los beneficios y tener acceso rápido.</p><div style="display:flex; gap:10px;"><button class="btn-popup-postulacion comercio" id="btn-instalar-confirmar" style="flex:1;">INSTALAR</button><button class="btn-popup-postulacion cerrar" id="btn-instalar-cancelar" style="flex:1;">RECHAZAR</button></div></div>`;
-}
-document.body.appendChild(overlay);
-if (yaInstalado) document.getElementById('btn-ok-instalada')?.addEventListener('click', () => overlay.remove());
-else if (!deferredPrompt) document.getElementById('btn-ok-soporte')?.addEventListener('click', () => overlay.remove());
-else {
-document.getElementById('btn-instalar-confirmar')?.addEventListener('click', () => {
-overlay.remove();
-if (deferredPrompt) {
-deferredPrompt.prompt();
-deferredPrompt.userChoice.then((choiceResult) => {
-if (choiceResult.outcome === 'accepted') localStorage.setItem('habitat_pwa_instalada', 'true');
-deferredPrompt = null;
-});
-}
-});
-document.getElementById('btn-instalar-cancelar')?.addEventListener('click', () => overlay.remove());
-}
-}
-document.addEventListener('DOMContentLoaded', () => {
-document.getElementById('btn-instalar-footer')?.addEventListener('click', mostrarMensajeInstalacion);
-});
+    let deferredPrompt;
+    const yaInstalado = localStorage.getItem('habitat_pwa_instalada') === 'true';
+    window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
+    function mostrarMensajeInstalacion() {
+        const popupAnterior = document.querySelector('.popup-instalacion');
+        if (popupAnterior) popupAnterior.remove();
+        const overlay = document.createElement('div');
+        overlay.className = 'popup-instalacion';
+        if (yaInstalado) {
+            overlay.innerHTML = `<div class="popup-contenido"><h3>✅ YA ESTÁ INSTALADA</h3><p>Buscá el ícono de Hábitat-Car entre tus aplicaciones.</p><button class="btn-popup-postulacion cerrar" id="btn-ok-instalada">ACEPTAR</button></div>`;
+        } else if (!deferredPrompt) {
+            overlay.innerHTML = `<div class="popup-contenido"><h3>📲 INSTALACIÓN</h3><p>Buscá en el menú de tu navegador la opción <strong>"Agregar a pantalla de inicio"</strong>.</p><button class="btn-popup-postulacion cerrar" id="btn-ok-soporte">ENTENDIDO</button></div>`;
+        } else {
+            overlay.innerHTML = `<div class="popup-contenido"><h3>📲 INSTALÁ LA APP</h3><p>Para no perderte los beneficios y tener acceso rápido.</p><div style="display:flex; gap:10px;"><button class="btn-popup-postulacion comercio" id="btn-instalar-confirmar" style="flex:1;">INSTALAR</button><button class="btn-popup-postulacion cerrar" id="btn-instalar-cancelar" style="flex:1;">RECHAZAR</button></div></div>`;
+        }
+        document.body.appendChild(overlay);
+        if (yaInstalado) document.getElementById('btn-ok-instalada')?.addEventListener('click', () => overlay.remove());
+        else if (!deferredPrompt) document.getElementById('btn-ok-soporte')?.addEventListener('click', () => overlay.remove());
+        else {
+            document.getElementById('btn-instalar-confirmar')?.addEventListener('click', () => {
+                overlay.remove();
+                if (deferredPrompt) {
+                    deferredPrompt.prompt();
+                    deferredPrompt.userChoice.then((choiceResult) => {
+                        if (choiceResult.outcome === 'accepted') localStorage.setItem('habitat_pwa_instalada', 'true');
+                        deferredPrompt = null;
+                    });
+                }
+            });
+            document.getElementById('btn-instalar-cancelar')?.addEventListener('click', () => overlay.remove());
+        }
+    }
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('btn-instalar-footer')?.addEventListener('click', mostrarMensajeInstalacion);
+    });
 })();
 </script>
 </body>
