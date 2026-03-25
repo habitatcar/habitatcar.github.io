@@ -294,6 +294,21 @@
             border-radius: 8px;
             z-index: 1000;
         }
+        .debug-console {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            background: #1e1e1e;
+            color: #0f0;
+            font-family: monospace;
+            font-size: 10px;
+            padding: 8px;
+            border-radius: 5px;
+            max-width: 300px;
+            z-index: 10000;
+            display: none;
+        }
+        .debug-console.visible { display: block; }
     </style>
 </head>
 <body>
@@ -403,6 +418,10 @@
         </div>
     </div>
 
+    <div id="debug-console" class="debug-console">
+        <strong>📋 Log:</strong> <span id="log-mensaje">Esperando acción...</span>
+    </div>
+
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, query, orderBy, limit, onSnapshot, updateDoc, doc, getDoc, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -432,7 +451,22 @@
         let ultimoPdfGenerado = null;
         let emailComercio = '';
 
-        // OBTENER EMAIL DEL COMERCIO DESDE FIRESTORE
+        function addLog(msg) {
+            const logSpan = document.getElementById('log-mensaje');
+            if (logSpan) {
+                logSpan.innerHTML = msg + '<br>' + logSpan.innerHTML;
+                if (logSpan.innerHTML.split('<br>').length > 5) {
+                    logSpan.innerHTML = logSpan.innerHTML.split('<br>').slice(0, 5).join('<br>');
+                }
+            }
+            console.log(msg);
+            const debugPanel = document.getElementById('debug-console');
+            if (debugPanel) debugPanel.classList.add('visible');
+            setTimeout(() => {
+                if (debugPanel) debugPanel.classList.remove('visible');
+            }, 5000);
+        }
+
         async function obtenerEmailComercio() {
             if (!comercioIdParam && !comercioNombreParam) return '';
             
@@ -688,6 +722,7 @@
         };
 
         window.exportarPDF = async () => {
+            addLog('📄 Iniciando generación de PDF...');
             const { jsPDF } = window.jspdf;
             const pdfDoc = new jsPDF('landscape');
             
@@ -725,6 +760,8 @@
             
             const canjesDelPeriodo = filtrarCanjesPorFecha(todosLosCanjes, rango.inicio, rango.fin);
             
+            addLog(`📊 Canjes en el período: ${canjesDelPeriodo.length}`);
+            
             const totalCanjes = canjesDelPeriodo.length;
             const totalLeads = canjesDelPeriodo.filter(c => c.tipo === 'LEAD').length;
             const totalVips = canjesDelPeriodo.filter(c => c.tipo === 'VIP').length;
@@ -748,6 +785,8 @@
                 c.monto ? `$${parseFloat(c.monto).toFixed(2)}` : '---'
             ]);
             
+            addLog(`📋 Datos de tabla: ${tablaData.length} filas`);
+            
             pdfDoc.autoTable({
                 startY: 64,
                 head: [['Fecha', 'Tipo', 'Usuario', 'WhatsApp', 'Código', 'N° Factura', 'Monto']],
@@ -766,12 +805,20 @@
             }
             
             const nombreArchivo = `ControlCaja_${comercioNombreParam.replace(/\s+/g,'_')}_${Date.now()}.pdf`;
-            pdfDoc.save(nombreArchivo);
             
+            // Guardar el PDF como blob
             const pdfBlob = pdfDoc.output('blob');
+            addLog(`📦 Tamaño del blob PDF: ${pdfBlob.size} bytes`);
+            
+            // Convertir a base64
             const reader = new FileReader();
-            const pdfBase64 = await new Promise((resolve) => {
-                reader.onload = () => resolve(reader.result.split(',')[1]);
+            const pdfBase64 = await new Promise((resolve, reject) => {
+                reader.onload = () => {
+                    const base64 = reader.result.split(',')[1];
+                    addLog(`📦 Base64 generado, longitud: ${base64?.length || 0} caracteres`);
+                    resolve(base64);
+                };
+                reader.onerror = reject;
                 reader.readAsDataURL(pdfBlob);
             });
             
@@ -782,8 +829,13 @@
                 stats: { total: totalCanjes, leads: totalLeads, vips: totalVips, monto: montoTotal }
             };
             
+            addLog(`✅ PDF guardado en memoria: ${ultimoPdfGenerado.nombre}`);
+            
             document.getElementById('btn-email').classList.add('visible');
             document.getElementById('btn-whatsapp').classList.add('visible');
+            
+            // Descargar el PDF localmente
+            pdfDoc.save(nombreArchivo);
             
             const toast = document.createElement('div');
             toast.textContent = `✅ PDF generado: ${nombreArchivo}`;
@@ -835,6 +887,10 @@
                 return;
             }
             
+            addLog(`📧 Enviando a: ${email}`);
+            addLog(`📄 Datos PDF: ${ultimoPdfGenerado.nombre}, base64 length: ${ultimoPdfGenerado.base64.length}`);
+            addLog(`📊 Stats: total=${ultimoPdfGenerado.stats.total}, leads=${ultimoPdfGenerado.stats.leads}, vips=${ultimoPdfGenerado.stats.vips}`);
+            
             const comercio = comercioNombreParam || 'Comercio';
             
             const btn = event.target;
@@ -847,8 +903,14 @@
                     email: email,
                     comercio: comercio,
                     pdfBase64: ultimoPdfGenerado.base64,
-                    stats: ultimoPdfGenerado.stats
+                    stats: {
+                        total: ultimoPdfGenerado.stats.total,
+                        leads: ultimoPdfGenerado.stats.leads,
+                        vips: ultimoPdfGenerado.stats.vips
+                    }
                 });
+                
+                addLog(`📬 Respuesta Firebase: ${JSON.stringify(result.data)}`);
                 
                 if (result.data?.success) {
                     try {
@@ -859,9 +921,16 @@
                             email: email,
                             tipo: 'control_caja',
                             periodo: document.getElementById('pdf-rango').value,
-                            estado: 'Enviado'
+                            estado: 'Enviado',
+                            canjesTotal: ultimoPdfGenerado.stats.total,
+                            canjesLeads: ultimoPdfGenerado.stats.leads,
+                            canjesVips: ultimoPdfGenerado.stats.vips,
+                            monto: ultimoPdfGenerado.stats.monto
                         });
-                    } catch(e) { console.warn('No se pudo guardar historial:', e); }
+                        addLog(`✅ Historial guardado en Firestore`);
+                    } catch(e) { 
+                        addLog(`⚠️ No se pudo guardar historial: ${e.message}`); 
+                    }
                     
                     const toast = document.createElement('div');
                     toast.textContent = `✅ Reporte enviado a ${email}`;
@@ -871,9 +940,10 @@
                     
                     cerrarModalCompartir();
                 } else {
-                    throw new Error('Error en el envío');
+                    throw new Error(result.data?.message || 'Error en el envío');
                 }
             } catch (error) {
+                addLog(`❌ Error: ${error.message}`);
                 console.error('Error enviando email:', error);
                 alert(`❌ Error al enviar: ${error.message || 'Intenta nuevamente'}`);
             } finally {
@@ -903,14 +973,13 @@
             
             emailComercio = await obtenerEmailComercio();
             if (emailComercio) {
-                console.log('📧 Email del comercio:', emailComercio);
+                addLog(`📧 Email del comercio: ${emailComercio}`);
             }
             
             if (unsubscribe) unsubscribe();
             const logsRef = collection(db, 'logs_actividad');
             const q = query(logsRef, orderBy('timestamp', 'desc'), limit(2000));
             unsubscribe = onSnapshot(q, (snapshot) => {
-                console.log(`📊 Snapshot total: ${snapshot.size} documentos`);
                 todosLosCanjes = [];
                 let totalEnSnapshot = 0, totalSonCanje = 0, totalDelComercio = 0;
                 snapshot.forEach(docSnap => {
@@ -928,23 +997,15 @@
                     const tb = b.timestamp ? (b.timestamp.toDate ? b.timestamp.toDate() : new Date(b.timestamp)) : 0;
                     return tb - ta;
                 });
-                console.log(`✅ Total: ${totalEnSnapshot} | Son canjes: ${totalSonCanje} | De este comercio: ${totalDelComercio}`);
-                const debugPanel = document.getElementById('debug-panel');
-                const debugTexto = document.getElementById('debug-texto');
-                if (todosLosCanjes.length === 0) {
-                    debugPanel.classList.add('visible');
-                    debugTexto.innerText = `Docs en snapshot: ${totalEnSnapshot} | Son canjes: ${totalSonCanje} | De este comercio: ${totalDelComercio} | Buscando id="${comercioIdParam}" o nombre="${comercioNombreParam}"`;
-                } else {
-                    debugPanel.classList.remove('visible');
-                }
+                addLog(`✅ Canjes cargados: ${todosLosCanjes.length} (de ${totalDelComercio} del comercio)`);
                 actualizarResumen();
                 aplicarFiltros();
                 if (todosLosCanjes.length === 0) {
-                    document.getElementById('lista-canjes').innerHTML = ' hilab<td colspan="8" class="sin-datos">📭 No hay canjes registrados para este comercio</td></tr>';
+                    document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">📭 No hay canjes registrados para este comercio</td></tr>';
                 }
             }, (error) => {
                 console.error('❌ Error en snapshot:', error);
-                document.getElementById('lista-canjes').innerHTML = `</td><td colspan="8" class="sin-datos">❌ Error: ${error.message}</td></tr>`;
+                document.getElementById('lista-canjes').innerHTML = `<tr><td colspan="8" class="sin-datos">❌ Error: ${error.message}</td></tr>`;
             });
         }
 
