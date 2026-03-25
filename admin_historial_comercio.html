@@ -213,7 +213,7 @@
         }
         .debug-panel.visible { display: block; }
         
-        /* === NUEVOS ESTILOS PARA PDF Y ENVÍO === */
+        /* === ESTILOS PARA PDF Y ENVÍO === */
         .pdf-options {
             display: flex;
             gap: 8px;
@@ -258,7 +258,7 @@
             text-align: center;
         }
         .modal-contenido h3 {
-            color: var(--azul-habitat);
+            color: #004a99;
             margin-bottom: 15px;
         }
         .modal-contenido p {
@@ -284,6 +284,23 @@
             border: 1px solid var(--azul-claro);
             border-radius: 8px;
             font-size: 14px;
+        }
+        .email-sugerido {
+            font-size: 12px;
+            color: #004a99;
+            margin-top: -5px;
+            margin-bottom: 10px;
+            text-align: left;
+        }
+        .toast-success {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: #28a745;
+            color: white;
+            padding: 10px 20px;
+            border-radius: 8px;
+            z-index: 1000;
         }
     </style>
 </head>
@@ -320,7 +337,6 @@
         <button class="btn-filtro" onclick="aplicarFiltros()"><i class="fas fa-search"></i> Buscar</button>
         <button class="btn-filtro" onclick="limpiarFiltros()"><i class="fas fa-eraser"></i> Limpiar</button>
         
-        <!-- === NUEVOS CONTROLES PARA PDF === -->
         <select id="pdf-rango" class="filtro-input" style="min-width: 140px;">
             <option value="hoy">📅 Hoy (cierre de caja)</option>
             <option value="ayer">📅 Ayer</option>
@@ -346,8 +362,7 @@
     <div class="tabla-container">
         <table id="tabla-canjes">
             <thead>
-                <tr>
-                    <th>Fecha y Hora</th>
+                32<th>Fecha y Hora</th>
                     <th>Tipo</th>
                     <th>Usuario</th>
                     <th>WhatsApp</th>
@@ -363,7 +378,7 @@
         </table>
     </div>
 
-    <!-- === MODAL PARA COMPARTIR === -->
+    <!-- MODAL PARA COMPARTIR -->
     <div id="modal-compartir" class="modal-compartir">
         <div class="modal-contenido">
             <h3>📤 Compartir Reporte</h3>
@@ -371,7 +386,8 @@
             
             <div id="seccion-email">
                 <input type="email" id="input-email-destino" class="input-email" placeholder="Email del destinatario">
-                <button class="btn-modal email" onclick="enviarPorEmail()">
+                <div id="email-sugerido" class="email-sugerido"></div>
+                <button class="btn-modal email" onclick="enviarPorEmailFirebase()">
                     <i class="fas fa-paper-plane"></i> Enviar por Email
                 </button>
             </div>
@@ -397,8 +413,8 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, orderBy, limit, onSnapshot, updateDoc, doc }
-            from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, limit, onSnapshot, updateDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -411,6 +427,8 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const functions = getFunctions(app);
+        const enviarReporteEmail = httpsCallable(functions, 'enviarReporteEmail');
 
         const urlParams = new URLSearchParams(window.location.search);
         const comercioIdParam    = urlParams.get('id')     || '';
@@ -419,17 +437,49 @@
         let todosLosCanjes = [];
         let canjesFiltrados = [];
         let unsubscribe = null;
-        let ultimoPdfGenerado = null; // Para compartir después de generar
+        let ultimoPdfGenerado = null;
+        let emailComercio = ''; // Guardar el email del comercio
 
         // ─────────────────────────────────────────────
-        // DETECCIÓN DE CANJE — igual que admin_log
+        // OBTENER EMAIL DEL COMERCIO DESDE FIRESTORE
+        // ─────────────────────────────────────────────
+        async function obtenerEmailComercio() {
+            if (!comercioIdParam && !comercioNombreParam) return '';
+            
+            try {
+                // Buscar por ID primero
+                if (comercioIdParam && comercioIdParam !== 'null' && comercioIdParam !== '') {
+                    const comercioRef = doc(db, 'comercios', comercioIdParam);
+                    const comercioSnap = await getDoc(comercioRef);
+                    if (comercioSnap.exists()) {
+                        const data = comercioSnap.data();
+                        return data.emailDueno || data.email || '';
+                    }
+                }
+                
+                // Si no se encontró por ID, buscar por nombre
+                if (comercioNombreParam) {
+                    const comerciosQuery = query(collection(db, 'comercios'));
+                    const querySnapshot = await getDocs(comerciosQuery);
+                    for (const docSnap of querySnapshot.docs) {
+                        const data = docSnap.data();
+                        if (normalizar(data.nombre || '') === normalizar(comercioNombreParam)) {
+                            return data.emailDueno || data.email || '';
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error obteniendo email del comercio:', error);
+            }
+            return '';
+        }
+
+        // ─────────────────────────────────────────────
+        // DETECCIÓN DE CANJE
         // ─────────────────────────────────────────────
         function esCanje(accionUp) { return accionUp.includes('CANJE'); }
         function tipoCanje(accionUp) { return accionUp.includes('VIP') ? 'VIP' : 'LEAD'; }
 
-        // ─────────────────────────────────────────────
-        // PERTENECE AL COMERCIO — búsqueda flexible
-        // ─────────────────────────────────────────────
         function normalizar(str) {
             if (!str) return '';
             return str.toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -497,10 +547,8 @@
         }
 
         // ─────────────────────────────────────────────
-        // === NUEVAS FUNCIONES PARA FILTROS DE FECHA PDF ===
+        // FUNCIONES PARA PDF
         // ─────────────────────────────────────────────
-        
-        // Mostrar/ocultar inputs de fecha personalizada
         document.getElementById('pdf-rango').addEventListener('change', function() {
             const inicio = document.getElementById('pdf-fecha-inicio');
             const fin = document.getElementById('pdf-fecha-fin');
@@ -513,7 +561,6 @@
             }
         });
 
-        // Obtener rango de fechas según selección
         function obtenerRangoFechasPDF() {
             const rango = document.getElementById('pdf-rango').value;
             const hoy = new Date();
@@ -571,7 +618,6 @@
             return { inicio, fin };
         }
 
-        // Filtrar canjes por rango de fechas
         function filtrarCanjesPorFecha(canjes, inicio, fin) {
             return canjes.filter(c => {
                 if (!c.timestamp) return false;
@@ -581,7 +627,7 @@
         }
 
         // ─────────────────────────────────────────────
-        // === FUNCIONES DE FILTRO Y RENDERIZADO (SIN MODIFICAR) ===
+        // FUNCIONES DE FILTRO Y RENDERIZADO
         // ─────────────────────────────────────────────
         
         window.aplicarFiltros = () => {
@@ -664,13 +710,12 @@
         };
 
         // ─────────────────────────────────────────────
-        // === FUNCIÓN EXPORTAR PDF CORREGIDA ===
+        // FUNCIÓN EXPORTAR PDF
         // ─────────────────────────────────────────────
         window.exportarPDF = async () => {
             const { jsPDF } = window.jspdf;
             const pdfDoc = new jsPDF('landscape');
             
-            // === NUEVO: AGREGAR LOGO ===
             const logoUrl = 'https://raw.githubusercontent.com/habitatcar/habitatcar.github.io/main/logo.png';
             try {
                 const response = await fetch(logoUrl);
@@ -680,19 +725,16 @@
                     reader.onload = () => resolve(reader.result);
                     reader.readAsDataURL(blob);
                 });
-                // Agregar logo en esquina superior derecha
                 pdfDoc.addImage(logoBase64, 'PNG', 250, 10, 40, 20);
             } catch(e) {
                 console.warn('⚠️ No se pudo cargar el logo para el PDF');
             }
             
-            // === NUEVO: TÍTULO SOLICITADO ===
             pdfDoc.setFontSize(14);
             pdfDoc.setTextColor(0, 74, 153);
             pdfDoc.setFont('helvetica', 'bold');
             pdfDoc.text('Control de Caja generado por usos de cupones Lead - VIP', 14, 20);
             
-            // Info del comercio y rango de fechas
             const rango = obtenerRangoFechasPDF();
             if (!rango) return;
             
@@ -706,16 +748,13 @@
             pdfDoc.text(`Período: ${rangoTexto}`, 14, 34);
             pdfDoc.text(`Generado: ${fechaActual}`, 14, 40);
             
-            // Filtrar canjes por el rango de fechas seleccionado
             const canjesDelPeriodo = filtrarCanjesPorFecha(todosLosCanjes, rango.inicio, rango.fin);
             
-            // Calcular totales del período
             const totalCanjes = canjesDelPeriodo.length;
             const totalLeads = canjesDelPeriodo.filter(c => c.tipo === 'LEAD').length;
             const totalVips = canjesDelPeriodo.filter(c => c.tipo === 'VIP').length;
             const montoTotal = canjesDelPeriodo.reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
             
-            // Resumen en el PDF
             pdfDoc.setFontSize(9);
             pdfDoc.setTextColor(0, 74, 153);
             pdfDoc.setFont('helvetica', 'bold');
@@ -724,7 +763,6 @@
             pdfDoc.setTextColor(100, 100, 100);
             pdfDoc.text(`Total canjes: ${totalCanjes} | LEAD: ${totalLeads} | VIP: ${totalVips} | Monto: $${montoTotal.toFixed(2)}`, 14, 56);
             
-            // Preparar datos de la tabla
             const tablaData = canjesDelPeriodo.map(c => [
                 formatearFecha(c.timestamp),
                 c.tipo,
@@ -735,7 +773,6 @@
                 c.monto ? `$${parseFloat(c.monto).toFixed(2)}` : '---'
             ]);
             
-            // Generar tabla
             pdfDoc.autoTable({
                 startY: 64,
                 head: [['Fecha', 'Tipo', 'Usuario', 'WhatsApp', 'Código', 'N° Factura', 'Monto']],
@@ -745,7 +782,6 @@
                 theme: 'striped'
             });
             
-            // Pie de página
             const pageCount = pdfDoc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 pdfDoc.setPage(i);
@@ -754,18 +790,27 @@
                 pdfDoc.text(`Hábitat-Car - Control de Caja - Página ${i} de ${pageCount}`, 14, 285);
             }
             
-            // Guardar PDF
             const nombreArchivo = `ControlCaja_${comercioNombreParam.replace(/\s+/g,'_')}_${Date.now()}.pdf`;
             pdfDoc.save(nombreArchivo);
             
-            // Guardar referencia para compartir
-            ultimoPdfGenerado = { nombre: nombreArchivo, blob: pdfDoc.output('blob') };
+            // Guardar el PDF en base64 para enviar por email
+            const pdfBlob = pdfDoc.output('blob');
+            const reader = new FileReader();
+            const pdfBase64 = await new Promise((resolve) => {
+                reader.onload = () => resolve(reader.result.split(',')[1]);
+                reader.readAsDataURL(pdfBlob);
+            });
             
-            // Mostrar botones de compartir
+            ultimoPdfGenerado = { 
+                nombre: nombreArchivo, 
+                blob: pdfBlob,
+                base64: pdfBase64,
+                stats: { total: totalCanjes, leads: totalLeads, vips: totalVips, monto: montoTotal }
+            };
+            
             document.getElementById('btn-email').classList.add('visible');
             document.getElementById('btn-whatsapp').classList.add('visible');
             
-            // Notificación
             const toast = document.createElement('div');
             toast.textContent = `✅ PDF generado: ${nombreArchivo}`;
             toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#28a745;color:white;padding:10px 20px;border-radius:8px;z-index:1000;';
@@ -774,7 +819,7 @@
         };
 
         // ─────────────────────────────────────────────
-        // === FUNCIONES PARA COMPARTIR PDF ===
+        // FUNCIONES PARA COMPARTIR PDF CON FIREBASE
         // ─────────────────────────────────────────────
         
         window.abrirModalCompartir = (tipo) => {
@@ -782,6 +827,7 @@
             const seccionEmail = document.getElementById('seccion-email');
             const seccionWhatsapp = document.getElementById('seccion-whatsapp');
             const instrucciones = document.getElementById('modal-instrucciones');
+            const emailSugeridoDiv = document.getElementById('email-sugerido');
             
             modal.classList.add('visible');
             
@@ -789,6 +835,14 @@
                 seccionEmail.style.display = 'block';
                 seccionWhatsapp.style.display = 'none';
                 instrucciones.textContent = 'Ingresa el email del destinatario para enviar el reporte:';
+                
+                // Mostrar email sugerido si está disponible
+                if (emailComercio) {
+                    emailSugeridoDiv.innerHTML = `💡 Email del comercio: <strong>${emailComercio}</strong><br><small>Puedes usar ese o cambiarlo</small>`;
+                    document.getElementById('input-email-destino').value = emailComercio;
+                } else {
+                    emailSugeridoDiv.innerHTML = '';
+                }
             } else {
                 seccionEmail.style.display = 'none';
                 seccionWhatsapp.style.display = 'block';
@@ -800,28 +854,71 @@
             document.getElementById('modal-compartir').classList.remove('visible');
         };
 
-        window.enviarPorEmail = () => {
+        // Función para enviar email usando Firebase Functions
+        window.enviarPorEmailFirebase = async () => {
             const email = document.getElementById('input-email-destino').value.trim();
             if (!email) {
                 alert('⚠️ Por favor ingresa un email válido');
                 return;
             }
             
+            if (!ultimoPdfGenerado || !ultimoPdfGenerado.base64) {
+                alert('⚠️ Primero debes generar el PDF haciendo clic en "Exportar PDF"');
+                return;
+            }
+            
             const comercio = comercioNombreParam || 'Comercio';
-            const asunto = encodeURIComponent(`Control de Caja - ${comercio}`);
-            const cuerpo = encodeURIComponent(
-                `Hola,\n\nAdjunto el reporte de Control de Caja generado por usos de cupones Lead - VIP.\n\n` +
-                `Comercio: ${comercio}\n` +
-                `Generado: ${new Date().toLocaleString('es-AR')}\n\n` +
-                `⚠️ Nota: Debes adjuntar manualmente el archivo PDF que se descargó en tu dispositivo.\n\n` +
-                `Saludos,\nSistema Hábitat-Car`
-            );
             
-            // Abrir cliente de email (mailto no permite adjuntos, por eso la nota)
-            window.location.href = `mailto:${email}?subject=${asunto}&body=${cuerpo}`;
+            // Mostrar loading
+            const btn = event.target;
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
+            btn.disabled = true;
             
-            cerrarModalCompartir();
+            try {
+                const result = await enviarReporteEmail({
+                    email: email,
+                    comercio: comercio,
+                    pdfBase64: ultimoPdfGenerado.base64,
+                    stats: ultimoPdfGenerado.stats
+                });
+                
+                if (result.data?.success) {
+                    // Guardar historial de envío en Firestore
+                    try {
+                        await addDoc(collection(db, 'historico_envios_reportes'), {
+                            fecha: new Date().toLocaleString('es-AR'),
+                            timestamp: Date.now(),
+                            comercio: comercio,
+                            email: email,
+                            tipo: 'control_caja',
+                            periodo: document.getElementById('pdf-rango').value,
+                            estado: 'Enviado'
+                        });
+                    } catch(e) { console.warn('No se pudo guardar historial:', e); }
+                    
+                    mostrarToast(`✅ Reporte enviado a ${email}`, 'success');
+                    cerrarModalCompartir();
+                } else {
+                    throw new Error('Error en el envío');
+                }
+            } catch (error) {
+                console.error('Error enviando email:', error);
+                alert(`❌ Error al enviar: ${error.message || 'Intenta nuevamente'}`);
+            } finally {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }
         };
+
+        function mostrarToast(mensaje, tipo = 'success') {
+            const toast = document.createElement('div');
+            toast.textContent = mensaje;
+            toast.className = 'toast-success';
+            if (tipo === 'error') toast.style.background = '#dc3545';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
 
         window.abrirWhatsApp = () => {
             const comercio = comercioNombreParam || 'Comercio';
@@ -832,20 +929,25 @@
                 `⚠️ Adjunto el archivo PDF que se descargó en mi dispositivo.`
             );
             
-            // Abrir WhatsApp (el usuario debe adjuntar el PDF manualmente)
             window.open(`https://wa.me/?text=${mensaje}`, '_blank');
-            
             cerrarModalCompartir();
         };
 
         // ─────────────────────────────────────────────
-        // === SNAPSHOT PRINCIPAL (SIN MODIFICAR) ===
+        // SNAPSHOT PRINCIPAL
         // ─────────────────────────────────────────────
-        function iniciarSnapshot() {
+        async function iniciarSnapshot() {
             if (!comercioIdParam && !comercioNombreParam) {
-                document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ No se especificó un comercio</td></tr>';
+                document.getElementById('lista-canjes').innerHTML = ' hilab<td colspan="8" class="sin-datos">❌ No se especificó un comercio</td></tr>';
                 return;
             }
+            
+            // Obtener email del comercio
+            emailComercio = await obtenerEmailComercio();
+            if (emailComercio) {
+                console.log('📧 Email del comercio:', emailComercio);
+            }
+            
             if (unsubscribe) unsubscribe();
             const logsRef = collection(db, 'logs_actividad');
             const q = query(logsRef, orderBy('timestamp', 'desc'), limit(2000));
