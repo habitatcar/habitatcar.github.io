@@ -288,7 +288,8 @@
                     <th>N° Factura</th>
                     <th>Monto ($)</th>
                     <th>Acciones</th>
-                </thead>
+                </tr>
+            </thead>
             <tbody id="lista-canjes">
                 <tr><td colspan="8" class="loading-spinner"><div class="spinner"></div> Cargando historial...</td></tr>
             </tbody>
@@ -319,8 +320,22 @@
         let canjesFiltrados = [];
         let unsubscribe = null;
 
+        // ============================================
+        // ⭐ FUNCIÓN PARA NORMALIZAR TEXTO (sin acentos)
+        // ============================================
+        function normalizarTexto(texto) {
+            if (!texto) return '';
+            return texto
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9\s]/g, '')
+                .trim();
+        }
+
         function mostrarInfoComercio() {
-            document.getElementById('comercio-nombre').innerText = decodeURIComponent(comercioNombre) || 'Comercio';
+            const nombreDecodificado = decodeURIComponent(comercioNombre) || 'Comercio';
+            document.getElementById('comercio-nombre').innerText = nombreDecodificado;
             document.getElementById('comercio-detalle').innerHTML = `ID: ${comercioId || '---'} | Historial completo de canjes de cupones | Actualización en tiempo real`;
         }
 
@@ -334,11 +349,6 @@
             document.getElementById('total-leads').innerText = totalLeads;
             document.getElementById('total-vips').innerText = totalVips;
             document.getElementById('monto-total').innerText = `$${montoTotal.toFixed(2)}`;
-        }
-
-        function normalizarTexto(texto) {
-            if (!texto) return '';
-            return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
         }
 
         function formatearFecha(timestamp) {
@@ -515,20 +525,27 @@
         };
 
         // =============================================
-        // INICIAR SNAPSHOT EN TIEMPO REAL
+        // ⭐ INICIAR SNAPSHOT EN TIEMPO REAL - CORREGIDO
         // =============================================
         function iniciarSnapshot() {
-            if (!comercioId) {
-                document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ No se especificó un comercio</td></tr>';
+            if (!comercioId || !comercioNombre) {
+                document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ No se especificó un comercio válido</td></tr>';
                 return;
             }
             
             if (unsubscribe) unsubscribe();
             
             const logsRef = collection(db, "logs_actividad");
-            const q = query(logsRef, where("comercioId", "==", comercioId), orderBy("timestamp", "desc"));
             
-            console.log("🔍 Iniciando snapshot para comercioId:", comercioId);
+            // ⭐ CORRECCIÓN: Filtrar por nombreComercio (que SÍ existe en los logs)
+            // Usamos nombre normalizado para evitar problemas con acentos/mayúsculas
+            const nombreComercioNormalizado = normalizarTexto(decodeURIComponent(comercioNombre));
+            
+            console.log("🔍 Iniciando snapshot para comercio:", nombreComercioNormalizado);
+            
+            // Primero cargamos todos los logs de tipo CANJE y filtramos en cliente
+            // (Firestore no permite filter por texto parcial, así que filtramos después)
+            const q = query(logsRef, where("tipo", "==", "canje"), orderBy("timestamp", "desc"));
             
             unsubscribe = onSnapshot(q, (snapshot) => {
                 console.log("📊 Snapshot recibido, documentos totales:", snapshot.size);
@@ -536,9 +553,13 @@
                 
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
-                    console.log("📄 Documento:", docSnap.id, data.accion, data.nombreComercio);
                     
-                    if (data.accion === "CANJE VIP" || data.accion === "CANJE LEADS") {
+                    // ⭐ Filtrar por nombre de comercio (normalizado para comparar)
+                    const nombreEnLog = normalizarTexto(data.nombreComercio || '');
+                    
+                    if ((data.accion === "CANJE VIP" || data.accion === "CANJE LEADS") && 
+                        nombreEnLog === nombreComercioNormalizado) {
+                        
                         todosLosCanjes.push({
                             id: docSnap.id,
                             ...data,
@@ -547,13 +568,13 @@
                     }
                 });
                 
-                console.log("📊 Canjes filtrados:", todosLosCanjes.length);
+                console.log("📊 Canjes encontrados para este comercio:", todosLosCanjes.length);
                 actualizarResumen();
                 aplicarFiltros();
                 
             }, (error) => {
                 console.error("❌ Error en snapshot:", error);
-                document.getElementById('lista-canjes').innerHTML = `<tr><td colspan="8" class="sin-datos">❌ Error al cargar los datos: ${error.message}</td></tr>`;
+                document.getElementById('lista-canjes').innerHTML = `<tr><td colspan="8" class="sin-datos">❌ Error: ${error.message}</td></tr>`;
             });
         }
 
