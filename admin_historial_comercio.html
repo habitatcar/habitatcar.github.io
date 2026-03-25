@@ -288,17 +288,16 @@
                     <th>N° Factura</th>
                     <th>Monto ($)</th>
                     <th>Acciones</th>
-                </tr>
-            </thead>
+                </thead>
             <tbody id="lista-canjes">
-                <tr><td colspan="8" class="loading-spinner"><div class="spinner"></div> Cargando historial...</td></tr>
-            </tbody>
-        </table>
-    </div>
+                <tr><td colspan="8" class="loading-spinner"><div class="spinner"></div> Cargando historial...<\/td><\/tr>
+            <\/tbody>
+         <\/table>
+    <\/div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -320,22 +319,8 @@
         let canjesFiltrados = [];
         let unsubscribe = null;
 
-        // ============================================
-        // ⭐ FUNCIÓN PARA NORMALIZAR TEXTO (sin acentos)
-        // ============================================
-        function normalizarTexto(texto) {
-            if (!texto) return '';
-            return texto
-                .toLowerCase()
-                .normalize('NFD')
-                .replace(/[\u0300-\u036f]/g, '')
-                .replace(/[^a-z0-9\s]/g, '')
-                .trim();
-        }
-
         function mostrarInfoComercio() {
-            const nombreDecodificado = decodeURIComponent(comercioNombre) || 'Comercio';
-            document.getElementById('comercio-nombre').innerText = nombreDecodificado;
+            document.getElementById('comercio-nombre').innerText = decodeURIComponent(comercioNombre) || 'Comercio';
             document.getElementById('comercio-detalle').innerHTML = `ID: ${comercioId || '---'} | Historial completo de canjes de cupones | Actualización en tiempo real`;
         }
 
@@ -349,6 +334,11 @@
             document.getElementById('total-leads').innerText = totalLeads;
             document.getElementById('total-vips').innerText = totalVips;
             document.getElementById('monto-total').innerText = `$${montoTotal.toFixed(2)}`;
+        }
+
+        function normalizarTexto(texto) {
+            if (!texto) return '';
+            return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
         }
 
         function formatearFecha(timestamp) {
@@ -461,7 +451,6 @@
                 if (Object.keys(updates).length > 0) {
                     await updateDoc(logRef, updates);
                     
-                    // Actualizar en el array local
                     const canje = todosLosCanjes.find(c => c.id === logId);
                     if (canje) {
                         if (numeroFactura) canje.numeroFactura = numeroFactura;
@@ -525,27 +514,21 @@
         };
 
         // =============================================
-        // ⭐ INICIAR SNAPSHOT EN TIEMPO REAL - CORREGIDO
+        // INICIAR SNAPSHOT SIN orderBy (ordenamos en el navegador)
         // =============================================
         function iniciarSnapshot() {
-            if (!comercioId || !comercioNombre) {
-                document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ No se especificó un comercio válido</td></tr>';
+            if (!comercioId) {
+                document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ No se especificó un comercio</td></tr>';
                 return;
             }
             
             if (unsubscribe) unsubscribe();
             
+            // ⭐ QUITAMOS orderBy para evitar necesidad de índice
             const logsRef = collection(db, "logs_actividad");
+            const q = query(logsRef, where("comercioId", "==", comercioId));
             
-            // ⭐ CORRECCIÓN: Filtrar por nombreComercio (que SÍ existe en los logs)
-            // Usamos nombre normalizado para evitar problemas con acentos/mayúsculas
-            const nombreComercioNormalizado = normalizarTexto(decodeURIComponent(comercioNombre));
-            
-            console.log("🔍 Iniciando snapshot para comercio:", nombreComercioNormalizado);
-            
-            // Primero cargamos todos los logs de tipo CANJE y filtramos en cliente
-            // (Firestore no permite filter por texto parcial, así que filtramos después)
-            const q = query(logsRef, where("tipo", "==", "canje"), orderBy("timestamp", "desc"));
+            console.log("🔍 Iniciando snapshot para comercioId:", comercioId);
             
             unsubscribe = onSnapshot(q, (snapshot) => {
                 console.log("📊 Snapshot recibido, documentos totales:", snapshot.size);
@@ -553,13 +536,9 @@
                 
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
+                    console.log("📄 Documento:", docSnap.id, data.accion, data.nombreComercio);
                     
-                    // ⭐ Filtrar por nombre de comercio (normalizado para comparar)
-                    const nombreEnLog = normalizarTexto(data.nombreComercio || '');
-                    
-                    if ((data.accion === "CANJE VIP" || data.accion === "CANJE LEADS") && 
-                        nombreEnLog === nombreComercioNormalizado) {
-                        
+                    if (data.accion === "CANJE VIP" || data.accion === "CANJE LEADS") {
                         todosLosCanjes.push({
                             id: docSnap.id,
                             ...data,
@@ -568,13 +547,16 @@
                     }
                 });
                 
-                console.log("📊 Canjes encontrados para este comercio:", todosLosCanjes.length);
+                // ⭐ Ordenamos en el navegador (más recientes primero)
+                todosLosCanjes.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+                
+                console.log("📊 Canjes filtrados y ordenados:", todosLosCanjes.length);
                 actualizarResumen();
                 aplicarFiltros();
                 
             }, (error) => {
                 console.error("❌ Error en snapshot:", error);
-                document.getElementById('lista-canjes').innerHTML = `<tr><td colspan="8" class="sin-datos">❌ Error: ${error.message}</td></tr>`;
+                document.getElementById('lista-canjes').innerHTML = `<tr><td colspan="8" class="sin-datos">❌ Error al cargar los datos: ${error.message}</td></tr>`;
             });
         }
 
