@@ -178,7 +178,7 @@
         let todosLosCanjes    = [];
         let canjesFiltrados   = [];
         let unsubscribe       = null;
-        let ultimoPdfGenerado = null;  // ahora incluye pdfBase64
+        let ultimoPdfGenerado = null;
         let emailComercio     = '';
 
         // ── helpers ──────────────────────────────────────────────────────────
@@ -271,35 +271,82 @@
             document.getElementById('pdf-fecha-fin').style.display    = show ? 'inline-block' : 'none';
         });
 
+        // ── CORRECCIÓN: obtenerRango ─────────────────────────────────────────
+        // Bug anterior: hoy.setHours(23,59,59,999) mutaba el objeto ANTES de
+        // calcular el lunes de la semana → las fechas quedaban desfasadas y
+        // filtrarPorFecha devolvía array vacío → PDF sin filas.
         function obtenerRango() {
             const rango = document.getElementById('pdf-rango').value;
-            const hoy   = new Date(); hoy.setHours(23,59,59,999);
+            const ahora = new Date();
             let inicio, fin;
+
             switch(rango) {
-                case 'hoy':   inicio = new Date(); inicio.setHours(0,0,0,0); fin = hoy; break;
-                case 'ayer':  inicio = new Date(); inicio.setDate(inicio.getDate()-1); inicio.setHours(0,0,0,0);
-                              fin = new Date(inicio); fin.setHours(23,59,59,999); break;
-                case 'semana':const d=hoy.getDay()||7;
-                              inicio=new Date(hoy); inicio.setDate(hoy.getDate()-d+1); inicio.setHours(0,0,0,0);
-                              fin=new Date(inicio); fin.setDate(inicio.getDate()+6); fin.setHours(23,59,59,999); break;
-                case 'mes':   inicio=new Date(hoy.getFullYear(),hoy.getMonth(),1);
-                              fin=new Date(hoy.getFullYear(),hoy.getMonth()+1,0); fin.setHours(23,59,59,999); break;
-                case 'anio':  inicio=new Date(hoy.getFullYear(),0,1);
-                              fin=new Date(hoy.getFullYear(),11,31); fin.setHours(23,59,59,999); break;
-                case 'personalizado':
-                    const ini=document.getElementById('pdf-fecha-inicio').value;
-                    const end=document.getElementById('pdf-fecha-fin').value;
-                    if (!ini||!end){ alert('⚠️ Selecciona ambas fechas'); return null; }
-                    inicio=new Date(ini+'T00:00:00'); fin=new Date(end+'T23:59:59'); break;
-                default: inicio=new Date(0); fin=new Date();
+                case 'hoy':
+                    inicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(),  0,  0,  0,   0);
+                    fin    = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59, 999);
+                    break;
+
+                case 'ayer': {
+                    const ayer = new Date(ahora);
+                    ayer.setDate(ayer.getDate() - 1);
+                    inicio = new Date(ayer.getFullYear(), ayer.getMonth(), ayer.getDate(),  0,  0,  0,   0);
+                    fin    = new Date(ayer.getFullYear(), ayer.getMonth(), ayer.getDate(), 23, 59, 59, 999);
+                    break;
+                }
+
+                case 'semana': {
+                    // lunes=1 … domingo=7
+                    const diaSemana = ahora.getDay() === 0 ? 7 : ahora.getDay();
+                    const lunes = new Date(ahora);
+                    lunes.setDate(ahora.getDate() - diaSemana + 1);
+                    inicio = new Date(lunes.getFullYear(), lunes.getMonth(), lunes.getDate(),  0,  0,  0,   0);
+                    fin    = new Date(inicio);
+                    fin.setDate(inicio.getDate() + 6);
+                    fin.setHours(23, 59, 59, 999);
+                    break;
+                }
+
+                case 'mes':
+                    inicio = new Date(ahora.getFullYear(), ahora.getMonth(), 1,  0,  0,  0,   0);
+                    fin    = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0, 23, 59, 59, 999);
+                    break;
+
+                case 'anio':
+                    inicio = new Date(ahora.getFullYear(),  0,  1,  0,  0,  0,   0);
+                    fin    = new Date(ahora.getFullYear(), 11, 31, 23, 59, 59, 999);
+                    break;
+
+                case 'personalizado': {
+                    const ini = document.getElementById('pdf-fecha-inicio').value;
+                    const end = document.getElementById('pdf-fecha-fin').value;
+                    if (!ini || !end) { alert('⚠️ Seleccioná ambas fechas'); return null; }
+                    const [iy, im, id] = ini.split('-').map(Number);
+                    const [ey, em, ed] = end.split('-').map(Number);
+                    inicio = new Date(iy, im - 1, id,  0,  0,  0,   0);
+                    fin    = new Date(ey, em - 1, ed, 23, 59, 59, 999);
+                    break;
+                }
+
+                default:
+                    inicio = new Date(0);
+                    fin    = new Date();
             }
-            return {inicio, fin};
+            return { inicio, fin };
         }
 
+        // ── CORRECCIÓN: filtrarPorFecha ──────────────────────────────────────
+        // Ahora valida que la conversión del timestamp sea una fecha real
+        // antes de comparar, evitando falsos negativos silenciosos.
         function filtrarPorFecha(canjes, inicio, fin) {
             return canjes.filter(c => {
                 if (!c.timestamp) return false;
-                const f = c.timestamp.toDate ? c.timestamp.toDate() : new Date(c.timestamp);
+                let f;
+                try {
+                    f = (typeof c.timestamp.toDate === 'function')
+                        ? c.timestamp.toDate()
+                        : new Date(c.timestamp);
+                    if (isNaN(f.getTime())) return false;
+                } catch(e) { return false; }
                 return f >= inicio && f <= fin;
             });
         }
@@ -363,8 +410,6 @@
         };
 
         // ── EXPORTAR PDF ─────────────────────────────────────────────────────
-        // CAMBIO CLAVE: se genera el PDF, se descarga Y se captura como base64
-        // para enviarlo como adjunto real en el email (no solo texto/JSON).
         window.exportarPDF = async () => {
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF('landscape');
@@ -423,18 +468,13 @@
             }
 
             const nombreArchivo = `ControlCaja_${comercioNombreParam.replace(/\s+/g,'_')}_${Date.now()}.pdf`;
-
-            // 1) Descarga local (igual que antes)
             pdf.save(nombreArchivo);
 
-            // 2) *** FIX PRINCIPAL ***
-            // output('datauristring') genera el PDF completo en memoria como
-            // data URI → extraemos solo la parte base64 para enviarlo adjunto.
             const pdfBase64 = pdf.output('datauristring').split(',')[1];
 
             ultimoPdfGenerado = {
                 nombre:     nombreArchivo,
-                pdfBase64:  pdfBase64,      // ← adjunto real para Firebase Function
+                pdfBase64:  pdfBase64,
                 stats:      stats,
                 rangoTexto: rangoTexto,
                 periodo:    document.getElementById('pdf-rango').value
@@ -469,8 +509,6 @@
         window.cerrarModalCompartir = () => document.getElementById('modal-compartir').classList.remove('visible');
 
         // ── ENVIAR POR EMAIL ─────────────────────────────────────────────────
-        // FIX: se envía pdfBase64 + pdfNombre → la Firebase Function
-        // puede adjuntar el archivo PDF real al correo.
         window.enviarPorEmail = async () => {
             const email = document.getElementById('input-email-destino').value.trim();
             if (!email) { alert('⚠️ Ingresa un email válido'); return; }
@@ -490,7 +528,6 @@
                     periodo:         ultimoPdfGenerado.periodo,
                     rangoTexto:      ultimoPdfGenerado.rangoTexto,
                     fechaGeneracion: new Date().toLocaleString('es-AR'),
-                    // ↓↓ NUEVO: adjunto PDF real ↓↓
                     pdfBase64:       ultimoPdfGenerado.pdfBase64,
                     pdfNombre:       ultimoPdfGenerado.nombre
                 });
