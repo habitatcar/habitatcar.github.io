@@ -403,7 +403,8 @@
                 
                 const nombreCompleto = canje.nombre || '';
                 const nombreNormalizado = normalizarTexto(nombreCompleto);
-                const usuarioMatch = !usuarioFiltro || nombreNormalizado.includes(usuarioFiltro);
+                const whatsappMatch = canje.whatsapp && canje.whatsapp.toString().includes(usuarioFiltro);
+                const usuarioMatch = !usuarioFiltro || nombreNormalizado.includes(usuarioFiltro) || whatsappMatch;
                 
                 const tipoMatch = tipoFiltro === 'todos' || canje.tipo === tipoFiltro;
                 
@@ -465,12 +466,13 @@
             try {
                 const logRef = doc(db, "logs_actividad", logId);
                 const updates = {};
-                if (numeroFactura) updates.numeroFactura = numeroFactura;
+                if (numeroFactura !== undefined && numeroFactura !== '') updates.numeroFactura = numeroFactura;
                 if (monto !== null && !isNaN(monto)) updates.monto = monto;
                 
                 if (Object.keys(updates).length > 0) {
                     await updateDoc(logRef, updates);
                     
+                    // Actualizar el array local
                     const canje = todosLosCanjes.find(c => c.id === logId);
                     if (canje) {
                         if (numeroFactura) canje.numeroFactura = numeroFactura;
@@ -495,21 +497,16 @@
         window.exportarPDF = async () => {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('landscape');
-            
             const fechaActual = new Date().toLocaleString('es-AR');
-            
             doc.setFontSize(18);
             doc.setTextColor(0, 74, 153);
             doc.text(`Historial de Canjes - ${comercioNombreParam || 'Comercio'}`, 14, 20);
-            
             doc.setFontSize(10);
             doc.setTextColor(100, 100, 100);
             doc.text(`Generado: ${fechaActual}`, 14, 28);
             doc.text(`Total canjes: ${canjesFiltrados.length}`, 14, 34);
-            
             const totalMonto = canjesFiltrados.reduce((sum, c) => sum + (parseFloat(c.monto) || 0), 0);
             doc.text(`Monto total facturado: $${totalMonto.toFixed(2)}`, 14, 40);
-            
             const tablaData = canjesFiltrados.map(canje => [
                 formatearFecha(canje.timestamp),
                 canje.tipo,
@@ -519,7 +516,6 @@
                 canje.numeroFactura || '---',
                 canje.monto ? `$${parseFloat(canje.monto).toFixed(2)}` : '---'
             ]);
-            
             doc.autoTable({
                 startY: 48,
                 head: [['Fecha', 'Tipo', 'Usuario', 'WhatsApp', 'Código', 'N° Factura', 'Monto']],
@@ -528,12 +524,11 @@
                 bodyStyles: { fontSize: 8 },
                 theme: 'striped'
             });
-            
             doc.save(`historial_${comercioNombreParam.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`);
         };
 
         // =============================================
-        // ⭐ INICIAR SNAPSHOT CORREGIDO - BUSCA POR NOMBRE Y POR ID
+        // ⭐ INICIAR SNAPSHOT CORREGIDO
         // =============================================
         function iniciarSnapshot() {
             if (!comercioIdParam && !comercioNombreParam) {
@@ -543,16 +538,14 @@
             
             if (unsubscribe) unsubscribe();
             
-            // Buscar por ID o por nombre (más flexible)
             const logsRef = collection(db, "logs_actividad");
             let q;
             
-            if (comercioIdParam && comercioIdParam !== "null") {
-                // Si tenemos ID, buscamos por ID
+            // CORRECCIÓN CLAVE: Priorizar búsqueda por ID que es más exacta
+            if (comercioIdParam && comercioIdParam !== "null" && comercioIdParam !== "") {
                 q = query(logsRef, where("comercioId", "==", comercioIdParam), orderBy("timestamp", "desc"));
                 console.log("🔍 Buscando por comercioId:", comercioIdParam);
             } else {
-                // Si no hay ID válido, buscamos por nombre
                 q = query(logsRef, where("nombreComercio", "==", comercioNombreParam), orderBy("timestamp", "desc"));
                 console.log("🔍 Buscando por nombreComercio:", comercioNombreParam);
             }
@@ -564,14 +557,21 @@
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
                     const accion = (data.accion || "").toUpperCase();
-                    const tipo = (data.tipo || "").toUpperCase();
+                    const tipoData = (data.tipo || "").toUpperCase();
                     
-                    // Detectar canje (incluye CANJE VIP, CANJE LEADS, etc.)
-                    if (accion.includes("CANJE") && (accion.includes("VIP") || accion.includes("LEAD") || tipo === "VIP" || tipo === "LEAD")) {
+                    // Lógica de detección de canjes más flexible
+                    const esCanje = accion.includes("CANJE") || accion.includes("VALIDACION");
+                    
+                    if (esCanje) {
+                        let tipoAsignado = "LEAD";
+                        if (accion.includes("VIP") || tipoData === "VIP") {
+                            tipoAsignado = "VIP";
+                        }
+
                         todosLosCanjes.push({
                             id: docSnap.id,
                             ...data,
-                            tipo: accion.includes("VIP") || tipo === "VIP" ? "VIP" : "LEAD"
+                            tipo: tipoAsignado
                         });
                     }
                 });
@@ -586,11 +586,13 @@
                 
             }, (error) => {
                 console.error("❌ Error en snapshot:", error);
+                // SI VES ESTE MENSAJE, DEBES HACER CLIC EN EL LINK QUE APARECERÁ EN TU PANTALLA
                 if (error.message && error.message.includes("index")) {
+                    const link = error.message.match(/https:\/\/console\.firebase\.google\.com[^\s]+/)?.[0];
                     document.getElementById('lista-canjes').innerHTML = `潘<td colspan="8" class="sin-datos">
-                        ⚠️ Se necesita crear un índice en Firebase.<br>
-                        <a href="${error.message.match(/https:\/\/console\.firebase\.google\.com[^\s]+/)?.[0] || '#'}" target="_blank" style="color:var(--oro);">Haz clic aquí para crearlo automáticamente</a>
-                        <br><br>Luego recarga la página.
+                        ⚠️ Se necesita crear un índice en Firebase para que los datos carguen.<br>
+                        <a href="${link}" target="_blank" style="color:var(--oro); font-weight:bold; text-decoration:underline;">Haz clic aquí para crear el índice automáticamente</a>
+                        <br><br>Luego de hacer clic, espera 2 minutos y recarga esta página.
                     <\/td><\/tr>`;
                 } else {
                     document.getElementById('lista-canjes').innerHTML = `潘<td colspan="8" class="sin-datos">❌ Error: ${error.message}<\/td><\/tr>`;
@@ -598,7 +600,6 @@
             });
         }
 
-        // Inicializar
         mostrarInfoComercio();
         iniciarSnapshot();
     </script>
