@@ -213,14 +213,6 @@
         }
         .debug-panel.visible { display: block; }
         
-        /* === ESTILOS PARA PDF Y ENVÍO === */
-        .pdf-options {
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            flex-wrap: wrap;
-            margin-left: auto;
-        }
         .btn-compartir {
             background: var(--celeste-habitat);
             color: white;
@@ -413,7 +405,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, orderBy, limit, onSnapshot, updateDoc, doc, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, orderBy, limit, onSnapshot, updateDoc, doc, getDoc, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
         import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
 
         const firebaseConfig = {
@@ -438,16 +430,13 @@
         let canjesFiltrados = [];
         let unsubscribe = null;
         let ultimoPdfGenerado = null;
-        let emailComercio = ''; // Guardar el email del comercio
+        let emailComercio = '';
 
-        // ─────────────────────────────────────────────
         // OBTENER EMAIL DEL COMERCIO DESDE FIRESTORE
-        // ─────────────────────────────────────────────
         async function obtenerEmailComercio() {
             if (!comercioIdParam && !comercioNombreParam) return '';
             
             try {
-                // Buscar por ID primero
                 if (comercioIdParam && comercioIdParam !== 'null' && comercioIdParam !== '') {
                     const comercioRef = doc(db, 'comercios', comercioIdParam);
                     const comercioSnap = await getDoc(comercioRef);
@@ -457,7 +446,6 @@
                     }
                 }
                 
-                // Si no se encontró por ID, buscar por nombre
                 if (comercioNombreParam) {
                     const comerciosQuery = query(collection(db, 'comercios'));
                     const querySnapshot = await getDocs(comerciosQuery);
@@ -474,9 +462,6 @@
             return '';
         }
 
-        // ─────────────────────────────────────────────
-        // DETECCIÓN DE CANJE
-        // ─────────────────────────────────────────────
         function esCanje(accionUp) { return accionUp.includes('CANJE'); }
         function tipoCanje(accionUp) { return accionUp.includes('VIP') ? 'VIP' : 'LEAD'; }
 
@@ -546,9 +531,6 @@
             return nombreCompleto.length > 10 ? nombreCompleto.substring(0, 10) + '...' : nombreCompleto;
         }
 
-        // ─────────────────────────────────────────────
-        // FUNCIONES PARA PDF
-        // ─────────────────────────────────────────────
         document.getElementById('pdf-rango').addEventListener('change', function() {
             const inicio = document.getElementById('pdf-fecha-inicio');
             const fin = document.getElementById('pdf-fecha-fin');
@@ -625,10 +607,6 @@
                 return fechaCanje >= inicio && fechaCanje <= fin;
             });
         }
-
-        // ─────────────────────────────────────────────
-        // FUNCIONES DE FILTRO Y RENDERIZADO
-        // ─────────────────────────────────────────────
         
         window.aplicarFiltros = () => {
             const fechaFiltro = document.getElementById('filtro-fecha').value.toLowerCase();
@@ -709,9 +687,6 @@
             }
         };
 
-        // ─────────────────────────────────────────────
-        // FUNCIÓN EXPORTAR PDF
-        // ─────────────────────────────────────────────
         window.exportarPDF = async () => {
             const { jsPDF } = window.jspdf;
             const pdfDoc = new jsPDF('landscape');
@@ -793,7 +768,6 @@
             const nombreArchivo = `ControlCaja_${comercioNombreParam.replace(/\s+/g,'_')}_${Date.now()}.pdf`;
             pdfDoc.save(nombreArchivo);
             
-            // Guardar el PDF en base64 para enviar por email
             const pdfBlob = pdfDoc.output('blob');
             const reader = new FileReader();
             const pdfBase64 = await new Promise((resolve) => {
@@ -817,10 +791,6 @@
             document.body.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
         };
-
-        // ─────────────────────────────────────────────
-        // FUNCIONES PARA COMPARTIR PDF CON FIREBASE
-        // ─────────────────────────────────────────────
         
         window.abrirModalCompartir = (tipo) => {
             const modal = document.getElementById('modal-compartir');
@@ -836,7 +806,6 @@
                 seccionWhatsapp.style.display = 'none';
                 instrucciones.textContent = 'Ingresa el email del destinatario para enviar el reporte:';
                 
-                // Mostrar email sugerido si está disponible
                 if (emailComercio) {
                     emailSugeridoDiv.innerHTML = `💡 Email del comercio: <strong>${emailComercio}</strong><br><small>Puedes usar ese o cambiarlo</small>`;
                     document.getElementById('input-email-destino').value = emailComercio;
@@ -854,7 +823,6 @@
             document.getElementById('modal-compartir').classList.remove('visible');
         };
 
-        // Función para enviar email usando Firebase Functions
         window.enviarPorEmailFirebase = async () => {
             const email = document.getElementById('input-email-destino').value.trim();
             if (!email) {
@@ -869,7 +837,6 @@
             
             const comercio = comercioNombreParam || 'Comercio';
             
-            // Mostrar loading
             const btn = event.target;
             const originalText = btn.innerHTML;
             btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Enviando...';
@@ -884,7 +851,6 @@
                 });
                 
                 if (result.data?.success) {
-                    // Guardar historial de envío en Firestore
                     try {
                         await addDoc(collection(db, 'historico_envios_reportes'), {
                             fecha: new Date().toLocaleString('es-AR'),
@@ -897,7 +863,12 @@
                         });
                     } catch(e) { console.warn('No se pudo guardar historial:', e); }
                     
-                    mostrarToast(`✅ Reporte enviado a ${email}`, 'success');
+                    const toast = document.createElement('div');
+                    toast.textContent = `✅ Reporte enviado a ${email}`;
+                    toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#28a745;color:white;padding:10px 20px;border-radius:8px;z-index:1000;';
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 3000);
+                    
                     cerrarModalCompartir();
                 } else {
                     throw new Error('Error en el envío');
@@ -910,15 +881,6 @@
                 btn.disabled = false;
             }
         };
-
-        function mostrarToast(mensaje, tipo = 'success') {
-            const toast = document.createElement('div');
-            toast.textContent = mensaje;
-            toast.className = 'toast-success';
-            if (tipo === 'error') toast.style.background = '#dc3545';
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 3000);
-        }
 
         window.abrirWhatsApp = () => {
             const comercio = comercioNombreParam || 'Comercio';
@@ -933,16 +895,12 @@
             cerrarModalCompartir();
         };
 
-        // ─────────────────────────────────────────────
-        // SNAPSHOT PRINCIPAL
-        // ─────────────────────────────────────────────
         async function iniciarSnapshot() {
             if (!comercioIdParam && !comercioNombreParam) {
-                document.getElementById('lista-canjes').innerHTML = ' hilab<td colspan="8" class="sin-datos">❌ No se especificó un comercio</td></tr>';
+                document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ No se especificó un comercio</td></tr>';
                 return;
             }
             
-            // Obtener email del comercio
             emailComercio = await obtenerEmailComercio();
             if (emailComercio) {
                 console.log('📧 Email del comercio:', emailComercio);
@@ -982,11 +940,11 @@
                 actualizarResumen();
                 aplicarFiltros();
                 if (todosLosCanjes.length === 0) {
-                    document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">📭 No hay canjes registrados para este comercio</td></tr>';
+                    document.getElementById('lista-canjes').innerHTML = ' hilab<td colspan="8" class="sin-datos">📭 No hay canjes registrados para este comercio</td></tr>';
                 }
             }, (error) => {
                 console.error('❌ Error en snapshot:', error);
-                document.getElementById('lista-canjes').innerHTML = `<tr><td colspan="8" class="sin-datos">❌ Error: ${error.message}</td></tr>`;
+                document.getElementById('lista-canjes').innerHTML = `</td><td colspan="8" class="sin-datos">❌ Error: ${error.message}</td></tr>`;
             });
         }
 
