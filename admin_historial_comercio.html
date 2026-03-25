@@ -288,8 +288,7 @@
                     <th>N° Factura</th>
                     <th>Monto ($)</th>
                     <th>Acciones</th>
-                </tr>
-            </thead>
+                </thead>
             <tbody id="lista-canjes">
                 <tr><td colspan="8" class="loading-spinner"><div class="spinner"></div> Cargando historial...</td></tr>
             </tbody>
@@ -529,13 +528,16 @@
             const logsRef = collection(db, "logs_actividad");
             const q = query(logsRef, where("comercioId", "==", comercioId), orderBy("timestamp", "desc"));
             
+            console.log("🔍 Iniciando snapshot para comercioId:", comercioId);
+            
             unsubscribe = onSnapshot(q, (snapshot) => {
-                console.log("📊 Snapshot recibido, documentos:", snapshot.size);
+                console.log("📊 Snapshot recibido, documentos totales:", snapshot.size);
                 todosLosCanjes = [];
                 
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
-                    // Filtrar solo canjes (LEAD o VIP)
+                    console.log("📄 Documento:", docSnap.id, data.accion, data.nombreComercio);
+                    
                     if (data.accion === "CANJE VIP" || data.accion === "CANJE LEADS") {
                         todosLosCanjes.push({
                             id: docSnap.id,
@@ -545,13 +547,13 @@
                     }
                 });
                 
-                console.log("📊 Canjes encontrados:", todosLosCanjes.length);
+                console.log("📊 Canjes filtrados:", todosLosCanjes.length);
                 actualizarResumen();
                 aplicarFiltros();
                 
             }, (error) => {
                 console.error("❌ Error en snapshot:", error);
-                document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ Error al cargar los datos: ' + error.message + '</td></tr>';
+                document.getElementById('lista-canjes').innerHTML = `<tr><td colspan="8" class="sin-datos">❌ Error al cargar los datos: ${error.message}</td></tr>`;
             });
         }
 
