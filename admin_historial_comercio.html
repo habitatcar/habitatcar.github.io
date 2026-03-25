@@ -117,6 +117,8 @@
             background: var(--azul-medio);
             border-radius: 15px;
             padding: 5px;
+            max-height: 60vh;
+            overflow-y: auto;
         }
         table {
             width: 100%;
@@ -211,6 +213,24 @@
             font-family: monospace;
             font-size: 12px;
         }
+        .loading-spinner {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px;
+            gap: 10px;
+        }
+        .spinner {
+            width: 30px;
+            height: 30px;
+            border: 3px solid var(--azul-claro);
+            border-top-color: var(--oro);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -271,14 +291,14 @@
                 </tr>
             </thead>
             <tbody id="lista-canjes">
-                <tr><td colspan="8" class="sin-datos">Cargando historial...</td></tr>
+                <tr><td colspan="8" class="loading-spinner"><div class="spinner"></div> Cargando historial...</td></tr>
             </tbody>
         </table>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, getDocs, updateDoc, doc, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -298,41 +318,11 @@
 
         let todosLosCanjes = [];
         let canjesFiltrados = [];
+        let unsubscribe = null;
 
         function mostrarInfoComercio() {
-            document.getElementById('comercio-nombre').innerText = comercioNombre || 'Comercio';
-            document.getElementById('comercio-detalle').innerHTML = `ID: ${comercioId || '---'} | Historial completo de canjes de cupones`;
-        }
-
-        async function cargarHistorial() {
-            if (!comercioId) {
-                document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ No se especificó un comercio</td></tr>';
-                return;
-            }
-
-            try {
-                const logsRef = collection(db, "logs_actividad");
-                const q = query(logsRef, where("comercioId", "==", comercioId), orderBy("timestamp", "desc"));
-                const snapshot = await getDocs(q);
-                todosLosCanjes = [];
-                
-                snapshot.forEach(docSnap => {
-                    const data = docSnap.data();
-                    if (data.accion === "CANJE VIP" || data.accion === "CANJE LEADS") {
-                        todosLosCanjes.push({
-                            id: docSnap.id,
-                            ...data,
-                            tipo: data.accion === "CANJE VIP" ? "VIP" : "LEAD"
-                        });
-                    }
-                });
-                
-                actualizarResumen();
-                aplicarFiltros();
-            } catch (error) {
-                console.error("Error cargando historial:", error);
-                document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ Error al cargar los datos</td></tr>';
-            }
+            document.getElementById('comercio-nombre').innerText = decodeURIComponent(comercioNombre) || 'Comercio';
+            document.getElementById('comercio-detalle').innerHTML = `ID: ${comercioId || '---'} | Historial completo de canjes de cupones | Actualización en tiempo real`;
         }
 
         function actualizarResumen() {
@@ -428,17 +418,17 @@
                 const whatsappMostrar = ocultarWhatsapp(canje.whatsapp);
                 const codigo = canje.idValidacion || canje.codigo || '---';
                 const factura = canje.numeroFactura || '';
-                const monto = canje.monto ? `$${parseFloat(canje.monto).toFixed(2)}` : '---';
+                const monto = canje.monto ? parseFloat(canje.monto).toFixed(2) : '';
                 
                 html += `
                     <tr>
-                        <td>${fecha}</td>
+                        <td style="white-space: nowrap;">${fecha}</td>
                         <td><span class="${tipoClass}">${canje.tipo}</span></td>
                         <td class="nombre-usuario">${nombreMostrar}</td>
                         <td class="whatsapp-parcial">${whatsappMostrar}</td>
-                        <td>${codigo}</td>
+                        <td style="font-family: monospace; font-size: 11px;">${codigo}</td>
                         <td><input type="text" id="factura-${canje.id}" class="input-factura" value="${factura.replace(/"/g, '&quot;')}" placeholder="N° Factura"></td>
-                        <td><input type="number" id="monto-${canje.id}" class="input-monto" value="${canje.monto || ''}" placeholder="Monto" step="0.01"></td>
+                        <td><input type="number" id="monto-${canje.id}" class="input-monto" value="${monto}" placeholder="Monto" step="0.01"></td>
                         <td><button class="btn-guardar" onclick="guardarDatos('${canje.id}')"><i class="fas fa-save"></i> Guardar</button></td>
                     </tr>
                 `;
@@ -462,6 +452,7 @@
                 if (Object.keys(updates).length > 0) {
                     await updateDoc(logRef, updates);
                     
+                    // Actualizar en el array local
                     const canje = todosLosCanjes.find(c => c.id === logId);
                     if (canje) {
                         if (numeroFactura) canje.numeroFactura = numeroFactura;
@@ -469,6 +460,7 @@
                     }
                     
                     actualizarResumen();
+                    aplicarFiltros();
                     
                     const toast = document.createElement('div');
                     toast.textContent = '✅ Datos guardados';
@@ -486,7 +478,7 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('landscape');
             
-            const comercioNombreTexto = comercioNombre || 'Comercio';
+            const comercioNombreTexto = decodeURIComponent(comercioNombre) || 'Comercio';
             const fechaActual = new Date().toLocaleString('es-AR');
             
             doc.setFontSize(18);
@@ -523,8 +515,49 @@
             doc.save(`historial_${comercioNombreTexto.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`);
         };
 
+        // =============================================
+        // INICIAR SNAPSHOT EN TIEMPO REAL
+        // =============================================
+        function iniciarSnapshot() {
+            if (!comercioId) {
+                document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ No se especificó un comercio</td></tr>';
+                return;
+            }
+            
+            if (unsubscribe) unsubscribe();
+            
+            const logsRef = collection(db, "logs_actividad");
+            const q = query(logsRef, where("comercioId", "==", comercioId), orderBy("timestamp", "desc"));
+            
+            unsubscribe = onSnapshot(q, (snapshot) => {
+                console.log("📊 Snapshot recibido, documentos:", snapshot.size);
+                todosLosCanjes = [];
+                
+                snapshot.forEach(docSnap => {
+                    const data = docSnap.data();
+                    // Filtrar solo canjes (LEAD o VIP)
+                    if (data.accion === "CANJE VIP" || data.accion === "CANJE LEADS") {
+                        todosLosCanjes.push({
+                            id: docSnap.id,
+                            ...data,
+                            tipo: data.accion === "CANJE VIP" ? "VIP" : "LEAD"
+                        });
+                    }
+                });
+                
+                console.log("📊 Canjes encontrados:", todosLosCanjes.length);
+                actualizarResumen();
+                aplicarFiltros();
+                
+            }, (error) => {
+                console.error("❌ Error en snapshot:", error);
+                document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ Error al cargar los datos: ' + error.message + '</td></tr>';
+            });
+        }
+
+        // Inicializar
         mostrarInfoComercio();
-        cargarHistorial();
+        iniciarSnapshot();
     </script>
 </body>
 </html>
