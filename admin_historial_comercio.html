@@ -309,14 +309,14 @@
                     <th>Acciones</th>
                 </thead>
             <tbody id="lista-canjes">
-                <tr><td colspan="8" class="loading-spinner"><div class="spinner"></div> Cargando historial...<\/td><\/tr>
+                痕<td colspan="8" class="loading-spinner"><div class="spinner"></div> Cargando historial...<\/td><\/tr>
             <\/tbody>
         <\/table>
     <\/div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, orderBy, onSnapshot, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -340,7 +340,7 @@
 
         function mostrarInfoComercio() {
             document.getElementById('comercio-nombre').innerText = comercioNombre || 'Comercio';
-            document.getElementById('comercio-detalle').innerHTML = `ID: ${comercioId || '---'} | Historial de canjes`;
+            document.getElementById('comercio-detalle').innerHTML = `ID: ${comercioId || '---'} | Historial de canjes | Actualización en tiempo real`;
         }
 
         function actualizarResumen() {
@@ -424,9 +424,7 @@
             const tbody = document.getElementById('lista-canjes');
             
             if (canjesFiltrados.length === 0) {
-                tbody.innerHTML = '痕
-                    <td colspan="8" class="sin-datos">📭 No hay registros de canjes para mostrar</td>
-                痕';
+                tbody.innerHTML = '痕<td colspan="8" class="sin-datos">📭 No hay registros de canjes para mostrar<\/td><\/tr>';
                 return;
             }
             
@@ -443,15 +441,15 @@
                 
                 html += `
                     <tr>
-                        <td style="white-space: nowrap;">${fecha}</td>
-                        <td><span class="${tipoClass}">${canje.tipo}</span></td>
-                        <td class="nombre-usuario">${nombreMostrar}</td>
-                        <td class="whatsapp-parcial">${whatsappMostrar}</td>
-                        <td><span class="codigo-badge">${codigo}${usoTexto}</span></td>
-                        <td><input type="text" id="factura-${canje.id}" class="input-factura" value="${factura.replace(/"/g, '&quot;')}" placeholder="N° Factura"></td>
-                        <td><input type="number" id="monto-${canje.id}" class="input-monto" value="${monto}" placeholder="Monto" step="0.01"></td>
-                        <td><button class="btn-guardar" onclick="guardarDatos('${canje.id}')"><i class="fas fa-save"></i> Guardar</button></td>
-                     </tr>
+                        <td style="white-space: nowrap;">${fecha}<\/td>
+                        <td><span class="${tipoClass}">${canje.tipo}<\/span><\/td>
+                        <td class="nombre-usuario">${nombreMostrar}<\/td>
+                        <td class="whatsapp-parcial">${whatsappMostrar}<\/td>
+                        <td><span class="codigo-badge">${codigo}${usoTexto}<\/span><\/td>
+                        <td><input type="text" id="factura-${canje.id}" class="input-factura" value="${factura.replace(/"/g, '&quot;')}" placeholder="N° Factura"><\/td>
+                        <td><input type="number" id="monto-${canje.id}" class="input-monto" value="${monto}" placeholder="Monto" step="0.01"><\/td>
+                        <td><button class="btn-guardar" onclick="guardarDatos('${canje.id}')"><i class="fas fa-save"><\/i> Guardar<\/button><\/td>
+                     \x3c/tr>
                 `;
             });
             tbody.innerHTML = html;
@@ -535,19 +533,23 @@
         };
 
         // =============================================
-        // INICIAR SNAPSHOT SIN orderBy (no necesita índice)
+        // INICIAR SNAPSHOT CORREGIDO
         // =============================================
         function iniciarSnapshot() {
             if (!comercioId) {
-                document.getElementById('lista-canjes').innerHTML = '痕<td colspan="8" class="sin-datos">❌ No se especificó un comercio</td>痕';
+                document.getElementById('lista-canjes').innerHTML = '痕<td colspan="8" class="sin-datos">❌ No se especificó un comercio<\/td><\/tr>';
                 return;
             }
             
             if (unsubscribe) unsubscribe();
             
-            // ⭐ SIN orderBy - solo filtro por comercioId
+            // ⭐ USAR orderBy como en la página de logs
             const logsRef = collection(db, "logs_actividad");
-            const q = query(logsRef, where("comercioId", "==", comercioId));
+            const q = query(
+                logsRef,
+                where("comercioId", "==", comercioId),
+                orderBy("timestamp", "desc")
+            );
             
             console.log("🔍 Iniciando snapshot para comercioId:", comercioId);
             
@@ -557,31 +559,42 @@
                 
                 snapshot.forEach(docSnap => {
                     const data = docSnap.data();
+                    console.log("📄 LOG encontrado:", data.accion, data.nombreComercio);
                     
-                    if (data.accion === "CANJE VIP" || data.accion === "CANJE LEADS") {
+                    // ⭐ FILTRO MÁS FLEXIBLE - como en la página de logs
+                    const accion = (data.accion || "").toUpperCase();
+                    const tipo = (data.tipo || "").toUpperCase();
+                    
+                    // Detectar canje (incluye CANJE VIP, CANJE LEADS, CANJE LEAD, etc.)
+                    if (accion.includes("CANJE") && (accion.includes("VIP") || accion.includes("LEAD") || tipo === "VIP" || tipo === "LEAD")) {
                         todosLosCanjes.push({
                             id: docSnap.id,
                             ...data,
-                            tipo: data.accion === "CANJE VIP" ? "VIP" : "LEAD"
+                            tipo: accion.includes("VIP") || tipo === "VIP" ? "VIP" : "LEAD"
                         });
                     }
                 });
                 
-                // Ordenar manualmente en el navegador (más reciente primero)
-                todosLosCanjes.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
-                
-                console.log("📊 Canjes encontrados:", todosLosCanjes.length);
+                console.log("📊 Canjes encontrados después de filtro:", todosLosCanjes.length);
                 actualizarResumen();
                 aplicarFiltros();
                 
-                // Mostrar mensaje si no hay datos
                 if (todosLosCanjes.length === 0) {
-                    document.getElementById('lista-canjes').innerHTML = '痕<td colspan="8" class="sin-datos">📭 No hay canjes registrados para este comercio</td>痕';
+                    document.getElementById('lista-canjes').innerHTML = '痕<td colspan="8" class="sin-datos">📭 No hay canjes registrados para este comercio<\/td><\/tr>';
                 }
                 
             }, (error) => {
                 console.error("❌ Error en snapshot:", error);
-                document.getElementById('lista-canjes').innerHTML = `痕<td colspan="8" class="sin-datos">❌ Error: ${error.message}</td>痕`;
+                // Si el error es por falta de índice, mostrar mensaje amigable
+                if (error.message && error.message.includes("index")) {
+                    document.getElementById('lista-canjes').innerHTML = `痕<td colspan="8" class="sin-datos">
+                        ⚠️ Se necesita crear un índice en Firebase.<br>
+                        <a href="${error.message.match(/https:\/\/console\.firebase\.google\.com[^\s]+/)?.[0] || '#'}" target="_blank" style="color:var(--oro);">Haz clic aquí para crearlo automáticamente</a>
+                        <br><br>Luego recarga la página.
+                    <\/td><\/tr>`;
+                } else {
+                    document.getElementById('lista-canjes').innerHTML = `痕<td colspan="8" class="sin-datos">❌ Error: ${error.message}<\/td><\/tr>`;
+                }
             });
         }
 
