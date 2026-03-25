@@ -269,6 +269,26 @@ details[open] summary::after { transform: rotate(180deg); }
 .form-group label { display: block; font-size: 0.85em; color: var(--oro); margin-bottom: 5px; font-weight: 600; }
 .form-group input, .form-group textarea { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--azul-claro); background: var(--azul-oscuro); color: #ffffff; box-sizing: border-box; font-size: 0.95em; font-family: inherit; }
 .form-group textarea { resize: vertical; min-height: 60px; }
+
+/* Botón historial pequeño */
+.btn-historial {
+    background: var(--naranja);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    font-size: 0.7em;
+    font-weight: bold;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: 0.2s;
+    white-space: nowrap;
+}
+.btn-historial:hover {
+    background: #e67e22;
+    transform: translateY(-1px);
+}
 </style>
 </head>
 <body>
@@ -302,7 +322,6 @@ details[open] summary::after { transform: rotate(180deg); }
 </header>
 
 <div class="tools-faja" id="faja-herramientas">
-    <!-- FILTROS DE PROVINCIA Y LOCALIDAD - COMPACTOS -->
     <div class="filtros-container">
         <select id="filtro-provincia" class="filtro-select" onchange="cargarLocalidades(this.value); window.render()">
             <option value="">TODAS LAS PROVINCIAS</option>
@@ -587,7 +606,6 @@ window.cargarLocalidades = async (provNombreNormalized) => {
     } catch (e) { console.error("Error cargando localidades:", e); }
 };
 
-// Llamar a cargarProvincias al inicio
 cargarProvincias();
 
 if (esComerciante) {
@@ -607,6 +625,9 @@ if (esComerciante) {
     });
 }
 
+// =============================================
+// FUNCIÓN mostrarComercio CON BOTÓN HISTORIAL AGREGADO
+// =============================================
 function mostrarComercio(c) {
     const box = document.getElementById('lista-comercios');
     const estaActivo = c.estado === 'activo';
@@ -654,14 +675,12 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 <span style="color:rgba(255,255,255,0.4);">|</span>
 <span><b style="color:var(--oro);">VIGENCIA:</b> ${String(c.vigenciaVip || 'ilimitada').toLowerCase()}</span>
 </div>
-<div style="grid-column:span 4;padding:8px 12px;border-radius:8px;margin-top:4px;font-size:0.85em;color:var(--blanco-suave);display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:center;">
+<div style="grid-column:span 4;padding:8px 12px;border-radius:8px;margin-top:4px;font-size:0.85em;color:var(--blanco-suave);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;">
 <div><b style="color:#cbd5e0;">DIRECCIÓN:</b> <span>${c.direccion || '-'}</span></div>
 <div><b style="color:#cbd5e0;">UBICACIÓN:</b> <span>${c.ciudad || '-'} (${c.provincia || '-'})</span></div>
-<div>
-    <a href="admin_historial_comercio.html?id=${c.idComercio || c.id}&nombre=${encodeURIComponent(c.nombre || '')}" 
-       style="background: var(--naranja); color: white; padding: 5px 10px; border-radius: 6px; text-decoration: none; font-size: 0.75em; font-weight: bold; display: inline-flex; align-items: center; gap: 5px; white-space: nowrap;">
-        <i class="fas fa-chart-line"></i> HISTORIAL
-    </a>
+<a href="admin_historial_comercio.html?id=${displayID}&nombre=${encodeURIComponent(c.nombre || '')}" class="btn-historial">
+    <i class="fas fa-chart-line"></i> HISTORIAL
+</a>
 </div>
 </div>
 <div class="btn-group">
@@ -939,7 +958,7 @@ window.cambiarFiltro = (f, id) => {
 };
 
 // =============================================
-// CONTADORES NAV — campo convertidoVIP:true/false
+// CONTADORES NAV
 // =============================================
 async function actualizarContadores() {
     if (typeof db === 'undefined' || !db) {
