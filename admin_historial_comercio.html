@@ -181,17 +181,6 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .wapp-badge {
-            display: inline-block;
-            background: rgba(37,211,102,0.15);
-            color: #25d366;
-            border: 1px solid #25d366;
-            border-radius: 4px;
-            padding: 1px 6px;
-            font-size: 0.8em;
-            font-weight: 600;
-            margin-left: 4px;
-        }
         .codigo-badge {
             background: var(--azul-oscuro);
             padding: 2px 6px;
@@ -245,7 +234,7 @@
             color: var(--azul-oscuro);
             padding: 25px;
             border-radius: 15px;
-            max-width: 400px;
+            max-width: 450px;
             width: 90%;
             text-align: center;
         }
@@ -294,21 +283,6 @@
             border-radius: 8px;
             z-index: 1000;
         }
-        .debug-console {
-            position: fixed;
-            bottom: 20px;
-            left: 20px;
-            background: #1e1e1e;
-            color: #0f0;
-            font-family: monospace;
-            font-size: 10px;
-            padding: 8px;
-            border-radius: 5px;
-            max-width: 300px;
-            z-index: 10000;
-            display: none;
-        }
-        .debug-console.visible { display: block; }
     </style>
 </head>
 <body>
@@ -359,7 +333,7 @@
         <button class="btn-filtro btn-pdf" onclick="exportarPDF()"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
         
         <button id="btn-email" class="btn-compartir email" onclick="abrirModalCompartir('email')">
-            <i class="fas fa-envelope"></i> Email
+            <i class="fas fa-envelope"></i> Enviar por Email
         </button>
         <button id="btn-whatsapp" class="btn-compartir whatsapp" onclick="abrirModalCompartir('whatsapp')">
             <i class="fab fa-whatsapp"></i> WhatsApp
@@ -388,13 +362,13 @@
     <!-- MODAL PARA COMPARTIR -->
     <div id="modal-compartir" class="modal-compartir">
         <div class="modal-contenido">
-            <h3>📤 Compartir Reporte</h3>
-            <p id="modal-instrucciones">El PDF se ha generado. Ahora puedes compartirlo:</p>
+            <h3>📤 Enviar Reporte</h3>
+            <p id="modal-instrucciones">Ingresa el email del destinatario:</p>
             
             <div id="seccion-email">
                 <input type="email" id="input-email-destino" class="input-email" placeholder="Email del destinatario">
                 <div id="email-sugerido" class="email-sugerido"></div>
-                <button class="btn-modal email" onclick="enviarPorEmailFirebase()">
+                <button class="btn-modal email" onclick="enviarPorEmail()">
                     <i class="fas fa-paper-plane"></i> Enviar por Email
                 </button>
             </div>
@@ -418,10 +392,6 @@
         </div>
     </div>
 
-    <div id="debug-console" class="debug-console">
-        <strong>📋 Log:</strong> <span id="log-mensaje">Esperando acción...</span>
-    </div>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, query, orderBy, limit, onSnapshot, updateDoc, doc, getDoc, getDocs, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -439,7 +409,7 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const functions = getFunctions(app);
-        const enviarReporteEmail = httpsCallable(functions, 'enviarReporteEmail');
+        const enviarControlCaja = httpsCallable(functions, 'enviarControlCaja');
 
         const urlParams = new URLSearchParams(window.location.search);
         const comercioIdParam    = urlParams.get('id')     || '';
@@ -450,22 +420,6 @@
         let unsubscribe = null;
         let ultimoPdfGenerado = null;
         let emailComercio = '';
-
-        function addLog(msg) {
-            const logSpan = document.getElementById('log-mensaje');
-            if (logSpan) {
-                logSpan.innerHTML = msg + '<br>' + logSpan.innerHTML;
-                if (logSpan.innerHTML.split('<br>').length > 5) {
-                    logSpan.innerHTML = logSpan.innerHTML.split('<br>').slice(0, 5).join('<br>');
-                }
-            }
-            console.log(msg);
-            const debugPanel = document.getElementById('debug-console');
-            if (debugPanel) debugPanel.classList.add('visible');
-            setTimeout(() => {
-                if (debugPanel) debugPanel.classList.remove('visible');
-            }, 5000);
-        }
 
         async function obtenerEmailComercio() {
             if (!comercioIdParam && !comercioNombreParam) return '';
@@ -669,7 +623,7 @@
         function renderizarTabla() {
             const tbody = document.getElementById('lista-canjes');
             if (canjesFiltrados.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="sin-datos">📭 No hay registros de canjes para mostrar</td></tr>';
+                tbody.innerHTML = ' bon<td colspan="8" class="sin-datos">📭 No hay registros de canjes para mostrar</td></tr>';
                 return;
             }
             let html = '';
@@ -722,7 +676,6 @@
         };
 
         window.exportarPDF = async () => {
-            addLog('📄 Iniciando generación de PDF...');
             const { jsPDF } = window.jspdf;
             const pdfDoc = new jsPDF('landscape');
             
@@ -760,8 +713,6 @@
             
             const canjesDelPeriodo = filtrarCanjesPorFecha(todosLosCanjes, rango.inicio, rango.fin);
             
-            addLog(`📊 Canjes en el período: ${canjesDelPeriodo.length}`);
-            
             const totalCanjes = canjesDelPeriodo.length;
             const totalLeads = canjesDelPeriodo.filter(c => c.tipo === 'LEAD').length;
             const totalVips = canjesDelPeriodo.filter(c => c.tipo === 'VIP').length;
@@ -785,8 +736,6 @@
                 c.monto ? `$${parseFloat(c.monto).toFixed(2)}` : '---'
             ]);
             
-            addLog(`📋 Datos de tabla: ${tablaData.length} filas`);
-            
             pdfDoc.autoTable({
                 startY: 64,
                 head: [['Fecha', 'Tipo', 'Usuario', 'WhatsApp', 'Código', 'N° Factura', 'Monto']],
@@ -805,37 +754,27 @@
             }
             
             const nombreArchivo = `ControlCaja_${comercioNombreParam.replace(/\s+/g,'_')}_${Date.now()}.pdf`;
+            pdfDoc.save(nombreArchivo);
             
-            // Guardar el PDF como blob
-            const pdfBlob = pdfDoc.output('blob');
-            addLog(`📦 Tamaño del blob PDF: ${pdfBlob.size} bytes`);
-            
-            // Convertir a base64
-            const reader = new FileReader();
-            const pdfBase64 = await new Promise((resolve, reject) => {
-                reader.onload = () => {
-                    const base64 = reader.result.split(',')[1];
-                    addLog(`📦 Base64 generado, longitud: ${base64?.length || 0} caracteres`);
-                    resolve(base64);
-                };
-                reader.onerror = reject;
-                reader.readAsDataURL(pdfBlob);
-            });
-            
-            ultimoPdfGenerado = { 
-                nombre: nombreArchivo, 
-                blob: pdfBlob,
-                base64: pdfBase64,
-                stats: { total: totalCanjes, leads: totalLeads, vips: totalVips, monto: montoTotal }
+            // Guardar los datos para enviar por email
+            ultimoPdfGenerado = {
+                nombre: nombreArchivo,
+                canjes: canjesDelPeriodo.map(c => ({
+                    fecha: formatearFecha(c.timestamp),
+                    tipo: c.tipo,
+                    usuario: ocultarNombre(c.nombre || ''),
+                    whatsapp: ocultarWhatsapp(c.whatsapp),
+                    codigo: c.idValidacion || '---',
+                    factura: c.numeroFactura || '---',
+                    monto: c.monto ? `$${parseFloat(c.monto).toFixed(2)}` : '---'
+                })),
+                stats: { total: totalCanjes, leads: totalLeads, vips: totalVips, monto: montoTotal },
+                rangoTexto: rangoTexto,
+                periodo: document.getElementById('pdf-rango').value
             };
-            
-            addLog(`✅ PDF guardado en memoria: ${ultimoPdfGenerado.nombre}`);
             
             document.getElementById('btn-email').classList.add('visible');
             document.getElementById('btn-whatsapp').classList.add('visible');
-            
-            // Descargar el PDF localmente
-            pdfDoc.save(nombreArchivo);
             
             const toast = document.createElement('div');
             toast.textContent = `✅ PDF generado: ${nombreArchivo}`;
@@ -875,21 +814,17 @@
             document.getElementById('modal-compartir').classList.remove('visible');
         };
 
-        window.enviarPorEmailFirebase = async () => {
+        window.enviarPorEmail = async () => {
             const email = document.getElementById('input-email-destino').value.trim();
             if (!email) {
                 alert('⚠️ Por favor ingresa un email válido');
                 return;
             }
             
-            if (!ultimoPdfGenerado || !ultimoPdfGenerado.base64) {
+            if (!ultimoPdfGenerado || !ultimoPdfGenerado.canjes || ultimoPdfGenerado.canjes.length === 0) {
                 alert('⚠️ Primero debes generar el PDF haciendo clic en "Exportar PDF"');
                 return;
             }
-            
-            addLog(`📧 Enviando a: ${email}`);
-            addLog(`📄 Datos PDF: ${ultimoPdfGenerado.nombre}, base64 length: ${ultimoPdfGenerado.base64.length}`);
-            addLog(`📊 Stats: total=${ultimoPdfGenerado.stats.total}, leads=${ultimoPdfGenerado.stats.leads}, vips=${ultimoPdfGenerado.stats.vips}`);
             
             const comercio = comercioNombreParam || 'Comercio';
             
@@ -899,18 +834,15 @@
             btn.disabled = true;
             
             try {
-                const result = await enviarReporteEmail({
+                const result = await enviarControlCaja({
                     email: email,
                     comercio: comercio,
-                    pdfBase64: ultimoPdfGenerado.base64,
-                    stats: {
-                        total: ultimoPdfGenerado.stats.total,
-                        leads: ultimoPdfGenerado.stats.leads,
-                        vips: ultimoPdfGenerado.stats.vips
-                    }
+                    canjes: ultimoPdfGenerado.canjes,
+                    stats: ultimoPdfGenerado.stats,
+                    periodo: ultimoPdfGenerado.periodo,
+                    rangoTexto: ultimoPdfGenerado.rangoTexto,
+                    fechaGeneracion: new Date().toLocaleString('es-AR')
                 });
-                
-                addLog(`📬 Respuesta Firebase: ${JSON.stringify(result.data)}`);
                 
                 if (result.data?.success) {
                     try {
@@ -920,17 +852,14 @@
                             comercio: comercio,
                             email: email,
                             tipo: 'control_caja',
-                            periodo: document.getElementById('pdf-rango').value,
+                            periodo: ultimoPdfGenerado.periodo,
                             estado: 'Enviado',
                             canjesTotal: ultimoPdfGenerado.stats.total,
                             canjesLeads: ultimoPdfGenerado.stats.leads,
                             canjesVips: ultimoPdfGenerado.stats.vips,
                             monto: ultimoPdfGenerado.stats.monto
                         });
-                        addLog(`✅ Historial guardado en Firestore`);
-                    } catch(e) { 
-                        addLog(`⚠️ No se pudo guardar historial: ${e.message}`); 
-                    }
+                    } catch(e) { console.warn('No se pudo guardar historial:', e); }
                     
                     const toast = document.createElement('div');
                     toast.textContent = `✅ Reporte enviado a ${email}`;
@@ -940,10 +869,9 @@
                     
                     cerrarModalCompartir();
                 } else {
-                    throw new Error(result.data?.message || 'Error en el envío');
+                    throw new Error('Error en el envío');
                 }
             } catch (error) {
-                addLog(`❌ Error: ${error.message}`);
                 console.error('Error enviando email:', error);
                 alert(`❌ Error al enviar: ${error.message || 'Intenta nuevamente'}`);
             } finally {
@@ -973,7 +901,7 @@
             
             emailComercio = await obtenerEmailComercio();
             if (emailComercio) {
-                addLog(`📧 Email del comercio: ${emailComercio}`);
+                console.log('📧 Email del comercio:', emailComercio);
             }
             
             if (unsubscribe) unsubscribe();
@@ -997,7 +925,7 @@
                     const tb = b.timestamp ? (b.timestamp.toDate ? b.timestamp.toDate() : new Date(b.timestamp)) : 0;
                     return tb - ta;
                 });
-                addLog(`✅ Canjes cargados: ${todosLosCanjes.length} (de ${totalDelComercio} del comercio)`);
+                console.log(`✅ Canjes cargados: ${todosLosCanjes.length} (de ${totalDelComercio} del comercio)`);
                 actualizarResumen();
                 aplicarFiltros();
                 if (todosLosCanjes.length === 0) {
