@@ -200,7 +200,6 @@
             font-size: 11px;
             color: var(--oro);
         }
-        /* Debug panel */
         .debug-panel {
             background: rgba(255,193,7,0.1);
             border: 1px solid var(--oro);
@@ -213,6 +212,79 @@
             display: none;
         }
         .debug-panel.visible { display: block; }
+        
+        /* === NUEVOS ESTILOS PARA PDF Y ENVÍO === */
+        .pdf-options {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-left: auto;
+        }
+        .btn-compartir {
+            background: var(--celeste-habitat);
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 12px;
+            display: none;
+            align-items: center;
+            gap: 5px;
+        }
+        .btn-compartir.visible { display: inline-flex; }
+        .btn-compartir.email { background: #ea4335; }
+        .btn-compartir.whatsapp { background: #25d366; }
+        
+        .modal-compartir {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 9999;
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-compartir.visible { display: flex; }
+        .modal-contenido {
+            background: white;
+            color: var(--azul-oscuro);
+            padding: 25px;
+            border-radius: 15px;
+            max-width: 400px;
+            width: 90%;
+            text-align: center;
+        }
+        .modal-contenido h3 {
+            color: var(--azul-habitat);
+            margin-bottom: 15px;
+        }
+        .modal-contenido p {
+            font-size: 14px;
+            margin: 10px 0;
+            color: #333;
+        }
+        .modal-contenido .btn-modal {
+            margin: 10px 5px;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .btn-modal.email { background: #ea4335; color: white; }
+        .btn-modal.whatsapp { background: #25d366; color: white; }
+        .btn-modal.cerrar { background: var(--gris-claro); color: var(--azul-oscuro); }
+        .input-email {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid var(--azul-claro);
+            border-radius: 8px;
+            font-size: 14px;
+        }
     </style>
 </head>
 <body>
@@ -226,28 +298,15 @@
         <p id="comercio-detalle"></p>
     </div>
 
-    <!-- Panel de debug (se activa si hay 0 resultados) -->
     <div id="debug-panel" class="debug-panel">
         <strong>🔍 Diagnóstico:</strong> <span id="debug-texto"></span>
     </div>
 
     <div class="resumen">
-        <div class="resumen-card">
-            <h3 id="total-canjes">0</h3>
-            <p>Total Canjes</p>
-        </div>
-        <div class="resumen-card">
-            <h3 id="total-leads">0</h3>
-            <p>Canjes LEAD</p>
-        </div>
-        <div class="resumen-card">
-            <h3 id="total-vips">0</h3>
-            <p>Canjes VIP</p>
-        </div>
-        <div class="resumen-card">
-            <h3 id="monto-total">$0</h3>
-            <p>Monto Total Facturado</p>
-        </div>
+        <div class="resumen-card"><h3 id="total-canjes">0</h3><p>Total Canjes</p></div>
+        <div class="resumen-card"><h3 id="total-leads">0</h3><p>Canjes LEAD</p></div>
+        <div class="resumen-card"><h3 id="total-vips">0</h3><p>Canjes VIP</p></div>
+        <div class="resumen-card"><h3 id="monto-total">$0</h3><p>Monto Total Facturado</p></div>
     </div>
 
     <div class="filtros-bar">
@@ -260,7 +319,28 @@
         </select>
         <button class="btn-filtro" onclick="aplicarFiltros()"><i class="fas fa-search"></i> Buscar</button>
         <button class="btn-filtro" onclick="limpiarFiltros()"><i class="fas fa-eraser"></i> Limpiar</button>
+        
+        <!-- === NUEVOS CONTROLES PARA PDF === -->
+        <select id="pdf-rango" class="filtro-input" style="min-width: 140px;">
+            <option value="hoy">📅 Hoy (cierre de caja)</option>
+            <option value="ayer">📅 Ayer</option>
+            <option value="semana">📆 Esta semana</option>
+            <option value="mes">📆 Este mes</option>
+            <option value="anio">📆 Este año</option>
+            <option value="personalizado">🔧 Fecha personalizada</option>
+        </select>
+        
+        <input type="date" id="pdf-fecha-inicio" class="filtro-input" style="display: none;" title="Fecha inicio">
+        <input type="date" id="pdf-fecha-fin" class="filtro-input" style="display: none;" title="Fecha fin">
+        
         <button class="btn-filtro btn-pdf" onclick="exportarPDF()"><i class="fas fa-file-pdf"></i> Exportar PDF</button>
+        
+        <button id="btn-email" class="btn-compartir email" onclick="abrirModalCompartir('email')">
+            <i class="fas fa-envelope"></i> Email
+        </button>
+        <button id="btn-whatsapp" class="btn-compartir whatsapp" onclick="abrirModalCompartir('whatsapp')">
+            <i class="fab fa-whatsapp"></i> WhatsApp
+        </button>
     </div>
 
     <div class="tabla-container">
@@ -281,6 +361,38 @@
                 <tr><td colspan="8" class="loading-spinner"><div class="spinner"></div> Cargando historial...</td></tr>
             </tbody>
         </table>
+    </div>
+
+    <!-- === MODAL PARA COMPARTIR === -->
+    <div id="modal-compartir" class="modal-compartir">
+        <div class="modal-contenido">
+            <h3>📤 Compartir Reporte</h3>
+            <p id="modal-instrucciones">El PDF se ha generado. Ahora puedes compartirlo:</p>
+            
+            <div id="seccion-email">
+                <input type="email" id="input-email-destino" class="input-email" placeholder="Email del destinatario">
+                <button class="btn-modal email" onclick="enviarPorEmail()">
+                    <i class="fas fa-paper-plane"></i> Enviar por Email
+                </button>
+            </div>
+            
+            <div id="seccion-whatsapp" style="display: none;">
+                <p style="font-size: 12px; color: #666;">
+                    ⚠️ WhatsApp no permite adjuntar archivos automáticamente.<br>
+                    El PDF se descargó en tu dispositivo. Para enviarlo:
+                </p>
+                <ol style="text-align: left; font-size: 12px; margin: 10px 0; padding-left: 20px;">
+                    <li>Abre WhatsApp</li>
+                    <li>Selecciona el contacto del dueño</li>
+                    <li>Adjunta el archivo descargado</li>
+                </ol>
+                <button class="btn-modal whatsapp" onclick="abrirWhatsApp()">
+                    <i class="fab fa-whatsapp"></i> Abrir WhatsApp
+                </button>
+            </div>
+            
+            <button class="btn-modal cerrar" onclick="cerrarModalCompartir()">Cerrar</button>
+        </div>
     </div>
 
     <script type="module">
@@ -307,38 +419,28 @@
         let todosLosCanjes = [];
         let canjesFiltrados = [];
         let unsubscribe = null;
+        let ultimoPdfGenerado = null; // Para compartir después de generar
 
         // ─────────────────────────────────────────────
         // DETECCIÓN DE CANJE — igual que admin_log
-        // Acepta cualquier variante: "CANJE LEAD", "CANJE LEADS", "CANJE VIP", etc.
         // ─────────────────────────────────────────────
-        function esCanje(accionUp) {
-            return accionUp.includes('CANJE');
-        }
-
-        function tipoCanje(accionUp) {
-            if (accionUp.includes('VIP')) return 'VIP';
-            return 'LEAD';
-        }
+        function esCanje(accionUp) { return accionUp.includes('CANJE'); }
+        function tipoCanje(accionUp) { return accionUp.includes('VIP') ? 'VIP' : 'LEAD'; }
 
         // ─────────────────────────────────────────────
         // PERTENECE AL COMERCIO — búsqueda flexible
-        // Compara comercioId Y nombreComercio con tolerancia a mayúsculas/tildes
         // ─────────────────────────────────────────────
         function normalizar(str) {
             if (!str) return '';
-            return str.toString().toLowerCase()
-                .normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+            return str.toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
         }
 
         function perteneceAlComercio(data) {
-            // 1. Por comercioId (más confiable)
             if (comercioIdParam && comercioIdParam !== 'null' && comercioIdParam !== '') {
                 if (data.comercioId && data.comercioId === comercioIdParam) return true;
             }
-            // 2. Por nombreComercio (flexible, ignora tildes y mayúsculas)
             if (comercioNombreParam) {
-                const nombreDoc    = normalizar(data.nombreComercio || data.comercio || '');
+                const nombreDoc = normalizar(data.nombreComercio || data.comercio || '');
                 const nombreBuscar = normalizar(comercioNombreParam);
                 if (nombreDoc && nombreBuscar && nombreDoc === nombreBuscar) return true;
             }
@@ -347,19 +449,18 @@
 
         function mostrarInfoComercio() {
             document.getElementById('comercio-nombre').innerText = comercioNombreParam || 'Comercio';
-            document.getElementById('comercio-detalle').innerHTML =
-                `ID: ${comercioIdParam || '---'} | Historial de canjes | Actualización en tiempo real`;
+            document.getElementById('comercio-detalle').innerHTML = `ID: ${comercioIdParam || '---'} | Historial de canjes | Actualización en tiempo real`;
         }
 
         function actualizarResumen() {
-            const total      = todosLosCanjes.length;
+            const total = todosLosCanjes.length;
             const totalLeads = todosLosCanjes.filter(c => c.tipo === 'LEAD').length;
-            const totalVips  = todosLosCanjes.filter(c => c.tipo === 'VIP').length;
+            const totalVips = todosLosCanjes.filter(c => c.tipo === 'VIP').length;
             const montoTotal = todosLosCanjes.reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
             document.getElementById('total-canjes').innerText = total;
-            document.getElementById('total-leads').innerText  = totalLeads;
-            document.getElementById('total-vips').innerText   = totalVips;
-            document.getElementById('monto-total').innerText  = `$${montoTotal.toFixed(2)}`;
+            document.getElementById('total-leads').innerText = totalLeads;
+            document.getElementById('total-vips').innerText = totalVips;
+            document.getElementById('monto-total').innerText = `$${montoTotal.toFixed(2)}`;
         }
 
         function normalizarTexto(t) {
@@ -371,10 +472,7 @@
             if (!timestamp) return '---';
             try {
                 const fecha = timestamp.toDate ? timestamp.toDate() : new Date(timestamp);
-                return fecha.toLocaleString('es-AR', {
-                    day: '2-digit', month: '2-digit', year: 'numeric',
-                    hour: '2-digit', minute: '2-digit'
-                });
+                return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
             } catch(e) { return '---'; }
         }
 
@@ -390,7 +488,7 @@
             const partes = nombreCompleto.split(',');
             if (partes.length >= 2) {
                 const apellido = partes[0].trim();
-                const nombre   = partes[1].trim().split(' ')[0];
+                const nombre = partes[1].trim().split(' ')[0];
                 return `${nombre} ${apellido.charAt(0)}.`;
             }
             const nombres = nombreCompleto.split(' ');
@@ -398,30 +496,115 @@
             return nombreCompleto.length > 10 ? nombreCompleto.substring(0, 10) + '...' : nombreCompleto;
         }
 
+        // ─────────────────────────────────────────────
+        // === NUEVAS FUNCIONES PARA FILTROS DE FECHA PDF ===
+        // ─────────────────────────────────────────────
+        
+        // Mostrar/ocultar inputs de fecha personalizada
+        document.getElementById('pdf-rango').addEventListener('change', function() {
+            const inicio = document.getElementById('pdf-fecha-inicio');
+            const fin = document.getElementById('pdf-fecha-fin');
+            if (this.value === 'personalizado') {
+                inicio.style.display = 'inline-block';
+                fin.style.display = 'inline-block';
+            } else {
+                inicio.style.display = 'none';
+                fin.style.display = 'none';
+            }
+        });
+
+        // Obtener rango de fechas según selección
+        function obtenerRangoFechasPDF() {
+            const rango = document.getElementById('pdf-rango').value;
+            const hoy = new Date();
+            hoy.setHours(23, 59, 59, 999);
+            
+            let inicio, fin;
+            
+            switch(rango) {
+                case 'hoy':
+                    inicio = new Date();
+                    inicio.setHours(0, 0, 0, 0);
+                    fin = hoy;
+                    break;
+                case 'ayer':
+                    inicio = new Date();
+                    inicio.setDate(inicio.getDate() - 1);
+                    inicio.setHours(0, 0, 0, 0);
+                    fin = new Date(inicio);
+                    fin.setHours(23, 59, 59, 999);
+                    break;
+                case 'semana':
+                    const diaSemana = hoy.getDay() || 7;
+                    inicio = new Date(hoy);
+                    inicio.setDate(hoy.getDate() - diaSemana + 1);
+                    inicio.setHours(0, 0, 0, 0);
+                    fin = new Date(inicio);
+                    fin.setDate(inicio.getDate() + 6);
+                    fin.setHours(23, 59, 59, 999);
+                    break;
+                case 'mes':
+                    inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                    fin = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+                    fin.setHours(23, 59, 59, 999);
+                    break;
+                case 'anio':
+                    inicio = new Date(hoy.getFullYear(), 0, 1);
+                    fin = new Date(hoy.getFullYear(), 11, 31);
+                    fin.setHours(23, 59, 59, 999);
+                    break;
+                case 'personalizado':
+                    const inicioStr = document.getElementById('pdf-fecha-inicio').value;
+                    const finStr = document.getElementById('pdf-fecha-fin').value;
+                    if (!inicioStr || !finStr) {
+                        alert('⚠️ Por favor selecciona ambas fechas');
+                        return null;
+                    }
+                    inicio = new Date(inicioStr + 'T00:00:00');
+                    fin = new Date(finStr + 'T23:59:59');
+                    break;
+                default:
+                    inicio = new Date(0);
+                    fin = new Date();
+            }
+            
+            return { inicio, fin };
+        }
+
+        // Filtrar canjes por rango de fechas
+        function filtrarCanjesPorFecha(canjes, inicio, fin) {
+            return canjes.filter(c => {
+                if (!c.timestamp) return false;
+                const fechaCanje = c.timestamp.toDate ? c.timestamp.toDate() : new Date(c.timestamp);
+                return fechaCanje >= inicio && fechaCanje <= fin;
+            });
+        }
+
+        // ─────────────────────────────────────────────
+        // === FUNCIONES DE FILTRO Y RENDERIZADO (SIN MODIFICAR) ===
+        // ─────────────────────────────────────────────
+        
         window.aplicarFiltros = () => {
-            const fechaFiltro   = document.getElementById('filtro-fecha').value.toLowerCase();
+            const fechaFiltro = document.getElementById('filtro-fecha').value.toLowerCase();
             const usuarioFiltro = normalizarTexto(document.getElementById('filtro-usuario').value);
-            const tipoFiltro    = document.getElementById('filtro-tipo').value;
+            const tipoFiltro = document.getElementById('filtro-tipo').value;
 
             canjesFiltrados = todosLosCanjes.filter(canje => {
                 const fechaStr = formatearFecha(canje.timestamp);
                 if (fechaFiltro && !fechaStr.toLowerCase().includes(fechaFiltro)) return false;
-
                 const nombreNorm = normalizarTexto(canje.nombre || '');
-                const wappMatch  = canje.whatsapp && canje.whatsapp.toString().includes(usuarioFiltro);
+                const wappMatch = canje.whatsapp && canje.whatsapp.toString().includes(usuarioFiltro);
                 if (usuarioFiltro && !nombreNorm.includes(usuarioFiltro) && !wappMatch) return false;
-
                 if (tipoFiltro !== 'todos' && canje.tipo !== tipoFiltro) return false;
                 return true;
             });
-
             renderizarTabla();
         };
 
         window.limpiarFiltros = () => {
-            document.getElementById('filtro-fecha').value   = '';
+            document.getElementById('filtro-fecha').value = '';
             document.getElementById('filtro-usuario').value = '';
-            document.getElementById('filtro-tipo').value    = 'todos';
+            document.getElementById('filtro-tipo').value = 'todos';
             aplicarFiltros();
         };
 
@@ -433,24 +616,22 @@
             }
             let html = '';
             canjesFiltrados.forEach(canje => {
-                const fecha        = formatearFecha(canje.timestamp);
-                const tipoClass    = canje.tipo === 'VIP' ? 'badge-vip' : 'badge-lead';
+                const fecha = formatearFecha(canje.timestamp);
+                const tipoClass = canje.tipo === 'VIP' ? 'badge-vip' : 'badge-lead';
                 const nombreMostrar = ocultarNombre(canje.nombre || '');
                 const whatsappMostrar = ocultarWhatsapp(canje.whatsapp);
-                const codigo       = canje.idValidacion || '---';
-                const usoTexto     = canje.usoNumero ? ` (uso ${canje.usoNumero})` : '';
-                const factura      = canje.numeroFactura || '';
-                const monto        = canje.monto ? parseFloat(canje.monto).toFixed(2) : '';
-
-                html += `
-                <tr>
+                const codigo = canje.idValidacion || '---';
+                const usoTexto = canje.usoNumero ? ` (uso ${canje.usoNumero})` : '';
+                const factura = canje.numeroFactura || '';
+                const monto = canje.monto ? parseFloat(canje.monto).toFixed(2) : '';
+                html += `<tr>
                     <td style="white-space:nowrap;">${fecha}</td>
                     <td><span class="${tipoClass}">${canje.tipo}</span></td>
                     <td class="nombre-usuario">${nombreMostrar}</td>
                     <td class="whatsapp-parcial">${whatsappMostrar}</td>
                     <td><span class="codigo-badge">${codigo}${usoTexto}</span></td>
-                    <td><input type="text"   id="factura-${canje.id}" class="input-factura" value="${factura.replace(/"/g,'&quot;')}" placeholder="N° Factura"></td>
-                    <td><input type="number" id="monto-${canje.id}"   class="input-monto"   value="${monto}" placeholder="Monto" step="0.01"></td>
+                    <td><input type="text" id="factura-${canje.id}" class="input-factura" value="${factura.replace(/"/g,'&quot;')}" placeholder="N° Factura"></td>
+                    <td><input type="number" id="monto-${canje.id}" class="input-monto" value="${monto}" placeholder="Monto" step="0.01"></td>
                     <td><button class="btn-guardar" onclick="guardarDatos('${canje.id}')"><i class="fas fa-save"></i> Guardar</button></td>
                 </tr>`;
             });
@@ -459,11 +640,11 @@
 
         window.guardarDatos = async (logId) => {
             const facturaInput = document.getElementById(`factura-${logId}`);
-            const montoInput   = document.getElementById(`monto-${logId}`);
+            const montoInput = document.getElementById(`monto-${logId}`);
             const numeroFactura = facturaInput ? facturaInput.value.trim() : '';
             const monto = montoInput ? parseFloat(montoInput.value) : null;
             try {
-                const logRef  = doc(db, 'logs_actividad', logId);
+                const logRef = doc(db, 'logs_actividad', logId);
                 const updates = {};
                 if (numeroFactura !== '') updates.numeroFactura = numeroFactura;
                 if (monto !== null && !isNaN(monto)) updates.monto = monto;
@@ -482,20 +663,69 @@
             }
         };
 
+        // ─────────────────────────────────────────────
+        // === FUNCIÓN EXPORTAR PDF CORREGIDA ===
+        // ─────────────────────────────────────────────
         window.exportarPDF = async () => {
             const { jsPDF } = window.jspdf;
             const pdfDoc = new jsPDF('landscape');
-            const fechaActual = new Date().toLocaleString('es-AR');
-            pdfDoc.setFontSize(18);
+            
+            // === NUEVO: AGREGAR LOGO ===
+            const logoUrl = 'https://raw.githubusercontent.com/habitatcar/habitatcar.github.io/main/logo.png';
+            try {
+                const response = await fetch(logoUrl);
+                const blob = await response.blob();
+                const reader = new FileReader();
+                const logoBase64 = await new Promise((resolve) => {
+                    reader.onload = () => resolve(reader.result);
+                    reader.readAsDataURL(blob);
+                });
+                // Agregar logo en esquina superior derecha
+                pdfDoc.addImage(logoBase64, 'PNG', 250, 10, 40, 20);
+            } catch(e) {
+                console.warn('⚠️ No se pudo cargar el logo para el PDF');
+            }
+            
+            // === NUEVO: TÍTULO SOLICITADO ===
+            pdfDoc.setFontSize(14);
             pdfDoc.setTextColor(0, 74, 153);
-            pdfDoc.text(`Historial de Canjes - ${comercioNombreParam || 'Comercio'}`, 14, 20);
+            pdfDoc.setFont('helvetica', 'bold');
+            pdfDoc.text('Control de Caja generado por usos de cupones Lead - VIP', 14, 20);
+            
+            // Info del comercio y rango de fechas
+            const rango = obtenerRangoFechasPDF();
+            if (!rango) return;
+            
+            const fechaActual = new Date().toLocaleString('es-AR');
+            const rangoTexto = `${rango.inicio.toLocaleDateString('es-AR')} al ${rango.fin.toLocaleDateString('es-AR')}`;
+            
             pdfDoc.setFontSize(10);
             pdfDoc.setTextColor(100, 100, 100);
-            pdfDoc.text(`Generado: ${fechaActual}`, 14, 28);
-            pdfDoc.text(`Total canjes: ${canjesFiltrados.length}`, 14, 34);
-            const totalMonto = canjesFiltrados.reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
-            pdfDoc.text(`Monto total facturado: $${totalMonto.toFixed(2)}`, 14, 40);
-            const tablaData = canjesFiltrados.map(c => [
+            pdfDoc.setFont('helvetica', 'normal');
+            pdfDoc.text(`Comercio: ${comercioNombreParam || '---'}`, 14, 28);
+            pdfDoc.text(`Período: ${rangoTexto}`, 14, 34);
+            pdfDoc.text(`Generado: ${fechaActual}`, 14, 40);
+            
+            // Filtrar canjes por el rango de fechas seleccionado
+            const canjesDelPeriodo = filtrarCanjesPorFecha(todosLosCanjes, rango.inicio, rango.fin);
+            
+            // Calcular totales del período
+            const totalCanjes = canjesDelPeriodo.length;
+            const totalLeads = canjesDelPeriodo.filter(c => c.tipo === 'LEAD').length;
+            const totalVips = canjesDelPeriodo.filter(c => c.tipo === 'VIP').length;
+            const montoTotal = canjesDelPeriodo.reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
+            
+            // Resumen en el PDF
+            pdfDoc.setFontSize(9);
+            pdfDoc.setTextColor(0, 74, 153);
+            pdfDoc.setFont('helvetica', 'bold');
+            pdfDoc.text(`Resumen del período:`, 14, 50);
+            pdfDoc.setFont('helvetica', 'normal');
+            pdfDoc.setTextColor(100, 100, 100);
+            pdfDoc.text(`Total canjes: ${totalCanjes} | LEAD: ${totalLeads} | VIP: ${totalVips} | Monto: $${montoTotal.toFixed(2)}`, 14, 56);
+            
+            // Preparar datos de la tabla
+            const tablaData = canjesDelPeriodo.map(c => [
                 formatearFecha(c.timestamp),
                 c.tipo,
                 ocultarNombre(c.nombre || ''),
@@ -504,96 +734,157 @@
                 c.numeroFactura || '---',
                 c.monto ? `$${parseFloat(c.monto).toFixed(2)}` : '---'
             ]);
+            
+            // Generar tabla
             pdfDoc.autoTable({
-                startY: 48,
+                startY: 64,
                 head: [['Fecha', 'Tipo', 'Usuario', 'WhatsApp', 'Código', 'N° Factura', 'Monto']],
                 body: tablaData,
                 headStyles: { fillColor: [0, 74, 153], textColor: 255, fontSize: 9 },
                 bodyStyles: { fontSize: 8 },
                 theme: 'striped'
             });
-            pdfDoc.save(`historial_${comercioNombreParam.replace(/\s+/g,'_')}_${Date.now()}.pdf`);
+            
+            // Pie de página
+            const pageCount = pdfDoc.internal.getNumberOfPages();
+            for (let i = 1; i <= pageCount; i++) {
+                pdfDoc.setPage(i);
+                pdfDoc.setFontSize(8);
+                pdfDoc.setTextColor(150);
+                pdfDoc.text(`Hábitat-Car - Control de Caja - Página ${i} de ${pageCount}`, 14, 285);
+            }
+            
+            // Guardar PDF
+            const nombreArchivo = `ControlCaja_${comercioNombreParam.replace(/\s+/g,'_')}_${Date.now()}.pdf`;
+            pdfDoc.save(nombreArchivo);
+            
+            // Guardar referencia para compartir
+            ultimoPdfGenerado = { nombre: nombreArchivo, blob: pdfDoc.output('blob') };
+            
+            // Mostrar botones de compartir
+            document.getElementById('btn-email').classList.add('visible');
+            document.getElementById('btn-whatsapp').classList.add('visible');
+            
+            // Notificación
+            const toast = document.createElement('div');
+            toast.textContent = `✅ PDF generado: ${nombreArchivo}`;
+            toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#28a745;color:white;padding:10px 20px;border-radius:8px;z-index:1000;';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         };
 
-        // =====================================================================
-        // SNAPSHOT PRINCIPAL — descarga los últimos 2000 logs y filtra en cliente
-        // Igual estrategia que admin_log: sin filtro Firestore por comercio,
-        // para evitar problemas con variaciones de campo/valor.
-        // =====================================================================
-        function iniciarSnapshot() {
-            if (!comercioIdParam && !comercioNombreParam) {
-                document.getElementById('lista-canjes').innerHTML =
-                    '<tr><td colspan="8" class="sin-datos">❌ No se especificó un comercio</td></tr>';
+        // ─────────────────────────────────────────────
+        // === FUNCIONES PARA COMPARTIR PDF ===
+        // ─────────────────────────────────────────────
+        
+        window.abrirModalCompartir = (tipo) => {
+            const modal = document.getElementById('modal-compartir');
+            const seccionEmail = document.getElementById('seccion-email');
+            const seccionWhatsapp = document.getElementById('seccion-whatsapp');
+            const instrucciones = document.getElementById('modal-instrucciones');
+            
+            modal.classList.add('visible');
+            
+            if (tipo === 'email') {
+                seccionEmail.style.display = 'block';
+                seccionWhatsapp.style.display = 'none';
+                instrucciones.textContent = 'Ingresa el email del destinatario para enviar el reporte:';
+            } else {
+                seccionEmail.style.display = 'none';
+                seccionWhatsapp.style.display = 'block';
+                instrucciones.textContent = 'El PDF se descargó en tu dispositivo. Sigue estos pasos:';
+            }
+        };
+
+        window.cerrarModalCompartir = () => {
+            document.getElementById('modal-compartir').classList.remove('visible');
+        };
+
+        window.enviarPorEmail = () => {
+            const email = document.getElementById('input-email-destino').value.trim();
+            if (!email) {
+                alert('⚠️ Por favor ingresa un email válido');
                 return;
             }
+            
+            const comercio = comercioNombreParam || 'Comercio';
+            const asunto = encodeURIComponent(`Control de Caja - ${comercio}`);
+            const cuerpo = encodeURIComponent(
+                `Hola,\n\nAdjunto el reporte de Control de Caja generado por usos de cupones Lead - VIP.\n\n` +
+                `Comercio: ${comercio}\n` +
+                `Generado: ${new Date().toLocaleString('es-AR')}\n\n` +
+                `⚠️ Nota: Debes adjuntar manualmente el archivo PDF que se descargó en tu dispositivo.\n\n` +
+                `Saludos,\nSistema Hábitat-Car`
+            );
+            
+            // Abrir cliente de email (mailto no permite adjuntos, por eso la nota)
+            window.location.href = `mailto:${email}?subject=${asunto}&body=${cuerpo}`;
+            
+            cerrarModalCompartir();
+        };
 
+        window.abrirWhatsApp = () => {
+            const comercio = comercioNombreParam || 'Comercio';
+            const mensaje = encodeURIComponent(
+                `📊 *Control de Caja - ${comercio}*\n\n` +
+                `Reporte generado por usos de cupones Lead - VIP\n` +
+                `📅 ${new Date().toLocaleString('es-AR')}\n\n` +
+                `⚠️ Adjunto el archivo PDF que se descargó en mi dispositivo.`
+            );
+            
+            // Abrir WhatsApp (el usuario debe adjuntar el PDF manualmente)
+            window.open(`https://wa.me/?text=${mensaje}`, '_blank');
+            
+            cerrarModalCompartir();
+        };
+
+        // ─────────────────────────────────────────────
+        // === SNAPSHOT PRINCIPAL (SIN MODIFICAR) ===
+        // ─────────────────────────────────────────────
+        function iniciarSnapshot() {
+            if (!comercioIdParam && !comercioNombreParam) {
+                document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ No se especificó un comercio</td></tr>';
+                return;
+            }
             if (unsubscribe) unsubscribe();
-
             const logsRef = collection(db, 'logs_actividad');
-            // Traemos los últimos 2000 registros ordenados por fecha (igual que admin_log)
             const q = query(logsRef, orderBy('timestamp', 'desc'), limit(2000));
-
             unsubscribe = onSnapshot(q, (snapshot) => {
                 console.log(`📊 Snapshot total: ${snapshot.size} documentos`);
                 todosLosCanjes = [];
-                let totalEnSnapshot = 0;
-                let totalSonCanje   = 0;
-                let totalDelComercio = 0;
-
+                let totalEnSnapshot = 0, totalSonCanje = 0, totalDelComercio = 0;
                 snapshot.forEach(docSnap => {
-                    const data   = docSnap.data();
+                    const data = docSnap.data();
                     const accion = (data.accion || '').toUpperCase().trim();
                     totalEnSnapshot++;
-
-                    // 1. ¿Es un canje? (igual que admin_log: includes en lugar de ===)
                     if (!esCanje(accion)) return;
                     totalSonCanje++;
-
-                    // 2. ¿Pertenece a este comercio?
                     if (!perteneceAlComercio(data)) return;
                     totalDelComercio++;
-
-                    todosLosCanjes.push({
-                        id:   docSnap.id,
-                        ...data,
-                        tipo: tipoCanje(accion)
-                    });
+                    todosLosCanjes.push({ id: docSnap.id, ...data, tipo: tipoCanje(accion) });
                 });
-
-                // Ordenar por timestamp descendente
                 todosLosCanjes.sort((a, b) => {
                     const ta = a.timestamp ? (a.timestamp.toDate ? a.timestamp.toDate() : new Date(a.timestamp)) : 0;
                     const tb = b.timestamp ? (b.timestamp.toDate ? b.timestamp.toDate() : new Date(b.timestamp)) : 0;
                     return tb - ta;
                 });
-
                 console.log(`✅ Total: ${totalEnSnapshot} | Son canjes: ${totalSonCanje} | De este comercio: ${totalDelComercio}`);
-
-                // Panel de diagnóstico si no hay resultados
                 const debugPanel = document.getElementById('debug-panel');
                 const debugTexto = document.getElementById('debug-texto');
                 if (todosLosCanjes.length === 0) {
                     debugPanel.classList.add('visible');
-                    debugTexto.innerText =
-                        `Docs en snapshot: ${totalEnSnapshot} | Son canjes: ${totalSonCanje} | ` +
-                        `De este comercio: ${totalDelComercio} | ` +
-                        `Buscando id="${comercioIdParam}" o nombre="${comercioNombreParam}"`;
+                    debugTexto.innerText = `Docs en snapshot: ${totalEnSnapshot} | Son canjes: ${totalSonCanje} | De este comercio: ${totalDelComercio} | Buscando id="${comercioIdParam}" o nombre="${comercioNombreParam}"`;
                 } else {
                     debugPanel.classList.remove('visible');
                 }
-
                 actualizarResumen();
                 aplicarFiltros();
-
                 if (todosLosCanjes.length === 0) {
-                    document.getElementById('lista-canjes').innerHTML =
-                        '<tr><td colspan="8" class="sin-datos">📭 No hay canjes registrados para este comercio</td></tr>';
+                    document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">📭 No hay canjes registrados para este comercio</td></tr>';
                 }
-
             }, (error) => {
                 console.error('❌ Error en snapshot:', error);
-                document.getElementById('lista-canjes').innerHTML =
-                    `<tr><td colspan="8" class="sin-datos">❌ Error: ${error.message}</td></tr>`;
+                document.getElementById('lista-canjes').innerHTML = `<tr><td colspan="8" class="sin-datos">❌ Error: ${error.message}</td></tr>`;
             });
         }
 
