@@ -231,6 +231,17 @@
         @keyframes spin {
             to { transform: rotate(360deg); }
         }
+        .wapp-badge {
+            display: inline-block;
+            background: rgba(37,211,102,0.15);
+            color: #25d366;
+            border: 1px solid #25d366;
+            border-radius: 4px;
+            padding: 1px 6px;
+            font-size: 0.8em;
+            font-weight: 600;
+            margin-left: 4px;
+        }
     </style>
 </head>
 <body>
@@ -292,7 +303,7 @@
             <tbody id="lista-canjes">
                 <tr><td colspan="8" class="loading-spinner"><div class="spinner"></div> Cargando historial...<\/td><\/tr>
             <\/tbody>
-         <\/table>
+        <\/table>
     <\/div>
 
     <script type="module">
@@ -313,14 +324,14 @@
 
         const urlParams = new URLSearchParams(window.location.search);
         const comercioId = urlParams.get('id');
-        const comercioNombre = urlParams.get('nombre') || '';
+        const comercioNombre = decodeURIComponent(urlParams.get('nombre') || '');
 
         let todosLosCanjes = [];
         let canjesFiltrados = [];
         let unsubscribe = null;
 
         function mostrarInfoComercio() {
-            document.getElementById('comercio-nombre').innerText = decodeURIComponent(comercioNombre) || 'Comercio';
+            document.getElementById('comercio-nombre').innerText = comercioNombre || 'Comercio';
             document.getElementById('comercio-detalle').innerHTML = `ID: ${comercioId || '---'} | Historial completo de canjes de cupones | Actualización en tiempo real`;
         }
 
@@ -360,6 +371,7 @@
 
         function ocultarNombre(nombreCompleto) {
             if (!nombreCompleto) return '---';
+            // Formato: "APELLIDO, NOMBRE"
             const partes = nombreCompleto.split(',');
             if (partes.length >= 2) {
                 const apellido = partes[0].trim();
@@ -405,7 +417,9 @@
             const tbody = document.getElementById('lista-canjes');
             
             if (canjesFiltrados.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="8" class="sin-datos">📭 No hay registros de canjes para mostrar</td></tr>';
+                tbody.innerHTML = '痕
+                    <td colspan="8" class="sin-datos">📭 No hay registros de canjes para mostrar</td>
+                </tr>';
                 return;
             }
             
@@ -415,7 +429,8 @@
                 const tipoClass = canje.tipo === 'VIP' ? 'badge-vip' : 'badge-lead';
                 const nombreMostrar = ocultarNombre(canje.nombre || '');
                 const whatsappMostrar = ocultarWhatsapp(canje.whatsapp);
-                const codigo = canje.idValidacion || canje.codigo || '---';
+                const codigo = canje.idValidacion || '---';
+                const usoTexto = canje.usoNumero ? ` (uso ${canje.usoNumero}${canje.usosTotales ? '/' + canje.usosTotales : ''})` : '';
                 const factura = canje.numeroFactura || '';
                 const monto = canje.monto ? parseFloat(canje.monto).toFixed(2) : '';
                 
@@ -425,7 +440,7 @@
                         <td><span class="${tipoClass}">${canje.tipo}</span></td>
                         <td class="nombre-usuario">${nombreMostrar}</td>
                         <td class="whatsapp-parcial">${whatsappMostrar}</td>
-                        <td style="font-family: monospace; font-size: 11px;">${codigo}</td>
+                        <td style="font-family: monospace; font-size: 11px;">${codigo}${usoTexto}</td>
                         <td><input type="text" id="factura-${canje.id}" class="input-factura" value="${factura.replace(/"/g, '&quot;')}" placeholder="N° Factura"></td>
                         <td><input type="number" id="monto-${canje.id}" class="input-monto" value="${monto}" placeholder="Monto" step="0.01"></td>
                         <td><button class="btn-guardar" onclick="guardarDatos('${canje.id}')"><i class="fas fa-save"></i> Guardar</button></td>
@@ -476,12 +491,11 @@
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF('landscape');
             
-            const comercioNombreTexto = decodeURIComponent(comercioNombre) || 'Comercio';
             const fechaActual = new Date().toLocaleString('es-AR');
             
             doc.setFontSize(18);
             doc.setTextColor(0, 74, 153);
-            doc.text(`Historial de Canjes - ${comercioNombreTexto}`, 14, 20);
+            doc.text(`Historial de Canjes - ${comercioNombre || 'Comercio'}`, 14, 20);
             
             doc.setFontSize(10);
             doc.setTextColor(100, 100, 100);
@@ -496,7 +510,7 @@
                 canje.tipo,
                 ocultarNombre(canje.nombre || ''),
                 ocultarWhatsapp(canje.whatsapp),
-                canje.idValidacion || canje.codigo || '---',
+                canje.idValidacion || '---',
                 canje.numeroFactura || '---',
                 canje.monto ? `$${parseFloat(canje.monto).toFixed(2)}` : '---'
             ]);
@@ -510,11 +524,11 @@
                 theme: 'striped'
             });
             
-            doc.save(`historial_${comercioNombreTexto.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`);
+            doc.save(`historial_${comercioNombre.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`);
         };
 
         // =============================================
-        // INICIAR SNAPSHOT SIN orderBy (ordenamos en el navegador)
+        // INICIAR SNAPSHOT EN TIEMPO REAL
         // =============================================
         function iniciarSnapshot() {
             if (!comercioId) {
@@ -524,7 +538,6 @@
             
             if (unsubscribe) unsubscribe();
             
-            // ⭐ QUITAMOS orderBy para evitar necesidad de índice
             const logsRef = collection(db, "logs_actividad");
             const q = query(logsRef, where("comercioId", "==", comercioId));
             
@@ -538,6 +551,7 @@
                     const data = docSnap.data();
                     console.log("📄 Documento:", docSnap.id, data.accion, data.nombreComercio);
                     
+                    // Filtrar solo canjes (CANJE VIP o CANJE LEADS)
                     if (data.accion === "CANJE VIP" || data.accion === "CANJE LEADS") {
                         todosLosCanjes.push({
                             id: docSnap.id,
@@ -547,10 +561,10 @@
                     }
                 });
                 
-                // ⭐ Ordenamos en el navegador (más recientes primero)
+                // Ordenar por timestamp descendente (más reciente primero)
                 todosLosCanjes.sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
                 
-                console.log("📊 Canjes filtrados y ordenados:", todosLosCanjes.length);
+                console.log("📊 Canjes encontrados:", todosLosCanjes.length);
                 actualizarResumen();
                 aplicarFiltros();
                 
