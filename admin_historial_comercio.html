@@ -211,60 +211,6 @@
             font-family: monospace;
             font-size: 12px;
         }
-        .modal-editar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.8);
-            display: none;
-            justify-content: center;
-            align-items: center;
-            z-index: 2000;
-        }
-        .modal-contenido {
-            background: var(--azul-medio);
-            padding: 25px;
-            border-radius: 20px;
-            width: 90%;
-            max-width: 400px;
-            border: 2px solid var(--dorado);
-        }
-        .modal-contenido h3 {
-            color: var(--oro);
-            margin-bottom: 15px;
-        }
-        .modal-contenido input {
-            width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
-            border-radius: 8px;
-            border: 1px solid var(--azul-claro);
-            background: var(--azul-oscuro);
-            color: white;
-        }
-        .modal-botones {
-            display: flex;
-            gap: 10px;
-            justify-content: flex-end;
-        }
-        .btn-modal-guardar {
-            background: var(--verde);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-        }
-        .btn-modal-cancelar {
-            background: var(--rojo);
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            border-radius: 8px;
-            cursor: pointer;
-        }
     </style>
 </head>
 <body>
@@ -330,22 +276,9 @@
         </table>
     </div>
 
-    <div id="modal-editar" class="modal-editar">
-        <div class="modal-contenido">
-            <h3>Editar Registro de Canje</h3>
-            <input type="text" id="edit-factura" placeholder="Número de Factura/Ticket">
-            <input type="number" id="edit-monto" placeholder="Monto ($)">
-            <input type="hidden" id="edit-id">
-            <div class="modal-botones">
-                <button class="btn-modal-cancelar" onclick="cerrarModal()">Cancelar</button>
-                <button class="btn-modal-guardar" onclick="guardarEdicion()">Guardar</button>
-            </div>
-        </div>
-    </div>
-
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getFirestore, collection, query, where, getDocs, updateDoc, doc, orderBy, addDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getFirestore, collection, query, where, getDocs, updateDoc, doc, orderBy } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -359,7 +292,6 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Obtener ID del comercio desde URL
         const urlParams = new URLSearchParams(window.location.search);
         const comercioId = urlParams.get('id');
         const comercioNombre = urlParams.get('nombre') || '';
@@ -367,13 +299,11 @@
         let todosLosCanjes = [];
         let canjesFiltrados = [];
 
-        // Mostrar info del comercio
         function mostrarInfoComercio() {
             document.getElementById('comercio-nombre').innerText = comercioNombre || 'Comercio';
             document.getElementById('comercio-detalle').innerHTML = `ID: ${comercioId || '---'} | Historial completo de canjes de cupones`;
         }
 
-        // Cargar historial de canjes
         async function cargarHistorial() {
             if (!comercioId) {
                 document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ No se especificó un comercio</td></tr>';
@@ -381,14 +311,8 @@
             }
 
             try {
-                // Buscar logs de actividad para este comercio
                 const logsRef = collection(db, "logs_actividad");
-                const q = query(
-                    logsRef, 
-                    where("comercioId", "==", comercioId),
-                    orderBy("timestamp", "desc")
-                );
-                
+                const q = query(logsRef, where("comercioId", "==", comercioId), orderBy("timestamp", "desc"));
                 const snapshot = await getDocs(q);
                 todosLosCanjes = [];
                 
@@ -405,7 +329,6 @@
                 
                 actualizarResumen();
                 aplicarFiltros();
-                
             } catch (error) {
                 console.error("Error cargando historial:", error);
                 document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ Error al cargar los datos</td></tr>';
@@ -514,7 +437,7 @@
                         <td class="nombre-usuario">${nombreMostrar}</td>
                         <td class="whatsapp-parcial">${whatsappMostrar}</td>
                         <td>${codigo}</td>
-                        <td><input type="text" id="factura-${canje.id}" class="input-factura" value="${factura}" placeholder="N° Factura"></td>
+                        <td><input type="text" id="factura-${canje.id}" class="input-factura" value="${factura.replace(/"/g, '&quot;')}" placeholder="N° Factura"></td>
                         <td><input type="number" id="monto-${canje.id}" class="input-monto" value="${canje.monto || ''}" placeholder="Monto" step="0.01"></td>
                         <td><button class="btn-guardar" onclick="guardarDatos('${canje.id}')"><i class="fas fa-save"></i> Guardar</button></td>
                     </tr>
@@ -539,20 +462,19 @@
                 if (Object.keys(updates).length > 0) {
                     await updateDoc(logRef, updates);
                     
-                    // Actualizar en el array local
                     const canje = todosLosCanjes.find(c => c.id === logId);
                     if (canje) {
                         if (numeroFactura) canje.numeroFactura = numeroFactura;
                         if (monto !== null && !isNaN(monto)) canje.monto = monto;
                     }
                     
+                    actualizarResumen();
+                    
                     const toast = document.createElement('div');
                     toast.textContent = '✅ Datos guardados';
                     toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#28a745;color:white;padding:10px 20px;border-radius:8px;z-index:1000;';
                     document.body.appendChild(toast);
                     setTimeout(() => toast.remove(), 2000);
-                    
-                    actualizarResumen();
                 }
             } catch (error) {
                 console.error("Error guardando datos:", error);
@@ -598,10 +520,9 @@
                 theme: 'striped'
             });
             
-            doc.save(`historial_${comercioNombre.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`);
+            doc.save(`historial_${comercioNombreTexto.replace(/\s+/g, '_')}_${new Date().getTime()}.pdf`);
         };
 
-        // Inicializar
         mostrarInfoComercio();
         cargarHistorial();
     </script>
