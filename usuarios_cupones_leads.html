@@ -238,6 +238,44 @@ transition: transform 0.2s;
 .card:hover {
 transform: translateY(-2px);
 }
+/* ESTILO PARA CUPÓN AGOTADO - SOLO FILTRO VISUAL, SIN BLOQUEAR CLICS */
+.card.agotado {
+opacity: 0.7;
+background: #f0f0f0;
+position: relative;
+}
+.card.agotado::after {
+content: "AGOTADO";
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%) rotate(-20deg);
+font-size: 36px;
+font-weight: bold;
+color: rgba(230,0,0,0.6);
+border: 4px solid rgba(230,0,0,0.6);
+padding: 8px;
+border-radius: 8px;
+background: rgba(255,255,255,0.8);
+pointer-events: none;
+z-index: 5;
+}
+/* BOTONES DESACTIVADOS EN GRIS */
+.btn-usar.disabled-btn, .btn-validar.disabled-btn {
+background: var(--gris-desactivado) !important;
+color: #666 !important;
+cursor: not-allowed !important;
+pointer-events: none !important;
+opacity: 0.6;
+}
+/* BOTONES QUE SIGUEN ACTIVOS EN CUPÓN AGOTADO */
+.card.agotado .btn-conozca,
+.card.agotado .btn-llegar,
+.card.agotado .btn-sorteo {
+opacity: 1 !important;
+pointer-events: auto !important;
+filter: none !important;
+}
 @keyframes pulsoRecuadro {
 0% { border-color: rgba(230,0,0,0.2); box-shadow: 0 0 2px rgba(230,0,0,0.1); }
 50% { border-color: rgba(230,0,0,1); box-shadow: 0 0 10px rgba(230,0,0,0.4); }
@@ -272,15 +310,6 @@ padding: 4px 8px;
 border: 2px solid var(--rojo-cupon);
 border-radius: 6px;
 animation: pulsoRecuadro 3s infinite ease-in-out;
-}
-.card.agotado { filter: grayscale(1); opacity: 0.7; pointer-events: none; }
-.card.agotado::after {
-content: "AGOTADO";
-position: absolute;
-top: 50%; left: 50%;
-transform: translate(-50%, -50%) rotate(-20deg);
-font-size: 36px; font-weight: bold; color: rgba(230,0,0,0.5);
-border: 4px solid rgba(230,0,0,0.5); padding: 8px; border-radius: 8px;
 }
 .logo-container { height: 140px; display: flex; align-items: center; justify-content: center; background: #f9f9f9; padding: 10px; }
 .logo-c { max-height: 120px; max-width: 90%; object-fit: contain; }
@@ -326,7 +355,6 @@ z-index: -1;
 .btn-usar {
 background: var(--gris-desactivado);
 color: white;
-pointer-events: none;
 transition: 0.3s;
 border: 2px solid #999;
 display: flex;
@@ -1137,6 +1165,9 @@ window.aplicarFiltros = function aplicarFiltros() {
     renderizarComercios(filtrados);
 }
 
+// ============================================
+// ⭐ FUNCIÓN RENDERIZAR MODIFICADA PARA CUPONES AGOTADOS
+// ============================================
 function renderizarComercios(comercios) {
     const contenedor = document.getElementById('contenedor-cupones');
     const inicios = JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
@@ -1166,6 +1197,7 @@ function renderizarComercios(comercios) {
         const tieneSorteo = c.titulo_sorteo || c.titulo_promo;
         const yaTocado = localStorage.getItem('toco_sorteo_' + c.id) === 'true';
         const claseAnimacion = yaTocado ? 'sin-pulso' : 'animar-pulso';
+        // Botón Sorteos: SIEMPRE VISIBLE si hay sorteo (incluso si el cupón está agotado)
         const botonSorteo = tieneSorteo ? `<button class="btn-act btn-sorteo ${claseAnimacion}" id="btn-sorteo-${c.id}" onclick="tocarSorteo('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')">🎁 SORTEOS y PROMOS</button>` : '';
         let infoVencimiento = "";
         if (!mostrarReloj) {
@@ -1176,8 +1208,17 @@ function renderizarComercios(comercios) {
             infoVencimiento = `<span class="ico-large">⏳</span>Vence: ${diasRestantes} días`;
         }
         const contadorClase = esAgotado ? 'contador-inline agotado' : 'contador-inline';
-        const textoBoton = esAgotado ? 'AGOTADO' : `USAR BENEFICIO <span class="${contadorClase}">${usosRealizados}/${usosPermitidos}</span>`;
         const mapsUrl = c.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`;
+        
+        // ⭐ BOTONES MODIFICADOS PARA CUPÓN AGOTADO:
+        // - "Validar Cupón con QR" y "USAR BENEFICIO" se deshabilitan
+        // - "Conozca el comercio", "Cómo llegar" y "SORTEOS y PROMOS" siguen activos
+        const btnValidarHTML = `<button class="btn-act btn-validar ${esAgotado ? 'disabled-btn' : ''}" onclick="${esAgotado ? '' : `abrirQR('${c.id}', '${c.tokenQR || ''}')`}" ${esAgotado ? 'disabled' : ''}>Validar Cupón con QR</button>`;
+        
+        const btnUsarHTML = `<button class="btn-act btn-usar ${esAgotado ? 'disabled-btn' : ''}" id="btn-usar-${c.id}" onclick="${esAgotado ? '' : `preguntarAtencion('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')`}" ${esAgotado ? 'disabled' : ''}>
+            ${esAgotado ? 'AGOTADO' : `USAR BENEFICIO <span class="${contadorClase}">${usosRealizados}/${usosPermitidos}</span>`}
+        </button>`;
+        
         html += `
             <div class="card ${esAgotado ? 'agotado' : ''}" data-nombre="${(c.nombre || '').toLowerCase()}" data-vence="${diasRestantes}">
                 ${htmlLogo}
@@ -1189,10 +1230,8 @@ function renderizarComercios(comercios) {
                     ${btnConozcaHTML}
                     ${botonSorteo}
                     <button class="btn-act btn-llegar" onclick="window.open('${mapsUrl}')">Cómo llegar</button>
-                    <button class="btn-act btn-validar" onclick="abrirQR('${c.id}', '${c.tokenQR || ''}')">Validar Cupón con QR</button>
-                    <button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarAtencion('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')" ${esAgotado ? 'disabled' : ''}>
-                        ${textoBoton}
-                    </button>
+                    ${btnValidarHTML}
+                    ${btnUsarHTML}
                 </div>
             </div>`;
     });
