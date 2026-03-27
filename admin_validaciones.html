@@ -1190,6 +1190,10 @@
                     <div class="info-label">Apellido Titular</div>
                     <div class="info-valor">${data.apellido_titular || '-'}</div>
                 </div>
+                <div class="info-item">
+                    <div class="info-label">Descripción del Comercio</div>
+                    <div class="info-valor">${(data.descripcion_comercio || '-').replace(/\n/g, '<br>')}</div>
+                </div>
             </div>
             
             <h3 style="color: var(--dorado); margin: 20px 0 10px;">📸 Documentación</h3>
@@ -1252,7 +1256,7 @@
     }
 
     // ===========================================
-    // 5. APROBAR COMERCIO
+    // 5. APROBAR COMERCIO (MODIFICADO PARA GUARDAR DATOS POSTULACIÓN)
     // ===========================================
     window.aprobarComercio = async () => {
         try {
@@ -1330,6 +1334,26 @@
             
             console.log("📝 Guardando comercio en Firestore con UID:", uid);
             
+            // ===========================================
+            // ⭐ CREAR OBJETO CON TODOS LOS DATOS DE POSTULACIÓN
+            // ===========================================
+            const datosPostulacion = {
+                cuit: postulacionActual.cuit,
+                nombre_titular: postulacionActual.nombre_titular,
+                apellido_titular: postulacionActual.apellido_titular,
+                foto_dni_url: postulacionActual.foto_dni_url,
+                foto_selfie_url: postulacionActual.foto_selfie_url,
+                foto_fachada_url: postulacionActual.foto_fachada_url,
+                constancia_afip_url: postulacionActual.constancia_afip_url,
+                descripcion_comercio: postulacionActual.descripcion_comercio || '',
+                fecha_postulacion: postulacionActual.fecha_postulacion,
+                instagram: postulacionActual.instagram || '',
+                facebook: postulacionActual.facebook || '',
+                tiktok: postulacionActual.tiktok || '',
+                sitioWeb: postulacionActual.sitioWeb || '',
+                mapsUrl: postulacionActual.mapsUrl || ''
+            };
+            
             const nuevoComercio = {
                 uid: uid,
                 idComercio: idComercio,
@@ -1337,6 +1361,7 @@
                 rubro: postulacionActual.rubro,
                 provincia: postulacionActual.provincia,
                 localidad: postulacionActual.localidad,
+                ciudad: postulacionActual.localidad,
                 direccion: postulacionActual.direccion,
                 telefono: postulacionActual.telefono,
                 emailDueno: postulacionActual.email,
@@ -1365,7 +1390,13 @@
                 constancia_afip_url: postulacionActual.constancia_afip_url,
                 password: "123456",
                 rol: "comerciante",
-                publicado: false
+                publicado: false,
+                // ⭐ NUEVO: guardar todos los datos de postulación
+                datos_postulacion: datosPostulacion,
+                // ⭐ NUEVO: campos para control de términos y primer ingreso
+                terminos_comercio_aceptados: false,
+                fecha_aceptacion_terminos: null,
+                primer_ingreso: true
             };
             
             await addDoc(collection(db, "comercios"), nuevoComercio);
@@ -1390,7 +1421,7 @@
                 console.error("Error email:", emailError);
             }
             
-            alert(`✅ Comercio aprobado\n\nID: ${idComercio}\nContraseña: 123456\n\nESTADO: NO PUBLICADO (el comerciante debe publicarlo manualmente desde su panel)`);
+            alert(`✅ Comercio aprobado\n\nID: ${idComercio}\nContraseña: 123456\n\nESTADO: NO PUBLICADO (el comerciante debe publicarlo manualmente desde su panel)\n\n📋 DATOS DE POSTULACIÓN GUARDADOS EN LA FICHA DEL COMERCIO`);
             cerrarModal();
             
         } catch (error) {
