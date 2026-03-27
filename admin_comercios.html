@@ -290,7 +290,7 @@ details[open] summary::after { transform: rotate(180deg); }
     transform: translateY(-1px);
 }
 
-/* Botón Datos Personales (nuevo) */
+/* Botón Datos Personales */
 .btn-datos-personales {
     background: var(--celeste-habitat);
     color: white;
@@ -304,11 +304,138 @@ details[open] summary::after { transform: rotate(180deg); }
     gap: 5px;
     transition: 0.2s;
     white-space: nowrap;
+    cursor: pointer;
 }
 .btn-datos-personales:hover {
     background: var(--oro);
     color: var(--azul-oscuro);
     transform: translateY(-1px);
+}
+
+/* MODAL DATOS PERSONALES */
+.modal-datos-personales {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.95);
+    z-index: 10000;
+    justify-content: center;
+    align-items: center;
+}
+.modal-datos-contenido {
+    background: var(--azul-medio);
+    border-radius: 20px;
+    padding: 25px;
+    max-width: 900px;
+    width: 90%;
+    max-height: 85vh;
+    overflow-y: auto;
+    border: 2px solid var(--dorado);
+}
+.modal-datos-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    border-bottom: 2px solid var(--dorado);
+    padding-bottom: 10px;
+}
+.modal-datos-header h2 {
+    color: var(--dorado);
+    margin: 0;
+    font-size: 1.5em;
+}
+.btn-cerrar-modal {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 28px;
+    cursor: pointer;
+}
+.modal-datos-seccion {
+    background: rgba(0,0,0,0.3);
+    border-radius: 12px;
+    padding: 15px;
+    margin-bottom: 20px;
+}
+.modal-datos-seccion h3 {
+    color: var(--oro);
+    margin: 0 0 15px 0;
+    font-size: 1.1em;
+    border-left: 3px solid var(--dorado);
+    padding-left: 10px;
+}
+.modal-datos-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 12px;
+}
+.modal-datos-item {
+    background: rgba(255,255,255,0.05);
+    padding: 10px;
+    border-radius: 8px;
+}
+.modal-datos-label {
+    font-size: 0.7em;
+    color: #aaa;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.modal-datos-valor {
+    font-size: 0.95em;
+    font-weight: 600;
+    color: white;
+    margin-top: 5px;
+    word-break: break-word;
+}
+.modal-datos-valor a {
+    color: var(--dorado);
+    text-decoration: none;
+}
+.modal-datos-valor a:hover {
+    text-decoration: underline;
+}
+.modal-datos-imagenes {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    margin-top: 10px;
+}
+.modal-datos-imagen {
+    max-width: 120px;
+    max-height: 120px;
+    border-radius: 8px;
+    border: 2px solid var(--dorado);
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.modal-datos-imagen:hover {
+    transform: scale(1.05);
+}
+.modal-datos-descripcion {
+    background: rgba(0,0,0,0.3);
+    padding: 12px;
+    border-radius: 8px;
+    margin-top: 10px;
+    white-space: pre-wrap;
+    line-height: 1.5;
+}
+.btn-editar-datos {
+    background: var(--verde);
+    color: white;
+    border: none;
+    padding: 8px 20px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    margin-top: 10px;
+    transition: 0.2s;
+}
+.btn-editar-datos:hover {
+    background: #218838;
 }
 </style>
 </head>
@@ -476,13 +603,34 @@ details[open] summary::after { transform: rotate(180deg); }
 <main id="lista-comercios"></main>
 </div>
 
+<!-- MODAL DATOS PERSONALES -->
+<div id="modalDatosPersonales" class="modal-datos-personales">
+    <div class="modal-datos-contenido">
+        <div class="modal-datos-header">
+            <h2><i class="fas fa-id-card"></i> DATOS PERSONALES DEL COMERCIO</h2>
+            <button class="btn-cerrar-modal" onclick="cerrarModalDatos()">&times;</button>
+        </div>
+        <div id="modalDatosContenido">
+            <div style="text-align:center; padding:40px;">
+                <div class="spinner"></div>
+                Cargando datos...
+            </div>
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+            <button class="btn-editar-datos" onclick="editarDatosComercio()">
+                <i class="fas fa-edit"></i> EDITAR DATOS
+            </button>
+        </div>
+    </div>
+</div>
+
 <div id="modal" onclick="this.style.display='none'">
     <img id="modal-img" src="">
 </div>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc, query, where, getDocs, getDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 const firebaseConfig = {
@@ -498,6 +646,171 @@ const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 const storage = getStorage(app);
 window.db = db;
+
+let comercioSeleccionado = null;
+
+// Función para abrir modal de datos personales
+window.abrirModalDatosPersonales = async (idComercio) => {
+    const modal = document.getElementById('modalDatosPersonales');
+    const contenido = document.getElementById('modalDatosContenido');
+    
+    modal.style.display = 'flex';
+    contenido.innerHTML = '<div style="text-align:center; padding:40px;"><div class="spinner" style="width:40px;height:40px;border:3px solid #fff;border-top-color:var(--dorado);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 20px;"></div>Cargando datos personales...</div>';
+    
+    try {
+        // Buscar comercio por idComercio
+        const q = query(collection(db, "comercios"), where("idComercio", "==", idComercio));
+        const querySnapshot = await getDocs(q);
+        
+        if (querySnapshot.empty) {
+            contenido.innerHTML = '<div style="text-align:center; padding:40px; color:red;">❌ No se encontraron datos del comercio</div>';
+            return;
+        }
+        
+        const comercioDoc = querySnapshot.docs[0];
+        const comercio = { id: comercioDoc.id, ...comercioDoc.data() };
+        comercioSeleccionado = comercio;
+        
+        const datos = comercio.datos_postulacion || {};
+        
+        let html = `
+            <div class="modal-datos-seccion">
+                <h3>🏪 DATOS DEL COMERCIO</h3>
+                <div class="modal-datos-grid">
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">Nombre Comercial</div>
+                        <div class="modal-datos-valor">${comercio.nombre || '-'}</div>
+                    </div>
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">Rubro</div>
+                        <div class="modal-datos-valor">${comercio.rubro || '-'}</div>
+                    </div>
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">CUIT</div>
+                        <div class="modal-datos-valor">${datos.cuit || comercio.cuit || '-'}</div>
+                    </div>
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">Dirección</div>
+                        <div class="modal-datos-valor">${comercio.direccion || '-'}</div>
+                    </div>
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">Ubicación</div>
+                        <div class="modal-datos-valor">${comercio.ciudad || comercio.localidad || '-'} - ${comercio.provincia || '-'}</div>
+                    </div>
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">Teléfono / WhatsApp</div>
+                        <div class="modal-datos-valor"><a href="https://wa.me/${comercio.telefono?.replace(/\\D/g, '')}" target="_blank">${comercio.telefono || '-'}</a></div>
+                    </div>
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">Email Dueño</div>
+                        <div class="modal-datos-valor"><a href="mailto:${comercio.emailDueno}">${comercio.emailDueno || '-'}</a></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-datos-seccion">
+                <h3>👤 DATOS DEL TITULAR</h3>
+                <div class="modal-datos-grid">
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">Nombre Titular</div>
+                        <div class="modal-datos-valor">${datos.nombre_titular || comercio.nombre_titular || '-'}</div>
+                    </div>
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">Apellido Titular</div>
+                        <div class="modal-datos-valor">${datos.apellido_titular || comercio.apellido_titular || '-'}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-datos-seccion">
+                <h3>🌐 REDES SOCIALES</h3>
+                <div class="modal-datos-grid">
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">Instagram</div>
+                        <div class="modal-datos-valor">${datos.instagram || comercio.instagram ? `<a href="${datos.instagram || comercio.instagram}" target="_blank">${datos.instagram || comercio.instagram}</a>` : '-'}</div>
+                    </div>
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">Facebook</div>
+                        <div class="modal-datos-valor">${datos.facebook || comercio.facebook ? `<a href="${datos.facebook || comercio.facebook}" target="_blank">${datos.facebook || comercio.facebook}</a>` : '-'}</div>
+                    </div>
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">TikTok</div>
+                        <div class="modal-datos-valor">${datos.tiktok || comercio.tiktok ? `<a href="${datos.tiktok || comercio.tiktok}" target="_blank">${datos.tiktok || comercio.tiktok}</a>` : '-'}</div>
+                    </div>
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">Sitio Web</div>
+                        <div class="modal-datos-valor">${datos.sitioWeb || comercio.sitioWeb ? `<a href="${datos.sitioWeb || comercio.sitioWeb}" target="_blank">${datos.sitioWeb || comercio.sitioWeb}</a>` : '-'}</div>
+                    </div>
+                    <div class="modal-datos-item">
+                        <div class="modal-datos-label">Google Maps</div>
+                        <div class="modal-datos-valor">${comercio.mapsUrl ? `<a href="${comercio.mapsUrl}" target="_blank">Ver ubicación</a>` : '-'}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="modal-datos-seccion">
+                <h3>📝 DESCRIPCIÓN DEL COMERCIO</h3>
+                <div class="modal-datos-descripcion">
+                    ${(datos.descripcion_comercio || comercio.descripcion_comercio || 'No se proporcionó descripción').replace(/\n/g, '<br>')}
+                </div>
+            </div>
+            
+            <div class="modal-datos-seccion">
+                <h3>📸 DOCUMENTACIÓN DE POSTULACIÓN</h3>
+                <div class="modal-datos-imagenes">
+                    ${datos.foto_selfie_url ? `
+                        <img src="${datos.foto_selfie_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_selfie_url}')" title="Selfie con DNI">
+                    ` : ''}
+                    ${datos.foto_dni_url ? `
+                        <img src="${datos.foto_dni_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_dni_url}')" title="DNI frente">
+                    ` : ''}
+                    ${datos.foto_fachada_url ? `
+                        <img src="${datos.foto_fachada_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_fachada_url}')" title="Fachada del local">
+                    ` : ''}
+                    ${datos.constancia_afip_url ? `
+                        <div class="modal-datos-item" style="text-align:center;">
+                            <i class="fas fa-file-pdf" style="font-size: 48px; color: var(--rojo);"></i>
+                            <div><a href="${datos.constancia_afip_url}" target="_blank">Ver Constancia AFIP</a></div>
+                        </div>
+                    ` : ''}
+                </div>
+            </div>
+            
+            <div class="modal-datos-seccion">
+                <h3>📅 FECHA DE POSTULACIÓN</h3>
+                <div class="modal-datos-item">
+                    <div class="modal-datos-valor">${datos.fecha_postulacion ? new Date(datos.fecha_postulacion).toLocaleString('es-AR') : comercio.fecha_alta ? new Date(comercio.fecha_alta).toLocaleString('es-AR') : '-'}</div>
+                </div>
+            </div>
+        `;
+        
+        contenido.innerHTML = html;
+        
+    } catch (error) {
+        console.error("Error cargando datos personales:", error);
+        contenido.innerHTML = `<div style="text-align:center; padding:40px; color:red;">❌ Error al cargar datos: ${error.message}</div>`;
+    }
+};
+
+window.cerrarModalDatos = () => {
+    document.getElementById('modalDatosPersonales').style.display = 'none';
+    comercioSeleccionado = null;
+};
+
+window.editarDatosComercio = () => {
+    if (comercioSeleccionado) {
+        // Abrir el formulario de edición con el comercio seleccionado
+        window.edit(null, comercioSeleccionado.id);
+        cerrarModalDatos();
+        // Scroll al formulario
+        document.querySelector('.card-form').scrollIntoView({ behavior: 'smooth' });
+    }
+};
+
+window.zoomImagen = (url) => {
+    document.getElementById('modal-img').src = url;
+    document.getElementById('modal').style.display = 'flex';
+};
 
 async function subirLogoAFirebase(archivo) {
     if (!archivo) return null;
@@ -647,7 +960,7 @@ if (esComerciante) {
 }
 
 // =============================================
-// FUNCIÓN mostrarComercio CON BOTÓN HISTORIAL Y DATOS PERSONALES AGREGADOS
+// FUNCIÓN mostrarComercio CON BOTÓN HISTORIAL Y DATOS PERSONALES
 // =============================================
 function mostrarComercio(c) {
     const box = document.getElementById('lista-comercios');
@@ -702,9 +1015,9 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 <a href="admin_historial_comercio.html?id=${displayID}&nombre=${encodeURIComponent(c.nombre || '')}" class="btn-historial">
     <i class="fas fa-chart-line"></i> HISTORIAL
 </a>
-<a href="admin_datos_personales_comercio.html?id=${displayID}" class="btn-datos-personales">
+<button class="btn-datos-personales" onclick="abrirModalDatosPersonales('${displayID}')">
     <i class="fas fa-id-card"></i> VER DATOS PERSONALES
-</a>
+</button>
 </div>
 </div>
 <div class="btn-group">
