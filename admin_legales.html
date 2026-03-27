@@ -87,6 +87,49 @@
             overflow: hidden;
         }
 
+        /* PESTAÑAS */
+        .tabs-container {
+            display: flex;
+            gap: 5px;
+            margin-bottom: 20px;
+            border-bottom: 2px solid var(--dorado);
+            padding-bottom: 0;
+        }
+        .tab-btn {
+            background: rgba(255,255,255,0.1);
+            border: none;
+            padding: 12px 25px;
+            font-size: 1em;
+            font-weight: bold;
+            color: var(--blanco-suave);
+            cursor: pointer;
+            border-radius: 12px 12px 0 0;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .tab-btn i {
+            font-size: 1.1em;
+        }
+        .tab-btn.active {
+            background: var(--dorado);
+            color: var(--azul-oscuro);
+        }
+        .tab-btn:hover:not(.active) {
+            background: rgba(212, 175, 55, 0.3);
+        }
+
+        .tab-content {
+            display: none;
+            flex: 1;
+            flex-direction: column;
+            height: 100%;
+        }
+        .tab-content.active {
+            display: flex;
+        }
+
         .card-editor {
             background: var(--azul-medio);
             padding: 25px;
@@ -152,7 +195,15 @@
         .btn-save:hover { background: #218838; transform: translateY(-2px); }
 
         #status-msg { font-weight: bold; font-size: 0.9em; }
+        
+        .info-legal {
+            font-size: 0.8em;
+            color: var(--oro);
+            margin-top: 10px;
+            text-align: center;
+        }
     </style>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 </head>
 <body>
 
@@ -185,19 +236,56 @@
     </header>
 
     <div class="container">
-        <div class="card-editor">
-            <div style="margin-bottom: 15px;">
-                <h2>Editor de Contenido Legal</h2>
-                <p style="color: #8892b0; margin: 0;">Modifica los Términos y Condiciones generales del sistema.</p>
+        <div class="tabs-container">
+            <button class="tab-btn active" id="tab-leads" onclick="cambiarTab('leads')">
+                <i class="fas fa-users"></i> TÉRMINOS LEAD/VIP
+            </button>
+            <button class="tab-btn" id="tab-comercios" onclick="cambiarTab('comercios')">
+                <i class="fas fa-store"></i> TÉRMINOS COMERCIOS
+            </button>
+        </div>
+
+        <!-- Pestaña LEAD/VIP -->
+        <div id="tab-leads-content" class="tab-content active">
+            <div class="card-editor">
+                <div style="margin-bottom: 15px;">
+                    <h2><i class="fas fa-file-alt"></i> Términos y Condiciones - Usuarios LEAD/VIP</h2>
+                    <p style="color: #8892b0; margin: 0;">Estos términos aplican a los usuarios finales (LEAD y VIP).</p>
+                </div>
+                
+                <div class="textarea-container">
+                    <textarea id="legal-text-leads" spellcheck="false" placeholder="Cargando términos legales para usuarios..."></textarea>
+                </div>
+                
+                <div class="actions">
+                    <span id="status-msg-leads"></span>
+                    <button class="btn-save" onclick="guardar('leads')">💾 GUARDAR CAMBIOS</button>
+                </div>
+                <div class="info-legal">
+                    <i class="fas fa-info-circle"></i> Estos términos se mostrarán a los usuarios LEAD y VIP al momento de registrarse.
+                </div>
             </div>
-            
-            <div class="textarea-container">
-                <textarea id="legal-text" spellcheck="false" placeholder="Cargando términos legales..."></textarea>
-            </div>
-            
-            <div class="actions">
-                <span id="status-msg"></span>
-                <button class="btn-save" onclick="guardar()">💾 GUARDAR CAMBIOS</button>
+        </div>
+
+        <!-- Pestaña COMERCIOS -->
+        <div id="tab-comercios-content" class="tab-content">
+            <div class="card-editor">
+                <div style="margin-bottom: 15px;">
+                    <h2><i class="fas fa-store"></i> Términos y Condiciones - Comercios</h2>
+                    <p style="color: #8892b0; margin: 0;">Estos términos aplican a los comercios postulantes y aprobados.</p>
+                </div>
+                
+                <div class="textarea-container">
+                    <textarea id="legal-text-comercios" spellcheck="false" placeholder="Cargando términos legales para comercios..."></textarea>
+                </div>
+                
+                <div class="actions">
+                    <span id="status-msg-comercios"></span>
+                    <button class="btn-save" onclick="guardar('comercios')">💾 GUARDAR CAMBIOS</button>
+                </div>
+                <div class="info-legal">
+                    <i class="fas fa-info-circle"></i> Estos términos se mostrarán a los comercios en su primer ingreso al panel de dueño.
+                </div>
             </div>
         </div>
     </div>
@@ -218,7 +306,12 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         window.db = db;
-        const legalRef = doc(db, "configuracion", "legales");
+        
+        const legalLeadsRef = doc(db, "configuracion", "legales");
+        const legalComerciosRef = doc(db, "configuracion", "legales_comercios");
+
+        let contenidoOriginalLeads = '';
+        let contenidoOriginalComercios = '';
 
         // =============================================
         // CONTADORES NAV (mismo que comercios)
@@ -287,21 +380,134 @@
             setInterval(actualizarContadores, 30000);
         }, 3000);
 
-        window.onload = async () => {
+        // =============================================
+        // CARGAR TEXTOS LEGALES
+        // =============================================
+        async function cargarLegales() {
             try {
-                const snap = await getDoc(legalRef);
-                if (snap.exists()) {
-                    document.getElementById('legal-text').value = snap.data().contenido;
+                // Cargar T&C LEAD/VIP
+                const snapLeads = await getDoc(legalLeadsRef);
+                if (snapLeads.exists()) {
+                    contenidoOriginalLeads = snapLeads.data().contenido || '';
+                    document.getElementById('legal-text-leads').value = contenidoOriginalLeads;
+                } else {
+                    // Texto por defecto para LEADS/VIP
+                    contenidoOriginalLeads = `TÉRMINOS Y CONDICIONES - HÁBITAT-CAR
+
+1. ACEPTACIÓN
+Al registrarte como usuario LEAD o VIP de Hábitat-Car, aceptás los presentes términos y condiciones.
+
+2. USO DE CUPONES
+Los cupones de descuento son personales e intransferibles. Cada usuario tiene un límite de usos por comercio establecido por el comercio adherido.
+
+3. CANJES
+El canje de cupones debe realizarse en el comercio físico, presentando el código de validación generado al momento del canje.
+
+4. VIGENCIA
+Cada cupón tiene una vigencia determinada por el comercio. Pasada la fecha de vencimiento, el cupón pierde validez.
+
+5. RESPONSABILIDAD
+Hábitat-Car actúa como intermediario entre los usuarios y los comercios. Los beneficios ofrecidos son responsabilidad exclusiva del comercio adherido.
+
+6. PROTECCIÓN DE DATOS
+Tus datos personales serán tratados conforme a la Ley 25.326 de Protección de Datos Personales.
+
+7. MODIFICACIONES
+Nos reservamos el derecho de modificar estos términos en cualquier momento. Los cambios serán notificados oportunamente.
+
+8. JURISDICCIÓN
+Cualquier controversia será resuelta por los tribunales ordinarios de San Salvador de Jujuy, Argentina.`;
+                    await setDoc(legalLeadsRef, { contenido: contenidoOriginalLeads, ultimaActualizacion: Date.now() });
+                    document.getElementById('legal-text-leads').value = contenidoOriginalLeads;
                 }
-            } catch (e) { console.error("Error al cargar:", e); }
+                
+                // Cargar T&C COMERCIOS
+                const snapComercios = await getDoc(legalComerciosRef);
+                if (snapComercios.exists()) {
+                    contenidoOriginalComercios = snapComercios.data().contenido || '';
+                    document.getElementById('legal-text-comercios').value = contenidoOriginalComercios;
+                } else {
+                    // Texto por defecto para COMERCIOS
+                    contenidoOriginalComercios = `TÉRMINOS Y CONDICIONES PARA COMERCIOS - HÁBITAT-CAR
+
+1. ACEPTACIÓN
+Al postularte como comercio adherido a Hábitat-Car, aceptás los presentes términos y condiciones.
+
+2. RESPONSABILIDAD DEL COMERCIO
+El comercio es el único responsable por los beneficios, promociones y descuentos ofrecidos a los usuarios. Hábitat-Car actúa únicamente como plataforma de difusión.
+
+3. VERACIDAD DE LA INFORMACIÓN
+El comercio declara bajo juramento que toda la información proporcionada en la postulación (CUIT, documentación, fotos, etc.) es verídica y corresponde a la realidad.
+
+4. USO DE DATOS
+Los datos del comercio y del titular serán utilizados exclusivamente para fines de verificación y contacto comercial, conforme a la Ley 25.326.
+
+5. OBLIGACIONES DEL COMERCIO
+El comercio se obliga a:
+a) Honrar los beneficios publicados en la plataforma.
+b) Mantener actualizada su información (horarios, dirección, beneficios).
+c) Responder ante los usuarios en caso de reclamos relacionados con los beneficios.
+
+6. SUSPENSIÓN O BAJA
+Hábitat-Car se reserva el derecho de suspender o dar de baja a cualquier comercio que incumpla estos términos o que proporcione información falsa.
+
+7. MODIFICACIONES
+Estos términos pueden ser actualizados. Se notificará al comercio con antelación de cualquier cambio significativo.
+
+8. JURISDICCIÓN
+Cualquier controversia será resuelta por los tribunales ordinarios de San Salvador de Jujuy, Argentina.`;
+                    await setDoc(legalComerciosRef, { contenido: contenidoOriginalComercios, ultimaActualizacion: Date.now() });
+                    document.getElementById('legal-text-comercios').value = contenidoOriginalComercios;
+                }
+                
+            } catch (e) { 
+                console.error("Error al cargar legales:", e); 
+            }
+        }
+
+        // =============================================
+        // CAMBIAR PESTAÑA
+        // =============================================
+        window.cambiarTab = (tab) => {
+            // Actualizar botones
+            document.getElementById('tab-leads').classList.remove('active');
+            document.getElementById('tab-comercios').classList.remove('active');
+            if (tab === 'leads') {
+                document.getElementById('tab-leads').classList.add('active');
+            } else {
+                document.getElementById('tab-comercios').classList.add('active');
+            }
+            
+            // Actualizar contenido
+            document.getElementById('tab-leads-content').classList.remove('active');
+            document.getElementById('tab-comercios-content').classList.remove('active');
+            if (tab === 'leads') {
+                document.getElementById('tab-leads-content').classList.add('active');
+            } else {
+                document.getElementById('tab-comercios-content').classList.add('active');
+            }
         };
 
-        window.guardar = async () => {
-            const texto = document.getElementById('legal-text').value;
-            const status = document.getElementById('status-msg');
+        // =============================================
+        // GUARDAR LEGALES
+        // =============================================
+        window.guardar = async (tipo) => {
+            let texto, statusSpan, docRef, nombreColeccion;
+            
+            if (tipo === 'leads') {
+                texto = document.getElementById('legal-text-leads').value;
+                statusSpan = document.getElementById('status-msg-leads');
+                docRef = legalLeadsRef;
+                nombreColeccion = "LEADS/VIP";
+            } else {
+                texto = document.getElementById('legal-text-comercios').value;
+                statusSpan = document.getElementById('status-msg-comercios');
+                docRef = legalComerciosRef;
+                nombreColeccion = "COMERCIOS";
+            }
             
             try {
-                await setDoc(legalRef, { 
+                await setDoc(docRef, { 
                     contenido: texto, 
                     ultimaActualizacion: Date.now() 
                 });
@@ -311,18 +517,21 @@
                     tipo: "admin",
                     modulo: "LEGALES",
                     accion: "EDICIÓN LEGALES",
-                    detalle: "Se actualizó el texto de T&C"
+                    detalle: `Se actualizó el texto de T&C para ${nombreColeccion}`
                 });
 
-                status.innerText = "✅ Cambios guardados con éxito";
-                status.style.color = "var(--verde)";
-                setTimeout(() => status.innerText = "", 4000);
+                statusSpan.innerText = "✅ Cambios guardados con éxito";
+                statusSpan.style.color = "var(--verde)";
+                setTimeout(() => statusSpan.innerText = "", 4000);
 
             } catch (e) {
-                status.innerText = "❌ Error de conexión";
-                status.style.color = "red";
+                statusSpan.innerText = "❌ Error de conexión";
+                statusSpan.style.color = "red";
             }
         };
+
+        // Inicializar
+        cargarLegales();
     </script>
 </body>
 </html>
