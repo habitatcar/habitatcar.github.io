@@ -858,7 +858,7 @@
     };
 
     function formatearEnlace(tipo, valor) {
-        if (!valor) return '-';
+        if (!valor || valor === '-') return '-';
         
         switch(tipo) {
             case 'cuit':
@@ -1129,70 +1129,85 @@
     };
 
     // ===========================================
-    // 4. GENERAR HTML PARA COMERCIO (CON VÍNCULOS)
+    // 4. GENERAR HTML PARA COMERCIO (CORREGIDO)
     // ===========================================
     function generarHTMLComercio(data) {
+        // Función segura para obtener valor
+        const getValor = (campo) => {
+            const valor = data[campo];
+            return (valor && valor !== '' && valor !== undefined && valor !== null) ? valor : '-';
+        };
+        
+        // Función segura para descripción (con saltos de línea)
+        const getDescripcion = () => {
+            const desc = data.descripcion_comercio;
+            if (desc && desc !== '' && desc !== undefined && desc !== null) {
+                return desc.replace(/\n/g, '<br>');
+            }
+            return '-';
+        };
+        
         return `
             <div class="info-grid">
                 <div class="info-item">
                     <div class="info-label">Comercio</div>
-                    <div class="info-valor">${data.nombre_comercio || '-'}</div>
+                    <div class="info-valor">${getValor('nombre_comercio')}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">CUIT</div>
-                    <div class="info-valor">${formatearEnlace('cuit', data.cuit)}</div>
+                    <div class="info-valor">${formatearEnlace('cuit', getValor('cuit'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Rubro</div>
-                    <div class="info-valor">${data.rubro || '-'}</div>
+                    <div class="info-valor">${getValor('rubro')}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Ubicación</div>
-                    <div class="info-valor">${data.provincia || ''} - ${data.localidad || ''}</div>
+                    <div class="info-valor">${getValor('provincia')} - ${getValor('localidad')}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Dirección</div>
-                    <div class="info-valor">${data.direccion || '-'}</div>
+                    <div class="info-valor">${getValor('direccion')}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Teléfono</div>
-                    <div class="info-valor">${formatearEnlace('telefono', data.telefono)}</div>
+                    <div class="info-valor">${formatearEnlace('telefono', getValor('telefono'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Email</div>
-                    <div class="info-valor">${formatearEnlace('email', data.email)}</div>
+                    <div class="info-valor">${formatearEnlace('email', getValor('email'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Instagram</div>
-                    <div class="info-valor">${formatearEnlace('instagram', data.instagram)}</div>
+                    <div class="info-valor">${formatearEnlace('instagram', getValor('instagram'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">TikTok</div>
-                    <div class="info-valor">${formatearEnlace('tiktok', data.tiktok)}</div>
+                    <div class="info-valor">${formatearEnlace('tiktok', getValor('tiktok'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Sitio Web</div>
-                    <div class="info-valor">${formatearEnlace('sitioWeb', data.sitioWeb)}</div>
+                    <div class="info-valor">${formatearEnlace('sitioWeb', getValor('sitioWeb'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Facebook</div>
-                    <div class="info-valor">${formatearEnlace('facebook', data.facebook)}</div>
+                    <div class="info-valor">${formatearEnlace('facebook', getValor('facebook'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Google Maps</div>
-                    <div class="info-valor">${formatearEnlace('maps', data.mapsUrl)}</div>
+                    <div class="info-valor">${formatearEnlace('maps', getValor('mapsUrl'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Nombre Titular</div>
-                    <div class="info-valor">${data.nombre_titular || '-'}</div>
+                    <div class="info-valor">${getValor('nombre_titular')}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Apellido Titular</div>
-                    <div class="info-valor">${data.apellido_titular || '-'}</div>
+                    <div class="info-valor">${getValor('apellido_titular')}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Descripción del Comercio</div>
-                    <div class="info-valor">${(data.descripcion_comercio || '-').replace(/\n/g, '<br>')}</div>
+                    <div class="info-valor">${getDescripcion()}</div>
                 </div>
             </div>
             
@@ -1256,7 +1271,7 @@
     }
 
     // ===========================================
-    // 5. APROBAR COMERCIO (MODIFICADO PARA GUARDAR DATOS POSTULACIÓN)
+    // 5. APROBAR COMERCIO
     // ===========================================
     window.aprobarComercio = async () => {
         try {
@@ -1391,9 +1406,7 @@
                 password: "123456",
                 rol: "comerciante",
                 publicado: false,
-                // ⭐ NUEVO: guardar todos los datos de postulación
                 datos_postulacion: datosPostulacion,
-                // ⭐ NUEVO: campos para control de términos y primer ingreso
                 terminos_comercio_aceptados: false,
                 fecha_aceptacion_terminos: null,
                 primer_ingreso: true
