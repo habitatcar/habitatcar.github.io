@@ -312,7 +312,7 @@ details[open] summary::after { transform: rotate(180deg); }
     transform: translateY(-1px);
 }
 
-/* MODAL DATOS PERSONALES - VERSIÓN MEJORADA */
+/* MODAL DATOS PERSONALES */
 .modal-datos-personales {
     display: none;
     position: fixed;
@@ -662,7 +662,7 @@ window.db = db;
 let comercioSeleccionado = null;
 
 // =============================================
-// FUNCIÓN MEJORADA PARA ABRIR MODAL DE DATOS PERSONALES
+// FUNCIÓN PARA ABRIR MODAL DE DATOS PERSONALES
 // =============================================
 window.abrirModalDatosPersonales = async (idComercio) => {
     const modal = document.getElementById('modalDatosPersonales');
@@ -672,7 +672,6 @@ window.abrirModalDatosPersonales = async (idComercio) => {
     contenido.innerHTML = '<div style="text-align:center; padding:40px;"><div class="spinner"></div><p>Cargando datos personales...</p></div>';
     
     try {
-        // Buscar comercio por idComercio
         const q = query(collection(db, "comercios"), where("idComercio", "==", idComercio));
         const querySnapshot = await getDocs(q);
         
@@ -685,10 +684,8 @@ window.abrirModalDatosPersonales = async (idComercio) => {
         const comercio = { id: comercioDoc.id, ...comercioDoc.data() };
         comercioSeleccionado = comercio;
         
-        // Obtener datos de postulación (si existen) o usar datos del comercio
         const datos = comercio.datos_postulacion || {};
         
-        // Función auxiliar para obtener valor
         const getValor = (campo, campoComercio = null) => {
             const valor = datos[campo] || comercio[campoComercio || campo];
             return valor && valor !== '' ? valor : '-';
@@ -779,21 +776,15 @@ window.abrirModalDatosPersonales = async (idComercio) => {
             <div class="modal-datos-seccion">
                 <h3>📸 DOCUMENTACIÓN DE POSTULACIÓN</h3>
                 <div class="modal-datos-imagenes">
-                    ${datos.foto_selfie_url ? `
-                        <img src="${datos.foto_selfie_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_selfie_url}')" title="Selfie con DNI">
-                    ` : (comercio.foto_selfie_url ? `
-                        <img src="${comercio.foto_selfie_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${comercio.foto_selfie_url}')" title="Selfie con DNI">
-                    ` : '')}
-                    ${datos.foto_dni_url ? `
-                        <img src="${datos.foto_dni_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_dni_url}')" title="DNI frente">
-                    ` : (comercio.foto_dni_url ? `
-                        <img src="${comercio.foto_dni_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${comercio.foto_dni_url}')" title="DNI frente">
-                    ` : '')}
-                    ${datos.foto_fachada_url ? `
-                        <img src="${datos.foto_fachada_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_fachada_url}')" title="Fachada del local">
-                    ` : (comercio.foto_fachada_url ? `
-                        <img src="${comercio.foto_fachada_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${comercio.foto_fachada_url}')" title="Fachada del local">
-                    ` : '')}
+                    ${(datos.foto_selfie_url || comercio.foto_selfie_url) ? `
+                        <img src="${datos.foto_selfie_url || comercio.foto_selfie_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_selfie_url || comercio.foto_selfie_url}')" title="Selfie con DNI">
+                    ` : ''}
+                    ${(datos.foto_dni_url || comercio.foto_dni_url) ? `
+                        <img src="${datos.foto_dni_url || comercio.foto_dni_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_dni_url || comercio.foto_dni_url}')" title="DNI frente">
+                    ` : ''}
+                    ${(datos.foto_fachada_url || comercio.foto_fachada_url) ? `
+                        <img src="${datos.foto_fachada_url || comercio.foto_fachada_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_fachada_url || comercio.foto_fachada_url}')" title="Fachada del local">
+                    ` : ''}
                     ${(datos.constancia_afip_url || comercio.constancia_afip_url) ? `
                         <div class="modal-datos-item" style="text-align:center;">
                             <i class="fas fa-file-pdf" style="font-size: 48px; color: var(--rojo);"></i>
@@ -986,7 +977,7 @@ if (esComerciante) {
 }
 
 // =============================================
-// FUNCIÓN mostrarComercio CON BOTÓN HISTORIAL Y DATOS PERSONALES
+// FUNCIÓN mostrarComercio
 // =============================================
 function mostrarComercio(c) {
     const box = document.getElementById('lista-comercios');
