@@ -240,6 +240,56 @@ transition: transform 0.2s;
 .card:hover {
 transform: translateY(-2px);
 }
+/* ESTILO PARA CUPÓN AGOTADO - SOLO FILTRO VISUAL, SIN BLOQUEAR CLICS DE BOTONES ACTIVOS */
+.card.agotado {
+opacity: 0.7;
+background: #f0f0f0;
+position: relative;
+}
+.card.agotado::after {
+content: "AGOTADO";
+position: absolute;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%) rotate(-20deg);
+font-size: 36px;
+font-weight: bold;
+color: rgba(230,0,0,0.6);
+border: 4px solid rgba(230,0,0,0.6);
+padding: 8px;
+border-radius: 8px;
+background: rgba(255,255,255,0.8);
+pointer-events: none;
+z-index: 5;
+}
+/* BOTONES DESACTIVADOS EN GRIS - SOLO PARA VALIDAR Y USAR */
+.btn-usar.disabled-btn, .btn-validar.disabled-btn {
+background: var(--gris-desactivado) !important;
+color: #666 !important;
+cursor: not-allowed !important;
+pointer-events: none !important;
+opacity: 0.6;
+}
+/* BOTONES QUE SIGUEN ACTIVOS EN CUPÓN AGOTADO */
+.card.agotado .btn-conozca,
+.card.agotado .btn-llegar,
+.card.agotado .btn-sorteo,
+.card.agotado .btn-calificar-tarjeta {
+opacity: 1 !important;
+pointer-events: auto !important;
+filter: none !important;
+background: var(--azul-lindo) !important;
+}
+.card.agotado .btn-llegar {
+background: var(--verde) !important;
+}
+.card.agotado .btn-sorteo {
+background: var(--naranja-sorteo) !important;
+}
+.card.agotado .btn-calificar-tarjeta {
+background: var(--dorado) !important;
+color: #000 !important;
+}
 @keyframes pulsoRecuadro {
 0% { border-color: rgba(230,0,0,0.2); box-shadow: 0 0 2px rgba(230,0,0,0.1); }
 50% { border-color: rgba(230,0,0,1); box-shadow: 0 0 10px rgba(230,0,0,0.4); }
@@ -274,15 +324,6 @@ padding: 4px 8px;
 border: 2px solid var(--rojo-cupon);
 border-radius: 6px;
 animation: pulsoRecuadro 3s infinite ease-in-out;
-}
-.card.agotado { filter: grayscale(1); opacity: 0.7; pointer-events: none; }
-.card.agotado::after {
-content: "AGOTADO";
-position: absolute;
-top: 50%; left: 50%;
-transform: translate(-50%, -50%) rotate(-20deg);
-font-size: 36px; font-weight: bold; color: rgba(230,0,0,0.5);
-border: 4px solid rgba(230,0,0,0.5); padding: 8px; border-radius: 8px;
 }
 .logo-container { height: 140px; display: flex; align-items: center; justify-content: center; background: #f9f9f9; padding: 10px; }
 .logo-c { max-height: 120px; max-width: 90%; object-fit: contain; }
@@ -328,7 +369,6 @@ z-index: -1;
 .btn-usar {
 background: var(--gris-desactivado);
 color: white;
-pointer-events: none;
 transition: 0.3s;
 border: 2px solid #999;
 display: flex;
@@ -739,17 +779,18 @@ font-weight: 600;
     background: var(--dorado);
     color: #000;
     border: none;
-    padding: 8px 12px;
+    padding: 10px;
     border-radius: 8px;
     font-weight: bold;
     cursor: pointer;
-    font-size: 12px;
+    font-size: 13px;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
     margin-top: 6px;
     transition: all 0.2s;
+    width: 100%;
 }
 .btn-calificar-tarjeta:hover {
     background: #e6b800;
@@ -945,8 +986,8 @@ let filtroProvinciaActivo = false;
 let filtroLocalidadActivo = false;
 let filtroCercaniaActivo = false;
 let scrollPosition = 0;
-let comercioParaCalificar = null; // Guarda el comercio que se acaba de usar para calificar
-let yaCalificado = {}; // Guarda si ya se calificó un comercio después del canje
+let comercioParaCalificar = null;
+let yaCalificado = {};
 
 // ============================================
 // FUNCIONES DE CALIFICACIÓN
@@ -966,7 +1007,6 @@ function cargarOpcionesCalificacion() {
     
     container.innerHTML = '';
     
-    // Primero las 3 rojas (negativas)
     const rojas = tiposCalificacion.slice(0, 3);
     const doradas = tiposCalificacion.slice(3);
     
@@ -974,8 +1014,6 @@ function cargarOpcionesCalificacion() {
         const opcion = document.createElement('div');
         opcion.className = 'opcion-calificacion';
         opcion.dataset.tipo = tipo.id;
-        opcion.dataset.nombre = tipo.nombre;
-        opcion.dataset.texto = tipo.texto;
         
         let estrellasHtml = '';
         for (let i = 0; i < tipo.estrellas; i++) {
@@ -1068,10 +1106,8 @@ async function guardarCalificacion(comercio, tipoId, comentario) {
             });
         }
         
-        // Marcar como ya calificado
         yaCalificado[comercio.id] = true;
         
-        // Eliminar el botón de calificar de la tarjeta
         const btnCalificar = document.getElementById(`btn-calificar-${comercio.id}`);
         if (btnCalificar) btnCalificar.remove();
         
@@ -1104,29 +1140,23 @@ function mostrarAlerta(mensaje) {
     setTimeout(() => alertDiv.remove(), 3000);
 }
 
-// Función para agregar botón de calificar a la tarjeta
 function agregarBotonCalificar(comercioId, nombreComercio) {
-    const tarjeta = document.querySelector(`.card[data-id="${comercioId}"]`);
-    if (!tarjeta) return;
-    
-    // Verificar si ya se calificó este comercio
     if (yaCalificado[comercioId]) return;
     
-    // Verificar si ya existe el botón
+    const btnStack = document.getElementById(`btn-stack-${comercioId}`);
+    if (!btnStack) return;
+    
     if (document.getElementById(`btn-calificar-${comercioId}`)) return;
     
-    const btnStack = tarjeta.querySelector('.btn-stack');
-    if (btnStack) {
-        const btnCalificar = document.createElement('button');
-        btnCalificar.id = `btn-calificar-${comercioId}`;
-        btnCalificar.className = 'btn-act btn-calificar-tarjeta';
-        btnCalificar.innerHTML = '<i class="fas fa-star"></i> Calificar este comercio';
-        btnCalificar.onclick = () => {
-            const comercio = comerciosCompletos.find(c => c.id === comercioId);
-            if (comercio) window.abrirModalAnonimato(comercio);
-        };
-        btnStack.appendChild(btnCalificar);
-    }
+    const btnCalificar = document.createElement('button');
+    btnCalificar.id = `btn-calificar-${comercioId}`;
+    btnCalificar.className = 'btn-act btn-calificar-tarjeta';
+    btnCalificar.innerHTML = '<i class="fas fa-star"></i> Calificar este comercio';
+    btnCalificar.onclick = () => {
+        const comercio = comerciosCompletos.find(c => c.id === comercioId);
+        if (comercio) window.abrirModalAnonimato(comercio);
+    };
+    btnStack.appendChild(btnCalificar);
 }
 
 // ============================================
@@ -1529,7 +1559,6 @@ function renderizarComercios(comercios) {
         const textoBoton = esAgotado ? 'AGOTADO' : `USAR BENEFICIO <span class="${contadorClase}">${usosRealizados}/${usosPermitidos}</span>`;
         const mapsUrl = c.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`;
         
-        // Agregar data-id para luego agregar el botón de calificar
         html += `
             <div class="card ${esAgotado ? 'agotado' : ''}" data-id="${c.id}" data-nombre="${(c.nombre || '').toLowerCase()}" data-vence="${diasRestantes}">
                 ${htmlLogo}
@@ -1541,8 +1570,8 @@ function renderizarComercios(comercios) {
                     ${btnConozcaHTML}
                     ${botonSorteo}
                     <button class="btn-act btn-llegar" onclick="window.open('${mapsUrl}')">Cómo llegar</button>
-                    <button class="btn-act btn-validar" onclick="abrirQR('${c.id}', '${c.tokenQR || ''}')">Validar Cupón con QR</button>
-                    <button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarAtencion('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')" ${esAgotado ? 'disabled' : ''}>
+                    <button class="btn-act btn-validar ${esAgotado ? 'disabled-btn' : ''}" onclick="${esAgotado ? '' : `abrirQR('${c.id}', '${c.tokenQR || ''}')`}" ${esAgotado ? 'disabled' : ''}>Validar Cupón con QR</button>
+                    <button class="btn-act btn-usar ${esAgotado ? 'disabled-btn' : ''}" id="btn-usar-${c.id}" onclick="${esAgotado ? '' : `preguntarAtencion('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')`}" ${esAgotado ? 'disabled' : ''}>
                         ${textoBoton}
                     </button>
                 </div>
@@ -1550,8 +1579,6 @@ function renderizarComercios(comercios) {
     });
     localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
     contenedor.innerHTML = html;
-    
-    // Después de renderizar, verificar si hay comercios que esperan botón de calificar
     if (scrollPosition > 0) {
         setTimeout(() => window.scrollTo({ top: scrollPosition, behavior: 'auto' }), 100);
     }
@@ -1707,7 +1734,7 @@ window.finalizar = async (id, nom) => {
         JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
         document.getElementById('pantalla-exito').style.display = 'flex';
         
-        // ⭐ DESPUÉS DEL CANJE, AGREGAR BOTÓN DE CALIFICAR EN LA TARJETA
+        // ⭐ AGREGAR BOTÓN DE CALIFICAR DESPUÉS DEL CANJE
         setTimeout(() => {
             agregarBotonCalificar(id, nom);
         }, 500);
@@ -1765,7 +1792,6 @@ async function inicializarApp() {
     }
 }
 
-// Inicializar modales de calificación
 cargarOpcionesCalificacion();
 
 document.getElementById('btnContinuarCalificar')?.addEventListener('click', () => {
