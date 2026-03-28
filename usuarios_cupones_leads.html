@@ -343,19 +343,6 @@ animation: destello-centrifugo 1.5s infinite, borde-brillante 1.5s infinite;
 position: relative;
 z-index: 1;
 }
-.btn-sorteo.animar-pulso::before {
-content: '';
-position: absolute;
-top: 50%;
-left: 50%;
-transform: translate(-50%, -50%);
-width: 100%;
-height: 100%;
-border-radius: 8px;
-background: rgba(245,124,0,0.3);
-animation: onda-expansiva 1.5s infinite;
-z-index: -1;
-}
 .btn-sorteo.sin-pulso { animation: none !important; }
 .btn-sorteo.sin-pulso::before { display: none !important; }
 .btn-llegar { background: var(--verde); }
@@ -1532,6 +1519,8 @@ window.preguntarAtencion = (id, nom) => {
         finalizar(id, nom);
     };
 };
+
+// ========== MODIFICACIÓN PRINCIPAL: FINALIZAR ==========
 window.finalizar = async (id, nom) => {
     try {
         if (!leadId || leadId.startsWith('invitado_')) {
@@ -1597,8 +1586,10 @@ window.finalizar = async (id, nom) => {
         JsBarcode("#barcode", idManual, { format: "CODE128", width: 2, height: 80, displayValue: false });
         document.getElementById('pantalla-exito').style.display = 'flex';
         
-        // AGREGAR BOTÓN DE CALIFICAR
-        agregarBotonCalificar(id, nom);
+        // AGREGAR BOTÓN DE CALIFICAR (se mostrará al cerrar la pantalla de éxito)
+        // Se guarda en variables locales para usar después del countdown
+        const idParaCalificar = id;
+        const nomParaCalificar = nom;
         
         let s = 30;
         const t = setInterval(() => {
@@ -1606,8 +1597,14 @@ window.finalizar = async (id, nom) => {
             document.getElementById('countdown').innerText = s;
             if(s <= 0) {
                 clearInterval(t);
+                // ✅ CAMBIO PRINCIPAL: En lugar de recargar, ocultamos y mostramos el botón
                 document.getElementById('pantalla-exito').style.display = 'none';
-                location.reload();
+                // Restauramos scroll
+                if (scrollPosition > 0) {
+                    window.scrollTo({ top: scrollPosition, behavior: 'auto' });
+                }
+                // ✅ Ahora que la pantalla está oculta, agregamos el botón de calificar
+                agregarBotonCalificar(idParaCalificar, nomParaCalificar);
             }
         }, 1000);
     } catch(e) {
@@ -1615,6 +1612,8 @@ window.finalizar = async (id, nom) => {
         alert("Error crítico: " + e.message);
     }
 };
+// ========== FIN MODIFICACIÓN ==========
+
 window.abrirPopupPostulaciones = () => {
     const overlay = document.createElement('div');
     overlay.className = 'popup-instalacion';
