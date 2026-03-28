@@ -1129,22 +1129,29 @@
     };
 
     // ===========================================
-    // 4. GENERAR HTML PARA COMERCIO (CORREGIDO)
+    // 4. GENERAR HTML PARA COMERCIO (VERSIÓN ULTRA ROBUSTA)
     // ===========================================
     function generarHTMLComercio(data) {
-        // Función segura para obtener valor
+        // Función ultra segura para obtener cualquier valor
         const getValor = (campo) => {
             const valor = data[campo];
-            return (valor && valor !== '' && valor !== undefined && valor !== null) ? valor : '-';
+            if (valor === undefined || valor === null || valor === '') return '-';
+            return valor;
         };
         
         // Función segura para descripción (con saltos de línea)
         const getDescripcion = () => {
             const desc = data.descripcion_comercio;
             if (desc && desc !== '' && desc !== undefined && desc !== null) {
-                return desc.replace(/\n/g, '<br>');
+                return String(desc).replace(/\n/g, '<br>');
             }
             return '-';
+        };
+        
+        // Función segura para enlaces
+        const safeEnlace = (tipo, valor) => {
+            if (!valor || valor === '-' || valor === '') return '-';
+            return formatearEnlace(tipo, valor);
         };
         
         return `
@@ -1155,7 +1162,7 @@
                 </div>
                 <div class="info-item">
                     <div class="info-label">CUIT</div>
-                    <div class="info-valor">${formatearEnlace('cuit', getValor('cuit'))}</div>
+                    <div class="info-valor">${safeEnlace('cuit', getValor('cuit'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Rubro</div>
@@ -1171,31 +1178,31 @@
                 </div>
                 <div class="info-item">
                     <div class="info-label">Teléfono</div>
-                    <div class="info-valor">${formatearEnlace('telefono', getValor('telefono'))}</div>
+                    <div class="info-valor">${safeEnlace('telefono', getValor('telefono'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Email</div>
-                    <div class="info-valor">${formatearEnlace('email', getValor('email'))}</div>
+                    <div class="info-valor">${safeEnlace('email', getValor('email'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Instagram</div>
-                    <div class="info-valor">${formatearEnlace('instagram', getValor('instagram'))}</div>
+                    <div class="info-valor">${safeEnlace('instagram', getValor('instagram'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">TikTok</div>
-                    <div class="info-valor">${formatearEnlace('tiktok', getValor('tiktok'))}</div>
+                    <div class="info-valor">${safeEnlace('tiktok', getValor('tiktok'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Sitio Web</div>
-                    <div class="info-valor">${formatearEnlace('sitioWeb', getValor('sitioWeb'))}</div>
+                    <div class="info-valor">${safeEnlace('sitioWeb', getValor('sitioWeb'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Facebook</div>
-                    <div class="info-valor">${formatearEnlace('facebook', getValor('facebook'))}</div>
+                    <div class="info-valor">${safeEnlace('facebook', getValor('facebook'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Google Maps</div>
-                    <div class="info-valor">${formatearEnlace('maps', getValor('mapsUrl'))}</div>
+                    <div class="info-valor">${safeEnlace('maps', getValor('mapsUrl'))}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Nombre Titular</div>
@@ -1215,31 +1222,31 @@
             <div class="documentos-container">
                 ${data.foto_fachada_url ? `
                     <div class="documento-card">
-                        <img src="${data.foto_fachada_url}" alt="Fachada" onclick="window.open('${data.foto_fachada_url}')">
+                        <img src="${data.foto_fachada_url}" alt="Fachada" onclick="window.open('${data.foto_fachada_url}')" style="cursor:pointer;">
                         <a href="${data.foto_fachada_url}" target="_blank">Ver Fachada</a>
                     </div>
-                ` : ''}
+                ` : '<div class="documento-card" style="opacity:0.6;">Sin foto de fachada</div>'}
                 
                 ${data.foto_dni_url ? `
                     <div class="documento-card">
-                        <img src="${data.foto_dni_url}" alt="DNI" onclick="window.open('${data.foto_dni_url}')">
+                        <img src="${data.foto_dni_url}" alt="DNI" onclick="window.open('${data.foto_dni_url}')" style="cursor:pointer;">
                         <a href="${data.foto_dni_url}" target="_blank">Ver DNI</a>
                     </div>
-                ` : ''}
+                ` : '<div class="documento-card" style="opacity:0.6;">Sin foto de DNI</div>'}
                 
                 ${data.foto_selfie_url ? `
                     <div class="documento-card">
-                        <img src="${data.foto_selfie_url}" alt="Selfie" onclick="window.open('${data.foto_selfie_url}')">
+                        <img src="${data.foto_selfie_url}" alt="Selfie" onclick="window.open('${data.foto_selfie_url}')" style="cursor:pointer;">
                         <a href="${data.foto_selfie_url}" target="_blank">Ver Selfie con DNI</a>
                     </div>
-                ` : ''}
+                ` : '<div class="documento-card" style="opacity:0.6;">Sin selfie</div>'}
                 
                 ${data.constancia_afip_url ? `
                     <div class="documento-card">
                         <i class="fas fa-file-pdf" style="font-size: 48px; color: var(--rojo);"></i>
                         <a href="${data.constancia_afip_url}" target="_blank">Ver Constancia AFIP</a>
                     </div>
-                ` : ''}
+                ` : '<div class="documento-card" style="opacity:0.6;">Sin constancia AFIP</div>'}
             </div>
             
             <div class="acciones-container">
