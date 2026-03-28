@@ -432,32 +432,6 @@
             background: var(--verde);
             color: white;
         }
-        
-        /* DEBUG PANEL - SOLO PARA DESARROLLO */
-        .debug-panel {
-            background: #0f1a2f;
-            border: 1px dashed var(--dorado);
-            border-radius: 8px;
-            padding: 12px;
-            margin: 15px 0;
-            font-size: 0.85em;
-            max-height: 200px;
-            overflow-y: auto;
-        }
-        .debug-panel summary {
-            color: var(--dorado);
-            cursor: pointer;
-            font-weight: 600;
-        }
-        .debug-panel pre {
-            background: #0a121c;
-            padding: 10px;
-            border-radius: 6px;
-            overflow-x: auto;
-            margin-top: 10px;
-            font-size: 0.8em;
-            color: #aaa;
-        }
     </style>
 </head>
 <body>
@@ -884,7 +858,7 @@
     };
 
     function formatearEnlace(tipo, valor) {
-        if (!valor || valor === '-') return '-';
+        if (!valor) return '-';
         
         switch(tipo) {
             case 'cuit':
@@ -924,66 +898,6 @@
             default:
                 return valor;
         }
-    }
-
-    // ===========================================
-    // 🔄 FUNCIÓN ROBUSTA PARA OBTENER VALORES (CORRECCIÓN PRINCIPAL)
-    // ===========================================
-    function getValorRobusto(data, campo, alternativas = []) {
-        // 1. Intentar con el nombre exacto
-        if (data[campo] !== undefined && data[campo] !== null && data[campo] !== '') {
-            return data[campo];
-        }
-        
-        // 2. Intentar con variaciones del nombre (case-insensitive, guiones, etc.)
-        const variantes = [
-            campo,
-            campo.toLowerCase(),
-            campo.toUpperCase(),
-            campo.replace(/_/g, ''),
-            campo.replace(/-/g, '_'),
-            ...alternativas
-        ];
-        
-        for (const variante of variantes) {
-            if (data[variante] !== undefined && data[variante] !== null && data[variante] !== '') {
-                return data[variante];
-            }
-        }
-        
-        // 3. Buscar en objeto anidado 'datos_postulacion' si existe
-        if (data.datos_postulacion) {
-            for (const variante of variantes) {
-                if (data.datos_postulacion[variante] !== undefined && 
-                    data.datos_postulacion[variante] !== null && 
-                    data.datos_postulacion[variante] !== '') {
-                    return data.datos_postulacion[variante];
-                }
-            }
-        }
-        
-        // 4. Búsqueda flexible por clave que contenga el campo (parcial match)
-        for (const key of Object.keys(data)) {
-            if (key.toLowerCase().includes(campo.toLowerCase()) && 
-                data[key] !== undefined && data[key] !== null && data[key] !== '') {
-                return data[key];
-            }
-        }
-        
-        // 5. Si tiene datos_postulacion, buscar allí también con partial match
-        if (data.datos_postulacion) {
-            for (const key of Object.keys(data.datos_postulacion)) {
-                if (key.toLowerCase().includes(campo.toLowerCase()) && 
-                    data.datos_postulacion[key] !== undefined && 
-                    data.datos_postulacion[key] !== null && 
-                    data.datos_postulacion[key] !== '') {
-                    return data.datos_postulacion[key];
-                }
-            }
-        }
-        
-        // 6. Retornar valor por defecto
-        return '-';
     }
 
     // ===========================================
@@ -1062,7 +976,7 @@
     function terminoFiltro(lista, term) {
         if (!term) return lista;
         return lista.filter(item => {
-            const nombre = getValorRobusto(item, 'nombre_comercio', ['nombre', 'nombreComercio', 'razon_social']) || '';
+            const nombre = item.nombre_comercio || item.nombre || '';
             return nombre.toLowerCase().includes(term);
         });
     }
@@ -1077,14 +991,10 @@
         }
         
         lista.forEach(item => {
-            const nombre = getValorRobusto(item, 'nombre_comercio', ['nombre', 'nombreComercio', 'razon_social']) || 'Sin nombre';
-            const provincia = getValorRobusto(item, 'provincia', ['provincia_comercio', 'ubicacion_provincia']) || '';
-            const localidad = getValorRobusto(item, 'localidad', ['ciudad', 'ubicacion_localidad']) || '';
-            
             container.innerHTML += `
                 <div class="tarjeta-postulacion" data-id="${item.id}" data-tipo="comercio">
-                    <div class="tarjeta-titulo">${nombre}</div>
-                    <div class="tarjeta-subtitulo">${provincia} • ${localidad}</div>
+                    <div class="tarjeta-titulo">${item.nombre_comercio || 'Sin nombre'}</div>
+                    <div class="tarjeta-subtitulo">${item.provincia || ''} • ${item.localidad || ''}</div>
                     <div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div>
                     <button class="btn-eliminar-tarjeta" onclick="event.stopPropagation(); eliminarPostulacion('${item.id}', 'comercio')">🗑️</button>
                 </div>
@@ -1113,8 +1023,8 @@
         lista.forEach(item => {
             container.innerHTML += `
                 <div class="tarjeta-postulacion" data-id="${item.id}" data-tipo="martillero">
-                    <div class="tarjeta-titulo">${getValorRobusto(item, 'nombre', ['nombre_martillero', 'nombreCompleto']) || ''}</div>
-                    <div class="tarjeta-subtitulo">MP: ${getValorRobusto(item, 'matricula', ['matricula_profesional', 'nro_matricula']) || ''}</div>
+                    <div class="tarjeta-titulo">${item.nombre || ''}</div>
+                    <div class="tarjeta-subtitulo">MP: ${item.matricula || ''}</div>
                     <div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div>
                     <button class="btn-eliminar-tarjeta" onclick="event.stopPropagation(); eliminarPostulacion('${item.id}', 'martillero')">🗑️</button>
                 </div>
@@ -1143,8 +1053,8 @@
         lista.forEach(item => {
             container.innerHTML += `
                 <div class="tarjeta-postulacion" data-id="${item.id}" data-tipo="colaborador">
-                    <div class="tarjeta-titulo">${getValorRobusto(item, 'nombre', ['nombre_colaborador', 'nombreCompleto']) || ''}</div>
-                    <div class="tarjeta-subtitulo">${getValorRobusto(item, 'tipo_colaboracion', ['tipo', 'rol_colaboracion']) || ''}</div>
+                    <div class="tarjeta-titulo">${item.nombre || ''}</div>
+                    <div class="tarjeta-subtitulo">${item.tipo_colaboracion || ''}</div>
                     <div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div>
                     <button class="btn-eliminar-tarjeta" onclick="event.stopPropagation(); eliminarPostulacion('${item.id}', 'colaborador')">🗑️</button>
                 </div>
@@ -1219,132 +1129,102 @@
     };
 
     // ===========================================
-    // 4. GENERAR HTML PARA COMERCIO (VERSIÓN ULTRA ROBUSTA - CORREGIDA)
+    // 4. GENERAR HTML PARA COMERCIO (CON VÍNCULOS)
     // ===========================================
     function generarHTMLComercio(data) {
-        // Función ultra segura para obtener cualquier valor con fallbacks múltiples
-        const getValor = (campo, alternativas = []) => {
-            return getValorRobusto(data, campo, alternativas);
-        };
-        
-        // Función segura para descripción (con saltos de línea)
-        const getDescripcion = () => {
-            const desc = getValor('descripcion_comercio', ['descripcion', 'descripcionNegocio', 'detalles', 'comentarios']);
-            if (desc && desc !== '-' && desc !== '' && desc !== undefined && desc !== null) {
-                return String(desc).replace(/\n/g, '<br>');
-            }
-            return '-';
-        };
-        
-        // Función segura para enlaces
-        const safeEnlace = (tipo, valor) => {
-            if (!valor || valor === '-' || valor === '') return '-';
-            return formatearEnlace(tipo, valor);
-        };
-        
-        // Panel de debug (opcional - para desarrollo)
-        const debugPanel = `
-            <details class="debug-panel">
-                <summary>🔍 Ver datos crudos (DEBUG)</summary>
-                <pre>${JSON.stringify(data, null, 2)}</pre>
-            </details>
-        `;
-        
         return `
-            ${debugPanel}
-            
             <div class="info-grid">
                 <div class="info-item">
                     <div class="info-label">Comercio</div>
-                    <div class="info-valor">${getValor('nombre_comercio', ['nombre', 'nombreComercio', 'razon_social', 'business_name'])}</div>
+                    <div class="info-valor">${data.nombre_comercio || '-'}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">CUIT</div>
-                    <div class="info-valor">${safeEnlace('cuit', getValor('cuit', ['cuit_comercio', 'tax_id', 'nro_cuit']))}</div>
+                    <div class="info-valor">${formatearEnlace('cuit', data.cuit)}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Rubro</div>
-                    <div class="info-valor">${getValor('rubro', ['categoria', 'tipo_comercio', 'rubro_comercial'])}</div>
+                    <div class="info-valor">${data.rubro || '-'}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Ubicación</div>
-                    <div class="info-valor">${getValor('provincia', ['provincia_comercio', 'ubicacion_provincia'])} - ${getValor('localidad', ['ciudad', 'ubicacion_localidad', 'localidad_comercio'])}</div>
+                    <div class="info-valor">${data.provincia || ''} - ${data.localidad || ''}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Dirección</div>
-                    <div class="info-valor">${getValor('direccion', ['direccion_comercio', 'address', 'calle_numero'])}</div>
+                    <div class="info-valor">${data.direccion || '-'}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Teléfono</div>
-                    <div class="info-valor">${safeEnlace('telefono', getValor('telefono', ['telefono_comercio', 'phone', 'whatsapp', 'celular']))}</div>
+                    <div class="info-valor">${formatearEnlace('telefono', data.telefono)}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Email</div>
-                    <div class="info-valor">${safeEnlace('email', getValor('email', ['email_comercio', 'mail', 'correo_electronico']))}</div>
+                    <div class="info-valor">${formatearEnlace('email', data.email)}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Instagram</div>
-                    <div class="info-valor">${safeEnlace('instagram', getValor('instagram', ['instagram_comercio', 'ig', 'user_instagram']))}</div>
+                    <div class="info-valor">${formatearEnlace('instagram', data.instagram)}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">TikTok</div>
-                    <div class="info-valor">${safeEnlace('tiktok', getValor('tiktok', ['tiktok_comercio', 'tt', 'user_tiktok']))}</div>
+                    <div class="info-valor">${formatearEnlace('tiktok', data.tiktok)}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Sitio Web</div>
-                    <div class="info-valor">${safeEnlace('sitioWeb', getValor('sitioWeb', ['web', 'website', 'url_web', 'pagina_web']))}</div>
+                    <div class="info-valor">${formatearEnlace('sitioWeb', data.sitioWeb)}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Facebook</div>
-                    <div class="info-valor">${safeEnlace('facebook', getValor('facebook', ['fb', 'user_facebook']))}</div>
+                    <div class="info-valor">${formatearEnlace('facebook', data.facebook)}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Google Maps</div>
-                    <div class="info-valor">${safeEnlace('maps', getValor('mapsUrl', ['maps_url', 'google_maps', 'ubicacion_maps']))}</div>
+                    <div class="info-valor">${formatearEnlace('maps', data.mapsUrl)}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Nombre Titular</div>
-                    <div class="info-valor">${getValor('nombre_titular', ['nombre_dueno', 'titular_nombre', 'first_name'])}</div>
+                    <div class="info-valor">${data.nombre_titular || '-'}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Apellido Titular</div>
-                    <div class="info-valor">${getValor('apellido_titular', ['apellido_dueno', 'titular_apellido', 'last_name'])}</div>
+                    <div class="info-valor">${data.apellido_titular || '-'}</div>
                 </div>
                 <div class="info-item">
                     <div class="info-label">Descripción del Comercio</div>
-                    <div class="info-valor">${getDescripcion()}</div>
+                    <div class="info-valor">${(data.descripcion_comercio || '-').replace(/\n/g, '<br>')}</div>
                 </div>
             </div>
             
             <h3 style="color: var(--dorado); margin: 20px 0 10px;">📸 Documentación</h3>
             <div class="documentos-container">
-                ${getValor('foto_fachada_url', ['foto_fachada', 'url_fachada', 'imagen_fachada']) !== '-' ? `
+                ${data.foto_fachada_url ? `
                     <div class="documento-card">
-                        <img src="${getValor('foto_fachada_url', ['foto_fachada', 'url_fachada', 'imagen_fachada'])}" alt="Fachada" onclick="window.open('${getValor('foto_fachada_url', ['foto_fachada', 'url_fachada', 'imagen_fachada'])}')" style="cursor:pointer;">
-                        <a href="${getValor('foto_fachada_url', ['foto_fachada', 'url_fachada', 'imagen_fachada'])}" target="_blank">Ver Fachada</a>
+                        <img src="${data.foto_fachada_url}" alt="Fachada" onclick="window.open('${data.foto_fachada_url}')">
+                        <a href="${data.foto_fachada_url}" target="_blank">Ver Fachada</a>
                     </div>
-                ` : '<div class="documento-card" style="opacity:0.6;">Sin foto de fachada</div>'}
+                ` : ''}
                 
-                ${getValor('foto_dni_url', ['foto_dni', 'url_dni', 'imagen_dni']) !== '-' ? `
+                ${data.foto_dni_url ? `
                     <div class="documento-card">
-                        <img src="${getValor('foto_dni_url', ['foto_dni', 'url_dni', 'imagen_dni'])}" alt="DNI" onclick="window.open('${getValor('foto_dni_url', ['foto_dni', 'url_dni', 'imagen_dni'])}')" style="cursor:pointer;">
-                        <a href="${getValor('foto_dni_url', ['foto_dni', 'url_dni', 'imagen_dni'])}" target="_blank">Ver DNI</a>
+                        <img src="${data.foto_dni_url}" alt="DNI" onclick="window.open('${data.foto_dni_url}')">
+                        <a href="${data.foto_dni_url}" target="_blank">Ver DNI</a>
                     </div>
-                ` : '<div class="documento-card" style="opacity:0.6;">Sin foto de DNI</div>'}
+                ` : ''}
                 
-                ${getValor('foto_selfie_url', ['foto_selfie', 'url_selfie', 'imagen_selfie']) !== '-' ? `
+                ${data.foto_selfie_url ? `
                     <div class="documento-card">
-                        <img src="${getValor('foto_selfie_url', ['foto_selfie', 'url_selfie', 'imagen_selfie'])}" alt="Selfie" onclick="window.open('${getValor('foto_selfie_url', ['foto_selfie', 'url_selfie', 'imagen_selfie'])}')" style="cursor:pointer;">
-                        <a href="${getValor('foto_selfie_url', ['foto_selfie', 'url_selfie', 'imagen_selfie'])}" target="_blank">Ver Selfie con DNI</a>
+                        <img src="${data.foto_selfie_url}" alt="Selfie" onclick="window.open('${data.foto_selfie_url}')">
+                        <a href="${data.foto_selfie_url}" target="_blank">Ver Selfie con DNI</a>
                     </div>
-                ` : '<div class="documento-card" style="opacity:0.6;">Sin selfie</div>'}
+                ` : ''}
                 
-                ${getValor('constancia_afip_url', ['constancia_afip', 'url_afip', 'documento_afip']) !== '-' ? `
+                ${data.constancia_afip_url ? `
                     <div class="documento-card">
                         <i class="fas fa-file-pdf" style="font-size: 48px; color: var(--rojo);"></i>
-                        <a href="${getValor('constancia_afip_url', ['constancia_afip', 'url_afip', 'documento_afip'])}" target="_blank">Ver Constancia AFIP</a>
+                        <a href="${data.constancia_afip_url}" target="_blank">Ver Constancia AFIP</a>
                     </div>
-                ` : '<div class="documento-card" style="opacity:0.6;">Sin constancia AFIP</div>'}
+                ` : ''}
             </div>
             
             <div class="acciones-container">
@@ -1376,7 +1256,7 @@
     }
 
     // ===========================================
-    // 5. APROBAR COMERCIO
+    // 5. APROBAR COMERCIO (CORREGIDO - GUARDA DATOS POSTULACION)
     // ===========================================
     window.aprobarComercio = async () => {
         try {
@@ -1392,11 +1272,7 @@
             
             if (!confirm("¿Confirmás que los datos son correctos y querés aprobar este comercio?")) return;
             
-            // Usar getValorRobusto para obtener los datos necesarios
-            const nombreComercio = getValorRobusto(postulacionActual, 'nombre_comercio', ['nombre', 'nombreComercio', 'razon_social']) || 'Comercio';
-            const email = getValorRobusto(postulacionActual, 'email', ['email_comercio', 'mail', 'correo_electronico']) || '';
-            
-            const idBase = nombreComercio
+            const idBase = postulacionActual.nombre_comercio
                 .toLowerCase()
                 .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
                 .replace(/[^a-z0-9]/g, "_");
@@ -1409,7 +1285,7 @@
             let uid = null;
             
             try {
-                const userCredential = await createUserWithEmailAndPassword(auth, email, "123456");
+                const userCredential = await createUserWithEmailAndPassword(auth, postulacionActual.email, "123456");
                 uid = userCredential.user.uid;
                 console.log("✅ Cuenta creada. UID:", uid);
             } catch (authError) {
@@ -1419,7 +1295,7 @@
                     console.log("📧 Email ya existe, obteniendo UID desde Auth...");
                     
                     try {
-                        const signInResult = await signInWithEmailAndPassword(auth, email, "123456");
+                        const signInResult = await signInWithEmailAndPassword(auth, postulacionActual.email, "123456");
                         uid = signInResult.user.uid;
                         console.log("✅ UID obtenido desde Auth:", uid);
                         await signOut(auth);
@@ -1459,41 +1335,41 @@
             console.log("📝 Guardando comercio en Firestore con UID:", uid);
             
             // ===========================================
-            // ⭐ CREAR OBJETO CON TODOS LOS DATOS DE POSTULACIÓN (USANDO getValorRobusto)
+            // ⭐ CREAR OBJETO CON TODOS LOS DATOS DE POSTULACIÓN
             // ===========================================
             const datosPostulacion = {
-                cuit: getValorRobusto(postulacionActual, 'cuit', ['cuit_comercio', 'tax_id']),
-                nombre_titular: getValorRobusto(postulacionActual, 'nombre_titular', ['nombre_dueno', 'titular_nombre']),
-                apellido_titular: getValorRobusto(postulacionActual, 'apellido_titular', ['apellido_dueno', 'titular_apellido']),
-                foto_dni_url: getValorRobusto(postulacionActual, 'foto_dni_url', ['foto_dni', 'url_dni']),
-                foto_selfie_url: getValorRobusto(postulacionActual, 'foto_selfie_url', ['foto_selfie', 'url_selfie']),
-                foto_fachada_url: getValorRobusto(postulacionActual, 'foto_fachada_url', ['foto_fachada', 'url_fachada']),
-                constancia_afip_url: getValorRobusto(postulacionActual, 'constancia_afip_url', ['constancia_afip', 'url_afip']),
-                descripcion_comercio: getValorRobusto(postulacionActual, 'descripcion_comercio', ['descripcion', 'detalles']) || '',
-                fecha_postulacion: getValorRobusto(postulacionActual, 'fecha_postulacion', ['fecha_registro', 'timestamp']),
-                instagram: getValorRobusto(postulacionActual, 'instagram', ['ig', 'user_instagram']) || '',
-                facebook: getValorRobusto(postulacionActual, 'facebook', ['fb', 'user_facebook']) || '',
-                tiktok: getValorRobusto(postulacionActual, 'tiktok', ['tt', 'user_tiktok']) || '',
-                sitioWeb: getValorRobusto(postulacionActual, 'sitioWeb', ['web', 'website', 'url_web']) || '',
-                mapsUrl: getValorRobusto(postulacionActual, 'mapsUrl', ['maps_url', 'google_maps']) || ''
+                cuit: postulacionActual.cuit,
+                nombre_titular: postulacionActual.nombre_titular,
+                apellido_titular: postulacionActual.apellido_titular,
+                foto_dni_url: postulacionActual.foto_dni_url,
+                foto_selfie_url: postulacionActual.foto_selfie_url,
+                foto_fachada_url: postulacionActual.foto_fachada_url,
+                constancia_afip_url: postulacionActual.constancia_afip_url,
+                descripcion_comercio: postulacionActual.descripcion_comercio || '',
+                fecha_postulacion: postulacionActual.fecha_postulacion,
+                instagram: postulacionActual.instagram || '',
+                facebook: postulacionActual.facebook || '',
+                tiktok: postulacionActual.tiktok || '',
+                sitioWeb: postulacionActual.sitioWeb || '',
+                mapsUrl: postulacionActual.mapsUrl || ''
             };
             
             const nuevoComercio = {
                 uid: uid,
                 idComercio: idComercio,
-                nombre: nombreComercio,
-                rubro: getValorRobusto(postulacionActual, 'rubro', ['categoria', 'tipo_comercio']) || '',
-                provincia: getValorRobusto(postulacionActual, 'provincia', ['provincia_comercio']) || '',
-                localidad: getValorRobusto(postulacionActual, 'localidad', ['ciudad', 'ubicacion_localidad']) || '',
-                ciudad: getValorRobusto(postulacionActual, 'localidad', ['ciudad', 'ubicacion_localidad']) || '',
-                direccion: getValorRobusto(postulacionActual, 'direccion', ['direccion_comercio', 'address']) || '',
-                telefono: getValorRobusto(postulacionActual, 'telefono', ['telefono_comercio', 'phone', 'whatsapp']) || '',
-                emailDueno: email,
-                instagram: datosPostulacion.instagram,
-                tiktok: datosPostulacion.tiktok,
-                sitioWeb: datosPostulacion.sitioWeb,
-                facebook: datosPostulacion.facebook,
-                mapsUrl: datosPostulacion.mapsUrl,
+                nombre: postulacionActual.nombre_comercio,
+                rubro: postulacionActual.rubro,
+                provincia: postulacionActual.provincia,
+                localidad: postulacionActual.localidad,
+                ciudad: postulacionActual.localidad,
+                direccion: postulacionActual.direccion,
+                telefono: postulacionActual.telefono,
+                emailDueno: postulacionActual.email,
+                instagram: postulacionActual.instagram || "",
+                tiktok: postulacionActual.tiktok || "",
+                sitioWeb: postulacionActual.sitioWeb || "",
+                facebook: postulacionActual.facebook || "",
+                mapsUrl: postulacionActual.mapsUrl || "",
                 tokenQR: tokenQR,
                 descLead: "",
                 detalleLead: "",
@@ -1508,14 +1384,16 @@
                 usos_cupones: 0,
                 postulacion_id: postulacionActual.id,
                 fecha_alta: new Date().toISOString(),
-                foto_fachada_url: datosPostulacion.foto_fachada_url,
-                foto_dni_url: datosPostulacion.foto_dni_url,
-                foto_selfie_url: datosPostulacion.foto_selfie_url,
-                constancia_afip_url: datosPostulacion.constancia_afip_url,
+                foto_fachada_url: postulacionActual.foto_fachada_url,
+                foto_dni_url: postulacionActual.foto_dni_url,
+                foto_selfie_url: postulacionActual.foto_selfie_url,
+                constancia_afip_url: postulacionActual.constancia_afip_url,
                 password: "123456",
                 rol: "comerciante",
                 publicado: false,
+                // ⭐ NUEVO: guardar todos los datos de postulación
                 datos_postulacion: datosPostulacion,
+                // ⭐ NUEVO: campos para control de términos y primer ingreso
                 terminos_comercio_aceptados: false,
                 fecha_aceptacion_terminos: null,
                 primer_ingreso: true
@@ -1535,8 +1413,8 @@
             try {
                 const enviarEmailSetup = httpsCallable(functions, 'enviarEmailSetup');
                 await enviarEmailSetup({
-                    email: email,
-                    nombreComercio: nombreComercio,
+                    email: postulacionActual.email,
+                    nombreComercio: postulacionActual.nombre_comercio,
                     idComercio: idComercio
                 });
             } catch (emailError) {
@@ -1567,7 +1445,7 @@
     window.contactarWhatsApp = () => {
         if (!postulacionActual) return;
         
-        let telefono = getValorRobusto(postulacionActual, 'telefono', ['telefono_comercio', 'phone', 'whatsapp', 'celular']) || '';
+        let telefono = postulacionActual.telefono || '';
         telefono = telefono.replace(/\D/g, '');
         
         if (!telefono) {
@@ -1575,12 +1453,8 @@
             return;
         }
         
-        const nombreTitular = getValorRobusto(postulacionActual, 'nombre_titular', ['nombre_dueno', 'titular_nombre']) || '';
-        const apellidoTitular = getValorRobusto(postulacionActual, 'apellido_titular', ['apellido_dueno', 'titular_apellido']) || '';
-        const nombreCompleto = `${nombreTitular} ${apellidoTitular}`.trim();
-        const nombreComercio = getValorRobusto(postulacionActual, 'nombre_comercio', ['nombre', 'nombreComercio', 'razon_social']) || 'el comercio';
-        
-        const mensaje = `Hola ${nombreCompleto || ''}, soy Maximiliano, Martillero Público de Habitat-Car (MP 279). Recibí tu postulación para ${nombreComercio}. ¿Podemos coordinar una breve llamada para validar los datos?`;
+        const nombreCompleto = `${postulacionActual.nombre_titular || ''} ${postulacionActual.apellido_titular || ''}`.trim();
+        const mensaje = `Hola ${nombreCompleto || ''}, soy Maximiliano, Martillero Público de Habitat-Car (MP 279). Recibí tu postulación para ${postulacionActual.nombre_comercio || 'el comercio'}. ¿Podemos coordinar una breve llamada para validar los datos?`;
         
         window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
     };
