@@ -34,12 +34,14 @@
 --gris-volver: #757575;
 --gris-fondo: #f5f5f5;
 --dorado: #d4af37;
+--estrella-dorada: #ffc107;
+--estrella-roja: #dc3545;
 }
 body {
 margin: 0; padding: 0;
 background-color: var(--azul-habitat);
 font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
-padding-bottom: 80px;
+padding-bottom: 120px;
 }
 .header-white {
 padding: 25px 15px;
@@ -612,6 +614,138 @@ cursor: pointer;
 font-size: 14px;
 font-weight: 600;
 }
+/* ========== MODALES DE CALIFICACIÓN ========== */
+.modal-calificacion {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.95);
+    backdrop-filter: blur(8px);
+    z-index: 20001;
+    justify-content: center;
+    align-items: center;
+}
+.modal-calificacion-contenido {
+    background: var(--azul-medio);
+    border-radius: 20px;
+    padding: 25px;
+    max-width: 450px;
+    width: 90%;
+    border: 2px solid var(--dorado);
+    text-align: center;
+}
+.modal-calificacion-contenido h3 {
+    color: var(--dorado);
+    margin-bottom: 15px;
+}
+.modal-calificacion-contenido p {
+    color: #ccc;
+    margin-bottom: 20px;
+}
+.opciones-calificacion {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin: 20px 0;
+}
+.opcion-calificacion {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(0,0,0,0.3);
+    padding: 12px 15px;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.opcion-calificacion:hover {
+    background: rgba(212, 175, 55, 0.2);
+    transform: scale(1.01);
+}
+.opcion-calificacion .estrellas {
+    display: flex;
+    gap: 5px;
+}
+.opcion-calificacion .estrellas i {
+    font-size: 24px;
+}
+.opcion-calificacion .texto {
+    font-weight: 600;
+    font-size: 14px;
+}
+.estrella-dorada-calif { color: var(--estrella-dorada); }
+.estrella-roja-calif { color: var(--estrella-roja); }
+.comentario-input {
+    width: 100%;
+    padding: 12px;
+    border-radius: 12px;
+    border: 1px solid #444;
+    background: #0a0a1a;
+    color: white;
+    font-family: inherit;
+    resize: vertical;
+    margin: 15px 0;
+    box-sizing: border-box;
+}
+.btn-calificar {
+    background: var(--verde);
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 10px;
+}
+.btn-cerrar-calif {
+    background: #666;
+    color: white;
+    border: none;
+    padding: 12px;
+    border-radius: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    width: 100%;
+    margin-top: 10px;
+}
+.btn-calificar:hover {
+    background: #218838;
+}
+.boton-calificar-flotante {
+    position: fixed;
+    bottom: 90px;
+    right: 15px;
+    background: var(--dorado);
+    color: #000;
+    border: none;
+    border-radius: 50px;
+    padding: 12px 20px;
+    font-weight: bold;
+    cursor: pointer;
+    z-index: 950;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    transition: all 0.3s;
+}
+.boton-calificar-flotante:hover {
+    transform: scale(1.05);
+    background: #e6b800;
+}
+@media (max-width: 768px) {
+    .boton-calificar-flotante {
+        bottom: 100px;
+        right: 10px;
+        padding: 10px 16px;
+        font-size: 12px;
+    }
+}
 </style>
 </head>
 <body>
@@ -670,6 +804,12 @@ font-weight: 600;
 </div>
 </div>
 <div id="contenedor-cupones" class="grid"></div>
+
+<!-- BOTÓN CALIFICAR FLOTANTE -->
+<button id="btnCalificarFlotante" class="boton-calificar-flotante">
+    <i class="fas fa-star"></i> Calificanos
+</button>
+
 <!-- MODALES -->
 <div id="overlay-validado" class="custom-overlay">
 <div class="custom-alert">
@@ -729,6 +869,28 @@ font-weight: 600;
 <h2 id="exito-comercio" style="text-transform:uppercase; color: var(--azul-habitat); margin-top:8px; font-size:18px;"></h2>
 <img src="https://raw.githubusercontent.com/habitatcar/habitatcar.github.io/main/logo.png" style="width:150px; height:auto; margin-top:10px">
 </div>
+
+<!-- MODAL ANONIMATO -->
+<div id="modalAnonimato" class="modal-calificacion">
+    <div class="modal-calificacion-contenido">
+        <h3><i class="fas fa-user-secret"></i> Calificación Anónima</h3>
+        <p>Esta calificación es <strong>anónima</strong> y se mostrará al comercio cuando se acumulen <strong>10 calificaciones</strong> con el fin de mantener el anonimato de los usuarios.</p>
+        <button class="btn-calificar" id="btnContinuarCalificar">Continuar</button>
+        <button class="btn-cerrar-calif" onclick="cerrarModalAnonimato()">Cancelar</button>
+    </div>
+</div>
+
+<!-- MODAL CALIFICACIÓN -->
+<div id="modalCalificar" class="modal-calificacion">
+    <div class="modal-calificacion-contenido">
+        <h3><i class="fas fa-star"></i> Calificá tu experiencia</h3>
+        <div class="opciones-calificacion" id="opcionesCalificacion"></div>
+        <textarea id="comentarioCalificacion" class="comentario-input" rows="3" placeholder="¿Nos das tu opinión? (opcional)"></textarea>
+        <button class="btn-calificar" id="btnEnviarCalificacion">Enviar Calificación</button>
+        <button class="btn-cerrar-calif" onclick="cerrarModalCalificar()">Cancelar</button>
+    </div>
+</div>
+
 <footer class="footer-identificacion">
 <div class="footer-row" style="position: relative;">
 <button id="btn-instalar-footer" class="btn-instalar-footer">📲</button>
@@ -743,6 +905,7 @@ font-weight: 600;
 <a href="https://wa.me/543884618228" class="footer-link" target="_blank">388-4618228</a>
 </div>
 </footer>
+
 <script type="module">
 // ===========================================
 // CÓDIGO PRINCIPAL CON GEOLOCALIZACIÓN Y FILTROS
@@ -754,7 +917,7 @@ history.pushState(null, null, location.href);
 window.onpopstate = function () { history.go(1); };
 localStorage.setItem('habitat_auth', 'true');
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { getFirestore, collection, onSnapshot, doc, updateDoc, increment, addDoc, getDoc, arrayUnion, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 const firebaseConfig = {
 apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
 authDomain: "habitatcar-pro.firebaseapp.com",
@@ -778,6 +941,158 @@ let filtroProvinciaActivo = false;
 let filtroLocalidadActivo = false;
 let filtroCercaniaActivo = false;
 let scrollPosition = 0;
+let comercioParaCalificar = null;
+
+// ============================================
+// FUNCIONES DE CALIFICACIÓN
+// ============================================
+const tiposCalificacion = [
+    { id: "muy_malo", nombre: "Muy Malo", texto: "Naaaa...", icono: "fa-face-frown", color: "estrella-roja-calif", estrellas: 3 },
+    { id: "malo", nombre: "Malo", texto: "Tampoco", icono: "fa-face-frown", color: "estrella-roja-calif", estrellas: 3 },
+    { id: "regular_negativo", nombre: "Regular", texto: "Poco Poco", icono: "fa-face-meh", color: "estrella-roja-calif", estrellas: 3 },
+    { id: "regular_positivo", nombre: "Regular", texto: "Ta... pasa", icono: "fa-face-smile", color: "estrella-dorada-calif", estrellas: 3 },
+    { id: "bueno", nombre: "Bueno", texto: "Todo ok", icono: "fa-face-smile", color: "estrella-dorada-calif", estrellas: 3 },
+    { id: "muy_bueno", nombre: "Muy Bueno", texto: "Super!!!", icono: "fa-face-grin-stars", color: "estrella-dorada-calif", estrellas: 3 }
+];
+
+function cargarOpcionesCalificacion() {
+    const container = document.getElementById('opcionesCalificacion');
+    if (!container) return;
+    
+    container.innerHTML = '';
+    
+    // Primero las 3 rojas (negativas)
+    const rojas = tiposCalificacion.slice(0, 3);
+    const doradas = tiposCalificacion.slice(3);
+    
+    [...rojas, ...doradas].forEach(tipo => {
+        const opcion = document.createElement('div');
+        opcion.className = 'opcion-calificacion';
+        opcion.dataset.tipo = tipo.id;
+        opcion.dataset.nombre = tipo.nombre;
+        opcion.dataset.texto = tipo.texto;
+        
+        let estrellasHtml = '';
+        for (let i = 0; i < tipo.estrellas; i++) {
+            estrellasHtml += `<i class="fas fa-star ${tipo.color}"></i>`;
+        }
+        
+        opcion.innerHTML = `
+            <div class="estrellas">${estrellasHtml}</div>
+            <div class="texto">${tipo.texto}</div>
+        `;
+        
+        opcion.addEventListener('click', () => {
+            document.querySelectorAll('.opcion-calificacion').forEach(opt => {
+                opt.style.background = 'rgba(0,0,0,0.3)';
+                opt.style.border = 'none';
+            });
+            opcion.style.background = 'rgba(212, 175, 55, 0.3)';
+            opcion.style.border = '1px solid var(--dorado)';
+            window.calificacionSeleccionada = tipo.id;
+        });
+        
+        container.appendChild(opcion);
+    });
+}
+
+window.abrirModalAnonimato = () => {
+    document.getElementById('modalAnonimato').style.display = 'flex';
+};
+
+window.cerrarModalAnonimato = () => {
+    document.getElementById('modalAnonimato').style.display = 'none';
+};
+
+window.abrirModalCalificar = () => {
+    window.calificacionSeleccionada = null;
+    document.getElementById('comentarioCalificacion').value = '';
+    document.querySelectorAll('.opcion-calificacion').forEach(opt => {
+        opt.style.background = 'rgba(0,0,0,0.3)';
+        opt.style.border = 'none';
+    });
+    document.getElementById('modalCalificar').style.display = 'flex';
+    cerrarModalAnonimato();
+};
+
+window.cerrarModalCalificar = () => {
+    document.getElementById('modalCalificar').style.display = 'none';
+};
+
+async function guardarCalificacion(comercio, tipoId, comentario) {
+    try {
+        const comercioId = comercio.idComercio || comercio.id;
+        const nombreComercio = comercio.nombre;
+        
+        // Buscar si ya existe documento de calificaciones para este comercio
+        const q = query(collection(db, "calificaciones_comercios"), where("comercioId", "==", comercioId));
+        const querySnapshot = await getDocs(q);
+        
+        const nuevaCalificacion = {
+            tipo: tipoId,
+            comentario: comentario || '',
+            fecha: Date.now(),
+            anonimo: true
+        };
+        
+        if (querySnapshot.empty) {
+            // Crear nuevo documento
+            const totalPorTipo = {};
+            tiposCalificacion.forEach(t => { totalPorTipo[t.id] = 0; });
+            totalPorTipo[tipoId] = 1;
+            
+            await addDoc(collection(db, "calificaciones_comercios"), {
+                comercioId: comercioId,
+                nombreComercio: nombreComercio,
+                calificaciones: [nuevaCalificacion],
+                total_por_tipo: totalPorTipo,
+                ultima_actualizacion: Date.now()
+            });
+        } else {
+            // Actualizar documento existente
+            const docRef = doc(db, "calificaciones_comercios", querySnapshot.docs[0].id);
+            const data = querySnapshot.docs[0].data();
+            const calificaciones = data.calificaciones || [];
+            const totalPorTipo = data.total_por_tipo || {};
+            
+            calificaciones.push(nuevaCalificacion);
+            totalPorTipo[tipoId] = (totalPorTipo[tipoId] || 0) + 1;
+            
+            await updateDoc(docRef, {
+                calificaciones: calificaciones,
+                total_por_tipo: totalPorTipo,
+                ultima_actualizacion: Date.now()
+            });
+        }
+        
+        mostrarAlerta("✅ ¡Gracias por tu calificación!");
+        
+    } catch (error) {
+        console.error("Error guardando calificación:", error);
+        mostrarAlerta("❌ Error al guardar la calificación");
+    }
+}
+
+function mostrarAlerta(mensaje) {
+    const alertDiv = document.createElement('div');
+    alertDiv.textContent = mensaje;
+    alertDiv.style.cssText = `
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--verde);
+        color: white;
+        padding: 12px 24px;
+        border-radius: 12px;
+        z-index: 10001;
+        font-weight: bold;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        animation: fadeOut 3s ease forwards;
+    `;
+    document.body.appendChild(alertDiv);
+    setTimeout(() => alertDiv.remove(), 3000);
+}
 
 // ============================================
 // ⭐ FUNCIÓN PARA GENERAR CÓDIGO ALEATORIO ÚNICO (4 letras + 4 números)
@@ -1303,7 +1618,6 @@ window.finalizar = async (id, nom) => {
             return;
         }
         
-        // ⭐ GENERAR CÓDIGO ALEATORIO ÚNICO (4 letras + 4 números)
         const idManual = generarCodigoLeadAleatorio();
         
         await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
@@ -1405,6 +1719,44 @@ async function inicializarApp() {
         cargarProvincias();
     }
 }
+
+// Inicializar modales de calificación
+cargarOpcionesCalificacion();
+
+document.getElementById('btnCalificarFlotante')?.addEventListener('click', () => {
+    window.abrirModalAnonimato();
+});
+
+document.getElementById('btnContinuarCalificar')?.addEventListener('click', () => {
+    window.abrirModalCalificar();
+});
+
+document.getElementById('btnEnviarCalificacion')?.addEventListener('click', async () => {
+    if (!window.calificacionSeleccionada) {
+        mostrarAlerta("⚠️ Por favor selecciona una calificación");
+        return;
+    }
+    
+    const comentario = document.getElementById('comentarioCalificacion').value;
+    
+    // Buscar un comercio reciente para calificar (o mostrar selector)
+    if (comerciosCompletos.length === 0) {
+        mostrarAlerta("⚠️ No hay comercios disponibles para calificar");
+        return;
+    }
+    
+    // Mostrar selector de comercio (por simplicidad, calificar al último usado o mostrar modal)
+    if (comerciosCompletos.length === 1) {
+        await guardarCalificacion(comerciosCompletos[0], window.calificacionSeleccionada, comentario);
+        cerrarModalCalificar();
+    } else {
+        // Para múltiples comercios, podrías agregar un selector, pero por ahora calificar al último
+        const ultimoComercio = comerciosCompletos[comerciosCompletos.length - 1];
+        await guardarCalificacion(ultimoComercio, window.calificacionSeleccionada, comentario);
+        cerrarModalCalificar();
+    }
+});
+
 inicializarApp();
 </script>
 <script>
