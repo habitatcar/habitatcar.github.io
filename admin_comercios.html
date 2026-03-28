@@ -1250,8 +1250,12 @@ ${c.mapsUrl ? `<a href="${c.mapsUrl}" target="_blank" class="social-link" style=
     cargarContadoresCalificaciones(displayID);
 }
 
+// ========== CAMBIO #3: FUNCIÓN CORREGIDA PARA CONTABILIZAR CALIFICACIONES ==========
 async function cargarContadoresCalificaciones(comercioId) {
     try {
+        // Esperar un frame de renderizado para asegurar que los elementos del DOM estén disponibles
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
         const calificaciones = await cargarCalificaciones(comercioId);
         if (calificaciones) {
             const contadores = {
@@ -1265,13 +1269,16 @@ async function cargarContadoresCalificaciones(comercioId) {
             
             for (const [id, valor] of Object.entries(contadores)) {
                 const elemento = document.getElementById(`${id}-${comercioId}`);
-                if (elemento) elemento.innerText = valor;
+                if (elemento) {
+                    elemento.innerText = valor;
+                }
             }
         }
     } catch (error) {
         console.error("Error cargando contadores:", error);
     }
 }
+// ========== FIN CAMBIO #3 ==========
 
 window.render = () => {
     const box = document.getElementById('lista-comercios');
