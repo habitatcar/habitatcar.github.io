@@ -1,578 +1,3 @@
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Validaciones Pendientes - Habitat-Car</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <style>
-        :root {
-            --azul-oscuro: #0a192f;
-            --azul-medio: #1e2a47;
-            --azul-claro: #415a77;
-            --celeste-habitat: #004a99;
-            --blanco-suave: #e6f1ff;
-            --borravino: #800020;
-            --dorado: #d4af37;
-            --verde: #28a745;
-            --rojo: #dc3545;
-            --naranja: #ff8c00;
-            --verde-oliva: #6b8c42;
-        }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: var(--azul-oscuro);
-            color: var(--blanco-suave);
-            margin: 0;
-            padding: 0;
-        }
-
-        /* HEADER REDISEÑADO - MISMO QUE COMERCIOS */
-        .header {
-            background: #004a99;
-            padding: 12px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-bottom: 3px solid var(--dorado);
-            position: sticky;
-            top: 0;
-            z-index: 1100;
-        }
-        .logo-container { flex-shrink: 0; }
-        .logo { height: 80px; width: auto; display: block; }
-        .nav-menu { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-        .nav-link {
-            padding: 10px 18px; border-radius: 8px; text-decoration: none;
-            color: white; font-weight: bold; background: transparent;
-            border: 2px solid var(--verde-oliva); transition: all 0.3s ease;
-            font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px;
-            display: inline-flex; align-items: center; gap: 8px;
-        }
-        .nav-link:hover {
-            background: var(--naranja); border-color: var(--naranja); color: white;
-            transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-        }
-        .nav-link.active { background: var(--naranja); border-color: var(--naranja); color: white; }
-        .nav-link-validaciones { background: var(--naranja); border-color: var(--naranja); }
-        .nav-link-validaciones:hover { background: #e67e22; border-color: #e67e22; }
-        .contador-badge {
-            background: #6b8c42; border-radius: 20px; padding: 2px 8px;
-            font-size: 10px; font-weight: bold; color: white; transition: all 0.2s;
-            min-width: 24px; text-align: center; display: inline-block;
-        }
-        .contador-badge-group { display: inline-flex; gap: 4px; margin-left: 4px; }
-        .nav-link:hover .contador-badge { background: rgba(0,0,0,0.5); color: white; }
-        @media (max-width: 1200px) {
-            .header { flex-direction: column; padding: 15px; gap: 15px; }
-            .logo-container { text-align: center; }
-            .nav-menu { justify-content: center; }
-            .nav-link { padding: 8px 12px; font-size: 10px; }
-            .contador-badge { font-size: 8px; padding: 1px 6px; min-width: 18px; }
-            .contador-badge-group { gap: 2px; }
-        }
-        @media (max-width: 768px) { .nav-link { padding: 6px 10px; font-size: 9px; } }
-
-        .tools-faja {
-            position: sticky;
-            top: 104px;
-            z-index: 1000;
-            background: #ffffff;
-            padding: 11px 30px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.4);
-            flex-wrap: wrap;
-            gap: 15px;
-        }
-        .search-container { position: relative; flex: 1; max-width: 350px; }
-        .search-input {
-            width: 100%; padding: 10px 12px 10px 45px;
-            border: 2px solid var(--borravino);
-            border-radius: 25px; outline: none; font-size: 1em;
-            color: #1a1a1a;
-            font-weight: 600;
-            background: #fff;
-        }
-        .search-icon { position: absolute; left: 18px; top: 12px; color: var(--borravino); font-size: 1.1em; }
-        .btn-tool {
-            padding: 8px 12px; border: 2px solid var(--borravino);
-            background: white; color: var(--borravino);
-            cursor: pointer; border-radius: 8px; font-weight: bold; transition: 0.2s; font-size: 0.9em;
-        }
-        .btn-tool.active { background: var(--borravino); color: white; }
-        .stat-badge { padding: 6px 12px; border-radius: 20px; color: white; font-weight: bold; font-size: 0.8em; display: flex; align-items: center; gap: 5px; }
-        
-        h1 {
-            color: var(--dorado);
-            margin: 30px 30px 20px;
-            font-size: 1.8em;
-        }
-        .columnas-container {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 25px;
-            padding: 0 30px 30px;
-        }
-        .columna {
-            background: var(--azul-medio);
-            border-radius: 15px;
-            padding: 20px;
-            border: 1px solid #334766;
-        }
-        .columna h2 {
-            color: var(--dorado);
-            border-bottom: 2px solid var(--dorado);
-            padding-bottom: 10px;
-            margin-top: 0;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .tarjeta-postulacion {
-            background: #1f2a3f;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 15px;
-            border-left: 5px solid var(--naranja);
-            cursor: pointer;
-            transition: transform 0.2s;
-            position: relative;
-        }
-        .tarjeta-postulacion:hover {
-            transform: translateX(5px);
-            border-left-color: var(--dorado);
-        }
-        .tarjeta-titulo {
-            font-weight: bold;
-            font-size: 1.2em;
-            margin-bottom: 5px;
-            padding-right: 60px;
-        }
-        .tarjeta-subtitulo {
-            color: #aaa;
-            font-size: 0.9em;
-            margin-bottom: 10px;
-            padding-right: 60px;
-        }
-        .tarjeta-badge {
-            background: var(--naranja);
-            color: black;
-            padding: 3px 8px;
-            border-radius: 12px;
-            font-size: 0.8em;
-            font-weight: bold;
-            display: inline-block;
-        }
-        .badge-pendiente {
-            background: var(--naranja);
-        }
-        .btn-eliminar-tarjeta {
-            position: absolute;
-            top: 10px;
-            right: 10px;
-            background: var(--rojo);
-            color: white;
-            border: none;
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
-            font-size: 18px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0.7;
-            transition: opacity 0.2s;
-            z-index: 10;
-        }
-        .btn-eliminar-tarjeta:hover {
-            opacity: 1;
-        }
-        
-        /* MODAL DE VALIDACIÓN PRINCIPAL */
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.9);
-            z-index: 10000;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-contenido {
-            background: var(--azul-medio);
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 800px;
-            width: 90%;
-            max-height: 90vh;
-            overflow-y: auto;
-            border: 2px solid var(--dorado);
-        }
-        .modal-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
-        }
-        .modal-titulo {
-            color: var(--dorado);
-            font-size: 1.5em;
-            margin: 0;
-        }
-        .btn-cerrar {
-            background: none;
-            border: none;
-            color: white;
-            font-size: 2em;
-            cursor: pointer;
-        }
-        
-        /* MODAL DE RECHAZO */
-        .modal-rechazo {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.95);
-            z-index: 20000;
-            display: none;
-            justify-content: center;
-            align-items: center;
-        }
-        .modal-rechazo-contenido {
-            background: var(--azul-medio);
-            border-radius: 20px;
-            padding: 30px;
-            max-width: 700px;
-            width: 90%;
-            max-height: 85vh;
-            overflow-y: auto;
-            border: 2px solid var(--dorado);
-        }
-        .motivo-item {
-            background: #1f2a3f;
-            padding: 12px 15px;
-            border-radius: 10px;
-            margin-bottom: 10px;
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        .motivo-item input[type="checkbox"] {
-            width: 20px;
-            height: 20px;
-            cursor: pointer;
-        }
-        .motivo-texto {
-            flex: 1;
-            font-size: 0.95em;
-        }
-        .motivo-texto.editando {
-            background: #0f1a2f;
-            padding: 8px 12px;
-            border-radius: 6px;
-            border: 1px solid var(--dorado);
-            outline: none;
-            color: white;
-        }
-        .btn-editar-motivo {
-            background: var(--azul-claro);
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 6px 12px;
-            cursor: pointer;
-            font-size: 0.85em;
-        }
-        .btn-agregar-motivo {
-            background: var(--verde);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 12px 20px;
-            cursor: pointer;
-            font-weight: bold;
-            margin: 15px 0;
-            width: 100%;
-        }
-        .campo-libre {
-            margin: 20px 0;
-        }
-        .campo-libre textarea {
-            width: 100%;
-            padding: 12px;
-            border-radius: 8px;
-            background: #1f2a3f;
-            color: white;
-            border: 1px solid #444;
-            font-family: inherit;
-            resize: vertical;
-        }
-        .vista-previa {
-            background: #0f1a2f;
-            padding: 15px;
-            border-radius: 10px;
-            margin: 20px 0;
-            border-left: 4px solid var(--dorado);
-            font-style: italic;
-        }
-        .opciones-adicionales {
-            display: flex;
-            gap: 20px;
-            margin: 15px 0;
-            flex-wrap: wrap;
-        }
-        .opcion-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-        .info-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-bottom: 20px;
-        }
-        .info-item {
-            background: #1f2a3f;
-            padding: 12px;
-            border-radius: 8px;
-        }
-        .info-label {
-            color: #aaa;
-            font-size: 0.8em;
-            text-transform: uppercase;
-        }
-        .info-valor {
-            font-size: 1.1em;
-            font-weight: bold;
-            margin-top: 5px;
-            word-break: break-word;
-        }
-        .info-valor a {
-            color: var(--dorado);
-            text-decoration: none;
-            display: inline-block;
-            padding: 4px 8px;
-            background: rgba(212, 175, 55, 0.1);
-            border-radius: 6px;
-            transition: background 0.2s;
-        }
-        .info-valor a:hover {
-            background: var(--dorado);
-            color: var(--azul-oscuro);
-        }
-        .documentos-container {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
-        }
-        .documento-card {
-            background: #1f2a3f;
-            padding: 15px;
-            border-radius: 10px;
-            text-align: center;
-        }
-        .documento-card a {
-            color: var(--dorado);
-            text-decoration: none;
-            display: block;
-            margin-top: 10px;
-        }
-        .documento-card img {
-            max-width: 100%;
-            max-height: 150px;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-        .acciones-container {
-            display: flex;
-            gap: 15px;
-            margin-top: 25px;
-            flex-wrap: wrap;
-        }
-        .btn {
-            padding: 15px 25px;
-            border: none;
-            border-radius: 10px;
-            font-weight: bold;
-            cursor: pointer;
-            font-size: 1em;
-            flex: 1;
-        }
-        .btn-aprobar {
-            background: var(--verde);
-            color: white;
-        }
-        .btn-rechazar {
-            background: var(--rojo);
-            color: white;
-        }
-        .btn-contactar {
-            background: var(--dorado);
-            color: black;
-        }
-        .btn-eliminar-modal {
-            background: #8b0000;
-            color: white;
-        }
-        .btn-volver {
-            background: #666;
-            color: white;
-        }
-        .btn-guardar {
-            background: var(--verde);
-            color: white;
-        }
-    </style>
-</head>
-<body>
-
-    <!-- HEADER REDISEÑADO - CON CLASE ACTIVE EN VALIDACIONES -->
-    <header class="header">
-        <div class="logo-container">
-            <img src="https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true" class="logo" alt="Habitat-Car">
-        </div>
-        <nav class="nav-menu" id="nav-menu-principal">
-            <a href="admin_comercios.html" class="nav-link" data-contador="comercios">COMERCIOS <span class="contador-badge" id="cont-comercios">0</span></a>
-            <a href="admin_leads.html" class="nav-link" data-contador="leads">LEADS <span class="contador-badge" id="cont-leads">0</span></a>
-            <a href="admin_vips.html" class="nav-link" data-contador="vips">VIP <span class="contador-badge" id="cont-vips">0</span></a>
-            <a href="admin_tokens_vip.html" class="nav-link">TOKENS VIP</a>
-            <a href="admin_curioso.html" class="nav-link">CURIOSO</a>
-            <a href="admin_estadisticas.html" class="nav-link">ESTADÍSTICAS</a>
-            <a href="admin_logs.html" class="nav-link">LOG</a>
-            <a href="admin_tutoriales.html" class="nav-link" data-contador="tutoriales">TUTORIALES <span class="contador-badge" id="cont-tutoriales">0</span></a>
-            <a href="admin_validaciones.html" class="nav-link nav-link-validaciones active" data-contador="validaciones">
-                VALIDACIONES
-                <span class="contador-badge-group">
-                    <span class="contador-badge" id="cont-validaciones-comercios" title="Comercios pendientes">0</span>
-                    <span class="contador-badge" id="cont-validaciones-martilleros" title="Martilleros pendientes">0</span>
-                    <span class="contador-badge" id="cont-validaciones-colaboradores" title="Colaboradores pendientes">0</span>
-                </span>
-            </a>
-            <a href="index.html" class="nav-link">PANEL DE INGRESO</a>
-            <a href="admin_legales.html" class="nav-link">LEGALES</a>
-            <a href="admin_sorteos.html" class="nav-link">SORTEOS</a>
-        </nav>
-    </header>
-
-<div class="tools-faja" id="faja-herramientas">
-    <div class="search-container">
-        <span class="search-icon">🔍</span>
-        <input type="text" id="masterSearch" class="search-input" placeholder="Buscar postulación..." oninput="filtrarPostulaciones()">
-    </div>
-    <div style="display: flex; gap: 10px;">
-        <div class="stat-badge" style="background:#4a5568">TOTAL: <span id="count-total">0</span></div>
-        <div class="stat-badge" style="background:var(--naranja)">COMERCIOS: <span id="count-comercios">0</span></div>
-        <div class="stat-badge" style="background:var(--azul-claro)">MARTILLEROS: <span id="count-martilleros">0</span></div>
-        <div class="stat-badge" style="background:var(--verde)">COLABORADORES: <span id="count-colaboradores">0</span></div>
-    </div>
-    <div style="display: flex; gap: 8px;">
-        <button id="fil-todos" class="btn-tool active" onclick="cambiarFiltro('todos')">Ver Todos</button>
-        <button id="fil-comercios" class="btn-tool" onclick="cambiarFiltro('comercios')">Comercios</button>
-        <button id="fil-martilleros" class="btn-tool" onclick="cambiarFiltro('martilleros')">Martilleros</button>
-        <button id="fil-colaboradores" class="btn-tool" onclick="cambiarFiltro('colaboradores')">Colaboradores</button>
-    </div>
-</div>
-
-<h1>📋 VALIDACIONES PENDIENTES</h1>
-
-<div class="columnas-container" id="columnas-container">
-    <!-- COLUMNA 1: COMERCIOS -->
-    <div class="columna" id="columna-comercios">
-        <h2><i class="fas fa-store"></i> COMERCIOS</h2>
-        <div id="lista-comercios-pendientes">
-            <!-- Se carga dinámicamente -->
-            <p>Cargando...</p>
-        </div>
-    </div>
-
-    <!-- COLUMNA 2: MARTILLEROS -->
-    <div class="columna" id="columna-martilleros">
-        <h2><i class="fas fa-gavel"></i> MARTILLEROS</h2>
-        <div id="lista-martilleros-pendientes">
-            <!-- Se carga dinámicamente -->
-            <p>Próximamente</p>
-        </div>
-    </div>
-
-    <!-- COLUMNA 3: COLABORADORES -->
-    <div class="columna" id="columna-colaboradores">
-        <h2><i class="fas fa-handshake"></i> COLABORADORES</h2>
-        <div id="lista-colaboradores-pendientes">
-            <!-- Se carga dinámicamente -->
-            <p>Próximamente</p>
-        </div>
-    </div>
-</div>
-
-<!-- MODAL DE VALIDACIÓN (DETALLE DE POSTULACIÓN) -->
-<div id="modalValidacion" class="modal">
-    <div class="modal-contenido">
-        <div class="modal-header">
-            <h2 class="modal-titulo" id="modal-titulo">Validar Comercio</h2>
-            <button class="btn-cerrar" onclick="cerrarModal()">&times;</button>
-        </div>
-        
-        <div id="modal-contenido-dinamico">
-            <!-- Se llena con JS -->
-        </div>
-    </div>
-</div>
-
-<!-- MODAL DE RECHAZO (NUEVO) -->
-<div id="modalRechazo" class="modal-rechazo">
-    <div class="modal-rechazo-contenido">
-        <div class="modal-header">
-            <h2 class="modal-titulo">❌ RECHAZAR POSTULACIÓN</h2>
-            <button class="btn-cerrar" onclick="cerrarModalRechazo()">&times;</button>
-        </div>
-        
-        <div id="motivos-container">
-            <!-- Se carga dinámicamente -->
-        </div>
-        
-        <button class="btn-agregar-motivo" onclick="agregarMotivo()">
-            ➕ AGREGAR NUEVO MOTIVO
-        </button>
-        
-        <div class="campo-libre">
-            <label style="color: var(--dorado); margin-bottom: 8px; display: block;">📝 Motivo adicional (opcional):</label>
-            <textarea id="motivoLibre" rows="3" placeholder="Escribí acá si querés agregar algo más..."></textarea>
-        </div>
-        
-        <div class="vista-previa" id="vistaPrevia">
-            <!-- Se actualiza dinámicamente -->
-        </div>
-        
-        <div class="opciones-adicionales">
-            <label class="opcion-item">
-                <input type="checkbox" id="enviarEmail" checked> 📧 Enviar email al comercio
-            </label>
-            <label class="opcion-item">
-                <input type="checkbox" id="permitirReintento"> 🔄 Permitir reintento (generar nuevo token)
-            </label>
-        </div>
-        
-        <div class="acciones-container">
-            <button class="btn btn-aprobar" onclick="confirmarRechazo()">
-                ✅ CONFIRMAR RECHAZO
-            </button>
-            <button class="btn btn-volver" onclick="cerrarModalRechazo()">
-                CANCELAR
-            </button>
-        </div>
-    </div>
-</div>
-
 <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
     import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, getDoc, addDoc, deleteDoc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
@@ -599,18 +24,10 @@
     let postulacionActual = null;
     let tipoActual = null;
     let filtroActual = 'todos';
-    let todasLasPostulaciones = {
-        comercios: [],
-        martilleros: [],
-        colaboradores: []
-    };
-    
+    let todasLasPostulaciones = { comercios: [], martilleros: [], colaboradores: [] };
     let motivosRechazo = [];
     let motivosSeleccionados = [];
 
-    // ===========================================
-    // CONTADORES NAV (actualiza los badges del header)
-    // ===========================================
     async function actualizarContadoresHeader() {
         try {
             const comerciosSnap = await getDocs(query(collection(db, "postulaciones_comercios"), where("estado", "==", "pendiente")));
@@ -624,93 +41,43 @@
             if (contComercios) contComercios.innerText = comerciosSnap.size;
             if (contMartilleros) contMartilleros.innerText = martillerosSnap.size;
             if (contColaboradores) contColaboradores.innerText = colaboradoresSnap.size;
-            
-            console.log("✅ Contadores validaciones:", {
-                comercios: comerciosSnap.size,
-                martilleros: martillerosSnap.size,
-                colaboradores: colaboradoresSnap.size
-            });
-        } catch (error) {
-            console.error("Error actualizando contadores:", error);
-        }
+        } catch (error) { console.error("Error actualizando contadores:", error); }
     }
 
-    // ===========================================
-    // CARGAR MOTIVOS DE RECHAZO DESDE FIRESTORE
-    // ===========================================
     async function cargarMotivosRechazo() {
         try {
             const docRef = doc(db, "config_motivos_rechazo", "motivos");
             const docSnap = await getDoc(docRef);
-            
             if (docSnap.exists()) {
                 motivosRechazo = docSnap.data().lista || [];
             } else {
-                // Si no existe, crear documento por defecto
-                motivosRechazo = [
-                    "Datos incompletos (falta foto, CUIT, etc.)",
-                    "Documentación ilegible (DNI borroso, selfie no clara)",
-                    "CUIT no válido o inactivo",
-                    "Discrepancia en datos (nombre no coincide con AFIP)",
-                    "No se pudo contactar al comercio",
-                    "Otro (especificar)"
-                ];
-                await setDoc(docRef, {
-                    lista: motivosRechazo,
-                    ultima_actualizacion: new Date().toISOString(),
-                    actualizado_por: "admin@habitatcar.com"
-                });
+                motivosRechazo = ["Datos incompletos (falta foto, CUIT, etc.)", "Documentación ilegible (DNI borroso, selfie no clara)", "CUIT no válido o inactivo", "Discrepancia en datos (nombre no coincide con AFIP)", "No se pudo contactar al comercio", "Otro (especificar)"];
+                await setDoc(docRef, { lista: motivosRechazo, ultima_actualizacion: new Date().toISOString(), actualizado_por: "admin@habitatcar.com" });
             }
             actualizarVistaMotivos();
-        } catch (error) {
-            console.error("Error cargando motivos:", error);
-        }
+        } catch (error) { console.error("Error cargando motivos:", error); }
     }
-    
-    // ===========================================
-    // GUARDAR MOTIVOS EN FIRESTORE
-    // ===========================================
+
     async function guardarMotivosRechazo() {
-        try {
-            const docRef = doc(db, "config_motivos_rechazo", "motivos");
-            await updateDoc(docRef, {
-                lista: motivosRechazo,
-                ultima_actualizacion: new Date().toISOString(),
-                actualizado_por: "admin@habitatcar.com"
-            });
-        } catch (error) {
-            console.error("Error guardando motivos:", error);
-        }
+        try { await updateDoc(doc(db, "config_motivos_rechazo", "motivos"), { lista: motivosRechazo, ultima_actualizacion: new Date().toISOString(), actualizado_por: "admin@habitatcar.com" }); } 
+        catch (error) { console.error("Error guardando motivos:", error); }
     }
-    
-    // ===========================================
-    // ACTUALIZAR VISTA DE MOTIVOS
-    // ===========================================
+
     function actualizarVistaMotivos() {
         const container = document.getElementById('motivos-container');
         if (!container) return;
-        
         container.innerHTML = '';
-        
         motivosRechazo.forEach((motivo, index) => {
             const motivoDiv = document.createElement('div');
             motivoDiv.className = 'motivo-item';
-            motivoDiv.innerHTML = `
-                <input type="checkbox" class="motivo-checkbox" data-index="${index}" onchange="actualizarSeleccionMotivos()">
-                <span class="motivo-texto" id="motivo-${index}">${motivo}</span>
-                <button class="btn-editar-motivo" onclick="editarMotivo(${index})">✏️ Editar</button>
-            `;
+            motivoDiv.innerHTML = `<input type="checkbox" class="motivo-checkbox" data-index="${index}" onchange="actualizarSeleccionMotivos()"><span class="motivo-texto" id="motivo-${index}">${motivo}</span><button class="btn-editar-motivo" onclick="editarMotivo(${index})">✏️ Editar</button>`;
             container.appendChild(motivoDiv);
         });
     }
-    
-    // ===========================================
-    // EDITAR MOTIVO
-    // ===========================================
+
     window.editarMotivo = (index) => {
         const span = document.getElementById(`motivo-${index}`);
         const textoActual = motivosRechazo[index];
-        
         const input = document.createElement('input');
         input.type = 'text';
         input.value = textoActual;
@@ -723,17 +90,11 @@
                 actualizarVistaPrevia();
             }
         };
-        input.onkeypress = (e) => {
-            if (e.key === 'Enter') input.blur();
-        };
-        
+        input.onkeypress = (e) => { if (e.key === 'Enter') input.blur(); };
         span.replaceWith(input);
         input.focus();
     };
-    
-    // ===========================================
-    // AGREGAR MOTIVO
-    // ===========================================
+
     window.agregarMotivo = async () => {
         const nuevoMotivo = prompt("Nuevo motivo de rechazo:");
         if (nuevoMotivo && nuevoMotivo.trim()) {
@@ -742,10 +103,7 @@
             actualizarVistaMotivos();
         }
     };
-    
-    // ===========================================
-    // ACTUALIZAR SELECCIÓN DE MOTIVOS
-    // ===========================================
+
     window.actualizarSeleccionMotivos = () => {
         motivosSeleccionados = [];
         document.querySelectorAll('.motivo-checkbox:checked').forEach(cb => {
@@ -754,31 +112,16 @@
         });
         actualizarVistaPrevia();
     };
-    
-    // ===========================================
-    // ACTUALIZAR VISTA PREVIA
-    // ===========================================
+
     function actualizarVistaPrevia() {
         const motivoLibre = document.getElementById('motivoLibre')?.value || '';
         const vistaPrevia = document.getElementById('vistaPrevia');
-        
         let mensaje = '';
-        if (motivosSeleccionados.length > 0) {
-            mensaje += motivosSeleccionados.join(', ');
-        }
-        if (motivoLibre) {
-            if (mensaje) mensaje += ' · ';
-            mensaje += motivoLibre;
-        }
-        
-        vistaPrevia.innerHTML = mensaje ? 
-            `<strong>Motivo final:</strong> ${mensaje}` : 
-            '<span style="color:#888;">Seleccioná al menos un motivo o escribí uno</span>';
+        if (motivosSeleccionados.length > 0) mensaje += motivosSeleccionados.join(', ');
+        if (motivoLibre) { if (mensaje) mensaje += ' · '; mensaje += motivoLibre; }
+        vistaPrevia.innerHTML = mensaje ? `<strong>Motivo final:</strong> ${mensaje}` : '<span style="color:#888;">Seleccioná al menos un motivo o escribí uno</span>';
     }
-    
-    // ===========================================
-    // ABRIR MODAL DE RECHAZO
-    // ===========================================
+
     window.abrirModalRechazo = () => {
         motivosSeleccionados = [];
         document.getElementById('motivoLibre').value = '';
@@ -788,153 +131,71 @@
         actualizarVistaPrevia();
         document.getElementById('modalRechazo').style.display = 'flex';
     };
-    
-    // ===========================================
-    // CERRAR MODAL DE RECHAZO
-    // ===========================================
-    window.cerrarModalRechazo = () => {
-        document.getElementById('modalRechazo').style.display = 'none';
-    };
-    
-    // ===========================================
-    // CONFIRMAR RECHAZO (CON EMAIL)
-    // ===========================================
+
+    window.cerrarModalRechazo = () => { document.getElementById('modalRechazo').style.display = 'none'; };
+
     window.confirmarRechazo = async () => {
         if (!postulacionActual) return;
-        
         const motivoLibre = document.getElementById('motivoLibre').value;
         const enviarEmail = document.getElementById('enviarEmail').checked;
         const permitirReintento = document.getElementById('permitirReintento').checked;
-        
         let motivoFinal = '';
-        if (motivosSeleccionados.length > 0) {
-            motivoFinal += motivosSeleccionados.join(', ');
-        }
-        if (motivoLibre) {
-            if (motivoFinal) motivoFinal += ' · ';
-            motivoFinal += motivoLibre;
-        }
-        
-        if (!motivoFinal) {
-            alert("⚠️ Debes seleccionar al menos un motivo o escribir uno");
-            return;
-        }
-        
+        if (motivosSeleccionados.length > 0) motivoFinal += motivosSeleccionados.join(', ');
+        if (motivoLibre) { if (motivoFinal) motivoFinal += ' · '; motivoFinal += motivoLibre; }
+        if (!motivoFinal) { alert("⚠️ Debes seleccionar al menos un motivo o escribir uno"); return; }
         try {
             const postulacionRef = doc(db, `postulaciones_${tipoActual}s`, postulacionActual.id);
-            await updateDoc(postulacionRef, {
-                estado: "rechazado",
-                fecha_rechazo: new Date().toISOString(),
-                motivo_rechazo: motivoFinal,
-                enviar_email: enviarEmail,
-                permitir_reintento: permitirReintento
-            });
-            
+            await updateDoc(postulacionRef, { estado: "rechazado", fecha_rechazo: new Date().toISOString(), motivo_rechazo: motivoFinal, enviar_email: enviarEmail, permitir_reintento: permitirReintento });
             if (enviarEmail) {
                 try {
                     const enviarEmailRechazo = httpsCallable(functions, 'enviarEmailRechazo');
-                    
-                    await enviarEmailRechazo({
-                        email: postulacionActual.email,
-                        nombreComercio: postulacionActual.nombre_comercio,
-                        motivo: motivoFinal,
-                        permitirReintento: permitirReintento
-                    });
-                    
-                    console.log("✅ Email de rechazo enviado");
-                } catch (emailError) {
-                    console.error("❌ Error al enviar email:", emailError);
-                }
+                    await enviarEmailRechazo({ email: postulacionActual.email, nombreComercio: postulacionActual.nombre_comercio, motivo: motivoFinal, permitirReintento: permitirReintento });
+                } catch (emailError) { console.error("❌ Error al enviar email:", emailError); }
             }
-            
             alert("❌ Postulación rechazada correctamente");
             cerrarModalRechazo();
             cerrarModal();
-            
-        } catch (error) {
-            console.error("Error al rechazar:", error);
-            alert("❌ Error al rechazar");
-        }
+        } catch (error) { console.error("Error al rechazar:", error); alert("❌ Error al rechazar"); }
     };
 
     function formatearEnlace(tipo, valor) {
         if (!valor) return '-';
-        
         switch(tipo) {
-            case 'cuit':
-                return `<a href="https://seti.afip.gob.ar/padron-puc-constancia/consultaCuit?cuit=${valor}" target="_blank">🔍 ${valor}</a>`;
-            case 'email':
-                return `<a href="mailto:${valor}">📧 ${valor}</a>`;
-            case 'telefono':
-                const tel = valor.replace(/\D/g, '');
-                return `<a href="https://wa.me/${tel}" target="_blank">📱 ${valor}</a>`;
-            case 'instagram':
-                if (valor.includes('instagram.com')) {
-                    return `<a href="${valor}" target="_blank">📷 Instagram</a>`;
-                } else if (valor.startsWith('@')) {
-                    return `<a href="https://instagram.com/${valor.substring(1)}" target="_blank">📷 ${valor}</a>`;
-                }
-                return `<a href="https://instagram.com/${valor}" target="_blank">📷 ${valor}</a>`;
-            case 'facebook':
-                if (valor.includes('facebook.com')) {
-                    return `<a href="${valor}" target="_blank">📘 Facebook</a>`;
-                }
-                return `<a href="https://facebook.com/${valor}" target="_blank">📘 ${valor}</a>`;
-            case 'tiktok':
-                if (valor.includes('tiktok.com')) {
-                    return `<a href="${valor}" target="_blank">🎵 TikTok</a>`;
-                } else if (valor.startsWith('@')) {
-                    return `<a href="https://tiktok.com/${valor}" target="_blank">🎵 ${valor}</a>`;
-                }
-                return `<a href="https://tiktok.com/@${valor}" target="_blank">🎵 ${valor}</a>`;
-            case 'sitioWeb':
-                let url = valor;
-                if (!url.startsWith('http')) {
-                    url = 'https://' + url;
-                }
-                return `<a href="${url}" target="_blank">🌐 Sitio Web</a>`;
-            case 'maps':
-                return `<a href="${valor}" target="_blank">📍 Ver en Maps</a>`;
-            default:
-                return valor;
+            case 'cuit': return `<a href="https://seti.afip.gob.ar/padron-puc-constancia/consultaCuit?cuit=${valor}" target="_blank">🔍 ${valor}</a>`;
+            case 'email': return `<a href="mailto:${valor}">📧 ${valor}</a>`;
+            case 'telefono': const tel = valor.replace(/\D/g, ''); return `<a href="https://wa.me/${tel}" target="_blank">📱 ${valor}</a>`;
+            case 'instagram': if (valor.includes('instagram.com')) return `<a href="${valor}" target="_blank">📷 Instagram</a>`; else if (valor.startsWith('@')) return `<a href="https://instagram.com/${valor.substring(1)}" target="_blank">📷 ${valor}</a>`; return `<a href="https://instagram.com/${valor}" target="_blank">📷 ${valor}</a>`;
+            case 'facebook': if (valor.includes('facebook.com')) return `<a href="${valor}" target="_blank">📘 Facebook</a>`; return `<a href="https://facebook.com/${valor}" target="_blank">📘 ${valor}</a>`;
+            case 'tiktok': if (valor.includes('tiktok.com')) return `<a href="${valor}" target="_blank">🎵 TikTok</a>`; else if (valor.startsWith('@')) return `<a href="https://tiktok.com/${valor}" target="_blank">🎵 ${valor}</a>`; return `<a href="https://tiktok.com/@${valor}" target="_blank">🎵 ${valor}</a>`;
+            case 'sitioWeb': let url = valor; if (!url.startsWith('http')) url = 'https://' + url; return `<a href="${url}" target="_blank">🌐 Sitio Web</a>`;
+            case 'maps': return `<a href="${valor}" target="_blank">📍 Ver en Maps</a>`;
+            default: return valor;
         }
     }
 
-    // ===========================================
-    // 1. CARGAR POSTULACIONES PENDIENTES
-    // ===========================================
     function cargarPostulaciones() {
-        // COMERCIOS pendientes
         const qComercios = query(collection(db, "postulaciones_comercios"), where("estado", "==", "pendiente"));
         onSnapshot(qComercios, (snapshot) => {
             todasLasPostulaciones.comercios = [];
-            snapshot.forEach(doc => {
-                todasLasPostulaciones.comercios.push({ id: doc.id, tipo: 'comercio', ...doc.data() });
-            });
+            snapshot.forEach(doc => { todasLasPostulaciones.comercios.push({ id: doc.id, tipo: 'comercio', ...doc.data() }); });
             actualizarContadoresHeader();
             actualizarContadores();
             aplicarFiltro();
         });
         
-        // MARTILLEROS pendientes (para futuro)
         const qMartilleros = query(collection(db, "postulaciones_martilleros"), where("estado", "==", "pendiente"));
         onSnapshot(qMartilleros, (snapshot) => {
             todasLasPostulaciones.martilleros = [];
-            snapshot.forEach(doc => {
-                todasLasPostulaciones.martilleros.push({ id: doc.id, tipo: 'martillero', ...doc.data() });
-            });
+            snapshot.forEach(doc => { todasLasPostulaciones.martilleros.push({ id: doc.id, tipo: 'martillero', ...doc.data() }); });
             actualizarContadoresHeader();
             actualizarContadores();
             aplicarFiltro();
         });
         
-        // COLABORADORES pendientes (para futuro)
         const qColaboradores = query(collection(db, "postulaciones_colaboradores"), where("estado", "==", "pendiente"));
         onSnapshot(qColaboradores, (snapshot) => {
             todasLasPostulaciones.colaboradores = [];
-            snapshot.forEach(doc => {
-                todasLasPostulaciones.colaboradores.push({ id: doc.id, tipo: 'colaborador', ...doc.data() });
-            });
+            snapshot.forEach(doc => { todasLasPostulaciones.colaboradores.push({ id: doc.id, tipo: 'colaborador', ...doc.data() }); });
             actualizarContadoresHeader();
             actualizarContadores();
             aplicarFiltro();
@@ -942,10 +203,7 @@
     }
 
     function actualizarContadores() {
-        document.getElementById('count-total').innerText = 
-            todasLasPostulaciones.comercios.length + 
-            todasLasPostulaciones.martilleros.length + 
-            todasLasPostulaciones.colaboradores.length;
+        document.getElementById('count-total').innerText = todasLasPostulaciones.comercios.length + todasLasPostulaciones.martilleros.length + todasLasPostulaciones.colaboradores.length;
         document.getElementById('count-comercios').innerText = todasLasPostulaciones.comercios.length;
         document.getElementById('count-martilleros').innerText = todasLasPostulaciones.martilleros.length;
         document.getElementById('count-colaboradores').innerText = todasLasPostulaciones.colaboradores.length;
@@ -953,382 +211,169 @@
 
     function aplicarFiltro() {
         const term = document.getElementById('masterSearch')?.value.toLowerCase() || '';
-        
-        if (filtroActual === 'todos' || filtroActual === 'comercios') {
-            mostrarComercios(terminoFiltro(todasLasPostulaciones.comercios, term));
-        } else {
-            document.getElementById('lista-comercios-pendientes').innerHTML = '<p style="color:#aaa;">Filtro oculto</p>';
-        }
-        
-        if (filtroActual === 'todos' || filtroActual === 'martilleros') {
-            mostrarMartilleros(terminoFiltro(todasLasPostulaciones.martilleros, term));
-        } else {
-            document.getElementById('lista-martilleros-pendientes').innerHTML = '<p style="color:#aaa;">Filtro oculto</p>';
-        }
-        
-        if (filtroActual === 'todos' || filtroActual === 'colaboradores') {
-            mostrarColaboradores(terminoFiltro(todasLasPostulaciones.colaboradores, term));
-        } else {
-            document.getElementById('lista-colaboradores-pendientes').innerHTML = '<p style="color:#aaa;">Filtro oculto</p>';
-        }
+        if (filtroActual === 'todos' || filtroActual === 'comercios') mostrarComercios(terminoFiltro(todasLasPostulaciones.comercios, term));
+        else document.getElementById('lista-comercios-pendientes').innerHTML = '<p style="color:#aaa;">Filtro oculto</p>';
+        if (filtroActual === 'todos' || filtroActual === 'martilleros') mostrarMartilleros(terminoFiltro(todasLasPostulaciones.martilleros, term));
+        else document.getElementById('lista-martilleros-pendientes').innerHTML = '<p style="color:#aaa;">Filtro oculto</p>';
+        if (filtroActual === 'todos' || filtroActual === 'colaboradores') mostrarColaboradores(terminoFiltro(todasLasPostulaciones.colaboradores, term));
+        else document.getElementById('lista-colaboradores-pendientes').innerHTML = '<p style="color:#aaa;">Filtro oculto</p>';
     }
 
-    function terminoFiltro(lista, term) {
-        if (!term) return lista;
-        return lista.filter(item => {
-            const nombre = item.nombre_comercio || item.nombre || '';
-            return nombre.toLowerCase().includes(term);
-        });
-    }
+    function terminoFiltro(lista, term) { if (!term) return lista; return lista.filter(item => { const nombre = item.nombre_comercio || item.nombre || ''; return nombre.toLowerCase().includes(term); }); }
 
     function mostrarComercios(lista) {
         const container = document.getElementById('lista-comercios-pendientes');
         container.innerHTML = '';
-        
-        if (lista.length === 0) {
-            container.innerHTML = '<p style="color:#aaa;">No hay comercios pendientes</p>';
-            return;
-        }
-        
+        if (lista.length === 0) { container.innerHTML = '<p style="color:#aaa;">No hay comercios pendientes</p>'; return; }
         lista.forEach(item => {
-            container.innerHTML += `
-                <div class="tarjeta-postulacion" data-id="${item.id}" data-tipo="comercio">
-                    <div class="tarjeta-titulo">${item.nombre_comercio || 'Sin nombre'}</div>
-                    <div class="tarjeta-subtitulo">${item.provincia || ''} • ${item.localidad || ''}</div>
-                    <div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div>
-                    <button class="btn-eliminar-tarjeta" onclick="event.stopPropagation(); eliminarPostulacion('${item.id}', 'comercio')">🗑️</button>
-                </div>
-            `;
+            container.innerHTML += `<div class="tarjeta-postulacion" data-id="${item.id}" data-tipo="comercio"><div class="tarjeta-titulo">${item.nombre_comercio || 'Sin nombre'}</div><div class="tarjeta-subtitulo">${item.provincia || ''} • ${item.localidad || ''}</div><div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div><button class="btn-eliminar-tarjeta" onclick="event.stopPropagation(); eliminarPostulacion('${item.id}', 'comercio')">🗑️</button></div>`;
         });
-        
         document.querySelectorAll('#lista-comercios-pendientes .tarjeta-postulacion').forEach(tarjeta => {
-            tarjeta.addEventListener('click', function(e) {
-                if (e.target.classList.contains('btn-eliminar-tarjeta')) return;
-                const id = this.dataset.id;
-                const tipo = this.dataset.tipo;
-                if (id && tipo) abrirModalValidacion(id, tipo);
-            });
+            tarjeta.addEventListener('click', function(e) { if (e.target.classList.contains('btn-eliminar-tarjeta')) return; const id = this.dataset.id; const tipo = this.dataset.tipo; if (id && tipo) abrirModalValidacion(id, tipo); });
         });
     }
 
     function mostrarMartilleros(lista) {
         const container = document.getElementById('lista-martilleros-pendientes');
         container.innerHTML = '';
-        
-        if (lista.length === 0) {
-            container.innerHTML = '<p style="color:#aaa;">No hay martilleros pendientes</p>';
-            return;
-        }
-        
+        if (lista.length === 0) { container.innerHTML = '<p style="color:#aaa;">No hay martilleros pendientes</p>'; return; }
         lista.forEach(item => {
-            container.innerHTML += `
-                <div class="tarjeta-postulacion" data-id="${item.id}" data-tipo="martillero">
-                    <div class="tarjeta-titulo">${item.nombre || ''}</div>
-                    <div class="tarjeta-subtitulo">MP: ${item.matricula || ''}</div>
-                    <div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div>
-                    <button class="btn-eliminar-tarjeta" onclick="event.stopPropagation(); eliminarPostulacion('${item.id}', 'martillero')">🗑️</button>
-                </div>
-            `;
+            container.innerHTML += `<div class="tarjeta-postulacion" data-id="${item.id}" data-tipo="martillero"><div class="tarjeta-titulo">${item.nombre || ''}</div><div class="tarjeta-subtitulo">MP: ${item.matricula || ''}</div><div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div><button class="btn-eliminar-tarjeta" onclick="event.stopPropagation(); eliminarPostulacion('${item.id}', 'martillero')">🗑️</button></div>`;
         });
-        
         document.querySelectorAll('#lista-martilleros-pendientes .tarjeta-postulacion').forEach(tarjeta => {
-            tarjeta.addEventListener('click', function(e) {
-                if (e.target.classList.contains('btn-eliminar-tarjeta')) return;
-                const id = this.dataset.id;
-                const tipo = this.dataset.tipo;
-                if (id && tipo) abrirModalValidacion(id, tipo);
-            });
+            tarjeta.addEventListener('click', function(e) { if (e.target.classList.contains('btn-eliminar-tarjeta')) return; const id = this.dataset.id; const tipo = this.dataset.tipo; if (id && tipo) abrirModalValidacion(id, tipo); });
         });
     }
 
     function mostrarColaboradores(lista) {
         const container = document.getElementById('lista-colaboradores-pendientes');
         container.innerHTML = '';
-        
-        if (lista.length === 0) {
-            container.innerHTML = '<p style="color:#aaa;">No hay colaboradores pendientes</p>';
-            return;
-        }
-        
+        if (lista.length === 0) { container.innerHTML = '<p style="color:#aaa;">No hay colaboradores pendientes</p>'; return; }
         lista.forEach(item => {
-            container.innerHTML += `
-                <div class="tarjeta-postulacion" data-id="${item.id}" data-tipo="colaborador">
-                    <div class="tarjeta-titulo">${item.nombre || ''}</div>
-                    <div class="tarjeta-subtitulo">${item.tipo_colaboracion || ''}</div>
-                    <div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div>
-                    <button class="btn-eliminar-tarjeta" onclick="event.stopPropagation(); eliminarPostulacion('${item.id}', 'colaborador')">🗑️</button>
-                </div>
-            `;
+            container.innerHTML += `<div class="tarjeta-postulacion" data-id="${item.id}" data-tipo="colaborador"><div class="tarjeta-titulo">${item.nombre || ''}</div><div class="tarjeta-subtitulo">${item.tipo_colaboracion || ''}</div><div><span class="tarjeta-badge badge-pendiente">PENDIENTE</span></div><button class="btn-eliminar-tarjeta" onclick="event.stopPropagation(); eliminarPostulacion('${item.id}', 'colaborador')">🗑️</button></div>`;
         });
-        
         document.querySelectorAll('#lista-colaboradores-pendientes .tarjeta-postulacion').forEach(tarjeta => {
-            tarjeta.addEventListener('click', function(e) {
-                if (e.target.classList.contains('btn-eliminar-tarjeta')) return;
-                const id = this.dataset.id;
-                const tipo = this.dataset.tipo;
-                if (id && tipo) abrirModalValidacion(id, tipo);
-            });
+            tarjeta.addEventListener('click', function(e) { if (e.target.classList.contains('btn-eliminar-tarjeta')) return; const id = this.dataset.id; const tipo = this.dataset.tipo; if (id && tipo) abrirModalValidacion(id, tipo); });
         });
     }
 
-    window.filtrarPostulaciones = () => {
-        aplicarFiltro();
-    };
+    window.filtrarPostulaciones = () => { aplicarFiltro(); };
+    window.cambiarFiltro = (filtro) => { filtroActual = filtro; document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active')); document.getElementById(`fil-${filtro}`).classList.add('active'); aplicarFiltro(); };
 
-    window.cambiarFiltro = (filtro) => {
-        filtroActual = filtro;
-        document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
-        document.getElementById(`fil-${filtro}`).classList.add('active');
-        aplicarFiltro();
-    };
-
-    // ===========================================
-    // 2. ELIMINAR POSTULACIÓN
-    // ===========================================
     window.eliminarPostulacion = async (id, tipo) => {
         if (!confirm(`¿Estás seguro de eliminar esta postulación de ${tipo}?`)) return;
-        
-        try {
-            const docRef = doc(db, `postulaciones_${tipo}s`, id);
-            await deleteDoc(docRef);
-            alert(`✅ Postulación de ${tipo} eliminada`);
-        } catch (error) {
-            console.error("Error al eliminar:", error);
-            alert("❌ Error al eliminar");
-        }
+        try { await deleteDoc(doc(db, `postulaciones_${tipo}s`, id)); alert(`✅ Postulación de ${tipo} eliminada`); } 
+        catch (error) { console.error("Error al eliminar:", error); alert("❌ Error al eliminar"); }
     };
 
-    // ===========================================
-    // 3. ABRIR MODAL DE VALIDACIÓN (DETALLE)
-    // ===========================================
     window.abrirModalValidacion = async (id, tipo) => {
         tipoActual = tipo;
-        
         const docRef = doc(db, `postulaciones_${tipo}s`, id);
         const docSnap = await getDoc(docRef);
-        
-        if (!docSnap.exists()) {
-            alert("No se encontró la postulación");
-            return;
-        }
-        
+        if (!docSnap.exists()) { alert("No se encontró la postulación"); return; }
         postulacionActual = { id, ...docSnap.data() };
-        
         let html = '';
-        
-        if (tipo === 'comercio') {
-            html = generarHTMLComercio(postulacionActual);
-        } else if (tipo === 'martillero') {
-            html = generarHTMLMartillero(postulacionActual);
-        } else if (tipo === 'colaborador') {
-            html = generarHTMLColaborador(postulacionActual);
-        }
-        
+        if (tipo === 'comercio') html = generarHTMLComercio(postulacionActual);
+        else if (tipo === 'martillero') html = generarHTMLMartillero(postulacionActual);
+        else if (tipo === 'colaborador') html = generarHTMLColaborador(postulacionActual);
         document.getElementById('modal-contenido-dinamico').innerHTML = html;
         document.getElementById('modalValidacion').style.display = 'flex';
     };
 
     // ===========================================
-    // 4. GENERAR HTML PARA COMERCIO (CON VÍNCULOS)
+    // FUNCIÓN GENERAR HTML COMERCIO (CON DESCRIPCIÓN)
     // ===========================================
     function generarHTMLComercio(data) {
         return `
             <div class="info-grid">
-                <div class="info-item">
-                    <div class="info-label">Comercio</div>
-                    <div class="info-valor">${data.nombre_comercio || '-'}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">CUIT</div>
-                    <div class="info-valor">${formatearEnlace('cuit', data.cuit)}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Rubro</div>
-                    <div class="info-valor">${data.rubro || '-'}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Ubicación</div>
-                    <div class="info-valor">${data.provincia || ''} - ${data.localidad || ''}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Dirección</div>
-                    <div class="info-valor">${data.direccion || '-'}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Teléfono</div>
-                    <div class="info-valor">${formatearEnlace('telefono', data.telefono)}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Email</div>
-                    <div class="info-valor">${formatearEnlace('email', data.email)}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Instagram</div>
-                    <div class="info-valor">${formatearEnlace('instagram', data.instagram)}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">TikTok</div>
-                    <div class="info-valor">${formatearEnlace('tiktok', data.tiktok)}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Sitio Web</div>
-                    <div class="info-valor">${formatearEnlace('sitioWeb', data.sitioWeb)}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Facebook</div>
-                    <div class="info-valor">${formatearEnlace('facebook', data.facebook)}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Google Maps</div>
-                    <div class="info-valor">${formatearEnlace('maps', data.mapsUrl)}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Nombre Titular</div>
-                    <div class="info-valor">${data.nombre_titular || '-'}</div>
-                </div>
-                <div class="info-item">
-                    <div class="info-label">Apellido Titular</div>
-                    <div class="info-valor">${data.apellido_titular || '-'}</div>
-                </div>
+                <div class="info-item"><div class="info-label">Comercio</div><div class="info-valor">${data.nombre_comercio || '-'}</div></div>
+                <div class="info-item"><div class="info-label">CUIT</div><div class="info-valor">${formatearEnlace('cuit', data.cuit)}</div></div>
+                <div class="info-item"><div class="info-label">Rubro</div><div class="info-valor">${data.rubro || '-'}</div></div>
+                <div class="info-item"><div class="info-label">Ubicación</div><div class="info-valor">${data.provincia || ''} - ${data.localidad || ''}</div></div>
+                <div class="info-item"><div class="info-label">Dirección</div><div class="info-valor">${data.direccion || '-'}</div></div>
+                <div class="info-item"><div class="info-label">Teléfono</div><div class="info-valor">${formatearEnlace('telefono', data.telefono)}</div></div>
+                <div class="info-item"><div class="info-label">Email</div><div class="info-valor">${formatearEnlace('email', data.email)}</div></div>
+                <div class="info-item"><div class="info-label">Instagram</div><div class="info-valor">${formatearEnlace('instagram', data.instagram)}</div></div>
+                <div class="info-item"><div class="info-label">TikTok</div><div class="info-valor">${formatearEnlace('tiktok', data.tiktok)}</div></div>
+                <div class="info-item"><div class="info-label">Sitio Web</div><div class="info-valor">${formatearEnlace('sitioWeb', data.sitioWeb)}</div></div>
+                <div class="info-item"><div class="info-label">Facebook</div><div class="info-valor">${formatearEnlace('facebook', data.facebook)}</div></div>
+                <div class="info-item"><div class="info-label">Google Maps</div><div class="info-valor">${formatearEnlace('maps', data.mapsUrl)}</div></div>
+                <div class="info-item"><div class="info-label">Nombre Titular</div><div class="info-valor">${data.nombre_titular || '-'}</div></div>
+                <div class="info-item"><div class="info-label">Apellido Titular</div><div class="info-valor">${data.apellido_titular || '-'}</div></div>
+                <div class="info-item"><div class="info-label">Descripción del Comercio</div><div class="info-valor">${(data.descripcion_comercio || '-').replace(/\n/g, '<br>')}</div></div>
             </div>
-            
             <h3 style="color: var(--dorado); margin: 20px 0 10px;">📸 Documentación</h3>
             <div class="documentos-container">
-                ${data.foto_fachada_url ? `
-                    <div class="documento-card">
-                        <img src="${data.foto_fachada_url}" alt="Fachada" onclick="window.open('${data.foto_fachada_url}')">
-                        <a href="${data.foto_fachada_url}" target="_blank">Ver Fachada</a>
-                    </div>
-                ` : ''}
-                
-                ${data.foto_dni_url ? `
-                    <div class="documento-card">
-                        <img src="${data.foto_dni_url}" alt="DNI" onclick="window.open('${data.foto_dni_url}')">
-                        <a href="${data.foto_dni_url}" target="_blank">Ver DNI</a>
-                    </div>
-                ` : ''}
-                
-                ${data.foto_selfie_url ? `
-                    <div class="documento-card">
-                        <img src="${data.foto_selfie_url}" alt="Selfie" onclick="window.open('${data.foto_selfie_url}')">
-                        <a href="${data.foto_selfie_url}" target="_blank">Ver Selfie con DNI</a>
-                    </div>
-                ` : ''}
-                
-                ${data.constancia_afip_url ? `
-                    <div class="documento-card">
-                        <i class="fas fa-file-pdf" style="font-size: 48px; color: var(--rojo);"></i>
-                        <a href="${data.constancia_afip_url}" target="_blank">Ver Constancia AFIP</a>
-                    </div>
-                ` : ''}
+                ${data.foto_fachada_url ? `<div class="documento-card"><img src="${data.foto_fachada_url}" alt="Fachada" onclick="window.open('${data.foto_fachada_url}')"><a href="${data.foto_fachada_url}" target="_blank">Ver Fachada</a></div>` : ''}
+                ${data.foto_dni_url ? `<div class="documento-card"><img src="${data.foto_dni_url}" alt="DNI" onclick="window.open('${data.foto_dni_url}')"><a href="${data.foto_dni_url}" target="_blank">Ver DNI</a></div>` : ''}
+                ${data.foto_selfie_url ? `<div class="documento-card"><img src="${data.foto_selfie_url}" alt="Selfie" onclick="window.open('${data.foto_selfie_url}')"><a href="${data.foto_selfie_url}" target="_blank">Ver Selfie con DNI</a></div>` : ''}
+                ${data.constancia_afip_url ? `<div class="documento-card"><i class="fas fa-file-pdf" style="font-size: 48px; color: var(--rojo);"></i><a href="${data.constancia_afip_url}" target="_blank">Ver Constancia AFIP</a></div>` : ''}
             </div>
-            
             <div class="acciones-container">
-                <button class="btn btn-aprobar" onclick="aprobarComercio()">
-                    ✅ APROBAR
-                </button>
-                <button class="btn btn-rechazar" onclick="abrirModalRechazo()">
-                    ❌ RECHAZAR
-                </button>
-                <button class="btn btn-contactar" onclick="contactarWhatsApp()">
-                    📞 CONTACTAR
-                </button>
-                <button class="btn btn-eliminar-modal" onclick="eliminarPostulacionDesdeModal()">
-                    🗑️ ELIMINAR
-                </button>
+                <button class="btn btn-aprobar" onclick="aprobarComercio()">✅ APROBAR</button>
+                <button class="btn btn-rechazar" onclick="abrirModalRechazo()">❌ RECHAZAR</button>
+                <button class="btn btn-contactar" onclick="contactarWhatsApp()">📞 CONTACTAR</button>
+                <button class="btn btn-eliminar-modal" onclick="eliminarPostulacionDesdeModal()">🗑️ ELIMINAR</button>
             </div>
-            <button class="btn btn-volver" onclick="cerrarModal()" style="margin-top: 10px;">
-                VOLVER
-            </button>
+            <button class="btn btn-volver" onclick="cerrarModal()" style="margin-top: 10px;">VOLVER</button>
         `;
     }
 
-    function generarHTMLMartillero(data) {
-        return `<p style="text-align:center; padding:20px;">Próximamente - Validación de martilleros</p>`;
-    }
+    function generarHTMLMartillero(data) { return `<p style="text-align:center; padding:20px;">Próximamente - Validación de martilleros</p>`; }
+    function generarHTMLColaborador(data) { return `<p style="text-align:center; padding:20px;">Próximamente - Validación de colaboradores</p>`; }
 
-    function generarHTMLColaborador(data) {
-        return `<p style="text-align:center; padding:20px;">Próximamente - Validación de colaboradores</p>`;
-    }
-
-       // ===========================================
-    // 5. APROBAR COMERCIO (MODIFICADO)
+    // ===========================================
+    // APROBAR COMERCIO (GUARDA DATOS POSTULACION)
     // ===========================================
     window.aprobarComercio = async () => {
         try {
-            if (!postulacionActual) {
-                alert("❌ No hay postulación seleccionada");
-                return;
-            }
-            
-            if (tipoActual !== 'comercio') {
-                alert("❌ Esta función solo es para comercios");
-                return;
-            }
-            
+            if (!postulacionActual) { alert("❌ No hay postulación seleccionada"); return; }
+            if (tipoActual !== 'comercio') { alert("❌ Esta función solo es para comercios"); return; }
             if (!confirm("¿Confirmás que los datos son correctos y querés aprobar este comercio?")) return;
             
-            const idBase = postulacionActual.nombre_comercio
-                .toLowerCase()
-                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
-                .replace(/[^a-z0-9]/g, "_");
-            
+            const idBase = postulacionActual.nombre_comercio.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "_");
             const idComercio = `${idBase}_${Math.floor(1000 + Math.random() * 9000)}`;
             const tokenQR = `token_${idBase}_${Math.floor(100000 + Math.random() * 899999)}`;
             
-            console.log("📝 Verificando email en Firebase Auth...");
-            
             let uid = null;
-            
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, postulacionActual.email, "123456");
                 uid = userCredential.user.uid;
-                console.log("✅ Cuenta creada. UID:", uid);
             } catch (authError) {
-                console.error("❌ Error al crear cuenta:", authError);
-                
                 if (authError.code === 'auth/email-already-in-use') {
-                    console.log("📧 Email ya existe, obteniendo UID desde Auth...");
-                    
                     try {
                         const signInResult = await signInWithEmailAndPassword(auth, postulacionActual.email, "123456");
                         uid = signInResult.user.uid;
-                        console.log("✅ UID obtenido desde Auth:", uid);
                         await signOut(auth);
                     } catch (signInError) {
-                        console.error("❌ No se pudo obtener UID:", signInError);
-                        
-                        const usarManual = confirm(
-                            "El email ya existe en Auth pero no se pudo obtener el UID automáticamente.\n\n" +
-                            "¿Querés ingresar manualmente el UID?\n\n" +
-                            "(Si elegís CANCELAR, se usará un UID temporal que deberás corregir después)"
-                        );
-                        
+                        const usarManual = confirm("El email ya existe en Auth pero no se pudo obtener el UID automáticamente.\n\n¿Querés ingresar manualmente el UID?");
                         if (usarManual) {
                             const uidManual = prompt("Ingresá el UID del usuario (desde Firebase Console):");
-                            if (uidManual && uidManual.trim()) {
-                                uid = uidManual.trim();
-                            } else {
-                                alert("❌ Operación cancelada");
-                                return;
-                            }
-                        } else {
-                            uid = "temp_" + Date.now();
-                            console.warn("⚠️ Usando UID temporal:", uid);
-                        }
+                            if (uidManual && uidManual.trim()) uid = uidManual.trim();
+                            else return;
+                        } else { uid = "temp_" + Date.now(); }
                     }
-                } else {
-                    alert(`❌ Error al crear usuario: ${authError.message}`);
-                    return;
-                }
+                } else { alert(`❌ Error al crear usuario: ${authError.message}`); return; }
             }
+            if (!uid) { alert("❌ Error crítico: No se pudo obtener un UID válido"); return; }
             
-            if (!uid) {
-                alert("❌ Error crítico: No se pudo obtener un UID válido");
-                return;
-            }
-            
-            console.log("📝 Guardando comercio en Firestore con UID:", uid);
+            // CREAR OBJETO CON DATOS DE POSTULACIÓN
+            const datosPostulacion = {
+                cuit: postulacionActual.cuit,
+                nombre_titular: postulacionActual.nombre_titular,
+                apellido_titular: postulacionActual.apellido_titular,
+                foto_dni_url: postulacionActual.foto_dni_url,
+                foto_selfie_url: postulacionActual.foto_selfie_url,
+                foto_fachada_url: postulacionActual.foto_fachada_url,
+                constancia_afip_url: postulacionActual.constancia_afip_url,
+                descripcion_comercio: postulacionActual.descripcion_comercio || '',
+                fecha_postulacion: postulacionActual.fecha_postulacion,
+                instagram: postulacionActual.instagram || '',
+                facebook: postulacionActual.facebook || '',
+                tiktok: postulacionActual.tiktok || '',
+                sitioWeb: postulacionActual.sitioWeb || '',
+                mapsUrl: postulacionActual.mapsUrl || ''
+            };
             
             const nuevoComercio = {
                 uid: uid,
@@ -1367,22 +412,7 @@
                 password: "123456",
                 rol: "comerciante",
                 publicado: false,
-                datos_postulacion: {
-                    cuit: postulacionActual.cuit,
-                    nombre_titular: postulacionActual.nombre_titular,
-                    apellido_titular: postulacionActual.apellido_titular,
-                    foto_dni_url: postulacionActual.foto_dni_url,
-                    foto_selfie_url: postulacionActual.foto_selfie_url,
-                    foto_fachada_url: postulacionActual.foto_fachada_url,
-                    constancia_afip_url: postulacionActual.constancia_afip_url,
-                    descripcion_comercio: postulacionActual.descripcion_comercio || '',
-                    fecha_postulacion: postulacionActual.fecha_postulacion,
-                    instagram: postulacionActual.instagram || '',
-                    facebook: postulacionActual.facebook || '',
-                    tiktok: postulacionActual.tiktok || '',
-                    sitioWeb: postulacionActual.sitioWeb || '',
-                    mapsUrl: postulacionActual.mapsUrl || ''
-                },
+                datos_postulacion: datosPostulacion,
                 terminos_comercio_aceptados: false,
                 fecha_aceptacion_terminos: null,
                 primer_ingreso: true
@@ -1391,77 +421,34 @@
             await addDoc(collection(db, "comercios"), nuevoComercio);
             
             const postulacionRef = doc(db, "postulaciones_comercios", postulacionActual.id);
-            await updateDoc(postulacionRef, {
-                estado: "validado",
-                fecha_validacion: new Date().toISOString(),
-                validado_por: "admin@habitatcar.com",
-                id_comercio_generado: idComercio,
-                token_qr_generado: tokenQR
-            });
+            await updateDoc(postulacionRef, { estado: "validado", fecha_validacion: new Date().toISOString(), validado_por: "admin@habitatcar.com", id_comercio_generado: idComercio, token_qr_generado: tokenQR });
             
             try {
                 const enviarEmailSetup = httpsCallable(functions, 'enviarEmailSetup');
-                await enviarEmailSetup({
-                    email: postulacionActual.email,
-                    nombreComercio: postulacionActual.nombre_comercio,
-                    idComercio: idComercio
-                });
-            } catch (emailError) {
-                console.error("Error email:", emailError);
-            }
+                await enviarEmailSetup({ email: postulacionActual.email, nombreComercio: postulacionActual.nombre_comercio, idComercio: idComercio });
+            } catch (emailError) { console.error("Error email:", emailError); }
             
             alert(`✅ Comercio aprobado\n\nID: ${idComercio}\nContraseña: 123456\n\nESTADO: NO PUBLICADO (el comerciante debe publicarlo manualmente desde su panel)\n\n📋 DATOS DE POSTULACIÓN GUARDADOS EN LA FICHA DEL COMERCIO`);
             cerrarModal();
-            
-        } catch (error) {
-            console.error("❌ Error grave:", error);
-            alert("❌ Error al aprobar: " + error.message);
-        }
+        } catch (error) { console.error("❌ Error grave:", error); alert("❌ Error al aprobar: " + error.message); }
     };
     
-    // ===========================================
-    // 6. ELIMINAR DESDE MODAL
-    // ===========================================
-    window.eliminarPostulacionDesdeModal = async () => {
-        if (!postulacionActual) return;
-        await eliminarPostulacion(postulacionActual.id, tipoActual);
-        cerrarModal();
-    };
-
-    // ===========================================
-    // 7. CONTACTAR POR WHATSAPP
-    // ===========================================
+    window.eliminarPostulacionDesdeModal = async () => { if (!postulacionActual) return; await eliminarPostulacion(postulacionActual.id, tipoActual); cerrarModal(); };
+    
     window.contactarWhatsApp = () => {
         if (!postulacionActual) return;
-        
         let telefono = postulacionActual.telefono || '';
         telefono = telefono.replace(/\D/g, '');
-        
-        if (!telefono) {
-            alert("No hay número de teléfono");
-            return;
-        }
-        
+        if (!telefono) { alert("No hay número de teléfono"); return; }
         const nombreCompleto = `${postulacionActual.nombre_titular || ''} ${postulacionActual.apellido_titular || ''}`.trim();
         const mensaje = `Hola ${nombreCompleto || ''}, soy Maximiliano, Martillero Público de Habitat-Car (MP 279). Recibí tu postulación para ${postulacionActual.nombre_comercio || 'el comercio'}. ¿Podemos coordinar una breve llamada para validar los datos?`;
-        
         window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
     };
-
-    // ===========================================
-    // 8. CERRAR MODAL
-    // ===========================================
-    window.cerrarModal = () => {
-        document.getElementById('modalValidacion').style.display = 'none';
-        postulacionActual = null;
-        tipoActual = null;
-    };
-
-    // Inicializar
+    
+    window.cerrarModal = () => { document.getElementById('modalValidacion').style.display = 'none'; postulacionActual = null; tipoActual = null; };
+    
     cargarPostulaciones();
     cargarMotivosRechazo();
-    
-    // Agregar listener para actualizar vista previa
     document.getElementById('motivoLibre')?.addEventListener('input', actualizarVistaPrevia);
 </script>
 </body>
