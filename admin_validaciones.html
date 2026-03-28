@@ -862,42 +862,88 @@
     function generarHTMLMartillero(data) { return `<p style="text-align:center; padding:20px;">Próximamente - Validación de martilleros</p>`; }
     function generarHTMLColaborador(data) { return `<p style="text-align:center; padding:20px;">Próximamente - Validación de colaboradores</p>`; }
 
-    // ===========================================
-    // APROBAR COMERCIO (GUARDA DATOS POSTULACION)
+        // ===========================================
+    // 5. APROBAR COMERCIO (MODIFICADO PARA GUARDAR DATOS POSTULACIÓN)
     // ===========================================
     window.aprobarComercio = async () => {
         try {
-            if (!postulacionActual) { alert("❌ No hay postulación seleccionada"); return; }
-            if (tipoActual !== 'comercio') { alert("❌ Esta función solo es para comercios"); return; }
+            if (!postulacionActual) {
+                alert("❌ No hay postulación seleccionada");
+                return;
+            }
+            
+            if (tipoActual !== 'comercio') {
+                alert("❌ Esta función solo es para comercios");
+                return;
+            }
+            
             if (!confirm("¿Confirmás que los datos son correctos y querés aprobar este comercio?")) return;
             
-            const idBase = postulacionActual.nombre_comercio.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, "_");
+            const idBase = postulacionActual.nombre_comercio
+                .toLowerCase()
+                .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+                .replace(/[^a-z0-9]/g, "_");
+            
             const idComercio = `${idBase}_${Math.floor(1000 + Math.random() * 9000)}`;
             const tokenQR = `token_${idBase}_${Math.floor(100000 + Math.random() * 899999)}`;
             
+            console.log("📝 Verificando email en Firebase Auth...");
+            
             let uid = null;
+            
             try {
                 const userCredential = await createUserWithEmailAndPassword(auth, postulacionActual.email, "123456");
                 uid = userCredential.user.uid;
+                console.log("✅ Cuenta creada. UID:", uid);
             } catch (authError) {
+                console.error("❌ Error al crear cuenta:", authError);
+                
                 if (authError.code === 'auth/email-already-in-use') {
+                    console.log("📧 Email ya existe, obteniendo UID desde Auth...");
+                    
                     try {
                         const signInResult = await signInWithEmailAndPassword(auth, postulacionActual.email, "123456");
                         uid = signInResult.user.uid;
+                        console.log("✅ UID obtenido desde Auth:", uid);
                         await signOut(auth);
                     } catch (signInError) {
-                        const usarManual = confirm("El email ya existe en Auth pero no se pudo obtener el UID automáticamente.\n\n¿Querés ingresar manualmente el UID?");
+                        console.error("❌ No se pudo obtener UID:", signInError);
+                        
+                        const usarManual = confirm(
+                            "El email ya existe en Auth pero no se pudo obtener el UID automáticamente.\n\n" +
+                            "¿Querés ingresar manualmente el UID?\n\n" +
+                            "(Si elegís CANCELAR, se usará un UID temporal que deberás corregir después)"
+                        );
+                        
                         if (usarManual) {
                             const uidManual = prompt("Ingresá el UID del usuario (desde Firebase Console):");
-                            if (uidManual && uidManual.trim()) uid = uidManual.trim();
-                            else return;
-                        } else { uid = "temp_" + Date.now(); }
+                            if (uidManual && uidManual.trim()) {
+                                uid = uidManual.trim();
+                            } else {
+                                alert("❌ Operación cancelada");
+                                return;
+                            }
+                        } else {
+                            uid = "temp_" + Date.now();
+                            console.warn("⚠️ Usando UID temporal:", uid);
+                        }
                     }
-                } else { alert(`❌ Error al crear usuario: ${authError.message}`); return; }
+                } else {
+                    alert(`❌ Error al crear usuario: ${authError.message}`);
+                    return;
+                }
             }
-            if (!uid) { alert("❌ Error crítico: No se pudo obtener un UID válido"); return; }
             
-            // CREAR OBJETO CON DATOS DE POSTULACIÓN
+            if (!uid) {
+                alert("❌ Error crítico: No se pudo obtener un UID válido");
+                return;
+            }
+            
+            console.log("📝 Guardando comercio en Firestore con UID:", uid);
+            
+            // ===========================================
+            // ⭐ CREAR OBJETO CON TODOS LOS DATOS DE POSTULACIÓN
+            // ===========================================
             const datosPostulacion = {
                 cuit: postulacionActual.cuit,
                 nombre_titular: postulacionActual.nombre_titular,
@@ -952,7 +998,9 @@
                 password: "123456",
                 rol: "comerciante",
                 publicado: false,
+                // ⭐ NUEVO: guardar todos los datos de postulación
                 datos_postulacion: datosPostulacion,
+                // ⭐ NUEVO: campos para control de términos y primer ingreso
                 terminos_comercio_aceptados: false,
                 fecha_aceptacion_terminos: null,
                 primer_ingreso: true
@@ -961,28 +1009,32 @@
             await addDoc(collection(db, "comercios"), nuevoComercio);
             
             const postulacionRef = doc(db, "postulaciones_comercios", postulacionActual.id);
-            await updateDoc(postulacionRef, { estado: "validado", fecha_validacion: new Date().toISOString(), validado_por: "admin@habitatcar.com", id_comercio_generado: idComercio, token_qr_generado: tokenQR });
+            await updateDoc(postulacionRef, {
+                estado: "validado",
+                fecha_validacion: new Date().toISOString(),
+                validado_por: "admin@habitatcar.com",
+                id_comercio_generado: idComercio,
+                token_qr_generado: tokenQR
+            });
             
             try {
                 const enviarEmailSetup = httpsCallable(functions, 'enviarEmailSetup');
-                await enviarEmailSetup({ email: postulacionActual.email, nombreComercio: postulacionActual.nombre_comercio, idComercio: idComercio });
-            } catch (emailError) { console.error("Error email:", emailError); }
+                await enviarEmailSetup({
+                    email: postulacionActual.email,
+                    nombreComercio: postulacionActual.nombre_comercio,
+                    idComercio: idComercio
+                });
+            } catch (emailError) {
+                console.error("Error email:", emailError);
+            }
             
             alert(`✅ Comercio aprobado\n\nID: ${idComercio}\nContraseña: 123456\n\nESTADO: NO PUBLICADO (el comerciante debe publicarlo manualmente desde su panel)\n\n📋 DATOS DE POSTULACIÓN GUARDADOS EN LA FICHA DEL COMERCIO`);
             cerrarModal();
-        } catch (error) { console.error("❌ Error grave:", error); alert("❌ Error al aprobar: " + error.message); }
-    };
-    
-    window.eliminarPostulacionDesdeModal = async () => { if (!postulacionActual) return; await eliminarPostulacion(postulacionActual.id, tipoActual); cerrarModal(); };
-    
-    window.contactarWhatsApp = () => {
-        if (!postulacionActual) return;
-        let telefono = postulacionActual.telefono || '';
-        telefono = telefono.replace(/\D/g, '');
-        if (!telefono) { alert("No hay número de teléfono"); return; }
-        const nombreCompleto = `${postulacionActual.nombre_titular || ''} ${postulacionActual.apellido_titular || ''}`.trim();
-        const mensaje = `Hola ${nombreCompleto || ''}, soy Maximiliano, Martillero Público de Habitat-Car (MP 279). Recibí tu postulación para ${postulacionActual.nombre_comercio || 'el comercio'}. ¿Podemos coordinar una breve llamada para validar los datos?`;
-        window.open(`https://wa.me/${telefono}?text=${encodeURIComponent(mensaje)}`, '_blank');
+            
+        } catch (error) {
+            console.error("❌ Error grave:", error);
+            alert("❌ Error al aprobar: " + error.message);
+        }
     };
     
     window.cerrarModal = () => { document.getElementById('modalValidacion').style.display = 'none'; postulacionActual = null; tipoActual = null; };
