@@ -791,32 +791,49 @@ const tiposCalificacion = [
     { id: "muy_bueno", nombre: "Muy Bueno", icono: "fa-face-grin-stars", color: "estrella-dorada", texto: "Super!!!" }
 ];
 
+// ========== CAMBIO #3: FUNCIÓN CORREGIDA PARA CONTABILIZAR CALIFICACIONES (MODO PRUEBAS) ==========
 async function cargarCalificaciones(comercioId) {
     try {
+        console.log(`🔍 [DEBUG] Cargando calificaciones para comercio: ${comercioId}`);
+        
         const q = query(collection(db, "calificaciones_comercios"), where("comercioId", "==", comercioId));
         const querySnapshot = await getDocs(q);
         
+        console.log(`📊 [DEBUG] Documentos encontrados: ${querySnapshot.size}`);
+        
         if (querySnapshot.empty) {
+            console.log(`ℹ️ [DEBUG] No hay documento de calificaciones para ${comercioId}`);
+            // 🔧 MODO PRUEBAS: Retornar estructura vacía pero visible (sin regla de 10 calificaciones)
             return {
                 muy_malo: 0, malo: 0, regular_negativo: 0,
                 regular_positivo: 0, bueno: 0, muy_bueno: 0,
-                comentarios: []
+                comentarios: [],
+                total_calificaciones: 0
             };
         }
         
         const docSnap = querySnapshot.docs[0];
         const data = docSnap.data();
-        return {
+        console.log(`✅ [DEBUG] Datos cargados:`, data);
+        
+        // 🔧 MODO PRUEBAS: Mostrar TODOS los conteos, sin importar si hay menos de 10 calificaciones
+        // (La regla de anonimato de 10 calificaciones está PAUSADA para pruebas)
+        const resultado = {
             muy_malo: data.total_por_tipo?.muy_malo || 0,
             malo: data.total_por_tipo?.malo || 0,
             regular_negativo: data.total_por_tipo?.regular_negativo || 0,
             regular_positivo: data.total_por_tipo?.regular_positivo || 0,
             bueno: data.total_por_tipo?.bueno || 0,
             muy_bueno: data.total_por_tipo?.muy_bueno || 0,
-            comentarios: data.calificaciones || []
+            comentarios: data.calificaciones || [],
+            total_calificaciones: (data.calificaciones || []).length
         };
+        
+        console.log(`📈 [DEBUG] Contadores a mostrar:`, resultado);
+        return resultado;
+        
     } catch (error) {
-        console.error("Error cargando calificaciones:", error);
+        console.error("❌ [DEBUG] Error cargando calificaciones:", error);
         return null;
     }
 }
@@ -838,17 +855,23 @@ window.abrirModalCalificaciones = async (comercioId, nombreComercio) => {
         
         let html = `<p style="margin-bottom: 15px; color: #ccc;">Calificaciones para <strong style="color: var(--dorado);">${nombreComercio}</strong></p>`;
         
-        // Resumen de conteo
+        // 🔧 MODO PRUEBAS: Mostrar mensaje si no hay calificaciones aún
+        if (calificaciones.total_calificaciones === 0) {
+            html += `<div style="text-align:center; padding:20px; color:#aaa; background:rgba(0,0,0,0.2); border-radius:10px; margin-bottom:20px;">
+                        <i class="fas fa-info-circle"></i> Aún no hay calificaciones para este comercio
+                     </div>`;
+        }
+        
+        // Resumen de conteo (siempre visible en modo pruebas)
         html += `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px;">`;
         for (const tipo of tiposCalificacion) {
             const count = calificaciones[tipo.id] || 0;
-            if (count > 0) {
-                html += `<div style="text-align: center; min-width: 60px;">
-                            <i class="fas ${tipo.icono} ${tipo.color}" style="font-size: 20px;"></i>
-                            <div style="font-size: 18px; font-weight: bold;">${count}</div>
-                            <div style="font-size: 10px; color: #aaa;">${tipo.texto}</div>
-                         </div>`;
-            }
+            // 🔧 MODO PRUEBAS: Mostrar incluso si count es 0
+            html += `<div style="text-align: center; min-width: 60px;">
+                        <i class="fas ${tipo.icono} ${tipo.color}" style="font-size: 20px;"></i>
+                        <div style="font-size: 18px; font-weight: bold;">${count}</div>
+                        <div style="font-size: 10px; color: #aaa;">${tipo.texto}</div>
+                     </div>`;
         }
         html += `</div>`;
         
@@ -872,10 +895,6 @@ window.abrirModalCalificaciones = async (comercioId, nombreComercio) => {
                 }
                 html += `</div>`;
             }
-        }
-        
-        if (calificaciones.comentarios.length === 0) {
-            html += `<div style="text-align:center; padding:20px; color:#aaa;">No hay calificaciones aún</div>`;
         }
         
         contenido.innerHTML = html;
@@ -1250,7 +1269,6 @@ ${c.mapsUrl ? `<a href="${c.mapsUrl}" target="_blank" class="social-link" style=
     cargarContadoresCalificaciones(displayID);
 }
 
-// ========== CAMBIO #3: FUNCIÓN CORREGIDA PARA CONTABILIZAR CALIFICACIONES ==========
 async function cargarContadoresCalificaciones(comercioId) {
     try {
         // Esperar un frame de renderizado para asegurar que los elementos del DOM estén disponibles
@@ -1270,12 +1288,22 @@ async function cargarContadoresCalificaciones(comercioId) {
             for (const [id, valor] of Object.entries(contadores)) {
                 const elemento = document.getElementById(`${id}-${comercioId}`);
                 if (elemento) {
+                    // 🔧 MODO PRUEBAS: Forzar actualización visual incluso si el valor es 0
                     elemento.innerText = valor;
+                    // Efecto visual para confirmar que se actualizó
+                    elemento.style.transition = 'all 0.2s';
+                    elemento.style.transform = 'scale(1.2)';
+                    setTimeout(() => {
+                        elemento.style.transform = 'scale(1)';
+                    }, 200);
+                } else {
+                    console.warn(`⚠️ [DEBUG] No se encontró elemento: ${id}-${comercioId}`);
                 }
             }
+            console.log(`✅ [DEBUG] Contadores actualizados para ${comercioId}`);
         }
     } catch (error) {
-        console.error("Error cargando contadores:", error);
+        console.error("❌ [DEBUG] Error cargando contadores:", error);
     }
 }
 // ========== FIN CAMBIO #3 ==========
