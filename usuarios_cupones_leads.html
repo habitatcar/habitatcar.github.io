@@ -961,56 +961,50 @@ const tiposCalificacion = [
 ];
 // ========== FIN CAMBIO #2 ==========
 
-// ========== NUEVAS FUNCIONES DE CALIFICACIÓN (MODO PRUEBAS) ==========
-// Función para cargar calificaciones desde Firestore
+// ========== FUNCIONES DE CALIFICACIÓN CON ANONIMATO ==========
+// Función para cargar calificaciones desde Firestore con regla de anonimato
 async function cargarCalificaciones(comercioId) {
     try {
-        console.log(`🔍 [DEBUG] Cargando calificaciones para comercio: ${comercioId}`);
-        
         const q = query(collection(db, "calificaciones_comercios"), where("comercioId", "==", comercioId));
         const querySnapshot = await getDocs(q);
         
-        console.log(`📊 [DEBUG] Documentos encontrados: ${querySnapshot.size}`);
-        
         if (querySnapshot.empty) {
-            console.log(`ℹ️ [DEBUG] No hay documento de calificaciones para ${comercioId}. Retornando estructura vacía.`);
-            // 🔧 MODO PRUEBAS: Retornar estructura vacía pero visible (sin regla de 10 calificaciones)
             return {
                 muy_malo: 0, malo: 0, regular_negativo: 0,
                 regular_positivo: 0, bueno: 0, muy_bueno: 0,
                 comentarios: [],
-                total_calificaciones: 0
+                total_calificaciones: 0,
+                puedeMostrar: false
             };
         }
         
         const docSnap = querySnapshot.docs[0];
         const data = docSnap.data();
-        console.log(`✅ [DEBUG] Datos cargados para ${comercioId}:`, data);
         
-        // 🔧 MODO PRUEBAS: Mostrar TODOS los conteos, sin importar si hay menos de 10 calificaciones
-        // (La regla de anonimato de 10 calificaciones está PAUSADA para pruebas)
-        const resultado = {
-            muy_malo: data.total_por_tipo?.muy_malo ?? 0,
-            malo: data.total_por_tipo?.malo ?? 0,
-            regular_negativo: data.total_por_tipo?.regular_negativo ?? 0,
-            regular_positivo: data.total_por_tipo?.regular_positivo ?? 0,
-            bueno: data.total_por_tipo?.bueno ?? 0,
-            muy_bueno: data.total_por_tipo?.muy_bueno ?? 0,
-            comentarios: data.calificaciones ?? [],
-            total_calificaciones: (data.calificaciones ?? []).length
+        const total_calificaciones = (data.calificaciones ?? []).length;
+        // 🔐 REGLA DE ANONIMATO: Solo mostrar si hay 10 o más calificaciones
+        const puedeMostrar = total_calificaciones >= 10;
+        
+        return {
+            muy_malo: puedeMostrar ? (data.total_por_tipo?.muy_malo ?? 0) : null,
+            malo: puedeMostrar ? (data.total_por_tipo?.malo ?? 0) : null,
+            regular_negativo: puedeMostrar ? (data.total_por_tipo?.regular_negativo ?? 0) : null,
+            regular_positivo: puedeMostrar ? (data.total_por_tipo?.regular_positivo ?? 0) : null,
+            bueno: puedeMostrar ? (data.total_por_tipo?.bueno ?? 0) : null,
+            muy_bueno: puedeMostrar ? (data.total_por_tipo?.muy_bueno ?? 0) : null,
+            comentarios: puedeMostrar ? (data.calificaciones ?? []) : [],
+            total_calificaciones,
+            puedeMostrar
         };
         
-        console.log(`📈 [DEBUG] Contadores a mostrar para ${comercioId}:`, resultado);
-        return resultado;
-        
     } catch (error) {
-        console.error(`❌ [DEBUG] Error cargando calificaciones para ${comercioId}:`, error);
-        // Retornar estructura vacía en caso de error para no romper la UI
+        console.error(`❌ Error cargando calificaciones para ${comercioId}:`, error);
         return {
             muy_malo: 0, malo: 0, regular_negativo: 0,
             regular_positivo: 0, bueno: 0, muy_bueno: 0,
             comentarios: [],
-            total_calificaciones: 0
+            total_calificaciones: 0,
+            puedeMostrar: false
         };
     }
 }
@@ -1018,39 +1012,34 @@ async function cargarCalificaciones(comercioId) {
 // Función para cargar y actualizar los contadores visuales de calificaciones
 async function cargarContadoresCalificaciones(comercioId) {
     try {
-        // Esperar un frame de renderizado para asegurar que los elementos del DOM estén disponibles
         await new Promise(resolve => requestAnimationFrame(resolve));
         
         const calificaciones = await cargarCalificaciones(comercioId);
         if (calificaciones) {
             const contadores = {
-                'cont-muy-malo': calificaciones.muy_malo,
-                'cont-malo': calificaciones.malo,
-                'cont-regular-neg': calificaciones.regular_negativo,
-                'cont-regular-pos': calificaciones.regular_positivo,
-                'cont-bueno': calificaciones.bueno,
-                'cont-muy-bueno': calificaciones.muy_bueno
+                'cont-muy-malo': calificaciones.puedeMostrar ? calificaciones.muy_malo : '—',
+                'cont-malo': calificaciones.puedeMostrar ? calificaciones.malo : '—',
+                'cont-regular-neg': calificaciones.puedeMostrar ? calificaciones.regular_negativo : '—',
+                'cont-regular-pos': calificaciones.puedeMostrar ? calificaciones.regular_positivo : '—',
+                'cont-bueno': calificaciones.puedeMostrar ? calificaciones.bueno : '—',
+                'cont-muy-bueno': calificaciones.puedeMostrar ? calificaciones.muy_bueno : '—'
             };
             
             for (const [id, valor] of Object.entries(contadores)) {
                 const elemento = document.getElementById(`${id}-${comercioId}`);
                 if (elemento) {
-                    // 🔧 MODO PRUEBAS: Forzar actualización visual incluso si el valor es 0
                     elemento.innerText = valor;
-                    // Efecto visual para confirmar que se actualizó
+                    // Efecto visual sutil
                     elemento.style.transition = 'all 0.2s';
-                    elemento.style.transform = 'scale(1.2)';
+                    elemento.style.transform = 'scale(1.1)';
                     setTimeout(() => {
                         elemento.style.transform = 'scale(1)';
-                    }, 200);
-                } else {
-                    console.warn(`⚠️ [DEBUG] No se encontró elemento: ${id}-${comercioId}`);
+                    }, 150);
                 }
             }
-            console.log(`✅ [DEBUG] Contadores actualizados para ${comercioId}`);
         }
     } catch (error) {
-        console.error(`❌ [DEBUG] Error cargando contadores para ${comercioId}:`, error);
+        console.error(`❌ Error cargando contadores para ${comercioId}:`, error);
     }
 }
 
@@ -1072,45 +1061,60 @@ window.abrirModalCalificaciones = async (comercioId, nombreComercio) => {
         
         let html = `<p style="margin-bottom: 15px; color: #ccc;">Calificaciones para <strong style="color: var(--dorado);">${nombreComercio}</strong></p>`;
         
-        // 🔧 MODO PRUEBAS: Mostrar mensaje si no hay calificaciones aún
-        if (calificaciones.total_calificaciones === 0) {
-            html += `<div style="text-align:center; padding:20px; color:#aaa; background:rgba(0,0,0,0.2); border-radius:10px; margin-bottom:20px;">
-                        <i class="fas fa-info-circle"></i> Aún no hay calificaciones para este comercio
+        // 🔐 REGLA DE ANONIMATO: Verificar si hay suficientes calificaciones
+        if (!calificaciones.puedeMostrar) {
+            html += `<div style="text-align:center; padding:25px; background:linear-gradient(135deg, rgba(212,175,55,0.1), rgba(0,74,153,0.1)); border-radius:15px; border:2px dashed var(--dorado); margin-bottom:20px;">
+                        <i class="fas fa-lock" style="font-size:32px; color:var(--dorado); margin-bottom:10px;"></i>
+                        <p style="font-weight:600; color:#333; margin:0 0 8px 0;">Calificaciones en proceso</p>
+                        <p style="font-size:13px; color:#666; margin:0;">
+                            Se necesitan <strong>10 calificaciones</strong> para mostrar resultados.<br>
+                            Actualmente: <strong style="color:var(--naranja);">${calificaciones.total_calificaciones}/10</strong>
+                        </p>
                      </div>`;
-        }
-        
-        // Resumen de conteo (siempre visible en modo pruebas)
-        html += `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px;">`;
-        for (const tipo of tiposCalificacion) {
-            const count = calificaciones[tipo.id] ?? 0;
-            // 🔧 MODO PRUEBAS: Mostrar incluso si count es 0
-            html += `<div style="text-align: center; min-width: 60px;">
-                        <i class="fas ${tipo.icono} ${tipo.color}" style="font-size: 20px;"></i>
-                        <div style="font-size: 18px; font-weight: bold;">${count}</div>
-                        <div style="font-size: 10px; color: #aaa;">${tipo.texto}</div>
-                     </div>`;
-        }
-        html += `</div>`;
-        
-        // Comentarios por tipo
-        const comentariosPorTipo = {};
-        for (const tipo of tiposCalificacion) {
-            comentariosPorTipo[tipo.id] = (calificaciones.comentarios ?? []).filter(c => c.tipo === tipo.id);
-        }
-        
-        for (const tipo of tiposCalificacion) {
-            const comentarios = comentariosPorTipo[tipo.id];
-            if (comentarios.length > 0) {
-                html += `<div class="modal-calificaciones-tipo">
-                            <h4><i class="fas ${tipo.icono} ${tipo.color}"></i> ${tipo.nombre} (${comentarios.length})</h4>`;
-                for (const c of comentarios) {
-                    const fecha = new Date(c.fecha).toLocaleDateString('es-AR');
-                    html += `<div class="modal-calificaciones-comentario">
-                                <div>💬 ${c.comentario || "Sin comentario"}</div>
-                                <small>📅 ${fecha}</small>
-                             </div>`;
+            
+            // Mostrar contadores con guiones
+            html += `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.1); padding: 10px; border-radius: 10px; opacity: 0.6;">`;
+            for (const tipo of tiposCalificacion) {
+                html += `<div style="text-align: center; min-width: 60px;">
+                            <i class="fas ${tipo.icono} ${tipo.color}" style="font-size: 20px; opacity: 0.5;"></i>
+                            <div style="font-size: 18px; font-weight: bold; color: #999;">—</div>
+                            <div style="font-size: 10px; color: #aaa;">${tipo.texto}</div>
+                         </div>`;
+            }
+            html += `</div>`;
+        } else {
+            // Mostrar valores reales cuando hay 10+ calificaciones
+            html += `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px;">`;
+            for (const tipo of tiposCalificacion) {
+                const count = calificaciones[tipo.id] ?? 0;
+                html += `<div style="text-align: center; min-width: 60px;">
+                            <i class="fas ${tipo.icono} ${tipo.color}" style="font-size: 20px;"></i>
+                            <div style="font-size: 18px; font-weight: bold;">${count}</div>
+                            <div style="font-size: 10px; color: #aaa;">${tipo.texto}</div>
+                         </div>`;
+            }
+            html += `</div>`;
+            
+            // Mostrar comentarios
+            const comentariosPorTipo = {};
+            for (const tipo of tiposCalificacion) {
+                comentariosPorTipo[tipo.id] = (calificaciones.comentarios ?? []).filter(c => c.tipo === tipo.id);
+            }
+            
+            for (const tipo of tiposCalificacion) {
+                const comentarios = comentariosPorTipo[tipo.id];
+                if (comentarios.length > 0) {
+                    html += `<div class="modal-calificaciones-tipo">
+                                <h4><i class="fas ${tipo.icono} ${tipo.color}"></i> ${tipo.nombre} (${comentarios.length})</h4>`;
+                    for (const c of comentarios) {
+                        const fecha = new Date(c.fecha).toLocaleDateString('es-AR');
+                        html += `<div class="modal-calificaciones-comentario">
+                                    <div>💬 ${c.comentario || "Sin comentario"}</div>
+                                    <small>📅 ${fecha}</small>
+                                 </div>`;
+                    }
+                    html += `</div>`;
                 }
-                html += `</div>`;
             }
         }
         
@@ -1126,7 +1130,7 @@ window.abrirModalCalificaciones = async (comercioId, nombreComercio) => {
 window.cerrarModalCalificaciones = () => {
     document.getElementById('modalCalificaciones').style.display = 'none';
 };
-// ========== FIN NUEVAS FUNCIONES DE CALIFICACIÓN ==========
+// ========== FIN FUNCIONES DE CALIFICACIÓN ==========
 
 function cargarOpcionesCalificacion() {
     const container = document.getElementById('opcionesCalificacion');
