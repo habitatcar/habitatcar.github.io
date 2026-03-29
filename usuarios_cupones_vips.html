@@ -288,15 +288,17 @@
         }
         .error-icon-vip { width: 60px; margin-bottom: 15px; filter: drop-shadow(0 0 5px red); }
 
-        /* ✅ CAMBIO #1: Barcode container centrado correctamente */
+        /* ✅ CAMBIO #1: Barcode container más angosto y perfectamente centrado */
         .barcode-container {
             background: white; 
-            padding: 8px; 
+            padding: 10px; 
             border-radius: 10px;
             margin: 15px auto;
-            display: block;
-            width: 90%;
-            max-width: 280px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            width: 85%;
+            max-width: 240px;
         }
 
         .popup-estandar {
@@ -433,7 +435,7 @@
         (function () {
             history.pushState(null, null, document.URL);
             window.addEventListener('popstate', function () {
-                history.pushState(null, null, document.URL);
+                history.go(1);
             });
         })();
 
@@ -501,9 +503,11 @@
                     if (resetTimestamp > parseInt(ultimoResetDetectadoVIP)) {
                         const keys = Object.keys(localStorage);
                         keys.forEach(key => {
-                            if (key.startsWith('uso_vip_')) localStorage.removeItem(key);
-                            if (key.startsWith('inicios_cupones_vip')) localStorage.removeItem(key);
+                            if (key.startsWith('uso_vip_') || key.startsWith('toco_sorteo_')) {
+                                localStorage.removeItem(key);
+                            }
                         });
+                        localStorage.removeItem('inicios_cupones_vip');
                         ultimoResetDetectadoVIP = resetTimestamp.toString();
                         localStorage.setItem('ultimoResetDetectadoVIP', ultimoResetDetectadoVIP);
                         location.reload();
@@ -787,7 +791,7 @@
                 
                 // ✅ CAMBIO #3: Botón VALIDAR CON QR se oculta cuando está agotado
                 const botonValidarQR = esAgotado
-                    ? ''  // ✅ No se muestra el botón cuando está agotado
+                    ? ''
                     : `<button class="btn-act btn-validar" id="btn-val-${c.id}" onclick="abrirQR('${c.id}', '${c.tokenQR}')">Validar con QR</button>`;
                 
                 const botonUsarBeneficio = esAgotado
@@ -978,7 +982,7 @@
         }
 
         // Agregar botón de calificar a la tarjeta
-        function agregarBtnCalifVIP(id, nombre) {
+        function agregarBotonCalificarVIP(id, nombre) {
             if (yaCalificadoVIP[id]) return;
             setTimeout(() => {
                 const stack = document.getElementById(`btn-stack-${id}`);
@@ -1067,7 +1071,11 @@
                         if (scrollPosition > 0) {
                             window.scrollTo({ top: scrollPosition, behavior: 'auto' });
                         }
-                        agregarBtnCalifVIP(id, nom);
+                        agregarBotonCalificarVIP(id, nom);
+                        // ✅ CAMBIO #2: Recargar página automáticamente para ver actualización
+                        setTimeout(() => {
+                            location.reload();
+                        }, 500);
                     }
                 }, 1000);
             } catch(e) { 
@@ -1108,7 +1116,7 @@
             // 1. Cargar opciones
             cargarOpcionesCalifVIP();
             
-            // 2. Configurar botón de enviar (CON PREVENT DEFAULT Y DEBUG)
+            // 2. Configurar botón de enviar
             const btnEnviar = document.getElementById('btnEnviarCalifVIP');
             if (btnEnviar) {
                 btnEnviar.addEventListener('click', async (e) => {
