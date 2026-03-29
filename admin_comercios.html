@@ -764,12 +764,12 @@ import { getFirestore, collection, onSnapshot, doc, updateDoc, addDoc, deleteDoc
 import { getStorage, ref, uploadBytes, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
-    authDomain: "habitatcar-pro.firebaseapp.com",
-    projectId: "habitatcar-pro",
-    storageBucket: "habitatcar-pro.firebasestorage.app",
-    messagingSenderId: "311691258694",
-    appId: "1:311691258694:web:17a09051dcea7707af9347"
+apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+authDomain: "habitatcar-pro.firebaseapp.com",
+projectId: "habitatcar-pro",
+storageBucket: "habitatcar-pro.firebasestorage.app",
+messagingSenderId: "311691258694",
+appId: "1:311691258694:web:17a09051dcea7707af9347"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -780,290 +780,222 @@ window.db = db;
 let comercioSeleccionado = null;
 
 // =============================================
-// FUNCIONES PARA CALIFICACIONES - REGLA DE 10 CALIFICACIONES
+// FUNCIONES PARA CALIFICACIONES
 // =============================================
 const tiposCalificacion = [
-    { id: "muy_malo", nombre: "Muy Malo", icono: "fa-face-frown", color: "estrella-roja", texto: "Naaaa..." },
-    { id: "malo", nombre: "Malo", icono: "fa-face-frown", color: "estrella-roja", texto: "Tampoco" },
-    { id: "regular_negativo", nombre: "Regular (Negativo)", icono: "fa-face-meh", color: "estrella-roja", texto: "Poco Poco" },
-    { id: "regular_positivo", nombre: "Regular (Positivo)", icono: "fa-face-smile", color: "estrella-dorada", texto: "Ta... pasa" },
-    { id: "bueno", nombre: "Bueno", icono: "fa-face-smile", color: "estrella-dorada", texto: "Todo ok" },
-    { id: "muy_bueno", nombre: "Muy Bueno", icono: "fa-face-grin-stars", color: "estrella-dorada", texto: "Super!!!" }
+{ id: "muy_malo", nombre: "Muy Malo", icono: "fa-face-frown", color: "estrella-roja", texto: "Naaaa..." },
+{ id: "malo", nombre: "Malo", icono: "fa-face-frown", color: "estrella-roja", texto: "Tampoco" },
+{ id: "regular_negativo", nombre: "Regular (Negativo)", icono: "fa-face-meh", color: "estrella-roja", texto: "Poco Poco" },
+{ id: "regular_positivo", nombre: "Regular (Positivo)", icono: "fa-face-smile", color: "estrella-dorada", texto: "Ta... pasa" },
+{ id: "bueno", nombre: "Bueno", icono: "fa-face-smile", color: "estrella-dorada", texto: "Todo ok" },
+{ id: "muy_bueno", nombre: "Muy Bueno", icono: "fa-face-grin-stars", color: "estrella-dorada", texto: "Super!!!" }
 ];
 
-// ✅ FUNCIÓN CORREGIDA: Solo muestra calificaciones cuando hay ≥10 acumuladas
 async function cargarCalificaciones(comercioId) {
-    try {
-        const q = query(collection(db, "calificaciones_comercios"), where("comercioId", "==", comercioId));
-        const querySnapshot = await getDocs(q);
-        
-        if (querySnapshot.empty) {
-            return {
-                muy_malo: 0, malo: 0, regular_negativo: 0,
-                regular_positivo: 0, bueno: 0, muy_bueno: 0,
-                comentarios: [],
-                total_calificaciones: 0,
-                puedeMostrar: false
-            };
-        }
-        
-        const docSnap = querySnapshot.docs[0];
-        const data = docSnap.data();
-        
-        const total_calificaciones = (data.calificaciones || []).length;
-        
-        // ✅ REGLA DE ANONIMATO: Solo mostrar si hay 10 o más calificaciones
-        const puedeMostrar = total_calificaciones >= 10;
-        
-        if (puedeMostrar) {
-            // ✅ Mostrar contadores reales y comentarios (anonimizados)
-            return {
-                muy_malo: data.total_por_tipo?.muy_malo || 0,
-                malo: data.total_por_tipo?.malo || 0,
-                regular_negativo: data.total_por_tipo?.regular_negativo || 0,
-                regular_positivo: data.total_por_tipo?.regular_positivo || 0,
-                bueno: data.total_por_tipo?.bueno || 0,
-                muy_bueno: data.total_por_tipo?.muy_bueno || 0,
-                comentarios: data.calificaciones || [],
-                total_calificaciones,
-                puedeMostrar: true
-            };
-        } else {
-            // ✅ Menos de 10: NO mostrar contadores ni comentarios (anonimato activo)
-            return {
-                muy_malo: null, malo: null, regular_negativo: null,
-                regular_positivo: null, bueno: null, muy_bueno: null,
-                comentarios: [],
-                total_calificaciones,
-                puedeMostrar: false
-            };
-        }
-        
-    } catch (error) {
-        console.error("❌ Error cargando calificaciones:", error);
-        return null;
-    }
+try {
+const q = query(collection(db, "calificaciones_comercios"), where("comercioId", "==", comercioId));
+const querySnapshot = await getDocs(q);
+
+if (querySnapshot.empty) {
+return {
+muy_malo: 0, malo: 0, regular_negativo: 0,
+regular_positivo: 0, bueno: 0, muy_bueno: 0,
+comentarios: []
+};
+}
+
+const docSnap = querySnapshot.docs[0];
+const data = docSnap.data();
+return {
+muy_malo: data.total_por_tipo?.muy_malo || 0,
+malo: data.total_por_tipo?.malo || 0,
+regular_negativo: data.total_por_tipo?.regular_negativo || 0,
+regular_positivo: data.total_por_tipo?.regular_positivo || 0,
+bueno: data.total_por_tipo?.bueno || 0,
+muy_bueno: data.total_por_tipo?.muy_bueno || 0,
+comentarios: data.calificaciones || []
+};
+} catch (error) {
+console.error("Error cargando calificaciones:", error);
+return null;
+}
 }
 
 window.abrirModalCalificaciones = async (comercioId, nombreComercio) => {
-    const modal = document.getElementById('modalCalificaciones');
-    const contenido = document.getElementById('modalCalificacionesContenido');
-    
-    modal.style.display = 'flex';
-    contenido.innerHTML = '<div style="text-align:center; padding:20px;"><div class="spinner"></div>Cargando calificaciones...</div>';
-    
-    try {
-        const calificaciones = await cargarCalificaciones(comercioId);
-        
-        if (!calificaciones) {
-            contenido.innerHTML = '<div style="text-align:center; padding:20px; color:red;">❌ Error al cargar calificaciones</div>';
-            return;
-        }
-        
-        let html = `<p style="margin-bottom: 15px; color: #ccc;">Calificaciones para <strong style="color: var(--dorado);">${nombreComercio}</strong></p>`;
-        
-        // ✅ Si no hay 10 calificaciones, mostrar mensaje de anonimato
-        if (!calificaciones.puedeMostrar) {
-            html += `
-                <div style="text-align:center; padding:30px; background:rgba(212,175,55,0.15); border:2px dashed var(--dorado); border-radius:12px; margin-bottom:20px;">
-                    <i class="fas fa-lock" style="font-size:48px; color:var(--dorado); margin-bottom:15px;"></i>
-                    <p style="font-weight:600; color:#fff; margin:0 0 8px 0;">Calificaciones en proceso</p>
-                    <p style="font-size:13px; color:#aaa; margin:0;">
-                        Se necesitan <strong>10 calificaciones</strong> para mostrar resultados.<br>
-                        Actualmente: <strong style="color:var(--naranja);">${calificaciones.total_calificaciones}/10</strong>
-                    </p>
-                </div>
-            `;
-            contenido.innerHTML = html;
-            return;
-        }
-        
-        // ✅ Si hay ≥10 calificaciones, mostrar contadores y comentarios
-        html += `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px;">`;
-        for (const tipo of tiposCalificacion) {
-            const count = calificaciones[tipo.id] || 0;
-            html += `<div style="text-align: center; min-width: 60px;">
-                        <i class="fas ${tipo.icono} ${tipo.color}" style="font-size: 20px;"></i>
-                        <div style="font-size: 18px; font-weight: bold;">${count}</div>
-                        <div style="font-size: 10px; color: #aaa;">${tipo.texto}</div>
-                     </div>`;
-        }
-        html += `</div>`;
-        
-        // Comentarios por tipo (solo si hay ≥10)
-        const comentariosPorTipo = {};
-        for (const tipo of tiposCalificacion) {
-            comentariosPorTipo[tipo.id] = calificaciones.comentarios.filter(c => c.tipo === tipo.id);
-        }
-        
-        for (const tipo of tiposCalificacion) {
-            const comentarios = comentariosPorTipo[tipo.id];
-            if (comentarios.length > 0) {
-                html += `<div class="modal-calificaciones-tipo">
-                            <h4><i class="fas ${tipo.icono} ${tipo.color}"></i> ${tipo.nombre} (${comentarios.length})</h4>`;
-                for (const c of comentarios) {
-                    const fecha = new Date(c.fecha).toLocaleDateString('es-AR');
-                    html += `<div class="modal-calificaciones-comentario">
-                                <div>💬 ${c.comentario || "Sin comentario"}</div>
-                                <small>📅 ${fecha}</small>
-                             </div>`;
-                }
-                html += `</div>`;
-            }
-        }
-        
-        contenido.innerHTML = html;
-        
-    } catch (error) {
-        console.error("Error:", error);
-        contenido.innerHTML = `<div style="text-align:center; padding:20px; color:red;">❌ Error: ${error.message}</div>`;
-    }
+const modal = document.getElementById('modalCalificaciones');
+const contenido = document.getElementById('modalCalificacionesContenido');
+
+modal.style.display = 'flex';
+contenido.innerHTML = '<div style="text-align:center; padding:20px;"><div class="spinner"></div>Cargando calificaciones...</div>';
+
+try {
+const calificaciones = await cargarCalificaciones(comercioId);
+
+if (!calificaciones) {
+contenido.innerHTML = '<div style="text-align:center; padding:20px; color:red;">❌ Error al cargar calificaciones</div>';
+return;
+}
+
+let html = `<p style="margin-bottom: 15px; color: #ccc;">Calificaciones para <strong style="color: var(--dorado);">${nombreComercio}</strong></p>`;
+
+// Resumen de conteo
+html += `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px;">`;
+for (const tipo of tiposCalificacion) {
+const count = calificaciones[tipo.id] || 0;
+if (count > 0) {
+html += `<div style="text-align: center; min-width: 60px;">
+                           <i class="fas ${tipo.icono} ${tipo.color}" style="font-size: 20px;"></i>
+                           <div style="font-size: 18px; font-weight: bold;">${count}</div>
+                           <div style="font-size: 10px; color: #aaa;">${tipo.texto}</div>
+                        </div>`;
+}
+}
+html += `</div>`;
+
+// Comentarios por tipo
+const comentariosPorTipo = {};
+for (const tipo of tiposCalificacion) {
+comentariosPorTipo[tipo.id] = calificaciones.comentarios.filter(c => c.tipo === tipo.id);
+}
+
+for (const tipo of tiposCalificacion) {
+const comentarios = comentariosPorTipo[tipo.id];
+if (comentarios.length > 0) {
+html += `<div class="modal-calificaciones-tipo">
+                           <h4><i class="fas ${tipo.icono} ${tipo.color}"></i> ${tipo.nombre} (${comentarios.length})</h4>`;
+for (const c of comentarios) {
+const fecha = new Date(c.fecha).toLocaleDateString('es-AR');
+html += `<div class="modal-calificaciones-comentario">
+                               <div>💬 ${c.comentario || "Sin comentario"}</div>
+                               <small>📅 ${fecha}</small>
+                            </div>`;
+}
+html += `</div>`;
+}
+}
+
+if (calificaciones.comentarios.length === 0) {
+html += `<div style="text-align:center; padding:20px; color:#aaa;">No hay calificaciones aún</div>`;
+}
+
+contenido.innerHTML = html;
+
+} catch (error) {
+console.error("Error:", error);
+contenido.innerHTML = `<div style="text-align:center; padding:20px; color:red;">❌ Error: ${error.message}</div>`;
+}
 };
 
 window.cerrarModalCalificaciones = () => {
-    document.getElementById('modalCalificaciones').style.display = 'none';
+document.getElementById('modalCalificaciones').style.display = 'none';
 };
-
-// ✅ FUNCIÓN ACTUALIZADA: Contadores en tarjetas solo muestran valores si hay ≥10 calificaciones
-async function cargarContadoresCalificaciones(comercioId) {
-    try {
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        
-        const calificaciones = await cargarCalificaciones(comercioId);
-        if (calificaciones) {
-            // ✅ Si no hay 10 calificaciones, mostrar "—" en lugar de números
-            const mostrarValores = calificaciones.puedeMostrar;
-            
-            const contadores = {
-                'cont-muy-malo': mostrarValores ? (calificaciones.muy_malo || 0) : '—',
-                'cont-malo': mostrarValores ? (calificaciones.malo || 0) : '—',
-                'cont-regular-neg': mostrarValores ? (calificaciones.regular_negativo || 0) : '—',
-                'cont-regular-pos': mostrarValores ? (calificaciones.regular_positivo || 0) : '—',
-                'cont-bueno': mostrarValores ? (calificaciones.bueno || 0) : '—',
-                'cont-muy-bueno': mostrarValores ? (calificaciones.muy_bueno || 0) : '—'
-            };
-            
-            for (const [id, valor] of Object.entries(contadores)) {
-                const elemento = document.getElementById(`${id}-${comercioId}`);
-                if (elemento) {
-                    elemento.innerText = valor;
-                    // Efecto visual sutil
-                    elemento.style.transition = 'all 0.2s';
-                    elemento.style.opacity = mostrarValores ? '1' : '0.6';
-                }
-            }
-        }
-    } catch (error) {
-        console.error("❌ Error cargando contadores:", error);
-    }
-}
 
 // =============================================
 // FUNCIONES DATOS PERSONALES
 // =============================================
 window.abrirModalDatosPersonales = async (idComercio) => {
-    const modal = document.getElementById('modalDatosPersonales');
-    const contenido = document.getElementById('modalDatosContenido');
-    
-    modal.style.display = 'flex';
-    contenido.innerHTML = '<div style="text-align:center; padding:40px;"><div class="spinner"></div>Cargando datos personales...</div>';
-    
-    try {
-        const q = query(collection(db, "comercios"), where("idComercio", "==", idComercio));
-        const querySnapshot = await getDocs(q);
-        
-        if (querySnapshot.empty) {
-            contenido.innerHTML = '<div style="text-align:center; padding:40px; color:red;">❌ No se encontraron datos del comercio</div>';
-            return;
-        }
-        
-        const comercioDoc = querySnapshot.docs[0];
-        const comercio = { id: comercioDoc.id, ...comercioDoc.data() };
-        comercioSeleccionado = comercio;
-        
-        const datos = comercio.datos_postulacion || {};
-        
-        let html = `
-            <div class="modal-datos-seccion">
-                <h3>🏪 DATOS DEL COMERCIO</h3>
-                <div class="modal-datos-grid">
-                    <div class="modal-datos-item"><div class="modal-datos-label">Nombre Comercial</div><div class="modal-datos-valor">${comercio.nombre || '-'}</div></div>
-                    <div class="modal-datos-item"><div class="modal-datos-label">Rubro</div><div class="modal-datos-valor">${comercio.rubro || '-'}</div></div>
-                    <div class="modal-datos-item"><div class="modal-datos-label">CUIT</div><div class="modal-datos-valor">${datos.cuit || comercio.cuit || '-'}</div></div>
-                    <div class="modal-datos-item"><div class="modal-datos-label">Dirección</div><div class="modal-datos-valor">${comercio.direccion || '-'}</div></div>
-                    <div class="modal-datos-item"><div class="modal-datos-label">Ubicación</div><div class="modal-datos-valor">${comercio.ciudad || comercio.localidad || '-'} - ${comercio.provincia || '-'}</div></div>
-                    <div class="modal-datos-item"><div class="modal-datos-label">Teléfono / WhatsApp</div><div class="modal-datos-valor"><a href="https://wa.me/${comercio.telefono?.replace(/\D/g, '')}" target="_blank">${comercio.telefono || '-'}</a></div></div>
-                    <div class="modal-datos-item"><div class="modal-datos-label">Email Dueño</div><div class="modal-datos-valor"><a href="mailto:${comercio.emailDueno}">${comercio.emailDueno || '-'}</a></div></div>
-                </div>
-            </div>
-            <div class="modal-datos-seccion">
-                <h3>👤 DATOS DEL TITULAR</h3>
-                <div class="modal-datos-grid">
-                    <div class="modal-datos-item"><div class="modal-datos-label">Nombre Titular</div><div class="modal-datos-valor">${datos.nombre_titular || comercio.nombre_titular || '-'}</div></div>
-                    <div class="modal-datos-item"><div class="modal-datos-label">Apellido Titular</div><div class="modal-datos-valor">${datos.apellido_titular || comercio.apellido_titular || '-'}</div></div>
-                </div>
-            </div>
-            <div class="modal-datos-seccion">
-                <h3>🌐 REDES SOCIALES</h3>
-                <div class="modal-datos-grid">
-                    <div class="modal-datos-item"><div class="modal-datos-label">Instagram</div><div class="modal-datos-valor">${datos.instagram || comercio.instagram ? `<a href="${datos.instagram || comercio.instagram}" target="_blank">${datos.instagram || comercio.instagram}</a>` : '-'}</div></div>
-                    <div class="modal-datos-item"><div class="modal-datos-label">Facebook</div><div class="modal-datos-valor">${datos.facebook || comercio.facebook ? `<a href="${datos.facebook || comercio.facebook}" target="_blank">${datos.facebook || comercio.facebook}</a>` : '-'}</div></div>
-                    <div class="modal-datos-item"><div class="modal-datos-label">TikTok</div><div class="modal-datos-valor">${datos.tiktok || comercio.tiktok ? `<a href="${datos.tiktok || comercio.tiktok}" target="_blank">${datos.tiktok || comercio.tiktok}</a>` : '-'}</div></div>
-                    <div class="modal-datos-item"><div class="modal-datos-label">Sitio Web</div><div class="modal-datos-valor">${datos.sitioWeb || comercio.sitioWeb ? `<a href="${datos.sitioWeb || comercio.sitioWeb}" target="_blank">${datos.sitioWeb || comercio.sitioWeb}</a>` : '-'}</div></div>
-                    <div class="modal-datos-item"><div class="modal-datos-label">Google Maps</div><div class="modal-datos-valor">${comercio.mapsUrl ? `<a href="${comercio.mapsUrl}" target="_blank">Ver ubicación</a>` : '-'}</div></div>
-                </div>
-            </div>
-            <div class="modal-datos-seccion">
-                <h3>📝 DESCRIPCIÓN DEL COMERCIO</h3>
-                <div class="modal-datos-descripcion">${(datos.descripcion_comercio || comercio.descripcion_comercio || 'No se proporcionó descripción').replace(/\n/g, '<br>')}</div>
-            </div>
-            <div class="modal-datos-seccion">
-                <h3>📸 DOCUMENTACIÓN DE POSTULACIÓN</h3>
-                <div class="modal-datos-imagenes">
-                    ${datos.foto_selfie_url ? `<img src="${datos.foto_selfie_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_selfie_url}')" title="Selfie con DNI">` : ''}
-                    ${datos.foto_dni_url ? `<img src="${datos.foto_dni_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_dni_url}')" title="DNI frente">` : ''}
-                    ${datos.foto_fachada_url ? `<img src="${datos.foto_fachada_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_fachada_url}')" title="Fachada del local">` : ''}
-                    ${datos.constancia_afip_url ? `<div class="modal-datos-item" style="text-align:center;"><i class="fas fa-file-pdf" style="font-size: 48px; color: var(--rojo);"></i><div><a href="${datos.constancia_afip_url}" target="_blank">Ver Constancia AFIP</a></div></div>` : ''}
-                </div>
-            </div>
-            <div class="modal-datos-seccion">
-                <h3>📅 FECHA DE POSTULACIÓN</h3>
-                <div class="modal-datos-item"><div class="modal-datos-valor">${datos.fecha_postulacion ? new Date(datos.fecha_postulacion).toLocaleString('es-AR') : comercio.fecha_alta ? new Date(comercio.fecha_alta).toLocaleString('es-AR') : '-'}</div></div>
-            </div>
-        `;
-        
-        contenido.innerHTML = html;
-        
-    } catch (error) {
-        console.error("Error cargando datos personales:", error);
-        contenido.innerHTML = `<div style="text-align:center; padding:40px; color:red;">❌ Error al cargar datos: ${error.message}</div>`;
-    }
+const modal = document.getElementById('modalDatosPersonales');
+const contenido = document.getElementById('modalDatosContenido');
+
+modal.style.display = 'flex';
+contenido.innerHTML = '<div style="text-align:center; padding:40px;"><div class="spinner"></div>Cargando datos personales...</div>';
+
+try {
+const q = query(collection(db, "comercios"), where("idComercio", "==", idComercio));
+const querySnapshot = await getDocs(q);
+
+if (querySnapshot.empty) {
+contenido.innerHTML = '<div style="text-align:center; padding:40px; color:red;">❌ No se encontraron datos del comercio</div>';
+return;
+}
+
+const comercioDoc = querySnapshot.docs[0];
+const comercio = { id: comercioDoc.id, ...comercioDoc.data() };
+comercioSeleccionado = comercio;
+
+const datos = comercio.datos_postulacion || {};
+
+let html = `
+           <div class="modal-datos-seccion">
+               <h3>🏪 DATOS DEL COMERCIO</h3>
+               <div class="modal-datos-grid">
+                   <div class="modal-datos-item"><div class="modal-datos-label">Nombre Comercial</div><div class="modal-datos-valor">${comercio.nombre || '-'}</div></div>
+                   <div class="modal-datos-item"><div class="modal-datos-label">Rubro</div><div class="modal-datos-valor">${comercio.rubro || '-'}</div></div>
+                   <div class="modal-datos-item"><div class="modal-datos-label">CUIT</div><div class="modal-datos-valor">${datos.cuit || comercio.cuit || '-'}</div></div>
+                   <div class="modal-datos-item"><div class="modal-datos-label">Dirección</div><div class="modal-datos-valor">${comercio.direccion || '-'}</div></div>
+                   <div class="modal-datos-item"><div class="modal-datos-label">Ubicación</div><div class="modal-datos-valor">${comercio.ciudad || comercio.localidad || '-'} - ${comercio.provincia || '-'}</div></div>
+                   <div class="modal-datos-item"><div class="modal-datos-label">Teléfono / WhatsApp</div><div class="modal-datos-valor"><a href="https://wa.me/${comercio.telefono?.replace(/\\D/g, '')}" target="_blank">${comercio.telefono || '-'}</a></div></div>
+                   <div class="modal-datos-item"><div class="modal-datos-label">Email Dueño</div><div class="modal-datos-valor"><a href="mailto:${comercio.emailDueno}">${comercio.emailDueno || '-'}</a></div></div>
+               </div>
+           </div>
+           <div class="modal-datos-seccion">
+               <h3>👤 DATOS DEL TITULAR</h3>
+               <div class="modal-datos-grid">
+                   <div class="modal-datos-item"><div class="modal-datos-label">Nombre Titular</div><div class="modal-datos-valor">${datos.nombre_titular || comercio.nombre_titular || '-'}</div></div>
+                   <div class="modal-datos-item"><div class="modal-datos-label">Apellido Titular</div><div class="modal-datos-valor">${datos.apellido_titular || comercio.apellido_titular || '-'}</div></div>
+               </div>
+           </div>
+           <div class="modal-datos-seccion">
+               <h3>🌐 REDES SOCIALES</h3>
+               <div class="modal-datos-grid">
+                   <div class="modal-datos-item"><div class="modal-datos-label">Instagram</div><div class="modal-datos-valor">${datos.instagram || comercio.instagram ? `<a href="${datos.instagram || comercio.instagram}" target="_blank">${datos.instagram || comercio.instagram}</a>` : '-'}</div></div>
+                   <div class="modal-datos-item"><div class="modal-datos-label">Facebook</div><div class="modal-datos-valor">${datos.facebook || comercio.facebook ? `<a href="${datos.facebook || comercio.facebook}" target="_blank">${datos.facebook || comercio.facebook}</a>` : '-'}</div></div>
+                   <div class="modal-datos-item"><div class="modal-datos-label">TikTok</div><div class="modal-datos-valor">${datos.tiktok || comercio.tiktok ? `<a href="${datos.tiktok || comercio.tiktok}" target="_blank">${datos.tiktok || comercio.tiktok}</a>` : '-'}</div></div>
+                   <div class="modal-datos-item"><div class="modal-datos-label">Sitio Web</div><div class="modal-datos-valor">${datos.sitioWeb || comercio.sitioWeb ? `<a href="${datos.sitioWeb || comercio.sitioWeb}" target="_blank">${datos.sitioWeb || comercio.sitioWeb}</a>` : '-'}</div></div>
+                   <div class="modal-datos-item"><div class="modal-datos-label">Google Maps</div><div class="modal-datos-valor">${comercio.mapsUrl ? `<a href="${comercio.mapsUrl}" target="_blank">Ver ubicación</a>` : '-'}</div></div>
+               </div>
+           </div>
+           <div class="modal-datos-seccion">
+               <h3>📝 DESCRIPCIÓN DEL COMERCIO</h3>
+               <div class="modal-datos-descripcion">${(datos.descripcion_comercio || comercio.descripcion_comercio || 'No se proporcionó descripción').replace(/\n/g, '<br>')}</div>
+           </div>
+           <div class="modal-datos-seccion">
+               <h3>📸 DOCUMENTACIÓN DE POSTULACIÓN</h3>
+               <div class="modal-datos-imagenes">
+                   ${datos.foto_selfie_url ? `<img src="${datos.foto_selfie_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_selfie_url}')" title="Selfie con DNI">` : ''}
+                   ${datos.foto_dni_url ? `<img src="${datos.foto_dni_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_dni_url}')" title="DNI frente">` : ''}
+                   ${datos.foto_fachada_url ? `<img src="${datos.foto_fachada_url}" class="modal-datos-imagen" onclick="window.zoomImagen('${datos.foto_fachada_url}')" title="Fachada del local">` : ''}
+                   ${datos.constancia_afip_url ? `<div class="modal-datos-item" style="text-align:center;"><i class="fas fa-file-pdf" style="font-size: 48px; color: var(--rojo);"></i><div><a href="${datos.constancia_afip_url}" target="_blank">Ver Constancia AFIP</a></div></div>` : ''}
+               </div>
+           </div>
+           <div class="modal-datos-seccion">
+               <h3>📅 FECHA DE POSTULACIÓN</h3>
+               <div class="modal-datos-item"><div class="modal-datos-valor">${datos.fecha_postulacion ? new Date(datos.fecha_postulacion).toLocaleString('es-AR') : comercio.fecha_alta ? new Date(comercio.fecha_alta).toLocaleString('es-AR') : '-'}</div></div>
+           </div>
+       `;
+
+contenido.innerHTML = html;
+
+} catch (error) {
+console.error("Error cargando datos personales:", error);
+contenido.innerHTML = `<div style="text-align:center; padding:40px; color:red;">❌ Error al cargar datos: ${error.message}</div>`;
+}
 };
 
 window.cerrarModalDatos = () => {
-    document.getElementById('modalDatosPersonales').style.display = 'none';
-    comercioSeleccionado = null;
+document.getElementById('modalDatosPersonales').style.display = 'none';
+comercioSeleccionado = null;
 };
 
 window.editarDatosComercio = () => {
-    if (comercioSeleccionado) {
-        window.edit(null, comercioSeleccionado.id);
-        cerrarModalDatos();
-        document.querySelector('.card-form').scrollIntoView({ behavior: 'smooth' });
-    }
+if (comercioSeleccionado) {
+window.edit(null, comercioSeleccionado.id);
+cerrarModalDatos();
+document.querySelector('.card-form').scrollIntoView({ behavior: 'smooth' });
+}
 };
 
 window.zoomImagen = (url) => {
-    document.getElementById('modal-img').src = url;
-    document.getElementById('modal').style.display = 'flex';
+document.getElementById('modal-img').src = url;
+document.getElementById('modal').style.display = 'flex';
 };
 
 async function subirLogoAFirebase(archivo) {
-    if (!archivo) return null;
-    const nombreArchivo = `logos/${Date.now()}_${archivo.name}`;
-    const storageRef = ref(storage, nombreArchivo);
-    const snapshot = await uploadBytes(storageRef, archivo);
-    return await getDownloadURL(snapshot.ref);
+if (!archivo) return null;
+const nombreArchivo = `logos/${Date.now()}_${archivo.name}`;
+const storageRef = ref(storage, nombreArchivo);
+const snapshot = await uploadBytes(storageRef, archivo);
+return await getDownloadURL(snapshot.ref);
 }
 
 const urlParams = new URLSearchParams(window.location.search);
@@ -1075,65 +1007,65 @@ let FILTRO_ESTADO = 'todos';
 const esComerciante = idForzado !== null && esModoAdmin;
 
 function configurarFechaMinima() {
-    const ahora = new Date();
-    ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
-    const minISO = ahora.toISOString().slice(0, 16);
-    document.getElementById('fecha_sorteo').min = minISO;
-    document.getElementById('promo_vence').min = minISO;
+const ahora = new Date();
+ahora.setMinutes(ahora.getMinutes() - ahora.getTimezoneOffset());
+const minISO = ahora.toISOString().slice(0, 16);
+document.getElementById('fecha_sorteo').min = minISO;
+document.getElementById('promo_vence').min = minISO;
 }
 
 window.actualizarLocalidades = async (seleccionada = "") => {
-    const prov = document.getElementById('provincia-input').value;
-    const ciudadSelect = document.getElementById('ciudad-input');
-    ciudadSelect.innerHTML = '<option value="">Cargando localidades...</option>';
-    if (!prov) { ciudadSelect.innerHTML = '<option value="">Ciudad / Localidad</option>'; return; }
-    try {
-        const response = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(prov)}&max=1000&campos=id,nombre`);
-        const data = await response.json();
-        ciudadSelect.innerHTML = '<option value="">Seleccionar Localidad</option>';
-        if (data.municipios && data.municipios.length > 0) {
-            data.municipios.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(m => {
-                const opt = document.createElement('option');
-                opt.value = m.nombre; opt.textContent = m.nombre;
-                ciudadSelect.appendChild(opt);
-            });
-        } else {
-            const respLoc = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=${encodeURIComponent(prov)}&max=1000&campos=nombre`);
-            const dataLoc = await respLoc.json();
-            dataLoc.localidades.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(l => {
-                const opt = document.createElement('option');
-                opt.value = l.nombre; opt.textContent = l.nombre;
-                ciudadSelect.appendChild(opt);
-            });
-        }
-        if (seleccionada) ciudadSelect.value = seleccionada;
-    } catch (error) {
-        ciudadSelect.innerHTML = '<option value="">Error al cargar</option>';
-    }
+const prov = document.getElementById('provincia-input').value;
+const ciudadSelect = document.getElementById('ciudad-input');
+ciudadSelect.innerHTML = '<option value="">Cargando localidades...</option>';
+if (!prov) { ciudadSelect.innerHTML = '<option value="">Ciudad / Localidad</option>'; return; }
+try {
+const response = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(prov)}&max=1000&campos=id,nombre`);
+const data = await response.json();
+ciudadSelect.innerHTML = '<option value="">Seleccionar Localidad</option>';
+if (data.municipios && data.municipios.length > 0) {
+data.municipios.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(m => {
+const opt = document.createElement('option');
+opt.value = m.nombre; opt.textContent = m.nombre;
+ciudadSelect.appendChild(opt);
+});
+} else {
+const respLoc = await fetch(`https://apis.datos.gob.ar/georef/api/localidades?provincia=${encodeURIComponent(prov)}&max=1000&campos=nombre`);
+const dataLoc = await respLoc.json();
+dataLoc.localidades.sort((a, b) => a.nombre.localeCompare(b.nombre)).forEach(l => {
+const opt = document.createElement('option');
+opt.value = l.nombre; opt.textContent = l.nombre;
+ciudadSelect.appendChild(opt);
+});
+}
+if (seleccionada) ciudadSelect.value = seleccionada;
+} catch (error) {
+ciudadSelect.innerHTML = '<option value="">Error al cargar</option>';
+}
 };
 
 window.addEventListener('load', () => {
-    if (esComerciante) {
-        const nav = document.getElementById('nav-menu-principal');
-        const faja = document.getElementById('faja-herramientas');
-        if(nav) nav.style.display = 'none';
-        if(faja) faja.style.display = 'none';
-    } else {
-        const capa = document.getElementById('capa-seguridad');
-        if(capa) capa.style.display = 'none';
-        const faja = document.getElementById('faja-herramientas');
-        if(faja) faja.style.display = 'flex';
-    }
-    configurarFechaMinima();
+if (esComerciante) {
+const nav = document.getElementById('nav-menu-principal');
+const faja = document.getElementById('faja-herramientas');
+if(nav) nav.style.display = 'none';
+if(faja) faja.style.display = 'none';
+} else {
+const capa = document.getElementById('capa-seguridad');
+if(capa) capa.style.display = 'none';
+const faja = document.getElementById('faja-herramientas');
+if(faja) faja.style.display = 'flex';
+}
+configurarFechaMinima();
 });
 
 const formatearFecha = (ts) => {
-    if (!ts) return "Sin envíos";
-    try {
-        if (typeof ts === 'string') return ts;
-        let fecha = ts.toDate ? ts.toDate() : new Date(Number(ts));
-        return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
-    } catch (e) { return "---"; }
+if (!ts) return "Sin envíos";
+try {
+if (typeof ts === 'string') return ts;
+let fecha = ts.toDate ? ts.toDate() : new Date(Number(ts));
+return fecha.toLocaleString('es-AR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
+} catch (e) { return "---"; }
 };
 
 // =============================================
@@ -1143,83 +1075,83 @@ let todasLasProvincias = [];
 let todasLasLocalidades = [];
 
 async function cargarProvincias() {
-    try {
-        const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
-        const data = await res.json();
-        const combo = document.getElementById('filtro-provincia');
-        combo.innerHTML = '<option value="">TODAS LAS PROVINCIAS</option>';
-        
-        todasLasProvincias = data.provincias.map(p => p.nombre.toLowerCase());
-        todasLasProvincias.sort((a, b) => a.localeCompare(b));
-        
-        todasLasProvincias.forEach(nombreProv => {
-            let opt = document.createElement('option');
-            opt.value = nombreProv;
-            opt.textContent = nombreProv.charAt(0).toUpperCase() + nombreProv.slice(1);
-            combo.appendChild(opt);
-        });
-    } catch (e) { console.error("Error cargando provincias:", e); }
+try {
+const res = await fetch("https://apis.datos.gob.ar/georef/api/provincias?campos=nombre");
+const data = await res.json();
+const combo = document.getElementById('filtro-provincia');
+combo.innerHTML = '<option value="">TODAS LAS PROVINCIAS</option>';
+
+todasLasProvincias = data.provincias.map(p => p.nombre.toLowerCase());
+todasLasProvincias.sort((a, b) => a.localeCompare(b));
+
+todasLasProvincias.forEach(nombreProv => {
+let opt = document.createElement('option');
+opt.value = nombreProv;
+opt.textContent = nombreProv.charAt(0).toUpperCase() + nombreProv.slice(1);
+combo.appendChild(opt);
+});
+} catch (e) { console.error("Error cargando provincias:", e); }
 }
 
 window.cargarLocalidades = async (provNombreNormalized) => {
-    const comboLoc = document.getElementById('filtro-localidad');
-    comboLoc.innerHTML = '<option value="">TODAS LAS LOCALIDADES</option>';
-    
-    if (!provNombreNormalized) {
-        todasLasLocalidades = [];
-        window.render();
-        return;
-    }
-    
-    try {
-        const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provNombreNormalized)}&max=1000&campos=nombre`);
-        const data = await res.json();
-        todasLasLocalidades = data.municipios ? data.municipios.map(m => m.nombre.toLowerCase()) : [];
-        todasLasLocalidades.sort((a, b) => a.localeCompare(b));
-        
-        todasLasLocalidades.forEach(nombreLoc => {
-            let opt = document.createElement('option');
-            opt.value = nombreLoc;
-            opt.textContent = nombreLoc.charAt(0).toUpperCase() + nombreLoc.slice(1);
-            comboLoc.appendChild(opt);
-        });
-    } catch (e) { console.error("Error cargando localidades:", e); }
+const comboLoc = document.getElementById('filtro-localidad');
+comboLoc.innerHTML = '<option value="">TODAS LAS LOCALIDADES</option>';
+
+if (!provNombreNormalized) {
+todasLasLocalidades = [];
+window.render();
+return;
+}
+
+try {
+const res = await fetch(`https://apis.datos.gob.ar/georef/api/municipios?provincia=${encodeURIComponent(provNombreNormalized)}&max=1000&campos=nombre`);
+const data = await res.json();
+todasLasLocalidades = data.municipios ? data.municipios.map(m => m.nombre.toLowerCase()) : [];
+todasLasLocalidades.sort((a, b) => a.localeCompare(b));
+
+todasLasLocalidades.forEach(nombreLoc => {
+let opt = document.createElement('option');
+opt.value = nombreLoc;
+opt.textContent = nombreLoc.charAt(0).toUpperCase() + nombreLoc.slice(1);
+comboLoc.appendChild(opt);
+});
+} catch (e) { console.error("Error cargando localidades:", e); }
 };
 
 cargarProvincias();
 
 if (esComerciante) {
-    const q = query(collection(db, "comercios"), where("idComercio", "==", idForzado));
-    onSnapshot(q, (snap) => {
-        if (snap.empty) { COMERCIOS = []; }
-        else {
-            COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
-            setTimeout(() => { if (COMERCIOS.length > 0) window.edit(null, COMERCIOS[0].fbId); }, 500);
-        }
-        window.render();
-    });
+const q = query(collection(db, "comercios"), where("idComercio", "==", idForzado));
+onSnapshot(q, (snap) => {
+if (snap.empty) { COMERCIOS = []; }
+else {
+COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+setTimeout(() => { if (COMERCIOS.length > 0) window.edit(null, COMERCIOS[0].fbId); }, 500);
+}
+window.render();
+});
 } else {
-    onSnapshot(collection(db, "comercios"), (snap) => {
-        COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
-        window.render();
-    });
+onSnapshot(collection(db, "comercios"), (snap) => {
+COMERCIOS = snap.docs.map(d => ({ ...d.data(), fbId: d.id }));
+window.render();
+});
 }
 
 // =============================================
 // FUNCIÓN mostrarComercio CON ESTRELLAS
 // =============================================
 function mostrarComercio(c) {
-    const box = document.getElementById('lista-comercios');
-    const estaActivo = c.estado === 'activo';
-    const publicado = c.publicado === true;
-    const displayID = c.idComercio || c.id || "SIN-ID";
-    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
-    const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
-    const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
-    const frecuenciaMostrar = c.frecuenciaReportes || 'semanal';
-    const frecuenciaTexto = { 'diario':'Diario','semanal':'Semanal','quincenal':'Quincenal','mensual':'Mensual','nunca':'Nunca' }[frecuenciaMostrar] || 'Semanal';
+const box = document.getElementById('lista-comercios');
+const estaActivo = c.estado === 'activo';
+const publicado = c.publicado === true;
+const displayID = c.idComercio || c.id || "SIN-ID";
+const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${c.tokenQR || displayID}`;
+const descLeadDisplay = c.descLead ? (c.descLead.includes('%') ? c.descLead : c.descLead + '%') : '0%';
+const descVipDisplay = c.descVip ? (c.descVip.includes('%') ? c.descVip : c.descVip + '%') : '0%';
+const frecuenciaMostrar = c.frecuenciaReportes || 'semanal';
+const frecuenciaTexto = { 'diario':'Diario','semanal':'Semanal','quincenal':'Quincenal','mensual':'Mensual','nunca':'Nunca' }[frecuenciaMostrar] || 'Semanal';
 
-    box.innerHTML += `
+box.innerHTML += `
 <div class="comercio-card ${estaActivo ? '' : 'inactive'}">
 <div class="visual-side">
 <img src="${c.logoUrl || 'https://via.placeholder.com/120'}" class="img-preview" onclick="window.zoom('${c.logoUrl}')">
@@ -1259,10 +1191,10 @@ ${c.rubro ? `<span class="comercio-rubro">🏷️ ${c.rubro}</span>` : ''}
 <div><b style="color:#cbd5e0;">DIRECCIÓN:</b> <span>${c.direccion || '-'}</span></div>
 <div><b style="color:#cbd5e0;">UBICACIÓN:</b> <span>${c.ciudad || '-'} (${c.provincia || '-'})</span></div>
 <a href="admin_historial_comercio.html?id=${displayID}&nombre=${encodeURIComponent(c.nombre || '')}" class="btn-historial">
-    <i class="fas fa-chart-line"></i> HISTORIAL
+   <i class="fas fa-chart-line"></i> HISTORIAL
 </a>
 <button class="btn-datos-personales" onclick="abrirModalDatosPersonales('${displayID}')">
-    <i class="fas fa-id-card"></i> VER DATOS PERSONALES
+   <i class="fas fa-id-card"></i> VER DATOS PERSONALES
 </button>
 </div>
 </div>
@@ -1281,357 +1213,388 @@ ${c.sitioWeb ? `<a href="${c.sitioWeb}" target="_blank" class="social-link bg-we
 ${c.mapsUrl ? `<a href="${c.mapsUrl}" target="_blank" class="social-link" style="background:#4CAF50;color:white;"><i class="fas fa-map-marker-alt"></i></a>` : ''}
 </div>
 <div class="estrellas-container">
-    <div class="estrella-grupo">
-        <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
-            <i class="fas fa-star estrella-icono estrella-roja"></i>
-            <span class="estrella-contador" id="cont-muy-malo-${displayID}">—</span>
-        </div>
-        <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
-            <i class="fas fa-star estrella-icono estrella-roja"></i>
-            <span class="estrella-contador" id="cont-malo-${displayID}">—</span>
-        </div>
-        <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
-            <i class="fas fa-star estrella-icono estrella-roja"></i>
-            <span class="estrella-contador" id="cont-regular-neg-${displayID}">—</span>
-        </div>
-    </div>
-    <div class="estrella-grupo">
-        <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
-            <i class="fas fa-star estrella-icono estrella-dorada"></i>
-            <span class="estrella-contador" id="cont-regular-pos-${displayID}">—</span>
-        </div>
-        <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
-            <i class="fas fa-star estrella-icono estrella-dorada"></i>
-            <span class="estrella-contador" id="cont-bueno-${displayID}">—</span>
-        </div>
-        <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
-            <i class="fas fa-star estrella-icono estrella-dorada"></i>
-            <span class="estrella-contador" id="cont-muy-bueno-${displayID}">—</span>
-        </div>
-    </div>
+   <div class="estrella-grupo">
+       <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
+           <i class="fas fa-star estrella-icono estrella-roja"></i>
+           <span class="estrella-contador" id="cont-muy-malo-${displayID}">0</span>
+       </div>
+       <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
+           <i class="fas fa-star estrella-icono estrella-roja"></i>
+           <span class="estrella-contador" id="cont-malo-${displayID}">0</span>
+       </div>
+       <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
+           <i class="fas fa-star estrella-icono estrella-roja"></i>
+           <span class="estrella-contador" id="cont-regular-neg-${displayID}">0</span>
+       </div>
+   </div>
+   <div class="estrella-grupo">
+       <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
+           <i class="fas fa-star estrella-icono estrella-dorada"></i>
+           <span class="estrella-contador" id="cont-regular-pos-${displayID}">0</span>
+       </div>
+       <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
+           <i class="fas fa-star estrella-icono estrella-dorada"></i>
+           <span class="estrella-contador" id="cont-bueno-${displayID}">0</span>
+       </div>
+       <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
+           <i class="fas fa-star estrella-icono estrella-dorada"></i>
+           <span class="estrella-contador" id="cont-muy-bueno-${displayID}">0</span>
+       </div>
+   </div>
 </div>
 </div>
 </div>
 </div>`;
-    
-    // Cargar contadores de calificaciones
-    cargarContadoresCalificaciones(displayID);
+
+// Cargar contadores de calificaciones
+cargarContadoresCalificaciones(displayID);
 }
 
+// ========== CAMBIO #3: FUNCIÓN CORREGIDA PARA CONTABILIZAR CALIFICACIONES ==========
+async function cargarContadoresCalificaciones(comercioId) {
+try {
+        // Esperar un frame de renderizado para asegurar que los elementos del DOM estén disponibles
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
+const calificaciones = await cargarCalificaciones(comercioId);
+if (calificaciones) {
+const contadores = {
+'cont-muy-malo': calificaciones.muy_malo,
+'cont-malo': calificaciones.malo,
+'cont-regular-neg': calificaciones.regular_negativo,
+'cont-regular-pos': calificaciones.regular_positivo,
+'cont-bueno': calificaciones.bueno,
+'cont-muy-bueno': calificaciones.muy_bueno
+};
+
+for (const [id, valor] of Object.entries(contadores)) {
+const elemento = document.getElementById(`${id}-${comercioId}`);
+                if (elemento) elemento.innerText = valor;
+                if (elemento) {
+                    elemento.innerText = valor;
+                }
+}
+}
+} catch (error) {
+console.error("Error cargando contadores:", error);
+}
+}
+// ========== FIN CAMBIO #3 ==========
+
 window.render = () => {
-    const box = document.getElementById('lista-comercios');
-    if(!box) return;
-    box.innerHTML = "";
+const box = document.getElementById('lista-comercios');
+if(!box) return;
+box.innerHTML = "";
 
-    if (esComerciante) {
-        const miComercio = COMERCIOS.find(c => c.idComercio === idForzado);
-        if (miComercio) mostrarComercio(miComercio);
-        else box.innerHTML = '<p style="text-align:center;padding:40px;color:#aaa;">No se encontró tu comercio</p>';
-        return;
-    }
+if (esComerciante) {
+const miComercio = COMERCIOS.find(c => c.idComercio === idForzado);
+if (miComercio) mostrarComercio(miComercio);
+else box.innerHTML = '<p style="text-align:center;padding:40px;color:#aaa;">No se encontró tu comercio</p>';
+return;
+}
 
-    const masterSearchInput = document.getElementById('masterSearch');
-    const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
-    
-    const provSeleccionada = document.getElementById('filtro-provincia').value;
-    const locSeleccionada = document.getElementById('filtro-localidad').value;
+const masterSearchInput = document.getElementById('masterSearch');
+const term = masterSearchInput ? masterSearchInput.value.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "") : "";
 
-    const totalComercios = COMERCIOS.length;
-    const activos   = COMERCIOS.filter(x => x.estado === 'activo').length;
-    const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
-    const publicados = COMERCIOS.filter(x => x.publicado === true).length;
+const provSeleccionada = document.getElementById('filtro-provincia').value;
+const locSeleccionada = document.getElementById('filtro-localidad').value;
 
-    document.getElementById('count-total').innerText = totalComercios;
-    document.getElementById('count-act').innerText   = activos;
-    document.getElementById('count-inact').innerText = inactivos;
-    document.getElementById('count-pub').innerText   = publicados;
-    
-    let countProv = 0;
-    let countLoc = 0;
-    
-    let filtrados = COMERCIOS.filter(c => {
-        const searchStr = ((c.nombre||"")+" "+(c.rubro||"")+" "+(c.ciudad||"")+" "+(c.direccion||"")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
-        const matchesSearch = term === "" || searchStr.includes(term);
-        
-        let matchesFiltro = true;
-        if (FILTRO_ESTADO === 'inactivo') matchesFiltro = c.estado !== 'activo';
-        else if (FILTRO_ESTADO === 'publicado') matchesFiltro = c.publicado === true;
-        
-        let matchesProv = true;
-        if (provSeleccionada) {
-            const provComercio = (c.provincia || "").toLowerCase();
-            matchesProv = provComercio === provSeleccionada;
-        }
-        
-        let matchesLoc = true;
-        if (locSeleccionada && provSeleccionada) {
-            const locComercio = (c.localidad || c.ciudad || "").toLowerCase();
-            matchesLoc = locComercio === locSeleccionada;
-        } else if (locSeleccionada && !provSeleccionada) {
-            matchesLoc = false;
-        }
-        
-        if (provSeleccionada && matchesProv && matchesFiltro && matchesSearch) countProv++;
-        if (locSeleccionada && provSeleccionada && matchesLoc && matchesFiltro && matchesSearch) countLoc++;
-        
-        return matchesSearch && matchesFiltro && matchesProv && matchesLoc;
-    });
-    
-    document.getElementById('count-prov').innerText = provSeleccionada ? countProv : 0;
-    document.getElementById('count-loc').innerText = locSeleccionada ? countLoc : 0;
+const totalComercios = COMERCIOS.length;
+const activos   = COMERCIOS.filter(x => x.estado === 'activo').length;
+const inactivos = COMERCIOS.filter(x => x.estado !== 'activo').length;
+const publicados = COMERCIOS.filter(x => x.publicado === true).length;
 
-    filtrados.sort((a,b) => (a.nombre||"").localeCompare(b.nombre||""));
-    filtrados.forEach(c => mostrarComercio(c));
+document.getElementById('count-total').innerText = totalComercios;
+document.getElementById('count-act').innerText   = activos;
+document.getElementById('count-inact').innerText = inactivos;
+document.getElementById('count-pub').innerText   = publicados;
+
+let countProv = 0;
+let countLoc = 0;
+
+let filtrados = COMERCIOS.filter(c => {
+const searchStr = ((c.nombre||"")+" "+(c.rubro||"")+" "+(c.ciudad||"")+" "+(c.direccion||"")).toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"");
+const matchesSearch = term === "" || searchStr.includes(term);
+
+let matchesFiltro = true;
+if (FILTRO_ESTADO === 'inactivo') matchesFiltro = c.estado !== 'activo';
+else if (FILTRO_ESTADO === 'publicado') matchesFiltro = c.publicado === true;
+
+let matchesProv = true;
+if (provSeleccionada) {
+const provComercio = (c.provincia || "").toLowerCase();
+matchesProv = provComercio === provSeleccionada;
+}
+
+let matchesLoc = true;
+if (locSeleccionada && provSeleccionada) {
+const locComercio = (c.localidad || c.ciudad || "").toLowerCase();
+matchesLoc = locComercio === locSeleccionada;
+} else if (locSeleccionada && !provSeleccionada) {
+matchesLoc = false;
+}
+
+if (provSeleccionada && matchesProv && matchesFiltro && matchesSearch) countProv++;
+if (locSeleccionada && provSeleccionada && matchesLoc && matchesFiltro && matchesSearch) countLoc++;
+
+return matchesSearch && matchesFiltro && matchesProv && matchesLoc;
+});
+
+document.getElementById('count-prov').innerText = provSeleccionada ? countProv : 0;
+document.getElementById('count-loc').innerText = locSeleccionada ? countLoc : 0;
+
+filtrados.sort((a,b) => (a.nombre||"").localeCompare(b.nombre||""));
+filtrados.forEach(c => mostrarComercio(c));
 };
 
 window.previsualizarSorteos = (id, nombre) => {
-    window.open(`usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`, '_blank');
+window.open(`usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`, '_blank');
 };
 
 window.copiarLinkDirecto = (id) => {
-    const urlBase = window.location.origin + window.location.pathname.replace('admin_comercios.html', '');
-    const urlFinal = `${urlBase}admin_ingreso_duenos.html?id=${id}&admin=true`;
-    navigator.clipboard.writeText(urlFinal).then(() => {
-        const toast = document.createElement('div');
-        toast.textContent = '✅ Link copiado';
-        toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:10000;';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
-    });
+const urlBase = window.location.origin + window.location.pathname.replace('admin_comercios.html', '');
+const urlFinal = `${urlBase}admin_ingreso_duenos.html?id=${id}&admin=true`;
+navigator.clipboard.writeText(urlFinal).then(() => {
+const toast = document.createElement('div');
+toast.textContent = '✅ Link copiado';
+toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:10000;';
+document.body.appendChild(toast);
+setTimeout(() => toast.remove(), 2000);
+});
 };
 
 window.edit = (event, id) => {
-    if(event) event.preventDefault();
-    const c = COMERCIOS.find(x => x.fbId === id);
-    if(!c) return;
-    if (esComerciante && c.idComercio !== idForzado) { alert("No tienes permiso para editar otros comercios"); return; }
+if(event) event.preventDefault();
+const c = COMERCIOS.find(x => x.fbId === id);
+if(!c) return;
+if (esComerciante && c.idComercio !== idForzado) { alert("No tienes permiso para editar otros comercios"); return; }
 
-    document.getElementById('edit-id').value = id;
-    document.getElementById('nombre-input').value  = c.nombre || "";
-    document.getElementById('rubro-input').value   = c.rubro || "";
-    document.getElementById('id-input').value      = c.idComercio || "";
-    document.getElementById('token-input').value   = c.tokenQR || "";
-    document.getElementById('logo-url-actual').value = c.logoUrl || "";
-    document.getElementById('logo-file').value     = "";
-    document.getElementById('desc-lead').value     = c.descLead || "";
-    document.getElementById('detalle-lead').value  = c.detalleLead || "";
-    document.getElementById('desc-vip').value      = c.descVip || "";
-    document.getElementById('detalle-vip').value   = c.detalleVip || "";
-    document.getElementById('usos-lead').value     = c.usosLead || 1;
-    document.getElementById('vigencia-lead').value = c.vigenciaLead || "";
-    document.getElementById('usos-vip').value      = c.usosVip || 0;
-    document.getElementById('vigencia-vip').value  = c.vigenciaVip || "";
-    document.getElementById('titulo_sorteo').value     = c.titulo_sorteo || "";
-    document.getElementById('descripcion_sorteo').value = c.descripcion_sorteo || "";
-    document.getElementById('cantidad_premios').value  = c.cantidad_premios || 1;
-    if (c.fecha_sorteo) document.getElementById('fecha_sorteo').value = c.fecha_sorteo;
-    document.getElementById('titulo_promo').value      = c.titulo_promo || "";
-    document.getElementById('descripcion_promo').value = c.descripcion_promo || "";
-    if (c.promo_vence) document.getElementById('promo_vence').value = c.promo_vence;
-    document.getElementById('direccion-input').value = c.direccion || "";
-    document.getElementById('provincia-input').value = c.provincia || "";
-    window.actualizarLocalidades(c.ciudad);
-    document.getElementById('telefono-input').value   = c.telefono || "";
-    document.getElementById('facebook-input').value   = c.facebook || "";
-    document.getElementById('instagram-input').value  = c.instagram || "";
-    document.getElementById('web-input').value        = c.web || "";
-    document.getElementById('sitio-web-input').value  = c.sitioWeb || "";
-    document.getElementById('maps-url').value         = c.mapsUrl || "";
-    document.getElementById('email-input').value      = c.emailDueno || "";
-    document.getElementById('password-input').value   = c.password || "";
-    document.getElementById('reporte-input').value    = c.frecuenciaReportes || "semanal";
+document.getElementById('edit-id').value = id;
+document.getElementById('nombre-input').value  = c.nombre || "";
+document.getElementById('rubro-input').value   = c.rubro || "";
+document.getElementById('id-input').value      = c.idComercio || "";
+document.getElementById('token-input').value   = c.tokenQR || "";
+document.getElementById('logo-url-actual').value = c.logoUrl || "";
+document.getElementById('logo-file').value     = "";
+document.getElementById('desc-lead').value     = c.descLead || "";
+document.getElementById('detalle-lead').value  = c.detalleLead || "";
+document.getElementById('desc-vip').value      = c.descVip || "";
+document.getElementById('detalle-vip').value   = c.detalleVip || "";
+document.getElementById('usos-lead').value     = c.usosLead || 1;
+document.getElementById('vigencia-lead').value = c.vigenciaLead || "";
+document.getElementById('usos-vip').value      = c.usosVip || 0;
+document.getElementById('vigencia-vip').value  = c.vigenciaVip || "";
+document.getElementById('titulo_sorteo').value     = c.titulo_sorteo || "";
+document.getElementById('descripcion_sorteo').value = c.descripcion_sorteo || "";
+document.getElementById('cantidad_premios').value  = c.cantidad_premios || 1;
+if (c.fecha_sorteo) document.getElementById('fecha_sorteo').value = c.fecha_sorteo;
+document.getElementById('titulo_promo').value      = c.titulo_promo || "";
+document.getElementById('descripcion_promo').value = c.descripcion_promo || "";
+if (c.promo_vence) document.getElementById('promo_vence').value = c.promo_vence;
+document.getElementById('direccion-input').value = c.direccion || "";
+document.getElementById('provincia-input').value = c.provincia || "";
+window.actualizarLocalidades(c.ciudad);
+document.getElementById('telefono-input').value   = c.telefono || "";
+document.getElementById('facebook-input').value   = c.facebook || "";
+document.getElementById('instagram-input').value  = c.instagram || "";
+document.getElementById('web-input').value        = c.web || "";
+document.getElementById('sitio-web-input').value  = c.sitioWeb || "";
+document.getElementById('maps-url').value         = c.mapsUrl || "";
+document.getElementById('email-input').value      = c.emailDueno || "";
+document.getElementById('password-input').value   = c.password || "";
+document.getElementById('reporte-input').value    = c.frecuenciaReportes || "semanal";
 
-    if (esComerciante) {
-        document.getElementById('nombre-input').readOnly = true;
-        document.getElementById('rubro-input').readOnly  = true;
-        document.getElementById('id-input').classList.remove('read-only');
-        document.getElementById('id-input').classList.add('read-only-comerciante');
-        document.getElementById('token-input').classList.remove('read-only');
-        document.getElementById('token-input').classList.add('read-only-comerciante');
-        document.getElementById('titulo-form').innerText = "📝 EDITAR MI COMERCIO";
-    } else {
-        document.getElementById('nombre-input').readOnly = false;
-        document.getElementById('rubro-input').readOnly  = false;
-        document.getElementById('id-input').classList.remove('read-only-comerciante');
-        document.getElementById('id-input').classList.add('read-only');
-        document.getElementById('token-input').classList.remove('read-only-comerciante');
-        document.getElementById('token-input').classList.add('read-only');
-        document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
-    }
-    document.getElementById('btn-cancel-edit').style.display = 'block';
+if (esComerciante) {
+document.getElementById('nombre-input').readOnly = true;
+document.getElementById('rubro-input').readOnly  = true;
+document.getElementById('id-input').classList.remove('read-only');
+document.getElementById('id-input').classList.add('read-only-comerciante');
+document.getElementById('token-input').classList.remove('read-only');
+document.getElementById('token-input').classList.add('read-only-comerciante');
+document.getElementById('titulo-form').innerText = "📝 EDITAR MI COMERCIO";
+} else {
+document.getElementById('nombre-input').readOnly = false;
+document.getElementById('rubro-input').readOnly  = false;
+document.getElementById('id-input').classList.remove('read-only-comerciante');
+document.getElementById('id-input').classList.add('read-only');
+document.getElementById('token-input').classList.remove('read-only-comerciante');
+document.getElementById('token-input').classList.add('read-only');
+document.getElementById('titulo-form').innerText = "📝 EDITANDO COMERCIO";
+}
+document.getElementById('btn-cancel-edit').style.display = 'block';
 };
 
 window.guardar = async () => {
-    const passValue = document.getElementById('password-input').value.trim();
-    if (!passValue) { alert("⚠️ Debes ingresar una contraseña para el dueño."); return; }
-    const nombre   = document.getElementById('nombre-input').value.trim();
-    const telefono = document.getElementById('telefono-input').value.trim();
-    if (!nombre || !telefono) { alert("⚠️ Completa Nombre y WhatsApp."); return; }
+const passValue = document.getElementById('password-input').value.trim();
+if (!passValue) { alert("⚠️ Debes ingresar una contraseña para el dueño."); return; }
+const nombre   = document.getElementById('nombre-input').value.trim();
+const telefono = document.getElementById('telefono-input').value.trim();
+if (!nombre || !telefono) { alert("⚠️ Completa Nombre y WhatsApp."); return; }
 
-    const eid = document.getElementById('edit-id').value;
-    const data = {
-        nombre, rubro: document.getElementById('rubro-input').value.trim(),
-        idComercio: document.getElementById('id-input').value,
-        tokenQR: document.getElementById('token-input').value,
-        descLead: document.getElementById('desc-lead').value,
-        detalleLead: document.getElementById('detalle-lead').value,
-        descVip: document.getElementById('desc-vip').value,
-        detalleVip: document.getElementById('detalle-vip').value,
-        usosLead: document.getElementById('usos-lead').value,
-        vigenciaLead: document.getElementById('vigencia-lead').value,
-        usosVip: document.getElementById('usos-vip').value,
-        vigenciaVip: document.getElementById('vigencia-vip').value,
-        titulo_sorteo: document.getElementById('titulo_sorteo').value.trim(),
-        descripcion_sorteo: document.getElementById('descripcion_sorteo').value.trim(),
-        cantidad_premios: parseInt(document.getElementById('cantidad_premios').value) || 1,
-        fecha_sorteo: document.getElementById('fecha_sorteo').value,
-        titulo_promo: document.getElementById('titulo_promo').value.trim(),
-        descripcion_promo: document.getElementById('descripcion_promo').value.trim(),
-        promo_vence: document.getElementById('promo_vence').value,
-        direccion: document.getElementById('direccion-input').value,
-        provincia: document.getElementById('provincia-input').value,
-        ciudad: document.getElementById('ciudad-input').value,
-        telefono,
-        facebook: document.getElementById('facebook-input').value,
-        instagram: document.getElementById('instagram-input').value,
-        web: document.getElementById('web-input').value,
-        sitioWeb: document.getElementById('sitio-web-input').value,
-        mapsUrl: document.getElementById('maps-url').value.trim(),
-        emailDueno: document.getElementById('email-input').value,
-        password: passValue,
-        frecuenciaReportes: document.getElementById('reporte-input').value,
-        publicado: false
-    };
+const eid = document.getElementById('edit-id').value;
+const data = {
+nombre, rubro: document.getElementById('rubro-input').value.trim(),
+idComercio: document.getElementById('id-input').value,
+tokenQR: document.getElementById('token-input').value,
+descLead: document.getElementById('desc-lead').value,
+detalleLead: document.getElementById('detalle-lead').value,
+descVip: document.getElementById('desc-vip').value,
+detalleVip: document.getElementById('detalle-vip').value,
+usosLead: document.getElementById('usos-lead').value,
+vigenciaLead: document.getElementById('vigencia-lead').value,
+usosVip: document.getElementById('usos-vip').value,
+vigenciaVip: document.getElementById('vigencia-vip').value,
+titulo_sorteo: document.getElementById('titulo_sorteo').value.trim(),
+descripcion_sorteo: document.getElementById('descripcion_sorteo').value.trim(),
+cantidad_premios: parseInt(document.getElementById('cantidad_premios').value) || 1,
+fecha_sorteo: document.getElementById('fecha_sorteo').value,
+titulo_promo: document.getElementById('titulo_promo').value.trim(),
+descripcion_promo: document.getElementById('descripcion_promo').value.trim(),
+promo_vence: document.getElementById('promo_vence').value,
+direccion: document.getElementById('direccion-input').value,
+provincia: document.getElementById('provincia-input').value,
+ciudad: document.getElementById('ciudad-input').value,
+telefono,
+facebook: document.getElementById('facebook-input').value,
+instagram: document.getElementById('instagram-input').value,
+web: document.getElementById('web-input').value,
+sitioWeb: document.getElementById('sitio-web-input').value,
+mapsUrl: document.getElementById('maps-url').value.trim(),
+emailDueno: document.getElementById('email-input').value,
+password: passValue,
+frecuenciaReportes: document.getElementById('reporte-input').value,
+publicado: false
+};
 
-    try {
-        let docRef;
-        if (eid) {
-            await updateDoc(doc(db, "comercios", eid), data);
-            docRef = doc(db, "comercios", eid);
-        } else {
-            if (esComerciante) { alert("No tienes permiso para crear nuevos comercios"); return; }
-            data.estado = "activo"; data.fechaCarga = Date.now(); data.lastSubmission = null;
-            docRef = await addDoc(collection(db, "comercios"), data);
-        }
-        const file = document.getElementById('logo-file').files[0];
-        if (file) { const logoUrl = await subirLogoAFirebase(file); if (logoUrl) await updateDoc(docRef, { logoUrl }); }
-        const toast = document.createElement('div');
-        toast.textContent = eid ? '✅ ¡Ficha actualizada!' : '✅ Ficha creada con éxito';
-        toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:10000;';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
-        window.clear();
-    } catch(e) { console.error(e); alert("❌ Error al guardar"); }
+try {
+let docRef;
+if (eid) {
+await updateDoc(doc(db, "comercios", eid), data);
+docRef = doc(db, "comercios", eid);
+} else {
+if (esComerciante) { alert("No tienes permiso para crear nuevos comercios"); return; }
+data.estado = "activo"; data.fechaCarga = Date.now(); data.lastSubmission = null;
+docRef = await addDoc(collection(db, "comercios"), data);
+}
+const file = document.getElementById('logo-file').files[0];
+if (file) { const logoUrl = await subirLogoAFirebase(file); if (logoUrl) await updateDoc(docRef, { logoUrl }); }
+const toast = document.createElement('div');
+toast.textContent = eid ? '✅ ¡Ficha actualizada!' : '✅ Ficha creada con éxito';
+toast.style.cssText = 'position:fixed;top:20px;right:20px;background:#28a745;color:white;padding:12px 24px;border-radius:8px;font-weight:bold;z-index:10000;';
+document.body.appendChild(toast);
+setTimeout(() => toast.remove(), 3000);
+window.clear();
+} catch(e) { console.error(e); alert("❌ Error al guardar"); }
 };
 
 window.clear = () => {
-    document.getElementById('edit-id').value = "";
-    document.querySelectorAll('.sidebar input, .sidebar textarea').forEach(i => { if(i.type !== 'file') i.value = ""; });
-    document.getElementById('logo-file').value = "";
-    document.getElementById('provincia-input').value = "";
-    document.getElementById('ciudad-input').innerHTML = '<option value="">Ciudad / Localidad</option>';
-    document.getElementById('usos-lead').value = "1";
-    document.getElementById('usos-vip').value  = "0";
-    document.getElementById('cantidad_premios').value = "1";
-    document.getElementById('reporte-input').value = "semanal";
-    document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
-    document.getElementById('btn-cancel-edit').style.display = 'none';
-    document.getElementById('nombre-input').readOnly = false;
-    document.getElementById('rubro-input').readOnly  = false;
-    document.getElementById('id-input').classList.remove('read-only-comerciante');
-    document.getElementById('id-input').classList.add('read-only');
-    document.getElementById('token-input').classList.remove('read-only-comerciante');
-    document.getElementById('token-input').classList.add('read-only');
-    configurarFechaMinima();
+document.getElementById('edit-id').value = "";
+document.querySelectorAll('.sidebar input, .sidebar textarea').forEach(i => { if(i.type !== 'file') i.value = ""; });
+document.getElementById('logo-file').value = "";
+document.getElementById('provincia-input').value = "";
+document.getElementById('ciudad-input').innerHTML = '<option value="">Ciudad / Localidad</option>';
+document.getElementById('usos-lead').value = "1";
+document.getElementById('usos-vip').value  = "0";
+document.getElementById('cantidad_premios').value = "1";
+document.getElementById('reporte-input').value = "semanal";
+document.getElementById('titulo-form').innerText = "➕ REGISTRAR COMERCIO";
+document.getElementById('btn-cancel-edit').style.display = 'none';
+document.getElementById('nombre-input').readOnly = false;
+document.getElementById('rubro-input').readOnly  = false;
+document.getElementById('id-input').classList.remove('read-only-comerciante');
+document.getElementById('id-input').classList.add('read-only');
+document.getElementById('token-input').classList.remove('read-only-comerciante');
+document.getElementById('token-input').classList.add('read-only');
+configurarFechaMinima();
 };
 
 window.genID = () => {
-    if(document.getElementById('edit-id').value || esComerciante) return;
-    const n = document.getElementById('nombre-input').value;
-    const id = n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
-    document.getElementById('id-input').value    = id;
-    document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000 + Math.random() * 899999) : "";
+if(document.getElementById('edit-id').value || esComerciante) return;
+const n = document.getElementById('nombre-input').value;
+const id = n.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]/g,"");
+document.getElementById('id-input').value    = id;
+document.getElementById('token-input').value = id ? id + "_" + Math.floor(100000 + Math.random() * 899999) : "";
 };
 
 window.toggleEstado = async (e, id, est) => {
-    if (esComerciante) return;
-    await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' });
+if (esComerciante) return;
+await updateDoc(doc(db, "comercios", id), { estado: est === 'activo' ? 'inactivo' : 'activo' });
 };
 
 window.del = async (e, id) => {
-    if (esComerciante) return;
-    if(confirm("¿Borrar comercio?")) await deleteDoc(doc(db, "comercios", id));
+if (esComerciante) return;
+if(confirm("¿Borrar comercio?")) await deleteDoc(doc(db, "comercios", id));
 };
 
 window.zoom = (u) => { document.getElementById('modal-img').src = u; document.getElementById('modal').style.display='flex'; };
 
 window.cambiarFiltro = (f, id) => {
-    if (esComerciante) return;
-    FILTRO_ESTADO = f;
-    document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
-    document.getElementById(id).classList.add('active');
-    window.render();
+if (esComerciante) return;
+FILTRO_ESTADO = f;
+document.querySelectorAll('.btn-tool').forEach(b => b.classList.remove('active'));
+document.getElementById(id).classList.add('active');
+window.render();
 };
 
 // =============================================
 // CONTADORES NAV
 // =============================================
 async function actualizarContadores() {
-    if (typeof db === 'undefined' || !db) {
-        setTimeout(actualizarContadores, 2000);
-        return;
-    }
-    const el = (id) => document.getElementById(id);
-    try {
-        const todosSnap = await getDocs(collection(db, "leads"));
-        const totalRaw  = todosSnap.size;
+if (typeof db === 'undefined' || !db) {
+setTimeout(actualizarContadores, 2000);
+return;
+}
+const el = (id) => document.getElementById(id);
+try {
+const todosSnap = await getDocs(collection(db, "leads"));
+const totalRaw  = todosSnap.size;
 
-        const vipsSnap  = await getDocs(query(collection(db, "leads"), where("convertidoVIP", "==", true)));
-        const totalVips = vipsSnap.size;
+const vipsSnap  = await getDocs(query(collection(db, "leads"), where("convertidoVIP", "==", true)));
+const totalVips = vipsSnap.size;
 
-        const totalLeads = totalRaw - totalVips;
+const totalLeads = totalRaw - totalVips;
 
-        const comerciosSnap  = await getDocs(collection(db, "comercios"));
-        const totalComercios = comerciosSnap.size;
+const comerciosSnap  = await getDocs(collection(db, "comercios"));
+const totalComercios = comerciosSnap.size;
 
-        if (el('cont-comercios')) el('cont-comercios').innerText = totalComercios;
-        if (el('cont-leads'))     el('cont-leads').innerText     = totalLeads;
-        if (el('cont-vips'))      el('cont-vips').innerText      = totalVips;
+if (el('cont-comercios')) el('cont-comercios').innerText = totalComercios;
+if (el('cont-leads'))     el('cont-leads').innerText     = totalLeads;
+if (el('cont-vips'))      el('cont-vips').innerText      = totalVips;
 
-        try {
-            const tutSnap = await getDocs(collection(db, "tutoriales"));
-            if (el('cont-tutoriales')) el('cont-tutoriales').innerText = tutSnap.size;
-        } catch(e) {}
+try {
+const tutSnap = await getDocs(collection(db, "tutoriales"));
+if (el('cont-tutoriales')) el('cont-tutoriales').innerText = tutSnap.size;
+} catch(e) {}
 
-        let vCom = 0;
-        try {
-            const s = await getDocs(query(collection(db, "postulaciones_comercios"), where("estado", "==", "pendiente")));
-            vCom = s.size;
-        } catch(e) {}
-        if (el('cont-validaciones-comercios')) el('cont-validaciones-comercios').innerText = vCom;
+let vCom = 0;
+try {
+const s = await getDocs(query(collection(db, "postulaciones_comercios"), where("estado", "==", "pendiente")));
+vCom = s.size;
+} catch(e) {}
+if (el('cont-validaciones-comercios')) el('cont-validaciones-comercios').innerText = vCom;
 
-        let vMar = 0;
-        try {
-            const s = await getDocs(query(collection(db, "postulaciones_martilleros"), where("estado", "==", "pendiente")));
-            vMar = s.size;
-        } catch(e) {}
-        if (el('cont-validaciones-martilleros')) el('cont-validaciones-martilleros').innerText = vMar;
+let vMar = 0;
+try {
+const s = await getDocs(query(collection(db, "postulaciones_martilleros"), where("estado", "==", "pendiente")));
+vMar = s.size;
+} catch(e) {}
+if (el('cont-validaciones-martilleros')) el('cont-validaciones-martilleros').innerText = vMar;
 
-        let vCol = 0;
-        try {
-            const s = await getDocs(query(collection(db, "postulaciones_colaboradores"), where("estado", "==", "pendiente")));
-            vCol = s.size;
-        } catch(e) {}
-        if (el('cont-validaciones-colaboradores')) el('cont-validaciones-colaboradores').innerText = vCol;
+let vCol = 0;
+try {
+const s = await getDocs(query(collection(db, "postulaciones_colaboradores"), where("estado", "==", "pendiente")));
+vCol = s.size;
+} catch(e) {}
+if (el('cont-validaciones-colaboradores')) el('cont-validaciones-colaboradores').innerText = vCol;
 
-    } catch(error) {
-        console.error("Error en contadores:", error);
-    }
+} catch(error) {
+console.error("Error en contadores:", error);
+}
 }
 
 setTimeout(() => {
-    actualizarContadores();
-    setInterval(actualizarContadores, 30000);
+actualizarContadores();
+setInterval(actualizarContadores, 30000);
 }, 3000);
 
 </script>
