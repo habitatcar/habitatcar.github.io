@@ -973,7 +973,7 @@ async function cargarCalificaciones(comercioId) {
         console.log(`📊 [DEBUG] Documentos encontrados: ${querySnapshot.size}`);
         
         if (querySnapshot.empty) {
-            console.log(`ℹ️ [DEBUG] No hay documento de calificaciones para ${comercioId}`);
+            console.log(`ℹ️ [DEBUG] No hay documento de calificaciones para ${comercioId}. Retornando estructura vacía.`);
             // 🔧 MODO PRUEBAS: Retornar estructura vacía pero visible (sin regla de 10 calificaciones)
             return {
                 muy_malo: 0, malo: 0, regular_negativo: 0,
@@ -985,27 +985,33 @@ async function cargarCalificaciones(comercioId) {
         
         const docSnap = querySnapshot.docs[0];
         const data = docSnap.data();
-        console.log(`✅ [DEBUG] Datos cargados:`, data);
+        console.log(`✅ [DEBUG] Datos cargados para ${comercioId}:`, data);
         
         // 🔧 MODO PRUEBAS: Mostrar TODOS los conteos, sin importar si hay menos de 10 calificaciones
         // (La regla de anonimato de 10 calificaciones está PAUSADA para pruebas)
         const resultado = {
-            muy_malo: data.total_por_tipo?.muy_malo || 0,
-            malo: data.total_por_tipo?.malo || 0,
-            regular_negativo: data.total_por_tipo?.regular_negativo || 0,
-            regular_positivo: data.total_por_tipo?.regular_positivo || 0,
-            bueno: data.total_por_tipo?.bueno || 0,
-            muy_bueno: data.total_por_tipo?.muy_bueno || 0,
-            comentarios: data.calificaciones || [],
-            total_calificaciones: (data.calificaciones || []).length
+            muy_malo: data.total_por_tipo?.muy_malo ?? 0,
+            malo: data.total_por_tipo?.malo ?? 0,
+            regular_negativo: data.total_por_tipo?.regular_negativo ?? 0,
+            regular_positivo: data.total_por_tipo?.regular_positivo ?? 0,
+            bueno: data.total_por_tipo?.bueno ?? 0,
+            muy_bueno: data.total_por_tipo?.muy_bueno ?? 0,
+            comentarios: data.calificaciones ?? [],
+            total_calificaciones: (data.calificaciones ?? []).length
         };
         
-        console.log(`📈 [DEBUG] Contadores a mostrar:`, resultado);
+        console.log(`📈 [DEBUG] Contadores a mostrar para ${comercioId}:`, resultado);
         return resultado;
         
     } catch (error) {
-        console.error("❌ [DEBUG] Error cargando calificaciones:", error);
-        return null;
+        console.error(`❌ [DEBUG] Error cargando calificaciones para ${comercioId}:`, error);
+        // Retornar estructura vacía en caso de error para no romper la UI
+        return {
+            muy_malo: 0, malo: 0, regular_negativo: 0,
+            regular_positivo: 0, bueno: 0, muy_bueno: 0,
+            comentarios: [],
+            total_calificaciones: 0
+        };
     }
 }
 
@@ -1044,7 +1050,7 @@ async function cargarContadoresCalificaciones(comercioId) {
             console.log(`✅ [DEBUG] Contadores actualizados para ${comercioId}`);
         }
     } catch (error) {
-        console.error("❌ [DEBUG] Error cargando contadores:", error);
+        console.error(`❌ [DEBUG] Error cargando contadores para ${comercioId}:`, error);
     }
 }
 
@@ -1076,7 +1082,7 @@ window.abrirModalCalificaciones = async (comercioId, nombreComercio) => {
         // Resumen de conteo (siempre visible en modo pruebas)
         html += `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px;">`;
         for (const tipo of tiposCalificacion) {
-            const count = calificaciones[tipo.id] || 0;
+            const count = calificaciones[tipo.id] ?? 0;
             // 🔧 MODO PRUEBAS: Mostrar incluso si count es 0
             html += `<div style="text-align: center; min-width: 60px;">
                         <i class="fas ${tipo.icono} ${tipo.color}" style="font-size: 20px;"></i>
@@ -1089,7 +1095,7 @@ window.abrirModalCalificaciones = async (comercioId, nombreComercio) => {
         // Comentarios por tipo
         const comentariosPorTipo = {};
         for (const tipo of tiposCalificacion) {
-            comentariosPorTipo[tipo.id] = calificaciones.comentarios.filter(c => c.tipo === tipo.id);
+            comentariosPorTipo[tipo.id] = (calificaciones.comentarios ?? []).filter(c => c.tipo === tipo.id);
         }
         
         for (const tipo of tiposCalificacion) {
@@ -1581,6 +1587,12 @@ function renderizarComercios(comercios) {
         const contadorClase = esAgotado ? 'contador-inline agotado' : 'contador-inline';
         const textoBoton = esAgotado ? 'AGOTADO' : `USAR BENEFICIO <span class="${contadorClase}">${usosRealizados}/${usosPermitidos}</span>`;
         const mapsUrl = c.mapsUrl || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent((c.direccion || '') + ' ' + (c.ciudad || '') + ' ' + (c.provincia || ''))}`;
+        
+        // ========== CAMBIO #2: Deshabilitar botón de validación QR cuando el cupón está agotado ==========
+        const btnValidarDisabled = esAgotado ? 'disabled-btn' : '';
+        const btnValidarDisabledAttr = esAgotado ? 'disabled' : '';
+        // ========== FIN CAMBIO #2 ==========
+        
         html += `<div class="card ${esAgotado ? 'agotado' : ''}" data-id="${c.id}" data-nombre="${(c.nombre || '').toLowerCase()}" data-vence="${diasRestantes}">
                 ${htmlLogo}
                 <div class="nombre-c">${c.nombre || 'Local'}</div>
@@ -1591,7 +1603,7 @@ function renderizarComercios(comercios) {
                     ${btnConozcaHTML}
                     ${botonSorteo}
                     <button class="btn-act btn-llegar" onclick="window.open('${mapsUrl}')">Cómo llegar</button>
-                    <button class="btn-act btn-validar ${esAgotado ? 'disabled-btn' : ''}" onclick="${esAgotado ? '' : `abrirQR('${c.id}', '${c.tokenQR || ''}')`}" ${esAgotado ? 'disabled' : ''}>Validar Cupón con QR</button>
+                    <button class="btn-act btn-validar ${btnValidarDisabled}" onclick="${esAgotado ? '' : `abrirQR('${c.id}', '${c.tokenQR || ''}')`}" ${btnValidarDisabledAttr}>Validar Cupón con QR</button>
                     <button class="btn-act btn-usar ${esAgotado ? 'disabled-btn' : ''}" id="btn-usar-${c.id}" onclick="${esAgotado ? '' : `preguntarAtencion('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')`}" ${esAgotado ? 'disabled' : ''}>
                         ${textoBoton}
                     </button>
