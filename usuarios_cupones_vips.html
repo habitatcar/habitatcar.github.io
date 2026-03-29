@@ -135,7 +135,6 @@
         .btn-sorteo { background-color: var(--naranja-sorteo); position: relative; overflow: visible; }
         .btn-llegar { background-color: var(--verde); }
         .btn-validar { background-color: var(--rosa); }
-        /* ========== CAMBIO: Estilo para botón deshabilitado ========== */
         .btn-validar.disabled-btn {
             background: var(--gris-volver) !important;
             color: #666 !important;
@@ -143,7 +142,6 @@
             pointer-events: none !important;
             opacity: 0.6;
         }
-        /* ========== FIN CAMBIO ========== */
         .btn-usar { background-color: #222; color: #555; border-color: #444; pointer-events: none; }
         .btn-usar.activo { 
             background: #000; color: var(--dorado-brillante); pointer-events: auto; 
@@ -433,9 +431,6 @@
         let todasLasProvincias = [];
         let todasLasLocalidades = [];
 
-        // ============================================
-        // FUNCIÓN PARA GENERAR CÓDIGO VIP ALEATORIO ÚNICO (4 letras + 4 números)
-        // ============================================
         function generarCodigoVipAleatorio() {
             const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
             let parteLetras = '';
@@ -446,9 +441,6 @@
             return `${parteLetras}-${numeros}`;
         }
 
-        // ============================================
-        // RESET GLOBAL VIP
-        // ============================================
         const leadId = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
         let ultimoResetDetectadoVIP = localStorage.getItem('ultimoResetDetectadoVIP') || "0";
 
@@ -736,7 +728,6 @@
                 const beneficioVipTexto = [descVipDisplay, detalleVip].filter(Boolean).join(' ') || 'Consultar';
                 const beneficioVipParaLog = beneficioVipTexto.replace(/'/g, "\\'");
 
-                // ⭐ CONTADOR CORREGIDO: muestra usos_realizados / usos_totales
                 let textoBoton = '';
                 if (limitUsos > 0) {
                     textoBoton = `Usar beneficio <span class="contador-nube">${nUso}/${limitUsos}</span>`;
@@ -744,7 +735,6 @@
                     textoBoton = `Usar beneficio <span class="contador-nube">${nUso}</span>`;
                 }
 
-                // Verificar si está agotado
                 const esAgotado = limitUsos > 0 && nUso >= limitUsos;
                 
                 // ========== CAMBIO: Deshabilitar botón de validación QR cuando el cupón está agotado ==========
@@ -776,7 +766,6 @@
             contenedor.innerHTML = html;
             if (scrollPosition > 0) setTimeout(() => window.scrollTo({ top: scrollPosition, behavior: 'auto' }), 100);
         }
-
         window.tocarSorteo = (id, nombre) => {
             const btn = document.getElementById(`btn-sorteo-${id}`);
             if (btn) { btn.classList.remove('animar-pulso'); btn.classList.add('sin-pulso'); localStorage.setItem('toco_sorteo_' + id, 'true'); }
@@ -862,7 +851,6 @@
                 const querySnapshot = await getDocs(q);
                 const nuevaCalificacion = { tipo: tipoId, comentario: comentario || '', fecha: Date.now(), anonimo: true };
                 if (querySnapshot.empty) {
-                    // Definir tipos de calificación para inicializar contadores
                     const tiposCalificacion = [
                         { id: "muy_malo" }, { id: "malo" }, { id: "regular_negativo" },
                         { id: "regular_positivo" }, { id: "bueno" }, { id: "muy_bueno" }
@@ -886,7 +874,6 @@
                     totalPorTipo[tipoId] = (totalPorTipo[tipoId] || 0) + 1;
                     await updateDoc(docRef, { calificaciones: calificaciones, total_por_tipo: totalPorTipo, ultima_actualizacion: Date.now() });
                 }
-                // Nota: No hay UI para mostrar confirmación en VIPs, solo se guarda en backend
             } catch (error) {
                 console.error("Error guardando calificación VIP:", error);
             }
@@ -903,7 +890,6 @@
                 const dataCom = snapComercio.data();
                 const limitUsos = parseInt(dataCom.usosVip) || 0;
                 
-                // ⭐ GENERAR CÓDIGO VIP ALEATORIO ÚNICO
                 const codigoIdentidad = generarCodigoVipAleatorio();
 
                 await updateDoc(comercioRef, {
