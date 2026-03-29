@@ -382,7 +382,7 @@
         </div>
     </div>
 
-    <!-- ========== MODAL DE CALIFICACIÓN VIP (SIMPLIFICADO) ========== -->
+    <!-- ========== MODAL DE CALIFICACIÓN VIP (CORREGIDO) ========== -->
     <div id="modalCalificarVIP" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);backdrop-filter:blur(4px);z-index:20001;justify-content:center;align-items:center;">
         <div style="background:#1a1a1a;border-radius:20px;padding:25px;max-width:450px;width:90%;border:2px solid var(--dorado);text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.3);">
             <h3 style="color:var(--dorado);margin-bottom:15px;font-size:1.4em;font-weight:700;"><i class="fas fa-user-secret"></i> Calificación Anónima</h3>
@@ -395,7 +395,7 @@
             <textarea id="comentarioCalifVIP" style="width:100%;padding:12px;border-radius:12px;border:2px solid #444;background:#222;color:white;font-family:inherit;resize:vertical;margin:15px 0;box-sizing:border-box;font-size:14px;" rows="3" placeholder="¿Nos das tu opinión? (opcional)"></textarea>
             
             <button id="btnEnviarCalifVIP" style="background:var(--verde);color:white;border:none;padding:14px;border-radius:12px;font-weight:bold;cursor:pointer;width:100%;margin-top:10px;font-size:16px;">Enviar Calificación</button>
-            <button onclick="document.getElementById('modalCalificarVIP').style.display='none'" style="background:#444;color:white;border:none;padding:12px;border-radius:12px;font-weight:bold;cursor:pointer;width:100%;margin-top:10px;font-size:14px;">Cancelar</button>
+            <button onclick="cerrarModalCalifVIP()" style="background:#444;color:white;border:none;padding:12px;border-radius:12px;font-weight:bold;cursor:pointer;width:100%;margin-top:10px;font-size:14px;">Cancelar</button>
         </div>
     </div>
     <!-- ========== FIN MODAL DE CALIFICACIÓN VIP ========== -->
@@ -872,7 +872,7 @@
             document.body.appendChild(alerta);
         };
 
-        // ========== CALIFICACIONES VIP - CÓDIGO MINIMALISTA ==========
+        // ========== CALIFICACIONES VIP - CÓDIGO MINIMALISTA CORREGIDO ==========
 
         // Cargar opciones en el modal
         function cargarOpcionesCalifVIP() {
@@ -908,6 +908,16 @@
                 d.style.border = '1px solid #444';
             });
             document.getElementById('modalCalificarVIP').style.display = 'flex';
+        };
+
+        // Función para cerrar modal (FORZADA)
+        window.cerrarModalCalifVIP = () => {
+            const modal = document.getElementById('modalCalificarVIP');
+            if (modal) {
+                modal.style.display = 'none';
+            }
+            comercioCalifVIP = null;
+            seleccionCalifVIP = null;
         };
 
         // Guardar calificación en Firestore
@@ -1072,15 +1082,18 @@
             document.body.appendChild(overlay);
         };
 
-        // Inicializar al cargar la página
+        // ========== INICIALIZACIÓN DEL MODAL DE CALIFICACIÓN (CORREGIDO) ==========
         document.addEventListener('DOMContentLoaded', () => {
+            // 1. Cargar opciones
             cargarOpcionesCalifVIP();
             
-            // Event listener PARA EL BOTÓN DE ENVIAR - GARANTIZADO
+            // 2. Configurar botón de enviar (CON PREVENT DEFAULT Y DEBUG)
             const btnEnviar = document.getElementById('btnEnviarCalifVIP');
             if (btnEnviar) {
-                btnEnviar.onclick = async () => {
-                    // Validaciones básicas
+                btnEnviar.addEventListener('click', async (e) => {
+                    e.preventDefault(); // 🔥 Evita comportamientos por defecto
+                    
+                    // Validaciones
                     if (!seleccionCalifVIP) {
                         alert('⚠️ Por favor selecciona una calificación');
                         return;
@@ -1090,35 +1103,43 @@
                         return;
                     }
                     
-                    // Deshabilitar botón durante envío
+                    // Feedback visual inmediato
                     btnEnviar.disabled = true;
                     btnEnviar.textContent = 'Enviando...';
                     
                     try {
                         const comentario = document.getElementById('comentarioCalifVIP').value;
+                        console.log('🔹 Enviando calificación:', { tipo: seleccionCalifVIP, comentario });
+                        
                         const exito = await guardarCalifVIP(seleccionCalifVIP, comentario);
                         
                         if (exito) {
-                            // Mostrar alerta de éxito
+                            // Alerta de éxito
                             const alert = document.createElement('div');
                             alert.textContent = '✅ ¡Gracias por tu calificación!';
-                            alert.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--verde);color:white;padding:12px 24px;border-radius:12px;z-index:10001;font-weight:bold;';
+                            alert.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:var(--verde);color:white;padding:12px 24px;border-radius:12px;z-index:10001;font-weight:bold;box-shadow:0 4px 12px rgba(0,0,0,0.3);';
                             document.body.appendChild(alert);
                             setTimeout(() => alert.remove(), 3000);
                             
-                            // Cerrar modal FORZADO
+                            // 🔥 CIERRE FORZADO DEL MODAL
                             document.getElementById('modalCalificarVIP').style.display = 'none';
+                            
+                            // Reset variables
+                            seleccionCalifVIP = null;
+                            comercioCalifVIP = null;
                         }
-                    } catch(e) {
-                        alert('❌ Error al enviar');
+                    } catch(err) {
+                        console.error('❌ Error:', err);
+                        alert('❌ Error al enviar calificación');
                     } finally {
                         // Rehabilitar botón SIEMPRE
                         btnEnviar.disabled = false;
                         btnEnviar.textContent = 'Enviar Calificación';
                     }
-                };
+                }, { passive: false }); // 🔥 Importante para preventDefault
             }
         });
+        // ========== FIN CALIFICACIONES VIP ==========
     </script>
 
     <script>
