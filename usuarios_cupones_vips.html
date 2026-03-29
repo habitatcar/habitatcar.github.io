@@ -468,6 +468,16 @@
         let comercioCalifVIP = null;
         let seleccionCalifVIP = null;
 
+        // ✅ CAMBIO #2: Cargar yaCalificadoVIP desde localStorage al iniciar
+        try {
+            const guardado = localStorage.getItem('yaCalificadoVIP');
+            if (guardado) {
+                yaCalificadoVIP = JSON.parse(guardado);
+            }
+        } catch(e) {
+            yaCalificadoVIP = {};
+        }
+
         // ========== TIPOS DE CALIFICACIÓN VIP ==========
         const tiposCalifVIP = [
             { id: "muy_malo", texto: "Naaaa...", icono: "fa-face-frown", color: "#dc3545", estrellas: 3 },
@@ -508,6 +518,7 @@
                             }
                         });
                         localStorage.removeItem('inicios_cupones_vip');
+                        localStorage.removeItem('yaCalificadoVIP'); // ✅ Resetear también calificaciones
                         ultimoResetDetectadoVIP = resetTimestamp.toString();
                         localStorage.setItem('ultimoResetDetectadoVIP', ultimoResetDetectadoVIP);
                         location.reload();
@@ -970,8 +981,10 @@
                     totales[tipoId] = (totales[tipoId] || 0) + 1;
                     await updateDoc(ref, { calificaciones: califs, total_por_tipo: totales, ultima_actualizacion: Date.now() });
                 }
-                // Marcar como ya calificado y remover botón
+                // ✅ CAMBIO #2: Marcar como calificado y guardar en localStorage
                 yaCalificadoVIP[comercioCalifVIP.id] = true;
+                localStorage.setItem('yaCalificadoVIP', JSON.stringify(yaCalificadoVIP));
+                
                 const btn = document.getElementById(`btn-calificar-${comercioCalifVIP.id}`);
                 if (btn) btn.remove();
                 return true;
@@ -983,7 +996,9 @@
 
         // Agregar botón de calificar a la tarjeta
         function agregarBotonCalificarVIP(id, nombre) {
+            // ✅ CAMBIO #2: Verificar si ya está calificado desde localStorage
             if (yaCalificadoVIP[id]) return;
+            
             setTimeout(() => {
                 const stack = document.getElementById(`btn-stack-${id}`);
                 if (!stack || document.getElementById(`btn-calificar-${id}`)) return;
@@ -1036,9 +1051,15 @@
                     });
                 }
 
+                // ✅ CAMBIO #1: fontSize aumentado de 18 a 28
                 JsBarcode("#barcodeVIP", codigoIdentidad, {
-                    format: "CODE128", lineColor: "#000", width: 2.5, height: 45,
-                    displayValue: true, fontSize: 28, fontOptions: "bold"
+                    format: "CODE128", 
+                    lineColor: "#000", 
+                    width: 2.2, 
+                    height: 45,
+                    displayValue: true, 
+                    fontSize: 28,  // ✅ CAMBIADO DE 18 A 28
+                    fontOptions: "bold"
                 });
 
                 document.getElementById('exito-comercio').innerText = nom;
@@ -1050,7 +1071,7 @@
                     nombreComercio: nom, idValidacion: codigoIdentidad, usoNumero: nUsoLocal,
                     nombre: nombreUsuario, whatsapp: whatsappUsuario,
                     usuarioId: leadIdLocal || '', comercioId: id, modulo: "VIPS",
-                    detalle: `${nombreUsuario}${whatsappUsuario ? ' · ' + whatsappUsuario : ''} canjeó beneficio VIP en ${nom} (uso ${nUsoLocal}${limitUsos > 0 ? '/' + limitUsos : ''})`
+                    detalle: `${nombreUsuario}${whatsappUsuario ? ' · ' + whatsappUsuario : ''} canjeó beneficio VIP en ${nom} (uso ${nuevosUsos}${limitUsos > 0 ? '/' + limitUsos : ''})`
                 });
 
                 await addDoc(collection(db, "logs_vip"), { 
@@ -1072,10 +1093,7 @@
                             window.scrollTo({ top: scrollPosition, behavior: 'auto' });
                         }
                         agregarBotonCalificarVIP(id, nom);
-                        // ✅ CAMBIO #2: Recargar página automáticamente para ver actualización
-                        setTimeout(() => {
-                            location.reload();
-                        }, 500);
+                        // ✅ CAMBIO #2: ELIMINADO location.reload() - El botón ahora persiste
                     }
                 }, 1000);
             } catch(e) { 
