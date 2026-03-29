@@ -300,7 +300,7 @@
         .btn-popup-postulacion.martillero, .btn-popup-postulacion.colaborador { background: #333; color: #ccc; border: 1px solid #666; }
         .btn-popup-postulacion.cerrar { background: var(--gris-volver); color: white; margin-top: 15px; border: none; }
 
-        /* ========== MODAL DE ANONIMATO VIP (IGUAL TEXTO QUE LEADS, ESTILO VIP) ========== */
+        /* ========== MODAL DE ANONIMATO VIP ========== */
         .modal-anonimato-vip {
             display: none;
             position: fixed;
@@ -680,7 +680,7 @@
         </div>
     </div>
 
-    <!-- ========== MODAL DE ANONIMATO VIP (TEXTO IDÉNTICO A LEADS, ESTILO VIP) ========== -->
+    <!-- ========== MODAL DE ANONIMATO VIP ========== -->
     <div id="modalAnonimatoVIP" class="modal-anonimato-vip">
         <div class="modal-anonimato-contenido">
             <h3><i class="fas fa-user-secret"></i> Calificación Anónima</h3>
@@ -1186,22 +1186,22 @@
             document.body.appendChild(alerta);
         };
 
-        // ========== FUNCIONES DE CALIFICACIÓN VIP (FLUJO IGUAL QUE LEADS) ==========
+        // ========== FUNCIONES DE CALIFICACIÓN VIP (CORREGIDAS) ==========
         
-        // Modal de anonimato (se abre PRIMERO) - TEXTO IDÉNTICO A LEADS, ESTILO VIP
         window.abrirModalAnonimatoVIP = (comercio) => {
+            console.log('🔹 Abrir modal anonimato VIP:', comercio?.nombre);
             comercioParaCalificarVIP = comercio;
             document.getElementById('modalAnonimatoVIP').style.display = 'flex';
         };
 
         window.cerrarModalAnonimatoVIP = () => {
+            console.log('🔹 Cerrar modal anonimato VIP');
             document.getElementById('modalAnonimatoVIP').style.display = 'none';
             comercioParaCalificarVIP = null;
         };
 
-        // Modal de calificación (se abre DESPUÉS de presionar "Continuar" en el modal de anonimato)
         window.abrirModalCalificarVIP = async () => {
-            // Cerrar modal de anonimato primero
+            console.log('🔹 Abrir modal calificar VIP');
             cerrarModalAnonimatoVIP();
             
             window.calificacionSeleccionadaVIP = null;
@@ -1211,7 +1211,6 @@
                 opt.style.border = '1px solid #444';
             });
             
-            // Cargar resultados existentes
             if (comercioParaCalificarVIP) {
                 await cargarYMostrarCalificacionesVIP(comercioParaCalificarVIP.id, comercioParaCalificarVIP.nombre);
             }
@@ -1220,9 +1219,14 @@
         };
 
         window.cerrarModalCalificarVIP = () => {
-            document.getElementById('modalCalificarVIP').style.display = 'none';
+            console.log('🔹 Cerrar modal calificar VIP');
+            const modal = document.getElementById('modalCalificarVIP');
+            if (modal) {
+                modal.style.display = 'none';
+            }
             comercioParaCalificarVIP = null;
             window.calificacionSeleccionadaVIP = null;
+            // 🔒 Resetear flag SIEMPRE al cerrar
             enviandoCalificacionVIP = false;
         };
 
@@ -1355,6 +1359,7 @@
                     opcion.style.background = '#3a3a3a';
                     opcion.style.border = `2px solid var(--dorado)`;
                     window.calificacionSeleccionadaVIP = tipo.id;
+                    console.log('🔹 Selección:', tipo.id);
                 });
                 container.appendChild(opcion);
             });
@@ -1362,6 +1367,7 @@
 
         async function guardarCalificacionVIP(comercio, tipoId, comentario) {
             try {
+                console.log('🔹 Guardando calificación:', { comercioId: comercio?.id, tipoId, comentario });
                 const comercioId = comercio.idComercio || comercio.id;
                 const nombreComercio = comercio.nombre;
                 const q = query(collection(db, "calificaciones_comercios"), where("comercioId", "==", comercioId));
@@ -1400,7 +1406,7 @@
                 return true;
                 
             } catch (error) {
-                console.error("Error guardando calificación VIP:", error);
+                console.error("❌ Error guardando calificación VIP:", error);
                 return false;
             }
         }
@@ -1536,16 +1542,23 @@
 
         // Event listener para botón "Continuar" en modal de anonimato VIP
         document.getElementById('btnContinuarCalificarVIP')?.addEventListener('click', () => {
+            console.log('🔹 Click en Continuar anonimato');
             window.abrirModalCalificarVIP();
         });
 
-        // Event listener para enviar calificación VIP
+        // 🔒 Event listener CORREGIDO para enviar calificación VIP
         document.getElementById('btnEnviarCalificacionVIP')?.addEventListener('click', async () => {
+            console.log('🔹 Click en Enviar Calificación VIP');
+            
+            // 🔒 Prevenir doble envío
             if (enviandoCalificacionVIP) {
+                console.log('⚠️ Ya se está enviando una calificación...');
                 return;
             }
             
+            // Validar selección
             if (!window.calificacionSeleccionadaVIP) {
+                console.log('⚠️ No hay calificación seleccionada');
                 const alertDiv = document.createElement('div');
                 alertDiv.textContent = '⚠️ Por favor selecciona una calificación';
                 alertDiv.style.cssText = `position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--naranja); color: white; padding: 12px 24px; border-radius: 12px; z-index: 10001; font-weight: bold;`;
@@ -1554,7 +1567,9 @@
                 return;
             }
             
+            // Validar comercio
             if (!comercioParaCalificarVIP) {
+                console.log('⚠️ No hay comercio seleccionado');
                 const alertDiv = document.createElement('div');
                 alertDiv.textContent = '❌ Error: No hay comercio seleccionado';
                 alertDiv.style.cssText = `position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--rojo); color: white; padding: 12px 24px; border-radius: 12px; z-index: 10001; font-weight: bold;`;
@@ -1563,38 +1578,59 @@
                 return;
             }
             
+            // 🔒 Activar flag de envío
             enviandoCalificacionVIP = true;
             const btn = document.getElementById('btnEnviarCalificacionVIP');
-            btn.disabled = true;
-            btn.textContent = 'Enviando...';
+            if (btn) {
+                btn.disabled = true;
+                btn.textContent = 'Enviando...';
+            }
             
             try {
                 const comentario = document.getElementById('comentarioCalificacionVIP').value;
+                console.log('🔹 Enviando calificación:', { tipo: window.calificacionSeleccionadaVIP, comentario });
+                
                 const exito = await guardarCalificacionVIP(comercioParaCalificarVIP, window.calificacionSeleccionadaVIP, comentario);
                 
                 if (exito) {
+                    console.log('✅ Calificación guardada exitosamente');
+                    // Recargar resultados
                     await cargarYMostrarCalificacionesVIP(comercioParaCalificarVIP.id, comercioParaCalificarVIP.nombre);
+                    // Resetear formulario
                     document.getElementById('comentarioCalificacionVIP').value = '';
                     document.querySelectorAll('.opcion-calificacion').forEach(opt => {
                         opt.style.background = '#2a2a2a';
                         opt.style.border = '1px solid #444';
                     });
                     window.calificacionSeleccionadaVIP = null;
+                    // Mostrar feedback visual
+                    if (btn) {
+                        btn.textContent = '✅ Enviado';
+                    }
+                    // 🔒 Cerrar modal después de 1.5 segundos
                     setTimeout(() => {
+                        console.log('🔹 Cerrando modal después de enviar');
                         cerrarModalCalificarVIP();
                     }, 1500);
+                } else {
+                    throw new Error('Error al guardar en Firestore');
                 }
             } catch (error) {
-                console.error("Error al enviar calificación:", error);
+                console.error("❌ Error al enviar calificación:", error);
                 const alertDiv = document.createElement('div');
                 alertDiv.textContent = '❌ Error al enviar calificación';
                 alertDiv.style.cssText = `position: fixed; top: 20px; left: 50%; transform: translateX(-50%); background: var(--rojo); color: white; padding: 12px 24px; border-radius: 12px; z-index: 10001; font-weight: bold;`;
                 document.body.appendChild(alertDiv);
                 setTimeout(() => alertDiv.remove(), 3000);
             } finally {
+                // 🔒 Resetear flag y botón SIEMPRE
+                console.log('🔹 Resetear flag y botón');
                 enviandoCalificacionVIP = false;
-                btn.disabled = false;
-                btn.textContent = 'Enviar Calificación';
+                const btn = document.getElementById('btnEnviarCalificacionVIP');
+                if (btn) {
+                    btn.disabled = false;
+                    btn.textContent = 'Enviar Calificación';
+                }
             }
         });
     </script>
