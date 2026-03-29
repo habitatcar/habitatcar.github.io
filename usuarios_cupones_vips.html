@@ -323,6 +323,8 @@
             border: 2px solid var(--dorado);
             text-align: center;
             box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+            max-height: 90vh;
+            overflow-y: auto;
         }
         .modal-calificacion-contenido h3 {
             color: var(--dorado);
@@ -440,6 +442,84 @@
             background: #e6b800;
             transform: scale(1.02);
         }
+        
+        /* Sección de resultados de calificaciones */
+        .resultados-calificacion {
+            margin-bottom: 20px;
+            padding: 15px;
+            background: rgba(212,175,55,0.1);
+            border-radius: 12px;
+            border: 1px solid var(--dorado);
+        }
+        .resultados-calificacion h4 {
+            color: var(--dorado);
+            margin: 0 0 12px 0;
+            font-size: 1.1em;
+        }
+        .resumen-contadores {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 15px;
+        }
+        .contador-item {
+            text-align: center;
+            min-width: 60px;
+        }
+        .contador-item i {
+            font-size: 20px;
+            margin-bottom: 4px;
+        }
+        .contador-item .numero {
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+        }
+        .contador-item .etiqueta {
+            font-size: 10px;
+            color: #aaa;
+        }
+        .comentarios-lista {
+            text-align: left;
+            max-height: 150px;
+            overflow-y: auto;
+            margin-top: 10px;
+        }
+        .comentario-item {
+            background: rgba(0,0,0,0.3);
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-bottom: 8px;
+            font-size: 13px;
+        }
+        .comentario-item small {
+            color: #888;
+            font-size: 11px;
+            display: block;
+            margin-top: 4px;
+        }
+        .mensaje-anonimato {
+            text-align: center;
+            padding: 20px;
+            background: rgba(212,175,55,0.15);
+            border: 2px dashed var(--dorado);
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+        .mensaje-anonimato i {
+            font-size: 32px;
+            color: var(--dorado);
+            margin-bottom: 10px;
+        }
+        .mensaje-anonimato p {
+            margin: 5px 0;
+            color: #fff;
+        }
+        .mensaje-anonimato .progreso {
+            color: var(--naranja);
+            font-weight: bold;
+        }
         /* ========== FIN MODAL DE CALIFICACIÓN ========== */
     </style>
 </head>
@@ -528,6 +608,16 @@
     <div id="modalCalificarVIP" class="modal-calificacion">
         <div class="modal-calificacion-contenido">
             <h3><i class="fas fa-star"></i> Calificá tu experiencia</h3>
+            
+            <!-- Sección de resultados (con regla de anonimato) -->
+            <div id="resultadosCalificacionesVIP" class="resultados-calificacion">
+                <!-- Se llena dinámicamente con JS -->
+            </div>
+            
+            <!-- Separador -->
+            <hr style="border-color: #444; margin: 20px 0;">
+            
+            <!-- Formulario para enviar nueva calificación -->
             <p style="font-size:13px;color:#aaa;margin-bottom:15px;">Tu opinión es anónima y se mostrará al comercio cuando se acumulen 10 calificaciones.</p>
             <div class="opciones-calificacion" id="opcionesCalificacionVIP"></div>
             <textarea id="comentarioCalificacionVIP" class="comentario-input" rows="3" placeholder="¿Nos das tu opinión? (opcional)"></textarea>
@@ -1009,7 +1099,120 @@
             document.body.appendChild(alerta);
         };
 
-        // ========== FUNCIONES DE CALIFICACIÓN VIP ==========
+        // ========== FUNCIONES DE CALIFICACIÓN VIP CON ANONIMATO ==========
+        
+        // Función para cargar calificaciones desde Firestore con regla de anonimato
+        async function cargarCalificacionesVIP(comercioId) {
+            try {
+                const q = query(collection(db, "calificaciones_comercios"), where("comercioId", "==", comercioId));
+                const querySnapshot = await getDocs(q);
+                
+                if (querySnapshot.empty) {
+                    return {
+                        muy_malo: 0, malo: 0, regular_negativo: 0,
+                        regular_positivo: 0, bueno: 0, muy_bueno: 0,
+                        comentarios: [],
+                        total_calificaciones: 0,
+                        puedeMostrar: false
+                    };
+                }
+                
+                const docSnap = querySnapshot.docs[0];
+                const data = docSnap.data();
+                
+                const total_calificaciones = (data.calificaciones ?? []).length;
+                // 🔐 REGLA DE ANONIMATO: Solo mostrar si hay 10 o más calificaciones
+                const puedeMostrar = total_calificaciones >= 10;
+                
+                return {
+                    muy_malo: puedeMostrar ? (data.total_por_tipo?.muy_malo ?? 0) : null,
+                    malo: puedeMostrar ? (data.total_por_tipo?.malo ?? 0) : null,
+                    regular_negativo: puedeMostrar ? (data.total_por_tipo?.regular_negativo ?? 0) : null,
+                    regular_positivo: puedeMostrar ? (data.total_por_tipo?.regular_positivo ?? 0) : null,
+                    bueno: puedeMostrar ? (data.total_por_tipo?.bueno ?? 0) : null,
+                    muy_bueno: puedeMostrar ? (data.total_por_tipo?.muy_bueno ?? 0) : null,
+                    comentarios: puedeMostrar ? (data.calificaciones ?? []) : [],
+                    total_calificaciones,
+                    puedeMostrar
+                };
+                
+            } catch (error) {
+                console.error(`❌ Error cargando calificaciones VIP para ${comercioId}:`, error);
+                return {
+                    muy_malo: 0, malo: 0, regular_negativo: 0,
+                    regular_positivo: 0, bueno: 0, muy_bueno: 0,
+                    comentarios: [],
+                    total_calificaciones: 0,
+                    puedeMostrar: false
+                };
+            }
+        }
+
+        // Función para cargar y mostrar calificaciones en el modal (con regla de anonimato)
+        async function cargarYMostrarCalificacionesVIP(comercioId, nombreComercio) {
+            const contenedor = document.getElementById('resultadosCalificacionesVIP');
+            if (!contenedor) return;
+            
+            contenedor.innerHTML = '<div style="text-align:center;padding:15px;"><div style="width:24px;height:24px;border:2px solid var(--dorado);border-top-color:transparent;border-radius:50%;animation:spin 1s linear infinite;margin:0 auto;"></div></div>';
+            
+            try {
+                const calificaciones = await cargarCalificacionesVIP(comercioId);
+                
+                if (!calificaciones) {
+                    contenedor.innerHTML = '<div style="text-align:center;padding:15px;color:red;">❌ Error al cargar</div>';
+                    return;
+                }
+                
+                let html = '';
+                
+                // 🔐 REGLA DE ANONIMATO: Verificar si hay suficientes calificaciones
+                if (!calificaciones.puedeMostrar) {
+                    html = `<div class="mensaje-anonimato">
+                                <i class="fas fa-lock"></i>
+                                <p style="font-weight:600;">Calificaciones en proceso</p>
+                                <p style="font-size:13px;color:#aaa;">
+                                    Se necesitan <strong>10 calificaciones</strong> para mostrar resultados.<br>
+                                    Actualmente: <span class="progreso">${calificaciones.total_calificaciones}/10</span>
+                                </p>
+                            </div>`;
+                } else {
+                    // Mostrar valores reales cuando hay 10+ calificaciones
+                    html = `<h4>Resultados (${calificaciones.total_calificaciones} calificaciones)</h4>
+                            <div class="resumen-contadores">`;
+                    
+                    for (const tipo of tiposCalificacionVIP) {
+                        const count = calificaciones[tipo.id] ?? 0;
+                        html += `<div class="contador-item">
+                                    <i class="fas ${tipo.icono} ${tipo.color}"></i>
+                                    <div class="numero">${count}</div>
+                                    <div class="etiqueta">${tipo.texto}</div>
+                                 </div>`;
+                    }
+                    html += `</div>`;
+                    
+                    // Mostrar comentarios si existen
+                    const comentariosConTexto = (calificaciones.comentarios ?? []).filter(c => c.comentario && c.comentario.trim());
+                    if (comentariosConTexto.length > 0) {
+                        html += `<div class="comentarios-lista">`;
+                        for (const c of comentariosConTexto.slice(0, 5)) { // Mostrar solo los últimos 5
+                            const fecha = new Date(c.fecha).toLocaleDateString('es-AR');
+                            html += `<div class="comentario-item">
+                                        💬 ${c.comentario}
+                                        <small>📅 ${fecha}</small>
+                                     </div>`;
+                        }
+                        html += `</div>`;
+                    }
+                }
+                
+                contenedor.innerHTML = html;
+                
+            } catch (error) {
+                console.error("Error:", error);
+                contenedor.innerHTML = `<div style="text-align:center;padding:15px;color:red;">❌ Error: ${error.message}</div>`;
+            }
+        }
+
         function cargarOpcionesCalificacionVIP() {
             const container = document.getElementById('opcionesCalificacionVIP');
             if (!container) return;
@@ -1038,7 +1241,7 @@
             });
         }
 
-        window.abrirModalCalificarVIP = (comercio) => {
+        window.abrirModalCalificarVIP = async (comercio) => {
             comercioParaCalificarVIP = comercio;
             window.calificacionSeleccionadaVIP = null;
             document.getElementById('comentarioCalificacionVIP').value = '';
@@ -1046,6 +1249,10 @@
                 opt.style.background = '#2a2a2a';
                 opt.style.border = '1px solid #444';
             });
+            
+            // Cargar y mostrar calificaciones existentes (con regla de anonimato)
+            await cargarYMostrarCalificacionesVIP(comercio.id, comercio.nombre);
+            
             document.getElementById('modalCalificarVIP').style.display = 'flex';
         };
 
@@ -1238,7 +1445,15 @@
             const comentario = document.getElementById('comentarioCalificacionVIP').value;
             if (comercioParaCalificarVIP) {
                 await guardarCalificacionVIP(comercioParaCalificarVIP, window.calificacionSeleccionadaVIP, comentario);
-                cerrarModalCalificarVIP();
+                // Recargar resultados después de enviar
+                await cargarYMostrarCalificacionesVIP(comercioParaCalificarVIP.id, comercioParaCalificarVIP.nombre);
+                // Resetear formulario
+                document.getElementById('comentarioCalificacionVIP').value = '';
+                document.querySelectorAll('.opcion-calificacion').forEach(opt => {
+                    opt.style.background = '#2a2a2a';
+                    opt.style.border = '1px solid #444';
+                });
+                window.calificacionSeleccionadaVIP = null;
             }
         });
     </script>
