@@ -135,6 +135,7 @@
         .btn-sorteo { background-color: var(--naranja-sorteo); position: relative; overflow: visible; }
         .btn-llegar { background-color: var(--verde); }
         .btn-validar { background-color: var(--rosa); }
+        /* ========== CAMBIO: Estilo para botón deshabilitado ========== */
         .btn-validar.disabled-btn {
             background: var(--gris-volver) !important;
             color: #666 !important;
@@ -142,6 +143,7 @@
             pointer-events: none !important;
             opacity: 0.6;
         }
+        /* ========== FIN CAMBIO ========== */
         .btn-usar { background-color: #222; color: #555; border-color: #444; pointer-events: none; }
         .btn-usar.activo { 
             background: #000; color: var(--dorado-brillante); pointer-events: auto; 
@@ -430,7 +432,12 @@
         let filtroCercaniaActivo = false;
         let todasLasProvincias = [];
         let todasLasLocalidades = [];
+        let comercioParaCalificar = null;
+        let yaCalificado = {};
 
+        // ============================================
+        // FUNCIÓN PARA GENERAR CÓDIGO VIP ALEATORIO ÚNICO (4 letras + 4 números)
+        // ============================================
         function generarCodigoVipAleatorio() {
             const letras = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
             let parteLetras = '';
@@ -441,6 +448,9 @@
             return `${parteLetras}-${numeros}`;
         }
 
+        // ============================================
+        // RESET GLOBAL VIP
+        // ============================================
         const leadId = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
         let ultimoResetDetectadoVIP = localStorage.getItem('ultimoResetDetectadoVIP') || "0";
 
@@ -728,6 +738,7 @@
                 const beneficioVipTexto = [descVipDisplay, detalleVip].filter(Boolean).join(' ') || 'Consultar';
                 const beneficioVipParaLog = beneficioVipTexto.replace(/'/g, "\\'");
 
+                // ⭐ CONTADOR CORREGIDO: muestra usos_realizados / usos_totales
                 let textoBoton = '';
                 if (limitUsos > 0) {
                     textoBoton = `Usar beneficio <span class="contador-nube">${nUso}/${limitUsos}</span>`;
@@ -735,6 +746,7 @@
                     textoBoton = `Usar beneficio <span class="contador-nube">${nUso}</span>`;
                 }
 
+                // Verificar si está agotado
                 const esAgotado = limitUsos > 0 && nUso >= limitUsos;
                 
                 // ========== CAMBIO: Deshabilitar botón de validación QR cuando el cupón está agotado ==========
@@ -753,7 +765,7 @@
                         <div class="beneficio-c">${beneficioVipTexto}</div>
                         <div class="vence-vip">${infoVencimiento} ${distanciaHtml}</div>
                         ${c.direccion ? `<div class="info-txt"><span class="ico-large">📍</span>${c.direccion}</div>` : ""}
-                        <div class="btn-stack">
+                        <div class="btn-stack" id="btn-stack-${c.id}">
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${c.id}')">Conozca el comercio</button>` : ''}
                             ${botonSorteo}
                             <button class="btn-act btn-llegar" onclick="window.open('${mapsUrl}')">Cómo llegar</button>
@@ -766,6 +778,7 @@
             contenedor.innerHTML = html;
             if (scrollPosition > 0) setTimeout(() => window.scrollTo({ top: scrollPosition, behavior: 'auto' }), 100);
         }
+
         window.tocarSorteo = (id, nombre) => {
             const btn = document.getElementById(`btn-sorteo-${id}`);
             if (btn) { btn.classList.remove('animar-pulso'); btn.classList.add('sin-pulso'); localStorage.setItem('toco_sorteo_' + id, 'true'); }
@@ -880,6 +893,28 @@
         }
         // ========== FIN FUNCIÓN DE CALIFICACIÓN ==========
 
+        // ========== FUNCIÓN PARA AGREGAR BOTÓN DE CALIFICAR (SIN UI DE ESTRELLAS) ==========
+        function agregarBotonCalificar(comercioId, nombreComercio) {
+            if (yaCalificado[comercioId]) return;
+            setTimeout(() => {
+                const btnStack = document.getElementById(`btn-stack-${comercioId}`);
+                if (!btnStack) return;
+                if (document.getElementById(`btn-calificar-${comercioId}`)) return;
+                const btnCalificar = document.createElement('button');
+                btnCalificar.id = `btn-calificar-${comercioId}`;
+                btnCalificar.className = 'btn-act btn-calificar-tarjeta';
+                btnCalificar.innerHTML = '<i class="fas fa-star"></i> Calificar este comercio';
+                btnCalificar.style.cssText = "background:var(--dorado);color:#000;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;transition:all 0.2s;width:100%;";
+                btnCalificar.onclick = () => {
+                    // Aquí iría la lógica para abrir modal de calificación si se desea en el futuro
+                    // Por ahora, solo mostramos alerta simple
+                    alert("✅ Gracias por tu interés en calificar. Esta funcionalidad estará disponible pronto.");
+                };
+                btnStack.appendChild(btnCalificar);
+            }, 300);
+        }
+        // ========== FIN FUNCIÓN AGREGAR BOTÓN ==========
+
         window.finalizarVIP = async (id, nom, ben) => {
             document.getElementById('alerta-cajero').remove();
             try {
@@ -890,6 +925,7 @@
                 const dataCom = snapComercio.data();
                 const limitUsos = parseInt(dataCom.usosVip) || 0;
                 
+                // ⭐ GENERAR CÓDIGO VIP ALEATORIO ÚNICO
                 const codigoIdentidad = generarCodigoVipAleatorio();
 
                 await updateDoc(comercioRef, {
@@ -945,7 +981,17 @@
                 const t = setInterval(() => {
                     s--;
                     document.getElementById('countdown').innerText = s;
-                    if(s <= 0) { clearInterval(t); location.reload(); }
+                    if(s <= 0) { 
+                        clearInterval(t); 
+                        // ✅ CAMBIO: En lugar de recargar, ocultamos y mostramos el botón de calificar
+                        document.getElementById('pantalla-exito').style.display = 'none';
+                        // Restauramos scroll
+                        if (scrollPosition > 0) {
+                            window.scrollTo({ top: scrollPosition, behavior: 'auto' });
+                        }
+                        // ✅ Ahora que la pantalla está oculta, agregamos el botón de calificar
+                        agregarBotonCalificar(id, nom);
+                    }
                 }, 1000);
             } catch(e) { 
                 console.error("Error al registrar en Log:", e);
