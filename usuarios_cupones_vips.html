@@ -144,7 +144,7 @@
         }
         .btn-usar { 
             background-color: #222; 
-            color: #e8e8e8 !important; /* ✅ CAMBIO #1: Gris claro cercano al blanco */
+            color: #e8e8e8 !important;
             border-color: #444; 
             pointer-events: none; 
         }
@@ -288,9 +288,15 @@
         }
         .error-icon-vip { width: 60px; margin-bottom: 15px; filter: drop-shadow(0 0 5px red); }
 
+        /* ✅ CAMBIO #1: Barcode container centrado correctamente */
         .barcode-container {
-            background: white; padding: 8px; border-radius: 10px;
-            margin: 15px 0; display: inline-block; width: 90%;
+            background: white; 
+            padding: 8px; 
+            border-radius: 10px;
+            margin: 15px auto;
+            display: block;
+            width: 90%;
+            max-width: 280px;
         }
 
         .popup-estandar {
@@ -394,7 +400,6 @@
     <div id="modalCalificarVIP" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.95);backdrop-filter:blur(4px);z-index:20001;justify-content:center;align-items:center;">
         <div style="background:#1a1a1a;border-radius:20px;padding:25px;max-width:450px;width:90%;border:2px solid var(--dorado);text-align:center;box-shadow:0 20px 40px rgba(0,0,0,0.3);">
             <h3 style="color:var(--dorado);margin-bottom:15px;font-size:1.4em;font-weight:700;"><i class="fas fa-user-secret"></i> Calificación Anónima</h3>
-            <!-- ✅ CAMBIO #3: Texto de anonimato más grande (16px) -->
             <p style="color:#ccc;margin-bottom:20px;font-size:16px;line-height:1.5;">Esta calificación es <strong style="color:var(--dorado);">anónima</strong> y se mostrará al comercio cuando se acumulen <strong style="color:var(--dorado);">10 calificaciones</strong> con el fin de mantener el anonimato de los usuarios.</p>
             
             <div style="display:flex;flex-direction:column;gap:12px;margin:20px 0;" id="opcionesCalifVIP">
@@ -780,6 +785,11 @@
                 const btnValidarDisabled = esAgotado ? 'disabled-btn' : '';
                 const btnValidarDisabledAttr = esAgotado ? 'disabled' : '';
                 
+                // ✅ CAMBIO #3: Botón VALIDAR CON QR se oculta cuando está agotado
+                const botonValidarQR = esAgotado
+                    ? ''  // ✅ No se muestra el botón cuando está agotado
+                    : `<button class="btn-act btn-validar" id="btn-val-${c.id}" onclick="abrirQR('${c.id}', '${c.tokenQR}')">Validar con QR</button>`;
+                
                 const botonUsarBeneficio = esAgotado
                     ? `<button class="btn-act btn-usar" id="btn-usar-${c.id}" style="background:#111;color:#e8e8e8 !important;border-color:#333;pointer-events:none;cursor:not-allowed;">AGOTADO <span class="contador-nube" style="background:#444;">${nUso}/${limitUsos}</span></button>`
                     : `<button class="btn-act btn-usar" id="btn-usar-${c.id}" onclick="preguntarCajeroVIP('${c.id}', '${(c.nombre||'').replace(/'/g,"\\'")}', '${beneficioVipParaLog}')">${textoBoton}</button>`;
@@ -795,7 +805,7 @@
                             ${tieneRedes ? `<button class="btn-act btn-conozca" onclick="verRedes('${c.id}')">Conozca el comercio</button>` : ''}
                             ${botonSorteo}
                             <button class="btn-act btn-llegar" onclick="window.open('${mapsUrl}')">Cómo llegar</button>
-                            <button class="btn-act btn-validar ${btnValidarDisabled}" id="btn-val-${c.id}" onclick="${esAgotado ? '' : `abrirQR('${c.id}', '${c.tokenQR}')`}" ${btnValidarDisabledAttr}>Validar con QR</button>
+                            ${botonValidarQR}
                             ${botonUsarBeneficio}
                         </div>
                     </div>`;
@@ -838,9 +848,10 @@
                     cerrarScanner();
                     document.getElementById(`btn-usar-${id}`).classList.add('activo');
                     document.getElementById(`btn-val-${id}`).style.display = 'none';
+                    // ✅ CAMBIO #2: Modal QR válido más angosto (max-width: 70%)
                     const overlay = document.createElement('div');
                     overlay.style.cssText = "position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);display:flex;justify-content:center;align-items:center;z-index:9000;";
-                    overlay.innerHTML = `<div style="background:white;padding:30px;border-radius:20px;text-align:center;max-width:80%; border:5px solid var(--dorado);">
+                    overlay.innerHTML = `<div style="background:white;padding:30px;border-radius:20px;text-align:center;max-width:70%; border:5px solid var(--dorado);">
                         <div style="font-size:60px; margin-bottom:15px;">✅</div>
                         <b style="color:black;font-size:24px;display:block;margin-bottom:10px;">QR VALIDADO</b>
                         <p style="color:#333;font-size:18px;margin:0;font-weight:600;">Ahora pulse el botón "USAR BENEFICIO"</p>
@@ -975,7 +986,6 @@
                 const btn = document.createElement('button');
                 btn.id = `btn-calificar-${id}`;
                 btn.className = 'btn-act btn-calificar-tarjeta';
-                // ✅ CAMBIO #2: Botón dorado con texto negro (visible)
                 btn.style.cssText = "background:var(--dorado);color:#000;border:none;padding:10px;border-radius:8px;font-weight:bold;cursor:pointer;font-size:13px;display:flex;align-items:center;justify-content:center;gap:6px;margin-top:6px;transition:all 0.2s;width:100%;";
                 btn.innerHTML = '<i class="fas fa-star"></i> Calificar este comercio';
                 btn.onclick = () => {
@@ -1102,7 +1112,7 @@
             const btnEnviar = document.getElementById('btnEnviarCalifVIP');
             if (btnEnviar) {
                 btnEnviar.addEventListener('click', async (e) => {
-                    e.preventDefault(); // 🔥 Evita comportamientos por defecto
+                    e.preventDefault();
                     
                     // Validaciones
                     if (!seleccionCalifVIP) {
@@ -1132,7 +1142,7 @@
                             document.body.appendChild(alert);
                             setTimeout(() => alert.remove(), 3000);
                             
-                            // 🔥 CIERRE FORZADO DEL MODAL
+                            // CIERRE FORZADO DEL MODAL
                             document.getElementById('modalCalificarVIP').style.display = 'none';
                             
                             // Reset variables
@@ -1147,7 +1157,7 @@
                         btnEnviar.disabled = false;
                         btnEnviar.textContent = 'Enviar Calificación';
                     }
-                }, { passive: false }); // 🔥 Importante para preventDefault
+                }, { passive: false });
             }
         });
         // ========== FIN CALIFICACIONES VIP ==========
