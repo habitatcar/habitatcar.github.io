@@ -780,7 +780,7 @@ window.db = db;
 let comercioSeleccionado = null;
 
 // =============================================
-// FUNCIONES PARA CALIFICACIONES
+// FUNCIONES PARA CALIFICACIONES - REGLA DE 10 CALIFICACIONES
 // =============================================
 const tiposCalificacion = [
     { id: "muy_malo", nombre: "Muy Malo", icono: "fa-face-frown", color: "estrella-roja", texto: "Naaaa..." },
@@ -791,49 +791,56 @@ const tiposCalificacion = [
     { id: "muy_bueno", nombre: "Muy Bueno", icono: "fa-face-grin-stars", color: "estrella-dorada", texto: "Super!!!" }
 ];
 
-// ========== CAMBIO #3: FUNCIÓN CORREGIDA PARA CONTABILIZAR CALIFICACIONES (MODO PRUEBAS) ==========
+// ✅ FUNCIÓN CORREGIDA: Solo muestra calificaciones cuando hay ≥10 acumuladas
 async function cargarCalificaciones(comercioId) {
     try {
-        console.log(`🔍 [DEBUG] Cargando calificaciones para comercio: ${comercioId}`);
-        
         const q = query(collection(db, "calificaciones_comercios"), where("comercioId", "==", comercioId));
         const querySnapshot = await getDocs(q);
         
-        console.log(`📊 [DEBUG] Documentos encontrados: ${querySnapshot.size}`);
-        
         if (querySnapshot.empty) {
-            console.log(`ℹ️ [DEBUG] No hay documento de calificaciones para ${comercioId}`);
-            // 🔧 MODO PRUEBAS: Retornar estructura vacía pero visible (sin regla de 10 calificaciones)
             return {
                 muy_malo: 0, malo: 0, regular_negativo: 0,
                 regular_positivo: 0, bueno: 0, muy_bueno: 0,
                 comentarios: [],
-                total_calificaciones: 0
+                total_calificaciones: 0,
+                puedeMostrar: false
             };
         }
         
         const docSnap = querySnapshot.docs[0];
         const data = docSnap.data();
-        console.log(`✅ [DEBUG] Datos cargados:`, data);
         
-        // 🔧 MODO PRUEBAS: Mostrar TODOS los conteos, sin importar si hay menos de 10 calificaciones
-        // (La regla de anonimato de 10 calificaciones está PAUSADA para pruebas)
-        const resultado = {
-            muy_malo: data.total_por_tipo?.muy_malo || 0,
-            malo: data.total_por_tipo?.malo || 0,
-            regular_negativo: data.total_por_tipo?.regular_negativo || 0,
-            regular_positivo: data.total_por_tipo?.regular_positivo || 0,
-            bueno: data.total_por_tipo?.bueno || 0,
-            muy_bueno: data.total_por_tipo?.muy_bueno || 0,
-            comentarios: data.calificaciones || [],
-            total_calificaciones: (data.calificaciones || []).length
-        };
+        const total_calificaciones = (data.calificaciones || []).length;
         
-        console.log(`📈 [DEBUG] Contadores a mostrar:`, resultado);
-        return resultado;
+        // ✅ REGLA DE ANONIMATO: Solo mostrar si hay 10 o más calificaciones
+        const puedeMostrar = total_calificaciones >= 10;
+        
+        if (puedeMostrar) {
+            // ✅ Mostrar contadores reales y comentarios (anonimizados)
+            return {
+                muy_malo: data.total_por_tipo?.muy_malo || 0,
+                malo: data.total_por_tipo?.malo || 0,
+                regular_negativo: data.total_por_tipo?.regular_negativo || 0,
+                regular_positivo: data.total_por_tipo?.regular_positivo || 0,
+                bueno: data.total_por_tipo?.bueno || 0,
+                muy_bueno: data.total_por_tipo?.muy_bueno || 0,
+                comentarios: data.calificaciones || [],
+                total_calificaciones,
+                puedeMostrar: true
+            };
+        } else {
+            // ✅ Menos de 10: NO mostrar contadores ni comentarios (anonimato activo)
+            return {
+                muy_malo: null, malo: null, regular_negativo: null,
+                regular_positivo: null, bueno: null, muy_bueno: null,
+                comentarios: [],
+                total_calificaciones,
+                puedeMostrar: false
+            };
+        }
         
     } catch (error) {
-        console.error("❌ [DEBUG] Error cargando calificaciones:", error);
+        console.error("❌ Error cargando calificaciones:", error);
         return null;
     }
 }
@@ -855,18 +862,26 @@ window.abrirModalCalificaciones = async (comercioId, nombreComercio) => {
         
         let html = `<p style="margin-bottom: 15px; color: #ccc;">Calificaciones para <strong style="color: var(--dorado);">${nombreComercio}</strong></p>`;
         
-        // 🔧 MODO PRUEBAS: Mostrar mensaje si no hay calificaciones aún
-        if (calificaciones.total_calificaciones === 0) {
-            html += `<div style="text-align:center; padding:20px; color:#aaa; background:rgba(0,0,0,0.2); border-radius:10px; margin-bottom:20px;">
-                        <i class="fas fa-info-circle"></i> Aún no hay calificaciones para este comercio
-                     </div>`;
+        // ✅ Si no hay 10 calificaciones, mostrar mensaje de anonimato
+        if (!calificaciones.puedeMostrar) {
+            html += `
+                <div style="text-align:center; padding:30px; background:rgba(212,175,55,0.15); border:2px dashed var(--dorado); border-radius:12px; margin-bottom:20px;">
+                    <i class="fas fa-lock" style="font-size:48px; color:var(--dorado); margin-bottom:15px;"></i>
+                    <p style="font-weight:600; color:#fff; margin:0 0 8px 0;">Calificaciones en proceso</p>
+                    <p style="font-size:13px; color:#aaa; margin:0;">
+                        Se necesitan <strong>10 calificaciones</strong> para mostrar resultados.<br>
+                        Actualmente: <strong style="color:var(--naranja);">${calificaciones.total_calificaciones}/10</strong>
+                    </p>
+                </div>
+            `;
+            contenido.innerHTML = html;
+            return;
         }
         
-        // Resumen de conteo (siempre visible en modo pruebas)
+        // ✅ Si hay ≥10 calificaciones, mostrar contadores y comentarios
         html += `<div style="display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; background: rgba(0,0,0,0.2); padding: 10px; border-radius: 10px;">`;
         for (const tipo of tiposCalificacion) {
             const count = calificaciones[tipo.id] || 0;
-            // 🔧 MODO PRUEBAS: Mostrar incluso si count es 0
             html += `<div style="text-align: center; min-width: 60px;">
                         <i class="fas ${tipo.icono} ${tipo.color}" style="font-size: 20px;"></i>
                         <div style="font-size: 18px; font-weight: bold;">${count}</div>
@@ -875,7 +890,7 @@ window.abrirModalCalificaciones = async (comercioId, nombreComercio) => {
         }
         html += `</div>`;
         
-        // Comentarios por tipo
+        // Comentarios por tipo (solo si hay ≥10)
         const comentariosPorTipo = {};
         for (const tipo of tiposCalificacion) {
             comentariosPorTipo[tipo.id] = calificaciones.comentarios.filter(c => c.tipo === tipo.id);
@@ -908,6 +923,40 @@ window.abrirModalCalificaciones = async (comercioId, nombreComercio) => {
 window.cerrarModalCalificaciones = () => {
     document.getElementById('modalCalificaciones').style.display = 'none';
 };
+
+// ✅ FUNCIÓN ACTUALIZADA: Contadores en tarjetas solo muestran valores si hay ≥10 calificaciones
+async function cargarContadoresCalificaciones(comercioId) {
+    try {
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        
+        const calificaciones = await cargarCalificaciones(comercioId);
+        if (calificaciones) {
+            // ✅ Si no hay 10 calificaciones, mostrar "—" en lugar de números
+            const mostrarValores = calificaciones.puedeMostrar;
+            
+            const contadores = {
+                'cont-muy-malo': mostrarValores ? (calificaciones.muy_malo || 0) : '—',
+                'cont-malo': mostrarValores ? (calificaciones.malo || 0) : '—',
+                'cont-regular-neg': mostrarValores ? (calificaciones.regular_negativo || 0) : '—',
+                'cont-regular-pos': mostrarValores ? (calificaciones.regular_positivo || 0) : '—',
+                'cont-bueno': mostrarValores ? (calificaciones.bueno || 0) : '—',
+                'cont-muy-bueno': mostrarValores ? (calificaciones.muy_bueno || 0) : '—'
+            };
+            
+            for (const [id, valor] of Object.entries(contadores)) {
+                const elemento = document.getElementById(`${id}-${comercioId}`);
+                if (elemento) {
+                    elemento.innerText = valor;
+                    // Efecto visual sutil
+                    elemento.style.transition = 'all 0.2s';
+                    elemento.style.opacity = mostrarValores ? '1' : '0.6';
+                }
+            }
+        }
+    } catch (error) {
+        console.error("❌ Error cargando contadores:", error);
+    }
+}
 
 // =============================================
 // FUNCIONES DATOS PERSONALES
@@ -943,7 +992,7 @@ window.abrirModalDatosPersonales = async (idComercio) => {
                     <div class="modal-datos-item"><div class="modal-datos-label">CUIT</div><div class="modal-datos-valor">${datos.cuit || comercio.cuit || '-'}</div></div>
                     <div class="modal-datos-item"><div class="modal-datos-label">Dirección</div><div class="modal-datos-valor">${comercio.direccion || '-'}</div></div>
                     <div class="modal-datos-item"><div class="modal-datos-label">Ubicación</div><div class="modal-datos-valor">${comercio.ciudad || comercio.localidad || '-'} - ${comercio.provincia || '-'}</div></div>
-                    <div class="modal-datos-item"><div class="modal-datos-label">Teléfono / WhatsApp</div><div class="modal-datos-valor"><a href="https://wa.me/${comercio.telefono?.replace(/\\D/g, '')}" target="_blank">${comercio.telefono || '-'}</a></div></div>
+                    <div class="modal-datos-item"><div class="modal-datos-label">Teléfono / WhatsApp</div><div class="modal-datos-valor"><a href="https://wa.me/${comercio.telefono?.replace(/\D/g, '')}" target="_blank">${comercio.telefono || '-'}</a></div></div>
                     <div class="modal-datos-item"><div class="modal-datos-label">Email Dueño</div><div class="modal-datos-valor"><a href="mailto:${comercio.emailDueno}">${comercio.emailDueno || '-'}</a></div></div>
                 </div>
             </div>
@@ -1235,29 +1284,29 @@ ${c.mapsUrl ? `<a href="${c.mapsUrl}" target="_blank" class="social-link" style=
     <div class="estrella-grupo">
         <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
             <i class="fas fa-star estrella-icono estrella-roja"></i>
-            <span class="estrella-contador" id="cont-muy-malo-${displayID}">0</span>
+            <span class="estrella-contador" id="cont-muy-malo-${displayID}">—</span>
         </div>
         <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
             <i class="fas fa-star estrella-icono estrella-roja"></i>
-            <span class="estrella-contador" id="cont-malo-${displayID}">0</span>
+            <span class="estrella-contador" id="cont-malo-${displayID}">—</span>
         </div>
         <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
             <i class="fas fa-star estrella-icono estrella-roja"></i>
-            <span class="estrella-contador" id="cont-regular-neg-${displayID}">0</span>
+            <span class="estrella-contador" id="cont-regular-neg-${displayID}">—</span>
         </div>
     </div>
     <div class="estrella-grupo">
         <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
             <i class="fas fa-star estrella-icono estrella-dorada"></i>
-            <span class="estrella-contador" id="cont-regular-pos-${displayID}">0</span>
+            <span class="estrella-contador" id="cont-regular-pos-${displayID}">—</span>
         </div>
         <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
             <i class="fas fa-star estrella-icono estrella-dorada"></i>
-            <span class="estrella-contador" id="cont-bueno-${displayID}">0</span>
+            <span class="estrella-contador" id="cont-bueno-${displayID}">—</span>
         </div>
         <div class="estrella-item" onclick="abrirModalCalificaciones('${displayID}', '${c.nombre}')" title="Ver calificaciones">
             <i class="fas fa-star estrella-icono estrella-dorada"></i>
-            <span class="estrella-contador" id="cont-muy-bueno-${displayID}">0</span>
+            <span class="estrella-contador" id="cont-muy-bueno-${displayID}">—</span>
         </div>
     </div>
 </div>
@@ -1268,45 +1317,6 @@ ${c.mapsUrl ? `<a href="${c.mapsUrl}" target="_blank" class="social-link" style=
     // Cargar contadores de calificaciones
     cargarContadoresCalificaciones(displayID);
 }
-
-async function cargarContadoresCalificaciones(comercioId) {
-    try {
-        // Esperar un frame de renderizado para asegurar que los elementos del DOM estén disponibles
-        await new Promise(resolve => requestAnimationFrame(resolve));
-        
-        const calificaciones = await cargarCalificaciones(comercioId);
-        if (calificaciones) {
-            const contadores = {
-                'cont-muy-malo': calificaciones.muy_malo,
-                'cont-malo': calificaciones.malo,
-                'cont-regular-neg': calificaciones.regular_negativo,
-                'cont-regular-pos': calificaciones.regular_positivo,
-                'cont-bueno': calificaciones.bueno,
-                'cont-muy-bueno': calificaciones.muy_bueno
-            };
-            
-            for (const [id, valor] of Object.entries(contadores)) {
-                const elemento = document.getElementById(`${id}-${comercioId}`);
-                if (elemento) {
-                    // 🔧 MODO PRUEBAS: Forzar actualización visual incluso si el valor es 0
-                    elemento.innerText = valor;
-                    // Efecto visual para confirmar que se actualizó
-                    elemento.style.transition = 'all 0.2s';
-                    elemento.style.transform = 'scale(1.2)';
-                    setTimeout(() => {
-                        elemento.style.transform = 'scale(1)';
-                    }, 200);
-                } else {
-                    console.warn(`⚠️ [DEBUG] No se encontró elemento: ${id}-${comercioId}`);
-                }
-            }
-            console.log(`✅ [DEBUG] Contadores actualizados para ${comercioId}`);
-        }
-    } catch (error) {
-        console.error("❌ [DEBUG] Error cargando contadores:", error);
-    }
-}
-// ========== FIN CAMBIO #3 ==========
 
 window.render = () => {
     const box = document.getElementById('lista-comercios');
