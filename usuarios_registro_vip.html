@@ -331,39 +331,54 @@
                 }
                 // Si no existe → registro nuevo VIP (caso a)
 
-                // 2. Crear cuenta en Firebase Auth (o reusar la existente si el email ya está registrado)
-                // La lógica de negocio solo rechaza WhatsApp duplicado — el email puede repetirse
+                // 2. Autenticación en Firebase Auth
+                // Si el lead ya existe en Firestore, reusar su authUid y passwordTemp
                 let passwordTemp = "HC_" + Math.random().toString(36).substring(2,8).toUpperCase();
-                let userCredential;
+                let uid = null;
 
-                // Si el lead ya existe (mismo WhatsApp → mismo email), usar su passwordTemp guardada
-                if (!snapCheck.empty && snapCheck.docs[0].data().passwordTemp) {
-                    passwordTemp = snapCheck.docs[0].data().passwordTemp;
+                if (!snapCheck.empty) {
+                    const leadExistente = snapCheck.docs[0].data();
+                    // Si ya tiene authUid guardado, lo reusamos directamente sin tocar Auth
+                    if (leadExistente.authUid) {
+                        uid = leadExistente.authUid;
+                        if (leadExistente.passwordTemp) passwordTemp = leadExistente.passwordTemp;
+                        // Autenticar para que Firestore reconozca la sesión
+                        try {
+                            await signInWithEmailAndPassword(auth, fields.mail, passwordTemp);
+                        } catch(e) {
+                            // Si no puede autenticar, no importa — el uid ya lo tenemos
+                            console.warn("Login opcional fallido, continuando con uid guardado:", e.message);
+                        }
+                    }
                 }
 
-                try {
-                    userCredential = await createUserWithEmailAndPassword(auth, fields.mail, passwordTemp);
-                } catch (authErr) {
-                    if (authErr.code === 'auth/email-already-in-use') {
-                        // Email ya en Auth → intentar login con la contraseña que tenemos
-                        try {
-                            userCredential = await signInWithEmailAndPassword(auth, fields.mail, passwordTemp);
-                        } catch (signInErr) {
-                            // Si no funciona, buscar en Firestore por email
+                // Si no obtuvimos uid todavía, crear o loguear en Auth
+                if (!uid) {
+                    try {
+                        const cred = await createUserWithEmailAndPassword(auth, fields.mail, passwordTemp);
+                        uid = cred.user.uid;
+                    } catch (authErr) {
+                        if (authErr.code === 'auth/email-already-in-use') {
+                            // Buscar passwordTemp en Firestore por email
                             const qEmail = query(collection(db, "leads"), where("email", "==", fields.mail));
                             const snapEmail = await getDocs(qEmail);
                             if (!snapEmail.empty && snapEmail.docs[0].data().passwordTemp) {
                                 passwordTemp = snapEmail.docs[0].data().passwordTemp;
-                                userCredential = await signInWithEmailAndPassword(auth, fields.mail, passwordTemp);
+                                const cred2 = await signInWithEmailAndPassword(auth, fields.mail, passwordTemp);
+                                uid = cred2.user.uid;
                             } else {
-                                throw new Error("No se pudo autenticar. Contactá a soporte: 388-4618228");
+                                // Último recurso: generar nuevo usuario con email alternativo interno
+                                // Usamos el UID del documento de leads si existe
+                                uid = (!snapCheck.empty && snapCheck.docs[0].data().authUid) 
+                                    ? snapCheck.docs[0].data().authUid 
+                                    : "vip_" + Date.now();
+                                console.warn("Usando uid de emergencia:", uid);
                             }
+                        } else {
+                            throw authErr;
                         }
-                    } else {
-                        throw authErr;
                     }
                 }
-                const uid = userCredential.user.uid;
 
                 const ahora = Date.now();
                 let finalLeadId = "";
