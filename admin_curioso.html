@@ -3,29 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial de Canjes | Hábitat-Car</title>
+    <title>Admin Ecosistema | Hábitat-Car</title>
     
-    <!-- ⚠️ PROTECCIÓN - DEBE SER LO PRIMERO ⚠️ -->
+    <!-- ========== BLOQUE DE SEGURIDAD ========== -->
     <script type="module">
         import { verificarAccesoAdmin } from './admin_auth.js';
-        // Esperar a que verifique antes de mostrar cualquier contenido
-        await verificarAccesoAdmin();
+        
+        (async () => {
+            const ok = await verificarAccesoAdmin();
+            if (!ok) {
+                document.body.innerHTML = '<p style="color:white;text-align:center;padding:50px;font-family:sans-serif;">🔒 Acceso denegado</p>';
+                return;
+            }
+            const capa = document.getElementById('capa-seguridad');
+            if (capa) capa.style.display = 'none';
+        })();
     </script>
+    <!-- ========== FIN BLOQUE DE SEGURIDAD ========== -->
     
-    <!-- El resto del head (CSS, etc.) -->
-    <link rel="stylesheet" ...>
-    <style>...</style>
-</head>
-<body>
-    <!-- Todo el contenido de la página -->
-</body>
-</html>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Ecosistema | Hábitat-Car</title>
     <style>
         :root {
             --azul-habitat: #004a99;
@@ -343,5 +338,26 @@
             }
         };
     </script>
+
+<!-- BOTÓN FLOTANTE CERRAR SESIÓN -->
+<button id="btn-logout" onclick="cerrarSesion()" style="position:fixed;bottom:30px;right:30px;width:60px;height:60px;background:#dc3545;color:white;border:none;border-radius:50%;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.4);font-size:24px;z-index:10000;transition:all 0.3s;" title="Cerrar Sesión">🚪</button>
+
+<script>
+async function cerrarSesion() {
+    if(confirm('¿Cerrar sesión?')) {
+        try {
+            const { getAuth } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+            const auth = getAuth();
+            await auth.signOut();
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        } catch(error) {
+            console.error('Error:', error);
+            alert('Error al cerrar sesión');
+        }
+    }
+}
+</script>
 </body>
 </html>
