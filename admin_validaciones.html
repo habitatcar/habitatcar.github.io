@@ -22,7 +22,6 @@
                 if (capa) capa.style.display = 'none';
             } catch (e) {
                 console.error('❌ Error en verificación validaciones:', e);
-                // No bloquear la página por error de verificación
             }
         })();
     </script>
@@ -210,7 +209,7 @@
         .btn-volver { background: #666; color: white; }
         .btn-guardar { background: var(--verde); color: white; }
 
-        /* DEBUGGING VISUAL */
+        /* DEBUGGING VISUAL - SIN ERRORES DE PERMISOS */
         #debug-status {
             position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8);
             color: #0f0; padding: 8px 12px; border-radius: 6px; font-size: 11px;
@@ -221,12 +220,17 @@
             text-align: center; padding: 40px; color: var(--azul-claro);
         }
         .loading-placeholder i { font-size: 32px; margin-bottom: 10px; display: block; }
+        .error-message {
+            background: rgba(220,53,69,0.2); border: 1px solid var(--rojo);
+            color: #ff9999; padding: 15px; border-radius: 8px; margin: 10px 0;
+            font-size: 0.9em;
+        }
     </style>
 </head>
 <body>
 
-    <!-- DEBUG STATUS -->
-    <div id="debug-status">🔄 Conectando a Firebase...</div>
+    <!-- DEBUG STATUS - SIN VERIFICACIÓN PROBLEMÁTICA -->
+    <div id="debug-status">🔄 Cargando postulaciones...</div>
 
     <header class="header">
         <div class="logo-container">
@@ -349,7 +353,7 @@
     const auth = getAuth(app);
     window.db = db;
 
-    // Debug visual
+    // Debug visual - SIN verificación que cause errores de permisos
     const debug = (msg, err=false) => {
         const el = document.getElementById('debug-status');
         if (el) {
@@ -367,22 +371,7 @@
     let motivosSeleccionados = [];
 
     // ===========================================
-    // VERIFICAR CONEXIÓN FIREBASE
-    // ===========================================
-    async function verificarConexionFirebase() {
-        try {
-            debug('🔌 Verificando conexión...');
-            const testSnap = await getDocs(query(collection(db, "configuracion"), where("id", "==", "test")));
-            debug('✅ Firebase conectado', false);
-            return true;
-        } catch (e) {
-            debug(`❌ Error Firebase: ${e.message}`, true);
-            return false;
-        }
-    }
-
-    // ===========================================
-    // CONTADORES NAV
+    // CONTADORES NAV - CON MANEJO DE ERRORES
     // ===========================================
     async function actualizarContadoresHeader() {
         try {
@@ -399,12 +388,17 @@
             
             debug(`📊 Contadores: ${comSnap.size} comercios, ${marSnap.size} martilleros, ${colSnap.size} colaboradores`);
         } catch (error) {
-            debug(`❌ Error contadores: ${error.message}`, true);
+            // Si hay error de permisos, no bloquear la UI
+            if (error.code === 'permission-denied') {
+                debug('⚠️ Sin permisos para contadores (revisar reglas Firestore)', true);
+            } else {
+                debug(`❌ Error contadores: ${error.message}`, true);
+            }
         }
     }
 
     // ===========================================
-    // CARGAR MOTIVOS DE RECHAZO
+    // CARGAR MOTIVOS DE RECHAZO - CON FALLBACK
     // ===========================================
     async function cargarMotivosRechazo() {
         try {
@@ -413,6 +407,7 @@
             if (docSnap.exists()) {
                 motivosRechazo = docSnap.data().lista || [];
             } else {
+                // Fallback por defecto si no existe el documento
                 motivosRechazo = [
                     "Datos incompletos (falta foto, CUIT, etc.)",
                     "Documentación ilegible (DNI borroso, selfie no clara)",
@@ -421,11 +416,26 @@
                     "No se pudo contactar al comercio",
                     "Otro (especificar)"
                 ];
-                await setDoc(docRef, { lista: motivosRechazo, ultima_actualizacion: new Date().toISOString() });
+                // Intentar crear, pero si falla por permisos, no bloquear
+                try {
+                    await setDoc(docRef, { lista: motivosRechazo, ultima_actualizacion: new Date().toISOString() });
+                } catch(e) {
+                    console.warn("⚠️ No se pudo guardar motivos por defecto (permisos?)");
+                }
             }
             actualizarVistaMotivos();
         } catch (error) {
-            debug(`❌ Error motivos: ${error.message}`, true);
+            // Si falla por permisos, usar fallback y continuar
+            if (error.code === 'permission-denied') {
+                debug('⚠️ Usando motivos por defecto (sin acceso a config)', true);
+                motivosRechazo = [
+                    "Datos incompletos", "Documentación ilegible", "CUIT inválido",
+                    "Discrepancia en datos", "No se pudo contactar", "Otro"
+                ];
+                actualizarVistaMotivos();
+            } else {
+                debug(`❌ Error motivos: ${error.message}`, true);
+            }
         }
     }
     
@@ -434,7 +444,12 @@
             await updateDoc(doc(db, "config_motivos_rechazo", "motivos"), {
                 lista: motivosRechazo, ultima_actualizacion: new Date().toISOString()
             });
-        } catch (error) { debug(`❌ Guardar motivos: ${error.message}`, true); }
+        } catch (error) {
+            if (error.code !== 'permission-denied') {
+                debug(`❌ Guardar motivos: ${error.message}`, true);
+            }
+            // Si es permission-denied, no mostrar error al usuario (es opcional)
+        }
     }
     
     function actualizarVistaMotivos() {
@@ -521,7 +536,13 @@
             }
             alert("❌ Postulación rechazada");
             cerrarModalRechazo(); cerrarModal();
-        } catch (error) { alert(`❌ Error: ${error.message}`); }
+        } catch (error) { 
+            if (error.code === 'permission-denied') {
+                alert("❌ Sin permisos para rechazar. Contactá al administrador.");
+            } else {
+                alert(`❌ Error: ${error.message}`);
+            }
+        }
     };
 
     function formatearEnlace(tipo, valor) {
@@ -540,12 +561,12 @@
     }
 
     // ===========================================
-    // CARGAR POSTULACIONES - CON DEBUG
+    // CARGAR POSTULACIONES - CON MANEJO DE ERRORES DE PERMISOS
     // ===========================================
     function cargarPostulaciones() {
-        debug('📡 Iniciando listeners...');
+        debug('📡 Iniciando listeners de postulaciones...');
         
-        // COMERCIOS
+        // COMERCIOS - con manejo de error de permisos
         const qCom = query(collection(db, "postulaciones_comercios"), where("estado", "==", "pendiente"));
         onSnapshot(qCom, 
             snap => {
@@ -553,7 +574,15 @@
                 todasLasPostulaciones.comercios = snap.docs.map(d => ({id: d.id, tipo:'comercio', ...d.data()}));
                 actualizarContadoresHeader(); aplicarFiltro();
             },
-            err => { debug(`❌ Error comercios: ${err.message}`, true); }
+            err => { 
+                if (err.code === 'permission-denied') {
+                    debug('⚠️ Sin permisos para leer comercios', true);
+                    document.getElementById('lista-comercios-pendientes').innerHTML = 
+                        '<div class="error-message">🔒 Sin permisos para ver postulaciones de comercios.<br><small>Revisá las reglas de Firestore en Firebase Console.</small></div>';
+                } else {
+                    debug(`❌ Error comercios: ${err.message}`, true);
+                }
+            }
         );
         
         // MARTILLEROS
@@ -564,7 +593,9 @@
                 todasLasPostulaciones.martilleros = snap.docs.map(d => ({id: d.id, tipo:'martillero', ...d.data()}));
                 actualizarContadoresHeader(); aplicarFiltro();
             },
-            err => { debug(`❌ Error martilleros: ${err.message}`, true); }
+            err => { 
+                if (err.code !== 'permission-denied') debug(`❌ Error martilleros: ${err.message}`, true);
+            }
         );
         
         // COLABORADORES
@@ -575,7 +606,9 @@
                 todasLasPostulaciones.colaboradores = snap.docs.map(d => ({id: d.id, tipo:'colaborador', ...d.data()}));
                 actualizarContadoresHeader(); aplicarFiltro();
             },
-            err => { debug(`❌ Error colaboradores: ${err.message}`, true); }
+            err => { 
+                if (err.code !== 'permission-denied') debug(`❌ Error colaboradores: ${err.message}`, true);
+            }
         );
     }
 
@@ -655,7 +688,13 @@
         try {
             await deleteDoc(doc(db, `postulaciones_${tipo}s`, id));
             alert("✅ Eliminada");
-        } catch(e) { alert(`❌ ${e.message}`); }
+        } catch(e) { 
+            if (e.code === 'permission-denied') {
+                alert("❌ Sin permisos para eliminar");
+            } else {
+                alert(`❌ ${e.message}`);
+            }
+        }
     };
 
     window.abrirModalValidacion = async (id, tipo) => {
@@ -667,7 +706,13 @@
             document.getElementById('modal-contenido-dinamico').innerHTML = 
                 tipo==='comercio' ? generarHTMLComercio(postulacionActual) : '<p style="text-align:center;padding:20px">Próximamente</p>';
             document.getElementById('modalValidacion').style.display = 'flex';
-        } catch(e) { alert(`❌ ${e.message}`); }
+        } catch(e) { 
+            if (e.code === 'permission-denied') {
+                alert("❌ Sin permisos para ver este detalle");
+            } else {
+                alert(`❌ ${e.message}`);
+            }
+        }
     };
 
     function generarHTMLComercio(d) {
@@ -747,7 +792,13 @@
             try { await httpsCallable(functions, 'enviarEmailSetup')({email:postulacionActual.email, nombreComercio:postulacionActual.nombre_comercio, idComercio:idCom}); } catch(e){}
             alert(`✅ Aprobado\nID: ${idCom}\nPass: 123456\n\n⚠️ El comercio debe publicar manualmente desde su panel`);
             cerrarModal();
-        } catch(e) { alert(`❌ ${e.message}`); }
+        } catch(e) { 
+            if (e.code === 'permission-denied') {
+                alert("❌ Sin permisos para aprobar. Contactá al administrador.");
+            } else {
+                alert(`❌ ${e.message}`);
+            }
+        }
     };
     
     window.eliminarPostulacionDesdeModal = async () => {
@@ -765,18 +816,15 @@
     window.cerrarModal = () => { document.getElementById('modalValidacion').style.display='none'; postulacionActual=null; tipoActual=null; };
 
     // ===========================================
-    // INICIALIZACIÓN CON DEBUG
+    // INICIALIZACIÓN - SIN VERIFICACIÓN PROBLEMÁTICA
     // ===========================================
     (async () => {
-        const ok = await verificarConexionFirebase();
-        if (ok) {
-            cargarPostulaciones();
-            await cargarMotivosRechazo();
-            document.getElementById('motivoLibre')?.addEventListener('input', actualizarVistaPrevia);
-            debug('✅ Listo para validar');
-        } else {
-            debug('❌ Revisá consola (F12) para detalles', true);
-        }
+        // No verificamos conexión con colección "configuracion" para evitar errores de permisos
+        // Simplemente iniciamos los listeners y dejamos que Firebase maneje los permisos
+        debug('🔄 Iniciando validaciones...');
+        cargarPostulaciones();
+        await cargarMotivosRechazo();
+        document.getElementById('motivoLibre')?.addEventListener('input', actualizarVistaPrevia);
     })();
 </script>
 
