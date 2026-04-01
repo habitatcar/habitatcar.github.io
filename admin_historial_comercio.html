@@ -8,17 +8,19 @@
     <!-- ========== BLOQUE DE SEGURIDAD ========== -->
     <script type="module">
         import { verificarAccesoAdmin } from './admin_auth.js';
-        await verificarAccesoAdmin();
+        
+        (async () => {
+            const ok = await verificarAccesoAdmin();
+            if (!ok) {
+                document.body.innerHTML = '<p style="color:white;text-align:center;padding:50px;font-family:sans-serif;">🔒 Acceso denegado</p>';
+                return;
+            }
+            const capa = document.getElementById('capa-seguridad');
+            if (capa) capa.style.display = 'none';
+        })();
     </script>
     <!-- ========== FIN BLOQUE DE SEGURIDAD ========== -->
     
-    <!-- A partir de acá va el resto: CSS, estilos, etc. -->
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial de Canjes | Hábitat-Car</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.23/jspdf.plugin.autotable.min.js"></script>
@@ -434,17 +436,11 @@
         let todosLosCanjes = [];
         let canjesFiltrados = [];
         let unsubscribe = null;
-        let ultimoPdfGenerado = null; // Para compartir después de generar
+        let ultimoPdfGenerado = null;
 
-        // ─────────────────────────────────────────────
-        // DETECCIÓN DE CANJE — igual que admin_log
-        // ─────────────────────────────────────────────
         function esCanje(accionUp) { return accionUp.includes('CANJE'); }
         function tipoCanje(accionUp) { return accionUp.includes('VIP') ? 'VIP' : 'LEAD'; }
 
-        // ─────────────────────────────────────────────
-        // PERTENECE AL COMERCIO — búsqueda flexible
-        // ─────────────────────────────────────────────
         function normalizar(str) {
             if (!str) return '';
             return str.toString().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
@@ -511,11 +507,6 @@
             return nombreCompleto.length > 10 ? nombreCompleto.substring(0, 10) + '...' : nombreCompleto;
         }
 
-        // ─────────────────────────────────────────────
-        // === NUEVAS FUNCIONES PARA FILTROS DE FECHA PDF ===
-        // ─────────────────────────────────────────────
-        
-        // Mostrar/ocultar inputs de fecha personalizada
         document.getElementById('pdf-rango').addEventListener('change', function() {
             const inicio = document.getElementById('pdf-fecha-inicio');
             const fin = document.getElementById('pdf-fecha-fin');
@@ -528,7 +519,6 @@
             }
         });
 
-        // Obtener rango de fechas según selección
         function obtenerRangoFechasPDF() {
             const rango = document.getElementById('pdf-rango').value;
             const hoy = new Date();
@@ -586,7 +576,6 @@
             return { inicio, fin };
         }
 
-        // Filtrar canjes por rango de fechas
         function filtrarCanjesPorFecha(canjes, inicio, fin) {
             return canjes.filter(c => {
                 if (!c.timestamp) return false;
@@ -594,10 +583,6 @@
                 return fechaCanje >= inicio && fechaCanje <= fin;
             });
         }
-
-        // ─────────────────────────────────────────────
-        // === FUNCIONES DE FILTRO Y RENDERIZADO (SIN MODIFICAR) ===
-        // ─────────────────────────────────────────────
         
         window.aplicarFiltros = () => {
             const fechaFiltro = document.getElementById('filtro-fecha').value.toLowerCase();
@@ -678,14 +663,10 @@
             }
         };
 
-        // ─────────────────────────────────────────────
-        // === FUNCIÓN EXPORTAR PDF CORREGIDA ===
-        // ─────────────────────────────────────────────
         window.exportarPDF = async () => {
             const { jsPDF } = window.jspdf;
             const pdfDoc = new jsPDF('landscape');
             
-            // === NUEVO: AGREGAR LOGO ===
             const logoUrl = 'https://raw.githubusercontent.com/habitatcar/habitatcar.github.io/main/logo.png';
             try {
                 const response = await fetch(logoUrl);
@@ -695,19 +676,16 @@
                     reader.onload = () => resolve(reader.result);
                     reader.readAsDataURL(blob);
                 });
-                // Agregar logo en esquina superior derecha
                 pdfDoc.addImage(logoBase64, 'PNG', 250, 10, 40, 20);
             } catch(e) {
                 console.warn('⚠️ No se pudo cargar el logo para el PDF');
             }
             
-            // === NUEVO: TÍTULO SOLICITADO ===
             pdfDoc.setFontSize(14);
             pdfDoc.setTextColor(0, 74, 153);
             pdfDoc.setFont('helvetica', 'bold');
             pdfDoc.text('Control de Caja generado por usos de cupones Lead - VIP', 14, 20);
             
-            // Info del comercio y rango de fechas
             const rango = obtenerRangoFechasPDF();
             if (!rango) return;
             
@@ -721,16 +699,13 @@
             pdfDoc.text(`Período: ${rangoTexto}`, 14, 34);
             pdfDoc.text(`Generado: ${fechaActual}`, 14, 40);
             
-            // Filtrar canjes por el rango de fechas seleccionado
             const canjesDelPeriodo = filtrarCanjesPorFecha(todosLosCanjes, rango.inicio, rango.fin);
             
-            // Calcular totales del período
             const totalCanjes = canjesDelPeriodo.length;
             const totalLeads = canjesDelPeriodo.filter(c => c.tipo === 'LEAD').length;
             const totalVips = canjesDelPeriodo.filter(c => c.tipo === 'VIP').length;
             const montoTotal = canjesDelPeriodo.reduce((s, c) => s + (parseFloat(c.monto) || 0), 0);
             
-            // Resumen en el PDF
             pdfDoc.setFontSize(9);
             pdfDoc.setTextColor(0, 74, 153);
             pdfDoc.setFont('helvetica', 'bold');
@@ -739,7 +714,6 @@
             pdfDoc.setTextColor(100, 100, 100);
             pdfDoc.text(`Total canjes: ${totalCanjes} | LEAD: ${totalLeads} | VIP: ${totalVips} | Monto: $${montoTotal.toFixed(2)}`, 14, 56);
             
-            // Preparar datos de la tabla
             const tablaData = canjesDelPeriodo.map(c => [
                 formatearFecha(c.timestamp),
                 c.tipo,
@@ -750,7 +724,6 @@
                 c.monto ? `$${parseFloat(c.monto).toFixed(2)}` : '---'
             ]);
             
-            // Generar tabla
             pdfDoc.autoTable({
                 startY: 64,
                 head: [['Fecha', 'Tipo', 'Usuario', 'WhatsApp', 'Código', 'N° Factura', 'Monto']],
@@ -760,7 +733,6 @@
                 theme: 'striped'
             });
             
-            // Pie de página
             const pageCount = pdfDoc.internal.getNumberOfPages();
             for (let i = 1; i <= pageCount; i++) {
                 pdfDoc.setPage(i);
@@ -769,18 +741,14 @@
                 pdfDoc.text(`Hábitat-Car - Control de Caja - Página ${i} de ${pageCount}`, 14, 285);
             }
             
-            // Guardar PDF
             const nombreArchivo = `ControlCaja_${comercioNombreParam.replace(/\s+/g,'_')}_${Date.now()}.pdf`;
             pdfDoc.save(nombreArchivo);
             
-            // Guardar referencia para compartir
             ultimoPdfGenerado = { nombre: nombreArchivo, blob: pdfDoc.output('blob') };
             
-            // Mostrar botones de compartir
             document.getElementById('btn-email').classList.add('visible');
             document.getElementById('btn-whatsapp').classList.add('visible');
             
-            // Notificación
             const toast = document.createElement('div');
             toast.textContent = `✅ PDF generado: ${nombreArchivo}`;
             toast.style.cssText = 'position:fixed;bottom:20px;right:20px;background:#28a745;color:white;padding:10px 20px;border-radius:8px;z-index:1000;';
@@ -788,10 +756,6 @@
             setTimeout(() => toast.remove(), 3000);
         };
 
-        // ─────────────────────────────────────────────
-        // === FUNCIONES PARA COMPARTIR PDF ===
-        // ─────────────────────────────────────────────
-        
         window.abrirModalCompartir = (tipo) => {
             const modal = document.getElementById('modal-compartir');
             const seccionEmail = document.getElementById('seccion-email');
@@ -832,7 +796,6 @@
                 `Saludos,\nSistema Hábitat-Car`
             );
             
-            // Abrir cliente de email (mailto no permite adjuntos, por eso la nota)
             window.location.href = `mailto:${email}?subject=${asunto}&body=${cuerpo}`;
             
             cerrarModalCompartir();
@@ -847,15 +810,11 @@
                 `⚠️ Adjunto el archivo PDF que se descargó en mi dispositivo.`
             );
             
-            // Abrir WhatsApp (el usuario debe adjuntar el PDF manualmente)
             window.open(`https://wa.me/?text=${mensaje}`, '_blank');
             
             cerrarModalCompartir();
         };
 
-        // ─────────────────────────────────────────────
-        // === SNAPSHOT PRINCIPAL (SIN MODIFICAR) ===
-        // ─────────────────────────────────────────────
         function iniciarSnapshot() {
             if (!comercioIdParam && !comercioNombreParam) {
                 document.getElementById('lista-canjes').innerHTML = '<tr><td colspan="8" class="sin-datos">❌ No se especificó un comercio</td></tr>';
@@ -906,6 +865,26 @@
         mostrarInfoComercio();
         iniciarSnapshot();
     </script>
-<script type="module" src="proteger.js"></script>    
+
+<!-- BOTÓN FLOTANTE CERRAR SESIÓN -->
+<button id="btn-logout" onclick="cerrarSesion()" style="position:fixed;bottom:30px;right:30px;width:60px;height:60px;background:#dc3545;color:white;border:none;border-radius:50%;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.4);font-size:24px;z-index:10000;transition:all 0.3s;" title="Cerrar Sesión">🚪</button>
+
+<script>
+async function cerrarSesion() {
+    if(confirm('¿Cerrar sesión?')) {
+        try {
+            const { getAuth } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+            const auth = getAuth();
+            await auth.signOut();
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        } catch(error) {
+            console.error('Error:', error);
+            alert('Error al cerrar sesión');
+        }
+    }
+}
+</script>
 </body>
 </html>
