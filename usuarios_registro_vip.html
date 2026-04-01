@@ -314,31 +314,50 @@
             btn.innerText = "Verificando...";
 
             try {
-                // 1. Verificar si el WhatsApp ya es VIP
+                // 1. Buscar si el WhatsApp ya existe en la base
                 const qCheck = query(collection(db, "leads"), where("whatsapp", "==", fields.tel));
                 const snapCheck = await getDocs(qCheck);
                 
+                // Único motivo de rechazo: ya es VIP (evitar doble registro VIP)
                 if (!snapCheck.empty) {
                     const datosExistentes = snapCheck.docs[0].data();
                     if (datosExistentes.tipo === "VIP" || datosExistentes.convertidoVIP === true) {
-                        mostrarError("NÚMERO YA REGISTRADO", "Este número de WhatsApp ya cuenta con una membresía VIP activa.", true);
+                        mostrarError("YA ERES VIP", "Este número ya tiene una membresía VIP activa. ¡Ya podés disfrutar tus beneficios!", true);
                         btn.disabled = false;
                         btn.innerText = "Activar Membresía VIP";
                         return;
                     }
+                    // Si existe como Lead → lo ascendemos a VIP (caso b y c)
+                }
+                // Si no existe → registro nuevo VIP (caso a)
+
+                // 2. Crear cuenta en Firebase Auth (o reusar la existente si el email ya está registrado)
+                // La lógica de negocio solo rechaza WhatsApp duplicado — el email puede repetirse
+                let passwordTemp = "HC_" + Math.random().toString(36).substring(2,8).toUpperCase();
+                let userCredential;
+
+                // Si el lead ya existe (mismo WhatsApp → mismo email), usar su passwordTemp guardada
+                if (!snapCheck.empty && snapCheck.docs[0].data().passwordTemp) {
+                    passwordTemp = snapCheck.docs[0].data().passwordTemp;
                 }
 
-                // 2. Crear cuenta en Firebase Auth
-                const passwordTemp = "HC_" + Math.random().toString(36).substring(2,8).toUpperCase();
-                let userCredential;
                 try {
                     userCredential = await createUserWithEmailAndPassword(auth, fields.mail, passwordTemp);
                 } catch (authErr) {
                     if (authErr.code === 'auth/email-already-in-use') {
+                        // Email ya en Auth → intentar login con la contraseña que tenemos
                         try {
                             userCredential = await signInWithEmailAndPassword(auth, fields.mail, passwordTemp);
                         } catch (signInErr) {
-                            throw new Error("Este email ya está registrado con otra contraseña. Contactá a soporte.");
+                            // Si no funciona, buscar en Firestore por email
+                            const qEmail = query(collection(db, "leads"), where("email", "==", fields.mail));
+                            const snapEmail = await getDocs(qEmail);
+                            if (!snapEmail.empty && snapEmail.docs[0].data().passwordTemp) {
+                                passwordTemp = snapEmail.docs[0].data().passwordTemp;
+                                userCredential = await signInWithEmailAndPassword(auth, fields.mail, passwordTemp);
+                            } else {
+                                throw new Error("No se pudo autenticar. Contactá a soporte: 388-4618228");
+                            }
                         }
                     } else {
                         throw authErr;
@@ -384,7 +403,7 @@
                     fecha: ahora, timestamp: ahora
                 });
 
-                // 6. Guardar sesión local — incluyendo credenciales para auto-login
+                // 6. Guardar sesión local — passwordTemp ya tiene la contraseña correcta
                 localStorage.setItem('habitat_vip_auth', 'true');
                 localStorage.setItem('leadId_v16', finalLeadId);
                 localStorage.setItem('leadId_habitat', finalLeadId);
