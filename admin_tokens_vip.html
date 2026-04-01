@@ -148,7 +148,7 @@
 
         .input-link-generado {
             flex-grow: 1;
-            max-width: 500px;
+            max-width: 400px;
             padding: 12px;
             border-radius: 8px;
             border: 1px dashed var(--oro);
@@ -221,8 +221,26 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 0.9em;
-            margin-bottom: 5px;
+            margin: 2px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
         }
+        
+        .btn-whatsapp {
+            background: #25D366;
+            color: white;
+            border: none;
+            padding: 8px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.9em;
+            margin: 2px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+        .btn-whatsapp:hover { opacity: 0.9; }
 
         .btn-delete {
             background: var(--rojo);
@@ -232,6 +250,7 @@
             border-radius: 4px;
             cursor: pointer;
             font-size: 0.9em;
+            margin: 2px;
         }
 
         .link-text {
@@ -242,6 +261,8 @@
             font-size: 0.85em;
             color: var(--oro);
             word-break: break-all;
+            display: block;
+            margin-bottom: 5px;
         }
 
         #toast-copy {
@@ -256,6 +277,19 @@
             font-weight: bold;
             z-index: 2000;
             box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+        }
+        
+        .acciones-token {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+        }
+        
+        .help-text {
+            font-size: 0.75em;
+            color: #aaa;
+            margin-top: 4px;
+            font-style: italic;
         }
     </style>
 </head>
@@ -304,7 +338,17 @@
                 
                 <input type="text" id="resLinkGrupal" readonly placeholder="El link especial aparecerá aquí..." class="input-link-generado">
                 
-                <button class="btn-copy" id="btnCopiarG" onclick="copyLink(document.getElementById('resLinkGrupal').value)" style="display:none; height:45px; margin:0;">COPIAR LINK ESPECIAL</button>
+                <div style="display: flex; gap: 4px; align-items: center;">
+                    <button class="btn-copy" id="btnCopiarG" onclick="copyLink(document.getElementById('resLinkGrupal').value)" style="display:none;">
+                        <i class="fas fa-copy"></i> COPIAR
+                    </button>
+                    <button class="btn-whatsapp" id="btnWAGrupal" onclick="compartirWAGrupal()" style="display:none;">
+                        <i class="fab fa-whatsapp"></i> WHATSAPP
+                    </button>
+                </div>
+            </div>
+            <div class="help-text" id="help-grupal" style="display:none; margin-top:8px; color:#aaa;">
+                💡 Si el link no carga, verificá que el archivo <code>usuarios_invitaciones_grupales.html</code> exista y tenga Firebase configurado.
             </div>
 
             <button class="btn-delete-all" onclick="eliminarTodos()">ELIMINAR TODOS LOS TOKENS</button>
@@ -320,7 +364,7 @@
                         <th>SOCIO</th>
                         <th>USO</th>
                         <th>LINK INDIVIDUAL</th>
-                        <th>ACCIÓN</th>
+                        <th>ACCIONES</th>
                     </tr>
                 </thead>
                 <tbody id="lista-tokens"></tbody>
@@ -346,7 +390,7 @@
         window.db = db;
 
         // =============================================
-        // CONTADORES NAV (mismo que comercios)
+        // CONTADORES NAV
         // =============================================
         async function actualizarContadores() {
             if (typeof db === 'undefined' || !db) {
@@ -355,18 +399,11 @@
             }
             const el = (id) => document.getElementById(id);
             try {
-                // Total leads
                 const todosSnap = await getDocs(collection(db, "leads"));
                 const totalRaw = todosSnap.size;
-
-                // VIPs: convertidoVIP === true
                 const vipsSnap = await getDocs(query(collection(db, "leads"), where("convertidoVIP", "==", true)));
                 const totalVips = vipsSnap.size;
-
-                // Leads = total - VIPs
                 const totalLeads = totalRaw - totalVips;
-
-                // Comercios
                 const comerciosSnap = await getDocs(collection(db, "comercios"));
                 const totalComercios = comerciosSnap.size;
 
@@ -374,13 +411,11 @@
                 if (el('cont-leads')) el('cont-leads').innerText = totalLeads;
                 if (el('cont-vips')) el('cont-vips').innerText = totalVips;
 
-                // Tutoriales
                 try {
                     const tutSnap = await getDocs(collection(db, "tutoriales"));
                     if (el('cont-tutoriales')) el('cont-tutoriales').innerText = tutSnap.size;
                 } catch(e) {}
 
-                // Validaciones pendientes - postulaciones_comercios
                 let vCom = 0;
                 try {
                     const s = await getDocs(query(collection(db, "postulaciones_comercios"), where("estado", "==", "pendiente")));
@@ -388,7 +423,6 @@
                 } catch(e) {}
                 if (el('cont-validaciones-comercios')) el('cont-validaciones-comercios').innerText = vCom;
 
-                // Validaciones pendientes - postulaciones_martilleros
                 let vMar = 0;
                 try {
                     const s = await getDocs(query(collection(db, "postulaciones_martilleros"), where("estado", "==", "pendiente")));
@@ -396,19 +430,12 @@
                 } catch(e) {}
                 if (el('cont-validaciones-martilleros')) el('cont-validaciones-martilleros').innerText = vMar;
 
-                // Validaciones pendientes - postulaciones_colaboradores
                 let vCol = 0;
                 try {
                     const s = await getDocs(query(collection(db, "postulaciones_colaboradores"), where("estado", "==", "pendiente")));
                     vCol = s.size;
                 } catch(e) {}
                 if (el('cont-validaciones-colaboradores')) el('cont-validaciones-colaboradores').innerText = vCol;
-
-                console.log("✅ Contadores actualizados:", {
-                    comercios: totalComercios,
-                    leads: totalLeads,
-                    vips: totalVips
-                });
 
             } catch(error) {
                 console.error("Error en contadores:", error);
@@ -420,11 +447,20 @@
             setInterval(actualizarContadores, 30000);
         }, 3000);
 
+        // =============================================
+        // LISTADO DE TOKENS EN TIEMPO REAL
+        // =============================================
         const q = query(collection(db, "tokens_vip"), orderBy("fechaCreacion", "desc"));
         
         onSnapshot(q, (snap) => {
             const lista = document.getElementById('lista-tokens');
             lista.innerHTML = "";
+            
+            if (snap.empty) {
+                lista.innerHTML = '<tr><td colspan="7" style="text-align:center; padding:30px; color:#aaa;">📭 No hay tokens generados aún</td></tr>';
+                return;
+            }
+            
             snap.forEach(d => {
                 const t = d.data();
                 const idDoc = d.id;
@@ -449,19 +485,35 @@
                         <td>${t.whatsapp || '-'}</td>
                         <td>${t.nombreVip || '-'}</td>
                         <td>${t.fechaUso ? new Date(t.fechaUso).toLocaleDateString() : '-'}</td>
-                        <td><span class="link-text" style="${bloqueo ? 'opacity:0.3;' : ''}">${fullLinkIndividual}</span></td>
                         <td>
-                            ${bloqueo 
-                                ? `<button class="btn-copy" style="background:#444;cursor:not-allowed;" disabled>RESERVADO</button>` 
-                                : `<button class="btn-copy" onclick="copyLink('${fullLinkIndividual}')">COPIAR LINK</button>`
-                            }
-                            <button class="btn-delete" onclick="eliminarUno('${idDoc}')">ELIMINAR</button>
+                            <span class="link-text" style="${bloqueo ? 'opacity:0.3;' : ''}">${fullLinkIndividual}</span>
+                        </td>
+                        <td>
+                            <div class="acciones-token">
+                                ${bloqueo 
+                                    ? `<button class="btn-copy" style="background:#444;cursor:not-allowed;" disabled>🔒 RESERVADO</button>` 
+                                    : `
+                                        <button class="btn-copy" onclick="copyLink('${fullLinkIndividual}')">
+                                            <i class="fas fa-copy"></i> COPIAR
+                                        </button>
+                                        <button class="btn-whatsapp" onclick="compartirWA('${fullLinkIndividual}', '${t.token}')">
+                                            <i class="fab fa-whatsapp"></i> WHATSAPP
+                                        </button>
+                                    `
+                                }
+                                <button class="btn-delete" onclick="eliminarUno('${idDoc}')">
+                                    <i class="fas fa-trash"></i>
+                                </button>
+                            </div>
                         </td>
                     </tr>
                 `;
             });
         });
 
+        // =============================================
+        // FUNCIONES DE TOKENS
+        // =============================================
         window.generarToken = async () => {
             const randomStr = Math.random().toString(36).substring(2, 8) + Math.floor(1000 + Math.random() * 9000);
             const nuevoToken = `vip_${randomStr}`;
@@ -475,7 +527,8 @@
                     fechaUso: null,
                     fechaCreacion: Date.now()
                 });
-            } catch (e) { console.error(e); }
+                setTimeout(() => actualizarContadores(), 1000);
+            } catch (e) { console.error(e); alert("❌ Error al generar token"); }
         };
 
         window.generarLoteGrupal = async () => {
@@ -501,12 +554,15 @@
                 
                 const inputLink = document.getElementById('resLinkGrupal');
                 inputLink.value = linkEmail;
-                document.getElementById('btnCopiarG').style.display = 'inline-block';
+                document.getElementById('btnCopiarG').style.display = 'inline-flex';
+                document.getElementById('btnWAGrupal').style.display = 'inline-flex';
+                document.getElementById('help-grupal').style.display = 'block';
                 
-                alert(`✅ Se generaron ${cantidad} tokens exitosamente.`);
+                alert(`✅ Se generaron ${cantidad} tokens exitosamente.\n\n📋 El link grupal está listo para compartir.`);
+                setTimeout(() => actualizarContadores(), 1000);
             } catch (e) { 
                 console.error(e); 
-                alert("Error al generar los tokens.");
+                alert("❌ Error al generar los tokens.");
             }
         };
 
@@ -514,7 +570,8 @@
             if (confirm("¿Seguro que quieres eliminar este token?")) {
                 try {
                     await deleteDoc(doc(db, "tokens_vip", id));
-                } catch (e) { console.error("Error al eliminar:", e); }
+                    setTimeout(() => actualizarContadores(), 500);
+                } catch (e) { console.error("Error al eliminar:", e); alert("❌ Error al eliminar"); }
             }
         };
 
@@ -522,10 +579,14 @@
             if (confirm("¿Seguro que quieres borrar TODOS los tokens? Esta acción no se puede deshacer.")) {
                 try {
                     const querySnapshot = await getDocs(collection(db, "tokens_vip"));
-                    querySnapshot.forEach(async (documento) => {
+                    let count = 0;
+                    for (const documento of querySnapshot.docs) {
                         await deleteDoc(doc(db, "tokens_vip", documento.id));
-                    });
-                } catch (e) { console.error("Error al eliminar todos:", e); }
+                        count++;
+                    }
+                    alert(`✅ ${count} tokens eliminados.`);
+                    setTimeout(() => actualizarContadores(), 500);
+                } catch (e) { console.error("Error al eliminar todos:", e); alert("❌ Error al eliminar"); }
             }
         };
 
@@ -534,7 +595,28 @@
                 const toast = document.getElementById('toast-copy');
                 toast.style.display = 'block';
                 setTimeout(() => { toast.style.display = 'none'; }, 1500);
+            }).catch(err => {
+                console.error('Error al copiar:', err);
+                alert("❌ No se pudo copiar el link");
             });
+        };
+        
+        // =============================================
+        // 📱 NUEVO: COMPARTIR POR WHATSAPP
+        // =============================================
+        window.compartirWA = (link, token) => {
+            const mensaje = `🎁 ¡Tenés una invitación VIP para Hábitat-Car!\n\nUsá este link para registrarte:\n${link}\n\nToken: ${token}\n\n🚗🏠 Hábitat-Car - Tu comunidad de beneficios`;
+            const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+            window.open(url, '_blank');
+        };
+        
+        window.compartirWAGrupal = () => {
+            const link = document.getElementById('resLinkGrupal').value;
+            if (!link) return alert("⚠️ Generá primero el link grupal");
+            
+            const mensaje = `🎁 ¡Invitación grupal VIP para Hábitat-Car!\n\nCompartí este link con tus contactos:\n${link}\n\nCada persona que se registre recibirá beneficios exclusivos.\n\n🚗🏠 Hábitat-Car`;
+            const url = `https://wa.me/?text=${encodeURIComponent(mensaje)}`;
+            window.open(url, '_blank');
         };
     </script>
 
