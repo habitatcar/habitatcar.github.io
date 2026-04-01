@@ -209,7 +209,6 @@
         .btn-volver { background: #666; color: white; }
         .btn-guardar { background: var(--verde); color: white; }
 
-        /* DEBUGGING VISUAL - SIN ERRORES DE PERMISOS */
         #debug-status {
             position: fixed; bottom: 10px; left: 10px; background: rgba(0,0,0,0.8);
             color: #0f0; padding: 8px 12px; border-radius: 6px; font-size: 11px;
@@ -229,8 +228,7 @@
 </head>
 <body>
 
-    <!-- DEBUG STATUS - SIN VERIFICACIÓN PROBLEMÁTICA -->
-    <div id="debug-status">🔄 Cargando postulaciones...</div>
+    <div id="debug-status">🔄 Cargando validaciones...</div>
 
     <header class="header">
         <div class="logo-container">
@@ -295,7 +293,7 @@
     </div>
 </div>
 
-<!-- MODALES (sin cambios) -->
+<!-- MODALES -->
 <div id="modalValidacion" class="modal">
     <div class="modal-contenido">
         <div class="modal-header">
@@ -353,7 +351,6 @@
     const auth = getAuth(app);
     window.db = db;
 
-    // Debug visual - SIN verificación que cause errores de permisos
     const debug = (msg, err=false) => {
         const el = document.getElementById('debug-status');
         if (el) {
@@ -371,34 +368,49 @@
     let motivosSeleccionados = [];
 
     // ===========================================
-    // CONTADORES NAV - CON MANEJO DE ERRORES
+    // ✅ CONTADORES COMPLETOS DEL NAVBAR (LO QUE FALTABA)
     // ===========================================
-    async function actualizarContadoresHeader() {
+    async function actualizarContadores() {
+        const el = id => document.getElementById(id);
         try {
+            const todosSnap = await getDocs(collection(db, "leads"));
+            const vipsSnap = await getDocs(query(collection(db, "leads"), where("convertidoVIP", "==", true)));
+            const totalVips = vipsSnap.size;
+            const totalLeads = todosSnap.size - totalVips;
+            const comerciosSnap = await getDocs(collection(db, "comercios"));
+            
+            if (el('cont-comercios')) el('cont-comercios').innerText = comerciosSnap.size;
+            if (el('cont-leads')) el('cont-leads').innerText = totalLeads;
+            if (el('cont-vips')) el('cont-vips').innerText = totalVips;
+            
+            try { 
+                const tutSnap = await getDocs(collection(db, "tutoriales")); 
+                if (el('cont-tutoriales')) el('cont-tutoriales').innerText = tutSnap.size; 
+            } catch(e) {}
+            
+            // Validaciones
             const [comSnap, marSnap, colSnap] = await Promise.all([
                 getDocs(query(collection(db, "postulaciones_comercios"), where("estado", "==", "pendiente"))),
                 getDocs(query(collection(db, "postulaciones_martilleros"), where("estado", "==", "pendiente"))),
                 getDocs(query(collection(db, "postulaciones_colaboradores"), where("estado", "==", "pendiente")))
             ]);
             
-            const el = id => document.getElementById(id);
             if (el('cont-validaciones-comercios')) el('cont-validaciones-comercios').innerText = comSnap.size;
             if (el('cont-validaciones-martilleros')) el('cont-validaciones-martilleros').innerText = marSnap.size;
             if (el('cont-validaciones-colaboradores')) el('cont-validaciones-colaboradores').innerText = colSnap.size;
             
-            debug(`📊 Contadores: ${comSnap.size} comercios, ${marSnap.size} martilleros, ${colSnap.size} colaboradores`);
-        } catch (error) {
-            // Si hay error de permisos, no bloquear la UI
-            if (error.code === 'permission-denied') {
-                debug('⚠️ Sin permisos para contadores (revisar reglas Firestore)', true);
-            } else {
-                debug(`❌ Error contadores: ${error.message}`, true);
-            }
+            debug(`✅ Contadores: ${comerciosSnap.size} comercios, ${totalLeads} leads, ${totalVips} vips`);
+        } catch(error) { 
+            debug(`❌ Error contadores: ${error.message}`, true); 
         }
     }
+    
+    // Actualizar contadores al cargar y cada 30 segundos
+    actualizarContadores();
+    setInterval(actualizarContadores, 30000);
 
     // ===========================================
-    // CARGAR MOTIVOS DE RECHAZO - CON FALLBACK
+    // CARGAR MOTIVOS DE RECHAZO
     // ===========================================
     async function cargarMotivosRechazo() {
         try {
@@ -407,7 +419,6 @@
             if (docSnap.exists()) {
                 motivosRechazo = docSnap.data().lista || [];
             } else {
-                // Fallback por defecto si no existe el documento
                 motivosRechazo = [
                     "Datos incompletos (falta foto, CUIT, etc.)",
                     "Documentación ilegible (DNI borroso, selfie no clara)",
@@ -416,25 +427,15 @@
                     "No se pudo contactar al comercio",
                     "Otro (especificar)"
                 ];
-                // Intentar crear, pero si falla por permisos, no bloquear
                 try {
                     await setDoc(docRef, { lista: motivosRechazo, ultima_actualizacion: new Date().toISOString() });
-                } catch(e) {
-                    console.warn("⚠️ No se pudo guardar motivos por defecto (permisos?)");
-                }
+                } catch(e) { console.warn("⚠️ No se pudo guardar motivos por defecto"); }
             }
             actualizarVistaMotivos();
         } catch (error) {
-            // Si falla por permisos, usar fallback y continuar
             if (error.code === 'permission-denied') {
-                debug('⚠️ Usando motivos por defecto (sin acceso a config)', true);
-                motivosRechazo = [
-                    "Datos incompletos", "Documentación ilegible", "CUIT inválido",
-                    "Discrepancia en datos", "No se pudo contactar", "Otro"
-                ];
+                motivosRechazo = ["Datos incompletos", "Documentación ilegible", "CUIT inválido", "Discrepancia en datos", "No se pudo contactar", "Otro"];
                 actualizarVistaMotivos();
-            } else {
-                debug(`❌ Error motivos: ${error.message}`, true);
             }
         }
     }
@@ -445,10 +446,7 @@
                 lista: motivosRechazo, ultima_actualizacion: new Date().toISOString()
             });
         } catch (error) {
-            if (error.code !== 'permission-denied') {
-                debug(`❌ Guardar motivos: ${error.message}`, true);
-            }
-            // Si es permission-denied, no mostrar error al usuario (es opcional)
+            if (error.code !== 'permission-denied') debug(`❌ Guardar motivos: ${error.message}`, true);
         }
     }
     
@@ -538,7 +536,7 @@
             cerrarModalRechazo(); cerrarModal();
         } catch (error) { 
             if (error.code === 'permission-denied') {
-                alert("❌ Sin permisos para rechazar. Contactá al administrador.");
+                alert("❌ Sin permisos para rechazar");
             } else {
                 alert(`❌ Error: ${error.message}`);
             }
@@ -561,54 +559,43 @@
     }
 
     // ===========================================
-    // CARGAR POSTULACIONES - CON MANEJO DE ERRORES DE PERMISOS
+    // CARGAR POSTULACIONES
     // ===========================================
     function cargarPostulaciones() {
-        debug('📡 Iniciando listeners de postulaciones...');
+        debug('📡 Iniciando listeners...');
         
-        // COMERCIOS - con manejo de error de permisos
         const qCom = query(collection(db, "postulaciones_comercios"), where("estado", "==", "pendiente"));
         onSnapshot(qCom, 
             snap => {
                 debug(`✅ Comercios: ${snap.size} pendientes`);
                 todasLasPostulaciones.comercios = snap.docs.map(d => ({id: d.id, tipo:'comercio', ...d.data()}));
-                actualizarContadoresHeader(); aplicarFiltro();
+                actualizarContadores(); aplicarFiltro();
             },
             err => { 
                 if (err.code === 'permission-denied') {
                     debug('⚠️ Sin permisos para leer comercios', true);
                     document.getElementById('lista-comercios-pendientes').innerHTML = 
-                        '<div class="error-message">🔒 Sin permisos para ver postulaciones de comercios.<br><small>Revisá las reglas de Firestore en Firebase Console.</small></div>';
-                } else {
-                    debug(`❌ Error comercios: ${err.message}`, true);
+                        '<div class="error-message">🔒 Sin permisos para ver postulaciones de comercios.</div>';
                 }
             }
         );
         
-        // MARTILLEROS
         const qMar = query(collection(db, "postulaciones_martilleros"), where("estado", "==", "pendiente"));
         onSnapshot(qMar,
             snap => {
-                debug(`✅ Martilleros: ${snap.size} pendientes`);
                 todasLasPostulaciones.martilleros = snap.docs.map(d => ({id: d.id, tipo:'martillero', ...d.data()}));
-                actualizarContadoresHeader(); aplicarFiltro();
+                actualizarContadores(); aplicarFiltro();
             },
-            err => { 
-                if (err.code !== 'permission-denied') debug(`❌ Error martilleros: ${err.message}`, true);
-            }
+            err => { if (err.code !== 'permission-denied') debug(`❌ Error martilleros: ${err.message}`, true); }
         );
         
-        // COLABORADORES
         const qCol = query(collection(db, "postulaciones_colaboradores"), where("estado", "==", "pendiente"));
         onSnapshot(qCol,
             snap => {
-                debug(`✅ Colaboradores: ${snap.size} pendientes`);
                 todasLasPostulaciones.colaboradores = snap.docs.map(d => ({id: d.id, tipo:'colaborador', ...d.data()}));
-                actualizarContadoresHeader(); aplicarFiltro();
+                actualizarContadores(); aplicarFiltro();
             },
-            err => { 
-                if (err.code !== 'permission-denied') debug(`❌ Error colaboradores: ${err.message}`, true);
-            }
+            err => { if (err.code !== 'permission-denied') debug(`❌ Error colaboradores: ${err.message}`, true); }
         );
     }
 
@@ -689,11 +676,8 @@
             await deleteDoc(doc(db, `postulaciones_${tipo}s`, id));
             alert("✅ Eliminada");
         } catch(e) { 
-            if (e.code === 'permission-denied') {
-                alert("❌ Sin permisos para eliminar");
-            } else {
-                alert(`❌ ${e.message}`);
-            }
+            if (e.code === 'permission-denied') alert("❌ Sin permisos para eliminar");
+            else alert(`❌ ${e.message}`);
         }
     };
 
@@ -707,11 +691,8 @@
                 tipo==='comercio' ? generarHTMLComercio(postulacionActual) : '<p style="text-align:center;padding:20px">Próximamente</p>';
             document.getElementById('modalValidacion').style.display = 'flex';
         } catch(e) { 
-            if (e.code === 'permission-denied') {
-                alert("❌ Sin permisos para ver este detalle");
-            } else {
-                alert(`❌ ${e.message}`);
-            }
+            if (e.code === 'permission-denied') alert("❌ Sin permisos para ver este detalle");
+            else alert(`❌ ${e.message}`);
         }
     };
 
@@ -793,11 +774,8 @@
             alert(`✅ Aprobado\nID: ${idCom}\nPass: 123456\n\n⚠️ El comercio debe publicar manualmente desde su panel`);
             cerrarModal();
         } catch(e) { 
-            if (e.code === 'permission-denied') {
-                alert("❌ Sin permisos para aprobar. Contactá al administrador.");
-            } else {
-                alert(`❌ ${e.message}`);
-            }
+            if (e.code === 'permission-denied') alert("❌ Sin permisos para aprobar");
+            else alert(`❌ ${e.message}`);
         }
     };
     
@@ -816,11 +794,9 @@
     window.cerrarModal = () => { document.getElementById('modalValidacion').style.display='none'; postulacionActual=null; tipoActual=null; };
 
     // ===========================================
-    // INICIALIZACIÓN - SIN VERIFICACIÓN PROBLEMÁTICA
+    // INICIALIZACIÓN
     // ===========================================
     (async () => {
-        // No verificamos conexión con colección "configuracion" para evitar errores de permisos
-        // Simplemente iniciamos los listeners y dejamos que Firebase maneje los permisos
         debug('🔄 Iniciando validaciones...');
         cargarPostulaciones();
         await cargarMotivosRechazo();
