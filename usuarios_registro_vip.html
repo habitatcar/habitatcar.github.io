@@ -219,6 +219,7 @@
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, addDoc, query, where, getDocs, updateDoc, doc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -231,6 +232,7 @@
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
+        const auth = getAuth(app);
 
         const urlParams = new URLSearchParams(window.location.search);
         const tokenInterno = urlParams.get('t');
@@ -284,7 +286,6 @@
                     msg.className = "valido";
                     btn.disabled = false;
                     idDocumentoToken = snap.docs[0].id;
-                    // GUARDAMOS EL ID DEL COMERCIO QUE VIENE EN EL TOKEN
                     idDelComercioResponsable = snap.docs[0].data().comercioId;
                 } else {
                     msg.innerText = "❌ Enlace usado o inválido.";
@@ -313,7 +314,7 @@
             btn.innerText = "Verificando...";
 
             try {
-                // 1. RECUPERAR FUNCIONALIDAD: Verificar si el WhatsApp ya es VIP
+                // 1. Verificar si el WhatsApp ya es VIP
                 const qCheck = query(collection(db, "leads"), where("whatsapp", "==", fields.tel));
                 const snapCheck = await getDocs(qCheck);
                 
@@ -323,24 +324,38 @@
                         mostrarError("NÚMERO YA REGISTRADO", "Este número de WhatsApp ya cuenta con una membresía VIP activa.", true);
                         btn.disabled = false;
                         btn.innerText = "Activar Membresía VIP";
-                        return; // Bloquea el registro duplicado
+                        return;
                     }
                 }
+
+                // 2. Crear cuenta en Firebase Auth
+                const passwordTemp = "HC_" + Math.random().toString(36).substring(2,8).toUpperCase();
+                let userCredential;
+                try {
+                    userCredential = await createUserWithEmailAndPassword(auth, fields.mail, passwordTemp);
+                } catch (authErr) {
+                    if (authErr.code === 'auth/email-already-in-use') {
+                        try {
+                            userCredential = await signInWithEmailAndPassword(auth, fields.mail, passwordTemp);
+                        } catch (signInErr) {
+                            throw new Error("Este email ya está registrado con otra contraseña. Contactá a soporte.");
+                        }
+                    } else {
+                        throw authErr;
+                    }
+                }
+                const uid = userCredential.user.uid;
 
                 const ahora = Date.now();
                 let finalLeadId = "";
 
-                // 2. Si el número existe como Lead normal, lo subimos a VIP. Si no existe, lo creamos.
+                // 3. Si el número existe como Lead normal, lo subimos a VIP. Si no, lo creamos.
                 if (!snapCheck.empty) {
                     finalLeadId = snapCheck.docs[0].id;
                     await updateDoc(doc(db, "leads", finalLeadId), {
-                        convertidoVIP: true,
-                        estado: "activo",
-                        fechaVIP: ahora,
-                        tipo: "VIP", // Aseguramos el cambio de tipo
-                        email: fields.mail,
-                        provincia: fields.prov,
-                        localidad: fields.loc
+                        convertidoVIP: true, estado: "activo", fechaVIP: ahora,
+                        tipo: "VIP", email: fields.mail, provincia: fields.prov,
+                        localidad: fields.loc, authUid: uid, passwordTemp: passwordTemp
                     });
                 } else {
                     const docRef = await addDoc(collection(db, "leads"), {
@@ -349,38 +364,36 @@
                         provincia: fields.prov, localidad: fields.loc,
                         convertidoVIP: true, estado: "activo",
                         fechaVIP: ahora, fechaRegistro: ahora,
-                        tipo: "VIP", origen: "Registro Directo VIP"
+                        tipo: "VIP", origen: "Registro Directo VIP",
+                        authUid: uid, passwordTemp: passwordTemp
                     });
                     finalLeadId = docRef.id;
                 }
 
-                // 3. Quemar token usado
+                // 4. Quemar token usado
                 await updateDoc(doc(db, "tokens_vip", idDocumentoToken), {
                     estado: "usado", whatsapp: fields.tel, fechaUso: ahora
                 });
 
-                // 4. REGISTRO DE LOG (Corregido para que lo detecte el Dashboard)
-                // Se registra tanto para el dueño (si existe idDelComercioResponsable) como para el sistema global
+                // 5. Log de actividad
                 await addDoc(collection(db, "logs_vip"), {
-                    comercioId: idDelComercioResponsable || "ADMIN", // Si no hay comercio, es del admin
+                    comercioId: idDelComercioResponsable || "ADMIN",
                     nombre: `${fields.nom} ${fields.ape}`,
-                    whatsapp: fields.tel,
-                    tipo: "VIP",
+                    whatsapp: fields.tel, tipo: "VIP",
                     beneficio: "Pase de Cortesía VIP",
-                    fecha: ahora, // Campo para la tabla
-                    timestamp: ahora // Campo para el orden dinámico
+                    fecha: ahora, timestamp: ahora
                 });
 
-                // Sincronización de acceso
+                // 6. Guardar sesión local — incluyendo credenciales para auto-login
                 localStorage.setItem('habitat_vip_auth', 'true');
                 localStorage.setItem('leadId_v16', finalLeadId);
                 localStorage.setItem('leadId_habitat', finalLeadId);
+                localStorage.setItem('habitat_user_email', fields.mail);
+                localStorage.setItem('habitat_user_pass', passwordTemp);
+                localStorage.setItem('habitat_user_uid', uid);
                 
                 document.getElementById('notificacion').style.display = 'block';
-                
-                setTimeout(() => { 
-                    window.location.replace("usuarios_cupones_vips.html");
-                }, 2000);
+                setTimeout(() => { window.location.replace("usuarios_cupones_vips.html"); }, 2000);
 
             } catch (e) { 
                 console.error(e);
