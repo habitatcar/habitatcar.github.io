@@ -1,24 +1,38 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial de Canjes | Hábitat-Car</title>
-    
-    <!-- ========== BLOQUE DE SEGURIDAD ========== -->
-    <script type="module">
-        import { verificarAccesoAdmin } from './admin_auth.js';
-        await verificarAccesoAdmin();
-    </script>
-    <!-- ========== FIN BLOQUE DE SEGURIDAD ========== -->
-    
-    <!-- A partir de acá va el resto: CSS, estilos, etc. -->
-<!DOCTYPE html>
-<html lang="es">
-<head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Panel de Sorteos Elite | Hábitat-Car</title>
+
+<!-- ========== BLOQUE DE SEGURIDAD NO BLOQUEANTE ========== -->
+<script type="module">
+    import { verificarAccesoAdmin } from './admin_auth.js';
+    
+    // Ejecutar verificación SIN bloquear la carga de Firebase
+    (async () => {
+        try {
+            const ok = await verificarAccesoAdmin();
+            if (!ok) {
+                // Solo mostrar mensaje si no es admin, pero NO bloquear Firebase
+                setTimeout(() => {
+                    if (!window.firebaseCargado) {
+                        document.body.innerHTML = '<p style="color:white;text-align:center;padding:50px;font-family:sans-serif;">🔒 Acceso denegado</p>';
+                    }
+                }, 2000);
+                return;
+            }
+            // Ocultar capa de seguridad si existe
+            const capa = document.getElementById('capa-seguridad');
+            if (capa) capa.style.display = 'none';
+        } catch (e) {
+            console.error('Error en verificación de sorteos:', e);
+            // NO interrumpir la carga por error de verificación
+        }
+    })();
+</script>
+<!-- ========== FIN BLOQUE DE SEGURIDAD ========== -->
+
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <style>
@@ -382,7 +396,6 @@ import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/
 
 const CLAVE_MAESTRA = "HABITAT_MASTER_2026";
 const LOGO_DEFAULT  = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
-// Logo Hábitat-Car como base64 precargado para evitar problemas CORS en PDF
 const LOGO_HABITAT_URL = "https://raw.githubusercontent.com/habitatcar/habitatcar.github.io/refs/heads/main/logo_redondo.png";
 
 const WA_DEFAULT = `🎉🏆 ¡Hola {{NOMBRE}}! ¡Felicitaciones!\nGanaste el sorteo 🎁 *{{PREMIO}}*\nconsistente en *{{DESCRIPCION}}*\nrealizado por 🏪 *{{COMERCIO}}*.\n📎 Adjunto tu ticket ganador oficial.\n⚠️ *¡ATENCIÓN — NO TE DUERMAS!* ⚠️\nTenés *30 días* para presentarte a reclamar tu premio.\n⏰ Si dejás pasar los 30 días ❌ *perdés el premio* ❌\n— Equipo Hábitat-Car 🚗🏠`;
@@ -399,14 +412,15 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 window.db = db;
+window.firebaseCargado = true; // ✅ MARCAR QUE FIREBASE CARGÓ
 
 // ============================================================
 // ESTADO GLOBAL — único lugar de verdad para los listeners
 // ============================================================
 const STATE = {
-  vista: 'activos',        // 'activos' | 'historial'
-  unsubActivos: null,      // función unsub del listener activos
-  unsubHistorial: null,    // función unsub del listener historial
+  vista: 'activos',
+  unsubActivos: null,
+  unsubHistorial: null,
   itemsSeleccionados: new Set(),
   ultimaEjecucion: {},
   intervalSorteos: null
@@ -432,11 +446,8 @@ window.normalizarTelefonoAR = n => {
   return s.startsWith('549')?s:'549'+s;
 };
 
-// Carga imágenes evitando CORS usando un proxy cuando es necesario
-// Para imágenes propias de GitHub usa directamente
 const cargarImagenParaPDF = (url) => new Promise(resolve => {
   if (!url) return resolve(null);
-  // Intento 1: directo (funciona para GitHub raw y data: URLs)
   const intentarCarga = (src) => {
     const img = new Image();
     img.crossOrigin = "Anonymous";
@@ -444,16 +455,14 @@ const cargarImagenParaPDF = (url) => new Promise(resolve => {
     img.onerror = () => resolve(null);
     img.src = src;
   };
-  // Si ya es base64 / data URL, carga directo
   if (url.startsWith('data:')) { intentarCarga(url); return; }
-  // Para Firebase Storage y otros dominios problemáticos, usar proxy CORS
   if (url.includes('firebasestorage.googleapis.com') ||
       (!url.includes('raw.githubusercontent.com') && !url.includes('github.com'))) {
     const proxied = `https://corsproxy.io/?${encodeURIComponent(url)}`;
     const img = new Image();
     img.crossOrigin = "Anonymous";
     img.onload = () => resolve(img);
-    img.onerror = () => intentarCarga(url); // fallback sin proxy
+    img.onerror = () => intentarCarga(url);
     img.src = proxied;
   } else {
     intentarCarga(url);
@@ -461,26 +470,23 @@ const cargarImagenParaPDF = (url) => new Promise(resolve => {
 });
 
 // ============================================================
-// GENERADOR DE PDF — retorna base64 Y descarga
+// GENERADOR DE PDF
 // ============================================================
 window.generarTicketPDF = async (nombre, premio, comercio, descripcion, logoComercioUrl, soloBase64 = false) => {
   const p = window.leerCfgPDF();
   const { jsPDF } = window.jspdf;
   const docPDF = new jsPDF({ unit: "mm", format: [80, 160] });
 
-  // Cargar imágenes en paralelo
   const [bgImg, logoComercioImg, logoHabitatImg] = await Promise.all([
     cargarImagenParaPDF(p.bg),
     cargarImagenParaPDF(logoComercioUrl || LOGO_DEFAULT),
     cargarImagenParaPDF(LOGO_HABITAT_URL)
   ]);
 
-  // Fondo
   if (bgImg) {
     try { docPDF.addImage(bgImg, 'JPEG', 0, 0, 80, 160); } catch(e) { console.warn('Fondo no cargado:', e); }
   }
 
-  // Helper para añadir logo preservando aspecto
   const addLogo = (img, x, y, maxSize) => {
     if (!img) return;
     try {
@@ -494,7 +500,6 @@ window.generarTicketPDF = async (nombre, premio, comercio, descripcion, logoCome
   addLogo(logoComercioImg, parseInt(p.l1x)||5, parseInt(p.l1y)||5, parseInt(p.l1s)||20);
   addLogo(logoHabitatImg,  parseInt(p.l2x)||45, parseInt(p.l2y)||5, parseInt(p.l2s)||20);
 
-  // Textos
   const addTexto = (font, size, color, x, y, texto, bold=false) => {
     docPDF.setFont(font||'helvetica', bold?'bold':'normal');
     docPDF.setFontSize(parseInt(size)||12);
@@ -512,14 +517,14 @@ window.generarTicketPDF = async (nombre, premio, comercio, descripcion, logoCome
   addTexto(p.font_t5,''+p.t5s, p.color_t5, p.t5x||40, p.t5y||148, `${p.t5txt||'Hábitat-Car'} • ${new Date().toLocaleDateString()}`);
 
   if (soloBase64) {
-    return docPDF.output('datauristring'); // retorna base64 para adjuntar en email
+    return docPDF.output('datauristring');
   }
   docPDF.save(`Ticket_${(nombre||'Ganador').replace(/\s+/g,'_')}.pdf`);
   return docPDF.output('datauristring');
 };
 
 // ============================================================
-// ENVÍO WA + PDF (manual desde historial)
+// ENVÍO WA + PDF
 // ============================================================
 window.clickEnviarTicket = btn => {
   window.enviarTicketElite(
@@ -553,21 +558,19 @@ window.enviarTicketElite = async (nombre, premio, comercio, descripcion, telefon
 };
 
 // ============================================================
-// EMAIL — con PDF adjunto en base64
+// EMAIL
 // ============================================================
 const enviarEmailsGanador = async (ganador, comercio, premio, logoUrl) => {
   const functions = getFunctions(app, 'us-central1');
   const enviarEmailSorteo = httpsCallable(functions, 'enviarEmailSorteo');
   if (!ganador.email) return;
   try {
-    // Generar PDF como base64 para adjuntar
     let pdfBase64 = null;
     try {
       const dataUri = await window.generarTicketPDF(
         ganador.nombreMostrar, premio, comercio,
         ganador.descripcion||'', logoUrl, true
       );
-      // Extraer solo la parte base64 (quitar prefijo data:application/pdf;base64,)
       pdfBase64 = dataUri.split(',')[1] || null;
     } catch(pdfErr) {
       console.warn('No se pudo generar PDF para adjuntar, se enviará sin adjunto:', pdfErr);
@@ -577,7 +580,7 @@ const enviarEmailsGanador = async (ganador, comercio, premio, logoUrl) => {
       nombre: ganador.nombreMostrar,
       premio: premio,
       comercio: comercio,
-      pdfBase64: pdfBase64  // la Cloud Function puede adjuntarlo si lo soporta
+      pdfBase64: pdfBase64
     });
     console.log(`✅ Email enviado a ${ganador.email}`);
   } catch(e) {
@@ -585,7 +588,6 @@ const enviarEmailsGanador = async (ganador, comercio, premio, logoUrl) => {
   }
 };
 
-// Email de informe al comercio y a Hábitat-Car
 const enviarEmailInforme = async (ganadores, comercio, premio, mailComercio) => {
   const functions = getFunctions(app, 'us-central1');
   const enviarEmailInformeSorteo = httpsCallable(functions, 'enviarEmailInformeSorteo');
@@ -635,12 +637,10 @@ const limpiarParticipantesSorteo = async (nombreComercio) => {
 const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc, esAutomatico=false) => {
   if (!esAutomatico) mostrarToast(`🎲 Procesando sorteo para ${nomCom}...`, "warning");
   try {
-    // Verificar que no esté ya hecho
     const hq = query(collection(db,"historial_sorteos"), where("comercio","==",nomCom), where("premio","==",premio));
     const hSnap = await getDocs(hq);
     if (!hSnap.empty) { if (!esAutomatico) mostrarToast("🔒 Este sorteo ya fue realizado", "warning"); return; }
 
-    // Obtener participantes
     const snapP = await getDocs(query(collection(db,"admin_participantes_sorteos"), where("comercio","==",nomCom)));
     let participantes = [];
     for (const d of snapP.docs) {
@@ -667,7 +667,6 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
       return;
     }
 
-    // Sortear
     let ganadores = [];
     let bolsa = [...participantes];
     for (let i=0; i<Math.min(cant,bolsa.length); i++) {
@@ -680,7 +679,6 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
       numeroPremio: cant===1?"Ganador":`${sufijos[i]||i+1+'º'} Premio`
     }));
 
-    // Guardar en historial
     await addDoc(collection(db,"historial_sorteos"), {
       comercio: nomCom, premio, descripcion_sorteo: desc||"", logoUrl: logoUrl||"",
       ganadores: ganadoresConNumero, fecha: serverTimestamp(),
@@ -688,10 +686,8 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
       tipo_sorteo: esAutomatico?'automático':'manual', comercioId: idCom
     });
 
-    // Limpiar participantes
     await limpiarParticipantesSorteo(nomCom);
 
-    // Emails: uno por ganador + informe al comercio y Hábitat-Car
     for (const g of ganadoresConNumero) {
       await enviarEmailsGanador(g, nomCom, premio, logoUrl);
     }
@@ -702,7 +698,6 @@ const ejecutarSorteo = async (idCom, nomCom, premio, cant, mailC, logoUrl, desc,
       mostrarConfirmacionSorteo(participantes.length, ganadoresConNumero, nomCom);
     }
     actualizarEstadisticas();
-    // Si estamos viendo activos, refrescar (el listener onSnapshot lo hará solo)
   } catch(e) {
     console.error("Error en sorteo:", e);
     if (!esAutomatico) mostrarToast("❌ Error en el sorteo", "error");
@@ -724,7 +719,6 @@ const verificarSorteosAutomaticos = async () => {
       const key = id, keyT = id+'_time';
       if (STATE.ultimaEjecucion[key]==='ejecutando'||STATE.ultimaEjecucion[key]==='completado') continue;
       if (STATE.ultimaEjecucion[key]==='fallido'&&(Date.now()-(STATE.ultimaEjecucion[keyT]||0))<300000) continue;
-      // Verificar historial
       const hq = query(collection(db,"historial_sorteos"), where("comercio","==",c.nombre), where("premio","==",c.titulo_sorteo));
       const hSnap = await getDocs(hq);
       if (!hSnap.empty) { STATE.ultimaEjecucion[key]='completado'; continue; }
@@ -789,13 +783,12 @@ const actualizarContadores = async () => {
 };
 
 // ============================================================
-// SWITCH VISTA — CORREGIDO: desuscribe el listener anterior
+// SWITCH VISTA
 // ============================================================
 window.switchVista = (vista) => {
-  if (STATE.vista === vista) return; // ya estamos en esta vista, no hacer nada
+  if (STATE.vista === vista) return;
   STATE.vista = vista;
 
-  // Actualizar apariencia de botones
   const btnActivos   = document.getElementById('btn-activos');
   const btnHistorial = document.getElementById('btn-historial');
   if (vista === 'activos') {
@@ -806,11 +799,9 @@ window.switchVista = (vista) => {
     btnActivos.classList.remove('btn-vista-activa');
   }
 
-  // Desuscribir listener anterior ANTES de crear el nuevo
   if (STATE.unsubActivos)   { STATE.unsubActivos();   STATE.unsubActivos   = null; }
   if (STATE.unsubHistorial) { STATE.unsubHistorial(); STATE.unsubHistorial = null; }
 
-  // Limpiar selección
   STATE.itemsSeleccionados.clear();
   actualizarBulkActions();
 
@@ -826,7 +817,6 @@ window.switchVista = (vista) => {
 // CARGAR ACTIVOS
 // ============================================================
 window.cargarActivos = async () => {
-  // Restaurar cabeceras de tabla activos
   const headers = document.getElementById('tabla-headers');
   if (headers) {
     headers.innerHTML = `
@@ -838,10 +828,8 @@ window.cargarActivos = async () => {
   const tabla = document.getElementById('tabla-sorteos');
   tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando sorteos activos...</td></tr>';
 
-  // Desuscribir cualquier listener previo de activos
   if (STATE.unsubActivos) { STATE.unsubActivos(); STATE.unsubActivos = null; }
 
-  // Primer carga: obtener historial para saber cuáles están ejecutados
   const historialSnap = await getDocs(collection(db,"historial_sorteos"));
   const sorteosEjecutados = new Set();
   historialSnap.docs.forEach(d => {
@@ -860,7 +848,6 @@ window.cargarActivos = async () => {
       return;
     }
 
-    // Ordenar: no ejecutados primero (por fecha asc), ejecutados al final (fecha desc)
     comerciosConSorteo.sort((a,b) => {
       const fa=a.data.fecha_sorteo?new Date(a.data.fecha_sorteo).getTime():0;
       const fb=b.data.fecha_sorteo?new Date(b.data.fecha_sorteo).getTime():0;
@@ -879,7 +866,6 @@ window.cargarActivos = async () => {
       const enHistorial=sorteosEjecutados.has(`${nomCom}|${premio}`);
       const ejecutado=enHistorial&&ts<ahora;
 
-      // Contar participantes
       let cL=0,cV=0;
       try {
         const snapP=await getDocs(query(collection(db,"admin_participantes_sorteos"),where("comercio","==",nomCom)));
@@ -892,7 +878,6 @@ window.cargarActivos = async () => {
         }));
       } catch(e){}
 
-      // Fecha formateada
       let fDisplay={fecha:'A definir',hora:''};
       if (fechaISO) {
         try {
@@ -954,7 +939,6 @@ window.cargarActivos = async () => {
 // MOSTRAR HISTORIAL
 // ============================================================
 window.mostrarHistorial = () => {
-  // Cambiar cabeceras
   const headers = document.getElementById('tabla-headers');
   if (headers) {
     headers.innerHTML = `
@@ -966,7 +950,6 @@ window.mostrarHistorial = () => {
   const tabla = document.getElementById('tabla-sorteos');
   tabla.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;">⏳ Cargando historial...</td></tr>';
 
-  // Desuscribir listener previo de historial
   if (STATE.unsubHistorial) { STATE.unsubHistorial(); STATE.unsubHistorial = null; }
 
   STATE.unsubHistorial = onSnapshot(
@@ -1123,7 +1106,7 @@ window.eliminarIndividual = async (id, btn) => {
 };
 
 // ============================================================
-// SORTEO MANUAL — botón SORTEAR AHORA
+// SORTEO MANUAL
 // ============================================================
 window.intentarSorteo = async (btn) => {
   if (btn.disabled) return;
@@ -1236,7 +1219,7 @@ const iniciarRelojes = () => {
 };
 
 // ============================================================
-// EDITOR PDF — configuración
+// EDITOR PDF
 // ============================================================
 window.leerMsgWA  = () => localStorage.getItem('hc_wa_v3')||WA_DEFAULT;
 window.leerCfgPDF = () => { try { return JSON.parse(localStorage.getItem('hc_pdf_v3'))||{}; } catch(e){ return {}; } };
@@ -1246,7 +1229,7 @@ window.procesarImagenSubida = (event) => {
   if (!file) return;
   const reader=new FileReader();
   reader.onload = e => {
-    document.getElementById('cfg_bg').value=e.target.result;  // guarda base64 directo
+    document.getElementById('cfg_bg').value=e.target.result;
     document.getElementById('bg-status').style.display='block';
     window.actualizarPrevia();
     mostrarToast("✅ Imagen cargada — se usará como fondo del ticket","success");
@@ -1384,17 +1367,35 @@ window.cerrarModales = () => {
 // INICIALIZACIÓN
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // Cargar vista inicial sin usar switchVista (que verifica si ya estamos en la vista)
+  // Cargar vista inicial SIN usar switchVista para evitar chequeo redundante
   cargarActivos();
   iniciarRelojes();
   actualizarEstadisticas();
   actualizarContadores();
   setInterval(actualizarContadores, 30000);
-
-  // Sorteos automáticos cada 5 segundos
   STATE.intervalSorteos = setInterval(verificarSorteosAutomaticos, 5000);
 });
+</script>
 
+<!-- BOTÓN FLOTANTE CERRAR SESIÓN -->
+<button id="btn-logout" onclick="cerrarSesion()" style="position:fixed;bottom:30px;right:30px;width:60px;height:60px;background:#dc3545;color:white;border:none;border-radius:50%;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.4);font-size:24px;z-index:10000;transition:all 0.3s;" title="Cerrar Sesión">🚪</button>
+
+<script>
+async function cerrarSesion() {
+    if(confirm('¿Cerrar sesión?')) {
+        try {
+            const { getAuth } = await import('https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js');
+            const auth = getAuth();
+            await auth.signOut();
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        } catch(error) {
+            console.error('Error:', error);
+            alert('Error al cerrar sesión');
+        }
+    }
+}
 </script>
 </body>
 </html>
