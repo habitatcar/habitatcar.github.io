@@ -3,22 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Historial de Canjes | Hábitat-Car</title>
+    <title>Panel VIPs | Hábitat-Car</title>
     
-    <!-- ========== BLOQUE DE SEGURIDAD ========== -->
+    <!-- ========== BLOQUE DE SEGURIDAD NO BLOQUEANTE ========== -->
     <script type="module">
         import { verificarAccesoAdmin } from './admin_auth.js';
-        await verificarAccesoAdmin();
+        
+        (async () => {
+            try {
+                const ok = await verificarAccesoAdmin();
+                if (!ok) {
+                    setTimeout(() => {
+                        document.body.innerHTML = '<p style="color:white;text-align:center;padding:50px;font-family:sans-serif;">🔒 Acceso denegado</p>';
+                    }, 2000);
+                    return;
+                }
+                const capa = document.getElementById('capa-seguridad');
+                if (capa) capa.style.display = 'none';
+            } catch (e) {
+                console.error('Error en verificación VIPs:', e);
+            }
+        })();
     </script>
     <!-- ========== FIN BLOQUE DE SEGURIDAD ========== -->
     
-    <!-- A partir de acá va el resto: CSS, estilos, etc. -->
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Panel VIPs | Hábitat-Car</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -119,6 +127,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 0 30px 30px 30px;
+            position: relative;
         }
 
         table { width: 100%; border-collapse: separate; border-spacing: 0; }
@@ -858,5 +867,26 @@
         window.ordenarPorCampo = window.ordenarPorCampo;
         window.cargarLocalidades = window.cargarLocalidades;
     </script>
+
+<!-- BOTÓN FLOTANTE CERRAR SESIÓN -->
+<button id="btn-logout" onclick="cerrarSesion()" style="position:fixed;bottom:30px;right:30px;width:60px;height:60px;background:#dc3545;color:white;border:none;border-radius:50%;cursor:pointer;box-shadow:0 4px 15px rgba(0,0,0,0.4);font-size:24px;z-index:10000;transition:all 0.3s;" title="Cerrar Sesión">🚪</button>
+
+<script>
+async function cerrarSesion() {
+    if(confirm('¿Cerrar sesión?')) {
+        try {
+            const { getAuth } = await import('https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js');
+            const auth = getAuth();
+            await auth.signOut();
+            localStorage.clear();
+            sessionStorage.clear();
+            window.location.href = 'index.html';
+        } catch(error) {
+            console.error('Error:', error);
+            alert('Error al cerrar sesión');
+        }
+    }
+}
+</script>
 </body>
 </html>
