@@ -393,6 +393,7 @@ tr.finalizado .btn-sortear-accion { opacity: 0.5; pointer-events: none; }
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-app.js";
 import { getFirestore, collection, onSnapshot, query, where, addDoc, serverTimestamp, getDocs, doc, getDoc, deleteDoc, updateDoc, writeBatch, orderBy } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore.js";
 import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-functions.js";
+import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/9.15.0/firebase-auth.js";
 
 const CLAVE_MAESTRA = "HABITAT_MASTER_2026";
 const LOGO_DEFAULT  = "https://github.com/habitatcar/habitatcar.github.io/blob/main/logo.png?raw=true";
@@ -1367,13 +1368,21 @@ window.cerrarModales = () => {
 // INICIALIZACIÓN
 // ============================================================
 document.addEventListener('DOMContentLoaded', () => {
-  // Cargar vista inicial SIN usar switchVista para evitar chequeo redundante
-  cargarActivos();
-  iniciarRelojes();
-  actualizarEstadisticas();
-  actualizarContadores();
-  setInterval(actualizarContadores, 30000);
-  STATE.intervalSorteos = setInterval(verificarSorteosAutomaticos, 5000);
+  const authSorteos = getAuth(app);
+  onAuthStateChanged(authSorteos, (user) => {
+    if (!user) {
+      document.getElementById('tabla-sorteos').innerHTML =
+        '<tr><td colspan="7" style="text-align:center;padding:40px;color:#dc3545;">🔒 Sin sesión. Redirigiendo...</td></tr>';
+      setTimeout(() => { window.location.href = 'index.html'; }, 1500);
+      return;
+    }
+    cargarActivos();
+    iniciarRelojes();
+    actualizarEstadisticas();
+    actualizarContadores();
+    setInterval(actualizarContadores, 30000);
+    STATE.intervalSorteos = setInterval(verificarSorteosAutomaticos, 5000);
+  });
 });
 </script>
 
