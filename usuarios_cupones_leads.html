@@ -1206,10 +1206,35 @@ function mostrarModalRecompensaVIP(usos) {
     overlay.className = 'modal-vip-recompensa';
     overlay.id = 'modalRecompensaVIP';
     const nombreUsuario = usuarioData ? `${(usuarioData.nombres || usuarioData.nombre || '').split(' ')[0]} ${(usuarioData.apellido || '')}`.trim() : 'Usuario';
-    overlay.innerHTML = `<div class="modal-vip-contenido"><div class="icono-dorado">🏆👑🏆</div><h2>¡FELICITACIONES!</h2><p><strong style="color: var(--dorado);">${nombreUsuario}</strong>, has alcanzado los <strong style="color: var(--dorado);">100 USOS</strong> de cupones en nuestra plataforma.</p><p>Por tu constancia y lealtad, <strong style="color: var(--dorado);">¡te has ganado el derecho a ser SOCIO VIP!</strong></p><p>🌟 Accede a beneficios exclusivos, descuentos especiales y promociones únicas.</p><a href="usuarios_registro_vip.html" class="btn-registro-vip">👉 REGISTRARME COMO VIP 👈</a><button class="btn-cerrar-modal" onclick="document.getElementById('modalRecompensaVIP').remove()">🔒 RECORDAR MÁS TARDE</button></div>`;
+    overlay.innerHTML = `<div class="modal-vip-contenido"><div class="icono-dorado">🏆👑🏆</div><h2>¡FELICITACIONES!</h2><p><strong style="color: var(--dorado);">${nombreUsuario}</strong>, has alcanzado los <strong style="color: var(--dorado);">100 USOS</strong> de cupones en nuestra plataforma.</p><p>Por tu constancia y lealtad, <strong style="color: var(--dorado);">¡te has ganado el derecho a ser SOCIO VIP!</strong></p><p>🌟 Accede a beneficios exclusivos, descuentos especiales y promociones únicas.</p><button class="btn-registro-vip" onclick="convertirAVipYA()">👉 CONVERTIRME EN VIP YA 👈</button><button class="btn-cerrar-modal" onclick="document.getElementById('modalRecompensaVIP').remove()">🔒 RECORDAR MÁS TARDE</button></div>`;
     document.body.appendChild(overlay);
     if (leadId && !leadId.startsWith('invitado_')) {
         updateDoc(doc(db, "leads", leadId), { recompensa_vip_recibida: true, fecha_recompensa: Date.now() }).catch(e => console.error("Error guardando recompensa:", e));
+    }
+}
+
+async function convertirAVipYA() {
+    const btn = document.querySelector('.modal-vip-contenido .btn-registro-vip');
+    if (btn) { btn.disabled = true; btn.innerText = 'CONVIRTIENDO...'; }
+    try {
+        const ahora = Date.now();
+        await updateDoc(doc(db, "leads", leadId), {
+            convertidoVIP: true,
+            tipo: "VIP",
+            estado: "activo",
+            fechaVIP: ahora,
+            fecha_recompensa: ahora
+        });
+        localStorage.setItem('habitat_vip_auth', 'true');
+        localStorage.setItem('habitat_lead_auth', 'false');
+        if (typeof hcAsegurarSesion === 'function') {
+            await hcAsegurarSesion();
+        }
+        location.href = 'usuarios_cupones_vips.html';
+    } catch(e) {
+        console.error('Error convirtiendo a VIP:', e);
+        if (btn) { btn.disabled = false; btn.innerText = '👉 CONVERTIRME EN VIP YA 👈'; }
+        alert('No pudimos convertirte. Intentá de nuevo o contactá a soporte.');
     }
 }
 
