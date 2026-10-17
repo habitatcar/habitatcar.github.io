@@ -229,9 +229,7 @@ const S = {
   comercios: [],          // {id, nombre, usosLead, usosVip}
   comercio: null,
   leads: [],              // simulados
-  loading: false,
-  unsubLeads: null,
-  unsubComercios: null
+  loading: false
 };
 
 // ---- Utilidades UI ----
@@ -281,9 +279,8 @@ onAuthStateChanged(auth, async (user)=>{
     $('who').textContent = user.email || '(sin email)';
     $('conn').textContent='conectado'; $('conn').classList.add('on');
     if((user.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
-    await iniciarEscuchaTiempoReal();
+    await cargarTodo();
   } else {
-    limpiarEscuchaTiempoReal();
     S.user=null;
     $('app').style.display='none';
     $('login').style.display='flex';
@@ -292,33 +289,29 @@ onAuthStateChanged(auth, async (user)=>{
 });
 $('btn-logout').onclick = ()=> signOut(auth);
 
-// ================= ESCUCHA TIEMPO REAL =================
-async function iniciarEscuchaTiempoReal(){
-  if(S.unsubLeads) S.unsubLeads();
-  if(S.unsubComercios) S.unsubComercios();
-
-  const leadsQuery = query(collection(db,'leads'), where('origen','==','simulador'));
-  S.unsubLeads = onSnapshot(leadsQuery, (snap)=>{
-    S.leads = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-    render();
-  }, (err)=> toast('Error en leads (tiempo real): '+err.message, true));
-
-  S.unsubComercios = onSnapshot(collection(db,'comercios'), (snap)=>{
-    const oldComercioId = S.comercio?.id;
+// ================= CARGA =================
+async function cargarTodo(){
+  await Promise.all([cargarComercios(), cargarLeads()]);
+}
+async function cargarComercios(){
+  try{
+    const snap = await getDocs(collection(db,'comercios'));
     S.comercios = snap.docs.map(d=>({ id:d.id, ...d.data() }))
       .filter(c=>c.nombre)
       .sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)));
     const opts = S.comercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('');
     $('sel-comercio').innerHTML = opts || '<option value="">(no hay comercios)</option>';
-    if(oldComercioId) S.comercio = S.comercios.find(c=>c.id===oldComercioId) || S.comercios[0] || null;
-    else if(S.comercios[0]) S.comercio = S.comercios[0];
+    if(S.comercios[0]) S.comercio = S.comercios[0];
     $('sel-comercio').onchange = ()=>{ S.comercio = S.comercios.find(c=>c.id===$('sel-comercio').value)||null; };
-  }, (err)=> toast('Error en comercios (tiempo real): '+err.message, true));
+  }catch(e){ toast('Error cargando comercios: '+e.message, true); }
 }
-
-function limpiarEscuchaTiempoReal(){
-  if(S.unsubLeads){ S.unsubLeads(); S.unsubLeads=null; }
-  if(S.unsubComercios){ S.unsubComercios(); S.unsubComercios=null; }
+async function cargarLeads(){
+  $('grid').innerHTML='<p class="sub">Cargando…</p>';
+  try{
+    const snap = await getDocs( query(collection(db,'leads'), where('origen','==','simulador')) );
+    S.leads = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+    render();
+  }catch(e){ toast('Error cargando usuarios: '+e.message, true); $('grid').innerHTML=''; }
 }
 
 // ================= RENDER =================
@@ -539,6 +532,7 @@ async function generar(n){
       const refs=await Promise.all(lote); creados+=refs.length;
       toast(`Generados ${creados}/${n}…`);
     }
+    await cargarLeads();
     toast(`✅ ${creados} usuarios simulados creados`);
   }catch(e){ toast('Error generando: '+e.message, true); }
   finally{ btn.disabled=false; btn.textContent=old; }
@@ -557,6 +551,7 @@ $('btn-borrar-todos').onclick=async()=>{
       await b.commit(); borrados+=Math.min(450,S.leads.length-i);
     }
     toast(`🗑 ${borrados} usuarios simulados borrados`);
+    await cargarLeads();
   }catch(e){ toast('Error borrando: '+e.message, true); }
 };
 
@@ -628,7 +623,7 @@ $('btn-crear').onclick=async()=>{
     });
     ['cr-nombres','cr-apellido','cr-wa','cr-mail','cr-loc'].forEach(x=>$(x).value='');
     $('cr-usos').value=0;
-    toast('✅ Usuario creado');
+    await cargarLeads(); toast('✅ Usuario creado');
   }catch(e){ toast('Error: '+e.message, true); }
 };
 
@@ -639,11 +634,8 @@ $('btn-crear').onclick=async()=>{
   $('cr-prov').innerHTML='<option value="">—</option>'+provOpts;
 })();
 
-$('btn-refresh').onclick=()=> iniciarEscuchaTiempoReal();
-$('btn-reset-reward').onclick=()=>{
-  localStorage.removeItem('recompensa_vip_100');
-  toast('🔄 Recompensa VIP reseteada. El modal volverá a salir al llegar a 100.');
-};
+$('btn-refresh').onclick=()=> cargarTodo();
+$('btn-reset-reward').onclick=()=>{ localStorage.removeItem('recompensa_vip_100'); toast('🔄 Recompensa VIP reseteada. El modal volverá a salir al llegar a 100.'); };
 </script>
 </body>
 </html>
