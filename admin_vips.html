@@ -318,15 +318,16 @@
          <table id="tabla-vips">
             <thead>
                  <tr>
-                    <th onclick="ordenarPorCampo('fechaRegistro')">REGISTRO VIP <span id="orden-fechaRegistro" class="indicador-orden">▼</span></th>
-                    <th onclick="ordenarPorCampo('lastSubmission')">ÚLT. ACTIVIDAD <span id="orden-lastSubmission" class="indicador-orden"></span></th>
-                    <th onclick="ordenarPorCampo('apellido')">APELLIDO Y NOMBRE <span id="orden-apellido" class="indicador-orden"></span></th>
-                    <th>WHATSAPP</th>
-                      <th>EMAIL</th>
-                    <th>PROVINCIA</th>
-                    <th>CIUDAD</th>
-                    <th style="text-align: center;" onclick="ordenarPorCampo('usos_count')">CANT. USOS <span id="orden-usos_count" class="indicador-orden"></span></th>
-                    <th style="text-align: center;">ACCIONES</th>
+<th onclick="ordenarPorCampo('fechaRegistro')">REGISTRO VIP <span id="orden-fechaRegistro" class="indicador-orden">▼</span></th>
+            <th onclick="ordenarPorCampo('lastSubmission')">ÚLT. ACTIVIDAD <span id="orden-lastSubmission" class="indicador-orden"></span></th>
+            <th onclick="ordenarPorCampo('apellido')">APELLIDO Y NOMBRE <span id="orden-apellido" class="indicador-orden"></span></th>
+            <th>WHATSAPP</th>
+            <th>EMAIL</th>
+            <th>PROVINCIA</th>
+            <th>CIUDAD</th>
+            <th>CONVERTIDO</th>
+            <th style="text-align: center;" onclick="ordenarPorCampo('usos_count')">CANT. USOS <span id="orden-usos_count" class="indicador-orden"></span></th>
+            <th style="text-align: center;">ACCIONES</th>
                  </tr>
             </thead>
             <tbody id="lista-vips"></tbody>
@@ -612,18 +613,18 @@
             const totalSpan = document.getElementById('contador-total');
             if (totalSpan) totalSpan.innerText = datos.length;
             
-            if (datos.length === 0) {
-                lista.innerHTML = `
-                    <tr>
-                        <td colspan="8" class="empty-state">
-                            <i>👑</i>
-                            No hay socios VIP registrados
-                            <div style="font-size:12px; margin-top:8px;">Los usuarios que se registren como VIP aparecerán aquí automáticamente</div>
-                        </td>
-                    </tr>
-                `;
-                return;
-            }
+if (datos.length === 0) {
+        lista.innerHTML = `
+        <tr>
+        <td colspan="9" class="empty-state">
+        <i>👑</i>
+        No hay socios VIP registrados
+        <div style="font-size:12px; margin-top:8px;">Los usuarios que se registren como VIP aparecerán aquí automáticamente</div>
+        </td>
+        </tr>
+        `;
+        return;
+    }
             
             lista.innerHTML = '';
             
@@ -637,12 +638,25 @@
                 const localidadMostrar = v.localidad || v.ciudad || '---';
                 
                 const tr = document.createElement('tr');
+        const esConvertido = v.convertidoVIP === true || (v.tipo === 'VIP' && v.fechaVIP);
+        const convertidoTexto = esConvertido ? '✅ Sí' : '❌ No';
+        const convertidoColor = esConvertido ? 'color: #1f9d55; font-weight: bold;' : 'color: #8892b0;'
                 if (suspendido) {
                     tr.style.opacity = '0.5';
                     tr.style.background = 'rgba(220,53,69,0.05)';
                 }
                 
                 tr.innerHTML = `
+        <td style="color: #8892b0;">${escapeHtml(fechaReg)}</td>
+        <td style="color: var(--oro); font-size: 0.9em;">${escapeHtml(lastSub)}</td>
+        <td><b>${escapeHtml(nombreFull)}</b></td>
+        <td>${escapeHtml(v.whatsapp || '---')}</td>
+        <td style="color:#8892b0">${escapeHtml(v.email || v.mail || '---')}</td>
+        <td style="color: #8892b0">${escapeHtml(provinciaMostrar)}</td>
+        <td style="color: #8892b0">${escapeHtml(localidadMostrar)}</td>
+        <td style="${convertidoColor}">${escapeHtml(esConvertido ? '✅ Sí' : '❌ No')}</td>
+        <td class="col-usos">${v.usos_count || 0}</td>
+        <td style="white-space: nowrap; text-align: center;">
                     <td style="color: #8892b0;">${escapeHtml(fechaReg)}</td>
                     <td style="color: var(--oro); font-size: 0.9em;">${escapeHtml(lastSub)}</td>
                     <td><b>${escapeHtml(nombreFull)}</b></td>

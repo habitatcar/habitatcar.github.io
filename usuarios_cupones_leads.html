@@ -1696,23 +1696,39 @@ window.abrirPopupPostulaciones = () => {
 async function inicializarApp() {
     await hcAsegurarSesion();
     await verificarYAplicarResetCupones();
-    if (leadId && !leadId.startsWith('invitado_')) {
-        try {
-            const docSnap = await getDoc(doc(db, "leads", leadId));
-            if (docSnap.exists()) {
-                usuarioData = docSnap.data();
-                if (!provinciasCargadas) {
-                    cargarProvincias();
-                    provinciasCargadas = true;
-                }
-                actualizarContadorProgreso();
+if (leadId && !leadId.startsWith('invitado_')) {
+    try {
+        const docSnap = await getDoc(doc(db, "leads", leadId));
+        if (docSnap.exists()) {
+            usuarioData = docSnap.data();
+            if (!provinciasCargadas) {
+                cargarProvincias();
+                provinciasCargadas = true;
             }
-        } catch(e) {
-            console.error("Error cargando usuario:", e);
+            actualizarContadorProgreso();
+            // Listener en tiempo real para cambios externos (simulador, otro dispositivo)
+            if (!window._leadSnapshot) {
+                window._leadSnapshot = onSnapshot(doc(db, "leads", leadId), (snap) => {
+                    if (snap.exists()) {
+                        const data = snap.data();
+                        usuarioData = data;
+                        actualizarContadorProgreso();
+                        // Si se convirtió a VIP desde fuera, redirigir
+                        if (data.convertidoVIP === true && data.tipo === "VIP" && !localStorage.getItem('habitat_vip_auth')) {
+                            localStorage.setItem('habitat_vip_auth', 'true');
+                            localStorage.setItem('habitat_lead_auth', 'false');
+                            location.href = 'usuarios_cupones_vips.html';
+                        }
+                    }
+                });
+            }
         }
-    } else {
-        cargarProvincias();
+    } catch(e) {
+        console.error("Error cargando usuario:", e);
     }
+} else {
+    cargarProvincias();
+}
 }
 
 cargarOpcionesCalificacion();
