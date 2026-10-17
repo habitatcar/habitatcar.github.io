@@ -906,8 +906,8 @@ font-weight: 600;
 <button class="btn-footer" style="background: var(--azul-lindo); width: 140px;" onclick="abrirPopupPostulaciones()">📋 POSTULACIONES</button>
 </div>
 <div class="footer-row">
-<a href="soy_curioso.html" class="btn-footer" style="background: var(--celeste);">SOY CURIOSO</a>
-<a href="tutorial.html" class="btn-footer" style="background: var(--naranja);">TUTORIAL</a>
+<a href="usuarios_curioso.html" class="btn-footer" style="background: var(--celeste);">SOY CURIOSO</a>
+<a href="usuarios_tutoriales.html" class="btn-footer" style="background: var(--naranja);">TUTORIAL</a>
 </div>
 <div class="footer-row">
 <a href="https://www.habitatcar.com.ar" class="footer-link" target="_blank">www.habitatcar.com.ar</a>
@@ -1722,6 +1722,50 @@ inicializarApp();
     document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('btn-instalar-footer')?.addEventListener('click', mostrarMensajeInstalacion);
     });
+})();
+</script>
+<style id="hcLogoutStyle">
+.hc-out-fab{position:fixed;right:14px;bottom:18px;z-index:99998;background:linear-gradient(135deg,#b71c1c,#e53935);color:#fff;border:none;border-radius:30px;padding:12px 18px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35);font-family:inherit;touch-action:none;user-select:none}
+.hc-out-fab .fas{margin-right:6px}
+.hc-out-fab:active{cursor:grabbing}
+</style>
+<button class="hc-out-fab" id="hcOutFab" type="button" title="Boton temporal de prueba: arrastralo si te molesta"><i class="fas fa-sign-out-alt"></i> Salir de la cuenta</button>
+<script id="hcLogoutScript">
+(function(){
+  var fab=document.getElementById('hcOutFab');
+  if(!fab) return;
+  var KEY='hcOutFabPos';
+  try{ var s=localStorage.getItem(KEY); if(s){ var pp=JSON.parse(s); if(pp&&pp.t!=null){ fab.style.top=pp.t+'px'; fab.style.left=pp.l+'px'; fab.style.right='auto'; fab.style.bottom='auto'; } } }catch(e){}
+  var dragging=false,sx=0,sy=0,ox=0,oy=0,moved=false;
+  fab.addEventListener('pointerdown',function(e){
+    dragging=true;moved=false;
+    var r=fab.getBoundingClientRect();
+    sx=e.clientX;sy=e.clientY;ox=r.left;oy=r.top;
+    try{fab.setPointerCapture(e.pointerId);}catch(err){}
+    e.preventDefault();
+  });
+  fab.addEventListener('pointermove',function(e){
+    if(!dragging)return;
+    var dx=e.clientX-sx,dy=e.clientY-sy;
+    if(Math.abs(dx)>4||Math.abs(dy)>4)moved=true;
+    var r=fab.getBoundingClientRect();
+    var l=Math.max(4,Math.min(window.innerWidth-r.width-4,ox+dx));
+    var tt=Math.max(4,Math.min(window.innerHeight-r.height-4,oy+dy));
+    fab.style.left=l+'px';fab.style.top=tt+'px';fab.style.right='auto';fab.style.bottom='auto';
+  });
+  function end(){
+    if(!dragging)return;
+    dragging=false;
+    if(moved){ var r=fab.getBoundingClientRect(); try{ localStorage.setItem(KEY, JSON.stringify({l:r.left,t:r.top})); }catch(e){} }
+  }
+  fab.addEventListener('pointerup',end);
+  fab.addEventListener('pointercancel',end);
+  fab.addEventListener('click',function(){
+    if(moved)return;
+    if(!confirm('\u00bfCerrar la sesi\u00f3n de esta cuenta?'))return;
+    try{ ['habitat_user_email','habitat_user_pass','habitat_user_uid','leadId_habitat','leadId_v16','leadId','habitat_lead_auth','habitat_vip_auth','habitat_auth'].forEach(function(k){localStorage.removeItem(k);}); }catch(e){}
+    location.href='usuarios_registro_lead.html';
+  });
 })();
 </script>
 </body>

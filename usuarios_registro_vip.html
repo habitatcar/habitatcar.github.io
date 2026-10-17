@@ -439,5 +439,86 @@
 
         validarTokenInterno();
     </script>
+<style id="hcRecoverStyle">
+.hc-rec-fab{position:fixed;right:14px;bottom:18px;z-index:99998;background:linear-gradient(135deg,#003d80,#0056b3);color:#fff;border:none;border-radius:30px;padding:12px 18px;font-size:13px;font-weight:700;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.35);font-family:inherit}
+.hc-rec-fab .fas{margin-right:6px}
+.hc-rec-modal{position:fixed;inset:0;background:rgba(0,0,0,.72);display:none;align-items:center;justify-content:center;z-index:99999;padding:20px}
+.hc-rec-modal.hc-open{display:flex}
+.hc-rec-box{background:#fff;border-radius:14px;max-width:420px;width:100%;padding:24px;position:relative;box-shadow:0 20px 50px rgba(0,0,0,.4)}
+.hc-rec-box h3{margin:0 0 10px;font-size:19px;color:#003d80;font-family:inherit}
+.hc-rec-box p{margin:0 0 14px;font-size:14px;color:#444;line-height:1.55;font-family:inherit}
+.hc-rec-box input{width:100%;padding:13px;border:1.5px solid #ccd5e0;border-radius:9px;font-size:16px;box-sizing:border-box;font-family:inherit}
+.hc-rec-box input:focus{outline:none;border-color:#003d80}
+.hc-rec-actions{display:flex;gap:10px;margin-top:16px}
+.hc-rec-actions button{flex:1;padding:13px;border:none;border-radius:9px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit}
+.hc-rec-cancel{background:#eef1f5;color:#555}
+.hc-rec-ok{background:#003d80;color:#fff}
+.hc-rec-close{position:absolute;right:10px;top:8px;background:none;border:none;font-size:20px;cursor:pointer;color:#999;line-height:1}
+.hc-rec-msg{margin-top:12px;font-size:13.5px;line-height:1.5;min-height:18px}
+.hc-rec-msg.err{color:#e60000}
+.hc-rec-msg.good{color:#1a7a2e}
+</style>
+<button class="hc-rec-fab" id="hcRecFab" type="button"><i class="fas fa-key"></i> Recuperar acceso</button>
+<div class="hc-rec-modal" id="hcRecModal">
+  <div class="hc-rec-box">
+    <button class="hc-rec-close" id="hcRecClose" type="button" aria-label="Cerrar"><i class="fas fa-times"></i></button>
+    <h3>Recuperar acceso VIP</h3>
+    <p>Ingres&aacute; tu n&uacute;mero de celular o WhatsApp con el que te registraste. Buscaremos tu cuenta para que puedas volver a ingresar aunque hayas cambiado de celular o borrado los datos.</p>
+    <input type="tel" id="hcRecCel" placeholder="Ej: 381 1234567" autocomplete="tel">
+    <div class="hc-rec-actions">
+      <button class="hc-rec-cancel" id="hcRecCancel" type="button">Cancelar</button>
+      <button class="hc-rec-ok" id="hcRecDo" type="button">Recuperar</button>
+    </div>
+    <div class="hc-rec-msg" id="hcRecMsg"></div>
+  </div>
+</div>
+<script type="module" id="hcRecScript">
+import { getFirestore, collection, getDocs, limit, query } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+const db = getFirestore();
+function normCel(c){ return String(c||'').replace(/[^0-9]/g,'').replace(/^0+/,'').replace(/^54/,'').replace(/^9/,''); }
+const fab=document.getElementById('hcRecFab'), modal=document.getElementById('hcRecModal');
+function open(){ if(!modal)return; modal.classList.add('hc-open'); const m=document.getElementById('hcRecMsg'); if(m){m.textContent='';m.className='hc-rec-msg';} const inp=document.getElementById('hcRecCel'); if(inp){inp.value='';inp.focus();} }
+function close(){ if(modal) modal.classList.remove('hc-open'); }
+if(fab) fab.onclick=open;
+var c1=document.getElementById('hcRecClose'), c2=document.getElementById('hcRecCancel');
+if(c1) c1.onclick=close; if(c2) c2.onclick=close;
+if(modal) modal.addEventListener('click', function(e){ if(e.target===modal) close(); });
+var doBtn=document.getElementById('hcRecDo');
+if(doBtn) doBtn.onclick=async function(){
+  var cel=(document.getElementById('hcRecCel').value||'').trim();
+  var msg=document.getElementById('hcRecMsg');
+  if(!cel){ if(msg){msg.textContent='Ingres\u00e1 un n\u00famero de celular o WhatsApp';msg.className='hc-rec-msg err';} return; }
+  doBtn.disabled=true; doBtn.textContent='Buscando...';
+  if(msg){msg.textContent='';msg.className='hc-rec-msg';}
+  try{
+    var snap=await getDocs(query(collection(db,'leads'), limit(500)));
+    var found=null;
+    snap.forEach(function(doc){
+      if(found) return;
+      var data=doc.data();
+      var cands=[data.whatsapp,data.celular,data.tel,data.telefono,data.cel].filter(Boolean).map(normCel);
+      if(cands.indexOf(normCel(cel))!==-1){ found={id:doc.id,data:data}; }
+    });
+    if(!found){
+      if(msg){msg.textContent='No encontramos ese n\u00famero registrado.';msg.className='hc-rec-msg err';}
+      doBtn.disabled=false; doBtn.textContent='Recuperar'; return;
+    }
+    var fd=found.data;
+    localStorage.setItem('leadId_habitat',found.id);
+    localStorage.setItem('leadId_v16',found.id);
+    localStorage.setItem('leadId',found.id);
+    if(fd.mail||fd.email) localStorage.setItem('habitat_user_email', fd.mail||fd.email);
+    if(fd.passwordTemp) localStorage.setItem('habitat_user_pass', fd.passwordTemp);
+    localStorage.setItem('habitat_lead_auth','true');
+    var isVip=(fd.convertidoVIP===true||fd.tipo==='VIP');
+    if(isVip){ localStorage.setItem('habitat_vip_auth','true'); }
+    if(msg){msg.textContent='Cuenta encontrada. Entrando...';msg.className='hc-rec-msg good';}
+    setTimeout(function(){ location.href=isVip?'usuarios_cupones_vips.html':'usuarios_cupones_leads.html'; },700);
+  }catch(e){
+    if(msg){msg.textContent='Error al buscar la cuenta. Intent\u00e1 de nuevo.';msg.className='hc-rec-msg err';}
+    doBtn.disabled=false; doBtn.textContent='Recuperar';
+  }
+};
+</script>
 </body>
 </html>
