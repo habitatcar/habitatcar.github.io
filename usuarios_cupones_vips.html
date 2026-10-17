@@ -441,7 +441,7 @@
 
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
         import { getFirestore, collection, onSnapshot, addDoc, doc, updateDoc, increment, serverTimestamp, getDoc, arrayUnion, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -454,6 +454,42 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
         const auth = getAuth(app);
+
+async function hcAsegurarSesion(){
+    try{ if(auth.currentUser) return true; }catch(e){}
+    const em = localStorage.getItem('habitat_user_email');
+    const pw = localStorage.getItem('habitat_user_pass');
+    if(em && pw){
+        try{ await signInWithEmailAndPassword(auth, em, pw); return true; }catch(e){ console.warn('hc: sign-in guardado fallo', e && e.code); }
+    }
+    try{
+        const lid = localStorage.getItem('leadId_habitat') || localStorage.getItem('leadId_v16') || localStorage.getItem('leadId');
+        if(lid && !String(lid).startsWith('invitado_')){
+            const snap = await getDoc(doc(db, 'leads', lid));
+            if(snap.exists()){
+                const d = snap.data() || {};
+                const email = d.email || d.mail;
+                const pass = d.passwordTemp;
+                if(email && pass){
+                    try{ await signInWithEmailAndPassword(auth, email, pass); localStorage.setItem('habitat_user_email', email); localStorage.setItem('habitat_user_pass', pass); return true; }catch(e){}
+                }
+                if(email){
+                    const np = 'HC_' + Math.random().toString(36).substring(2,8).toUpperCase();
+                    try{
+                        const cred = await createUserWithEmailAndPassword(auth, email, np);
+                        try{ await updateDoc(doc(db, 'leads', lid), { authUid: cred.user.uid, passwordTemp: np }); }catch(e){}
+                        localStorage.setItem('habitat_user_email', email);
+                        localStorage.setItem('habitat_user_pass', np);
+                        localStorage.setItem('habitat_user_uid', cred.user.uid);
+                        return true;
+                    }catch(e){ console.warn('hc: no se pudo crear la cuenta', e && e.code); }
+                }
+            }
+        }
+    }catch(e){ console.warn('hc: error de auto-reparacion', e && e.message); }
+    return !!auth.currentUser;
+}
+
 
         let scanner = null;
         let listaComercios = [];
@@ -591,19 +627,7 @@
             } catch(e) { console.error("Error cargando localidades:", e); }
         };
 
-        // Autenticar antes de cualquier consulta a Firestore
-        (async () => {
-            const userEmail = localStorage.getItem('habitat_user_email');
-            const userPass = localStorage.getItem('habitat_user_pass');
-            if (userEmail && userPass) {
-                try {
-                    await signInWithEmailAndPassword(auth, userEmail, userPass);
-                    console.log("✅ Usuario VIP autenticado");
-                } catch(e) {
-                    console.error("❌ Error auth VIP:", e.message);
-                }
-            }
-        })();
+        (async () => { await hcAsegurarSesion(); })();
 
         if (leadId) {
             getDoc(doc(db, "leads", leadId)).then(docSnap => {
@@ -1019,6 +1043,7 @@
         window.finalizarVIP = async (id, nom, ben) => {
             document.getElementById('alerta-cajero').remove();
             try {
+                if(!auth.currentUser){ const ok = await hcAsegurarSesion(); if(!ok){ alert("No pudimos activar la sesion. Usa el boton Recuperar acceso o volve a registrarte."); return; } }
                 const ahora = Date.now();
                 const fechaLegible = new Date().toLocaleString('es-AR', { day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' });
                 const comercioRef = doc(db, "comercios", id);
