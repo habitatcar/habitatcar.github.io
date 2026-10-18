@@ -300,6 +300,34 @@ const IM=()=>{const d=new Date();d.setDate(1);d.setHours(0,0,0,0);return d.getTi
 const IA=()=>{const d=new Date();d.setMonth(0,1);d.setHours(0,0,0,0);return d.getTime();};
 
 /* ══ ACTUALIZAR ÍNDICE DE CANJES EN TIEMPO REAL ══ */
+let rawLogs = [];
+
+function nombreComercioDeLog(e){
+  const directo = (e.nombreComercio||'').trim();
+  if (directo) return directo;
+  if (e.comercioId && idToNom[e.comercioId]) return idToNom[e.comercioId];
+  const i = (e.detalle||'').lastIndexOf(' en ');
+  if (i>=0){
+    let r = e.detalle.substring(i+4).trim();
+    const p = r.indexOf(' (');
+    if (p>=0) r = r.substring(0,p).trim();
+    if (r) return r;
+  }
+  return '';
+}
+
+/* Reconstruye idxCanjes a partir de los logs crudos. Se llama cada vez que
+   cambian los logs O los comercios, así el mapeo id->nombre ya está listo. */
+function reconstruirIdx(){
+  idxCanjes = {};
+  for (const e of rawLogs){
+    const nombre = nombreComercioDeLog(e);
+    if (!nombre) continue;
+    if (!idxCanjes[nombre]) idxCanjes[nombre] = [];
+    idxCanjes[nombre].push({ ts: e.ts, esVip: e.esVip });
+  }
+}
+
 function iniciarSnapshotLogs() {
   onSnapshot(collection(db,'leads'), (snap) => {
     todosLogsU = {};
@@ -315,35 +343,26 @@ function iniciarSnapshotLogs() {
   });
 
   onSnapshot(collection(db,'logs_actividad'), (snap) => {
-    idxCanjes = {};
+    rawLogs = [];
     snap.forEach(d => {
       const data   = d.data();
       const accion = (data.accion||'').toUpperCase().trim();
       const ts     = normTs(data.timestamp);
       if (!ts) return;
 
-      let nombreComercio = '';
-      let esVip          = false;
+      let esVip;
+      if (accion === 'CANJE VIP') esVip = true;
+      else if (accion === 'CANJE LEADS' || accion === 'CANJE') esVip = false;
+      else return;
 
-      if (accion === 'CANJE VIP') {
-        esVip = true;
-        nombreComercio = idToNom[data.comercioId] || '';
-        if (!nombreComercio && data.nombre) {
-          const i = data.nombre.lastIndexOf(' en ');
-          nombreComercio = i>=0 ? data.nombre.substring(i+4).trim() : '';
-        }
-      } else if (accion === 'CANJE LEADS' || accion === 'CANJE') {
-        esVip = false;
-        nombreComercio = (data.nombreComercio || data.comercio || '').trim();
-      } else {
-        return;
-      }
-
-      if (!nombreComercio) return;
-
-      if (!idxCanjes[nombreComercio]) idxCanjes[nombreComercio] = [];
-      idxCanjes[nombreComercio].push({ ts, esVip });
+      rawLogs.push({
+        esVip, ts,
+        nombreComercio: (data.nombreComercio || data.comercio || '').trim(),
+        comercioId: data.comercioId || '',
+        detalle: data.detalle || ''
+      });
     });
+    reconstruirIdx();
     renderTabla();
   });
 }
@@ -446,6 +465,7 @@ function iniciarSnapComercios() {
   onSnapshot(collection(db,'comercios'), (snap) => {
     idToNom = {};
     snap.forEach(d => { idToNom[d.id] = (d.data().nombre||'').trim(); });
+    reconstruirIdx();
     
     comercios = snap.docs.map(d => {
       const data = d.data();
