@@ -1136,11 +1136,10 @@ async function verificarYAplicarResetCupones() {
             if (firestoreTime > localTime) {
                 console.log("🔄 Detectado reset global NUEVO. Limpiando contadores de cupones...");
                 Object.keys(localStorage).forEach(key => {
-                    if (key.startsWith('uso_lead_') || key.startsWith('toco_sorteo_')) {
+                    if (key.startsWith('uso_lead_') || key.startsWith('inicios_cupones') || key.startsWith('toco_sorteo_')) {
                         localStorage.removeItem(key);
                     }
                 });
-                localStorage.removeItem('inicios_cupones');
                 localStorage.setItem('ultimoResetGlobal_local', resetGlobalFirestore.toString());
                 mostrarNotificacionReset();
             }
@@ -1168,6 +1167,18 @@ function mostrarNotificacionReset() {
 function normalizarTexto(texto) {
     if (!texto) return '';
     return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+}
+
+// Usos de ESTE lead en ESTE comercio, segun la data en Firestore (por persona, no por navegador).
+function usosLeadComercio(nombre) {
+    if (!usuarioData) return 0;
+    const key = (nombre || '').replace(/\s+/g, '_');
+    const reg = usuarioData.canjes_por_comercio && usuarioData.canjes_por_comercio[key];
+    if (reg) return parseInt(reg.cantidad_usos) || 0;
+    if (Array.isArray(usuarioData.cupones_detallados)) {
+        return usuarioData.cupones_detallados.filter(x => x && x.comercio === nombre).length;
+    }
+    return 0;
 }
 
 async function actualizarContadorProgreso() {
@@ -1432,7 +1443,7 @@ window.aplicarFiltros = function aplicarFiltros() {
         filtrados = filtrados.filter(c => {
             const vigencia = parseInt(c.vigenciaLead) || 0;
             if (vigencia === 0) return true;
-            const inicios = JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
+            const inicios = JSON.parse(localStorage.getItem('inicios_cupones_' + leadId) || "{}");
             const inicio = inicios[c.id] || Date.now();
             const transcurrido = Date.now() - inicio;
             const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
@@ -1445,11 +1456,11 @@ window.aplicarFiltros = function aplicarFiltros() {
 
 function renderizarComercios(comercios) {
     const contenedor = document.getElementById('contenedor-cupones');
-    const inicios = JSON.parse(localStorage.getItem('inicios_cupones') || "{}");
+    const inicios = JSON.parse(localStorage.getItem('inicios_cupones_' + leadId) || "{}");
     let html = "";
     comercios.forEach(c => {
         const usosPermitidos = parseInt(c.usosLead) || 1;
-        const usosRealizados = parseInt(localStorage.getItem(`uso_lead_${c.id}`) || "0");
+        const usosRealizados = usuarioData ? usosLeadComercio(c.nombre) : parseInt(localStorage.getItem(`uso_lead_${leadId}_${c.id}`) || "0");
         const esAgotado = usosRealizados >= usosPermitidos;
         const vigenciaTotal = parseInt(c.vigenciaLead) || 0;
         let diasRestantes = vigenciaTotal;
@@ -1501,7 +1512,7 @@ function renderizarComercios(comercios) {
                 </div>
             </div>`;
     });
-    localStorage.setItem('inicios_cupones', JSON.stringify(inicios));
+    localStorage.setItem('inicios_cupones_' + leadId, JSON.stringify(inicios));
     contenedor.innerHTML = html;
     if (scrollPosition > 0) {
         setTimeout(() => window.scrollTo({ top: scrollPosition, behavior: 'auto' }), 100);
@@ -1604,7 +1615,7 @@ window.finalizar = async (id, nom) => {
         const snapCom = await getDoc(refComercio);
         const dataCom = snapCom.data();
         const usosPermitidos = parseInt(dataCom.usosLead) || 1;
-        const usosRealizados = parseInt(localStorage.getItem(`uso_lead_${id}`) || "0");
+        const usosRealizados = usuarioData ? usosLeadComercio(nom) : parseInt(localStorage.getItem(`uso_lead_${leadId}_${id}`) || "0");
         const nuevosUsos = usosRealizados + 1;
         if (nuevosUsos > usosPermitidos) {
             alert("❌ Ya has agotado todos los usos de este cupón");
@@ -1641,7 +1652,7 @@ window.finalizar = async (id, nom) => {
             cupones_detallados: arrayUnion({ comercio: nom, fecha: fechaLegible, hora: horaLegible, codigo: idManual, timestamp: timestamp, usoNumero: nuevosUsos }),
             lastSubmission: timestamp
         });
-        localStorage.setItem(`uso_lead_${id}`, nuevosUsos);
+        localStorage.setItem(`uso_lead_${leadId}_${id}`, nuevosUsos);
         setTimeout(actualizarContadorProgreso, 500);
         const btnUsar = document.getElementById(`btn-usar-${id}`);
         if (btnUsar) {
@@ -1716,6 +1727,7 @@ if (leadId && !leadId.startsWith('invitado_')) {
                 provinciasCargadas = true;
             }
             actualizarContadorProgreso();
+            aplicarFiltros();
             // Listener en tiempo real para cambios externos (simulador, otro dispositivo)
             if (!window._leadSnapshot) {
                 window._leadSnapshot = onSnapshot(doc(db, "leads", leadId), (snap) => {
@@ -1723,6 +1735,7 @@ if (leadId && !leadId.startsWith('invitado_')) {
                         const data = snap.data();
                         usuarioData = data;
                         actualizarContadorProgreso();
+                        aplicarFiltros();
                         // Si se convirtió a VIP desde fuera, redirigir
                         if (data.convertidoVIP === true && data.tipo === "VIP" && !localStorage.getItem('habitat_vip_auth')) {
                             localStorage.setItem('habitat_vip_auth', 'true');

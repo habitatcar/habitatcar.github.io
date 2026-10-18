@@ -541,11 +541,10 @@ async function hcAsegurarSesion(){
                     if (resetTimestamp > parseInt(ultimoResetDetectadoVIP)) {
                         const keys = Object.keys(localStorage);
                         keys.forEach(key => {
-                            if (key.startsWith('uso_vip_') || key.startsWith('toco_sorteo_')) {
+                            if (key.startsWith('uso_vip_') || key.startsWith('inicios_cupones_vip') || key.startsWith('toco_sorteo_')) {
                                 localStorage.removeItem(key);
                             }
                         });
-                        localStorage.removeItem('inicios_cupones_vip');
                         ultimoResetDetectadoVIP = resetTimestamp.toString();
                         localStorage.setItem('ultimoResetDetectadoVIP', ultimoResetDetectadoVIP);
                         location.reload();
@@ -559,6 +558,18 @@ async function hcAsegurarSesion(){
         function normalizarTexto(texto) {
             if (!texto) return '';
             return texto.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+        }
+
+        // Usos de ESTE usuario en ESTE comercio, segun la data en Firestore (por persona, no por navegador).
+        function usosVipComercio(nombre) {
+            if (!usuarioData) return 0;
+            const key = (nombre || '').replace(/\s+/g, '_');
+            const reg = usuarioData.canjes_por_comercio && usuarioData.canjes_por_comercio[key];
+            if (reg) return parseInt(reg.cantidad_usos) || 0;
+            if (Array.isArray(usuarioData.cupones_detallados)) {
+                return usuarioData.cupones_detallados.filter(x => x && x.comercio === nombre).length;
+            }
+            return 0;
         }
 
         function obtenerUbicacion() {
@@ -633,6 +644,7 @@ async function hcAsegurarSesion(){
             getDoc(doc(db, "leads", leadId)).then(docSnap => {
                 if (docSnap.exists()) {
                     usuarioData = docSnap.data();
+                    if (typeof window.aplicarFiltros === 'function') window.aplicarFiltros();
                     if (!window.provinciasCargadas) {
                         cargarProvincias();
                         window.provinciasCargadas = true;
@@ -768,7 +780,7 @@ async function hcAsegurarSesion(){
                 filtrados = filtrados.filter(c => {
                     const vigencia = parseInt(c.vigenciaVip) || 0;
                     if (vigencia === 0) return true;
-                    const inicios = JSON.parse(localStorage.getItem('inicios_cupones_vip') || "{}");
+                    const inicios = JSON.parse(localStorage.getItem('inicios_cupones_vip_' + leadId) || "{}");
                     const inicio = inicios[c.id] || Date.now();
                     const transcurrido = Date.now() - inicio;
                     const diasPasados = Math.floor(transcurrido / (1000 * 60 * 60 * 24));
@@ -783,9 +795,9 @@ async function hcAsegurarSesion(){
         function renderizarComercios(comercios) {
             const contenedor = document.getElementById('contenedor-vip');
             let html = "";
-            const inicios = JSON.parse(localStorage.getItem('inicios_cupones_vip') || "{}");
+            const inicios = JSON.parse(localStorage.getItem('inicios_cupones_vip_' + leadId) || "{}");
             comercios.forEach(c => {
-                const nUso = parseInt(localStorage.getItem('uso_vip_' + c.id) || "0");
+                const nUso = usuarioData ? usosVipComercio(c.nombre) : parseInt(localStorage.getItem('uso_vip_' + leadId + '_' + c.id) || "0");
                 const limitUsos = parseInt(c.usosVip) || 0;
                 const vigenciaTotal = parseInt(c.vigenciaVip) || 0;
                 let diasRestantes = vigenciaTotal;
@@ -854,7 +866,7 @@ async function hcAsegurarSesion(){
                         </div>
                     </div>`;
             });
-            localStorage.setItem('inicios_cupones_vip', JSON.stringify(inicios));
+            localStorage.setItem('inicios_cupones_vip_' + leadId, JSON.stringify(inicios));
             contenedor.innerHTML = html;
             if (scrollPosition > 0) setTimeout(() => window.scrollTo({ top: scrollPosition, behavior: 'auto' }), 100);
         }
@@ -1059,7 +1071,7 @@ async function hcAsegurarSesion(){
                 });
 
                 const leadIdLocal = localStorage.getItem('leadId_v16') || localStorage.getItem('leadId_habitat');
-                const nUsoLocal = parseInt(localStorage.getItem('uso_vip_' + id) || "0") + 1;
+                const nUsoLocal = (usuarioData ? usosVipComercio(nom) : parseInt(localStorage.getItem('uso_vip_' + leadId + '_' + id) || "0")) + 1;
                 const nombreUsuario = usuarioData
                     ? `${(usuarioData.apellido || '').toUpperCase()}, ${(usuarioData.nombres || usuarioData.nombre || '').toUpperCase()}`.trim().replace(/^,\s*/, '')
                     : '';
@@ -1075,6 +1087,14 @@ async function hcAsegurarSesion(){
                         },
                         usos_count: increment(1)
                     });
+                    if (usuarioData) {
+                        usuarioData.canjes_por_comercio = usuarioData.canjes_por_comercio || {};
+                        const regActual = usuarioData.canjes_por_comercio[idComercioLimpio];
+                        usuarioData.canjes_por_comercio[idComercioLimpio] = {
+                            comercio: nom,
+                            cantidad_usos: (parseInt(regActual && regActual.cantidad_usos) || 0) + 1
+                        };
+                    }
                 }
 
                 // ✅ CAMBIO #1: fontSize aumentado de 18 a 28 para máxima visibilidad
@@ -1106,7 +1126,7 @@ async function hcAsegurarSesion(){
                     nombre: nombreUsuario, whatsapp: whatsappUsuario
                 });
 
-                localStorage.setItem('uso_vip_' + id, nUsoLocal);
+                localStorage.setItem('uso_vip_' + leadId + '_' + id, nUsoLocal);
 
                 let s = 30;
                 const t = setInterval(() => {
