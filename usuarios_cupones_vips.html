@@ -650,6 +650,16 @@ async function hcAsegurarSesion(){
                         window.provinciasCargadas = true;
                     }
                     setTimeout(verificarResetGlobalVIP, 1000);
+                    // Tiempo real: si el usuario canjea en otro dispositivo o desde el simulador,
+                    // el contador de cada cupon se actualiza solo (sin recargar).
+                    if (!window._leadSnapshotVip) {
+                        window._leadSnapshotVip = onSnapshot(doc(db, "leads", leadId), (snap) => {
+                            if (snap.exists()) {
+                                usuarioData = snap.data();
+                                if (typeof window.aplicarFiltros === 'function') window.aplicarFiltros();
+                            }
+                        });
+                    }
                 }
             }).catch(e => console.error("Error cargando usuario:", e));
         } else {
@@ -1128,7 +1138,11 @@ async function hcAsegurarSesion(){
 
                 localStorage.setItem('uso_vip_' + leadId + '_' + id, nUsoLocal);
 
-                let s = 30;
+                // Actualizar el contador del boton "USAR BENEFICIO" al instante (sin recargar)
+                if (typeof window.aplicarFiltros === 'function') { try { window.aplicarFiltros(); } catch(eRef) { console.error('re-render VIP:', eRef); } }
+
+                let s = 3;
+                document.getElementById('countdown').innerText = s;
                 const t = setInterval(() => {
                     s--;
                     document.getElementById('countdown').innerText = s;
