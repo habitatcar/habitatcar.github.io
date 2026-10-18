@@ -142,6 +142,8 @@
     </div>
     <div class="row" style="margin-top:10px">
       <div style="flex:2"><label>Buscar usuario (nombre / whatsapp / email)</label><input id="buscar" placeholder="filtrar…"></div>
+      <div><label>Provincia</label><select id="f-prov"><option value="">Todas</option></select></div>
+      <div><label>Localidad</label><select id="f-loc"><option value="">Todas</option></select></div>
       <div><label>Filtrar tipo</label><select id="f-tipo"><option value="">Todos</option><option value="LEAD">Solo LEAD</option><option value="VIP">Solo VIP</option></select></div>
       <div><label>Orden</label><select id="f-orden"><option value="recientes">Más recientes</option><option value="usos">Más usos</option><option value="vip_meta">Cerca de ser VIP</option></select></div>
     </div>
@@ -317,6 +319,7 @@ async function cargarLeads(){
   try{
     const snap = await getDocs( query(collection(db,'leads'), where('origen','==','simulador')) );
     S.leads = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+    poblarProvincias();
     render();
   }catch(e){ toast('Error cargando usuarios: '+e.message, true); $('grid').innerHTML=''; }
 }
@@ -328,6 +331,7 @@ function iniciarTiempoReal(){
   try{
     _leadsUnsub = onSnapshot( query(collection(db,'leads'), where('origen','==','simulador')), (snap)=>{
       S.leads = snap.docs.map(d=>({ id:d.id, ...d.data() }));
+      poblarProvincias();
       render();
       const c=$('conn'); if(c){ c.textContent='tiempo real'; c.classList.add('on'); }
     }, (err)=>{ toast('Tiempo real: '+err.message, true); });
@@ -341,6 +345,8 @@ function aplicarFiltros(){
   const q=$('buscar').value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
   if(q) arr=arr.filter(l=> (`${l.nombres||l.nombre||''} ${l.apellido||''} ${l.whatsapp||''} ${l.email||''}`).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(q));
   const ft=$('f-tipo').value; if(ft) arr=arr.filter(l=>tipoDe(l)===ft);
+  const fprov=$('f-prov').value; if(fprov) arr=arr.filter(l=>(l.provincia||'').trim()===fprov);
+  const floc=$('f-loc').value;   if(floc)  arr=arr.filter(l=>(l.localidad||'').trim()===floc);
   const ord=$('f-orden').value;
   if(ord==='usos') arr.sort((a,b)=>(b.usos_count||0)-(a.usos_count||0));
   else if(ord==='vip_meta') arr.sort((a,b)=>(b.usos_para_vip||0)-(a.usos_para_vip||0));
@@ -382,7 +388,26 @@ function render(){
     </div>`;
   }).join('');
 }
-$('buscar').oninput=render; $('f-tipo').onchange=render; $('f-orden').onchange=render;
+function poblarProvincias(){
+  const sel=$('f-prov'); if(!sel) return;
+  const prev=sel.value;
+  const provs=[...new Set(S.leads.map(l=>(l.provincia||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  sel.innerHTML='<option value="">Todas</option>'+provs.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  sel.value = provs.includes(prev) ? prev : '';
+  poblarLocalidades();
+}
+function poblarLocalidades(){
+  const sel=$('f-loc'); if(!sel) return;
+  const prev=sel.value;
+  const prov=$('f-prov').value;
+  const base= prov ? S.leads.filter(l=>(l.provincia||'').trim()===prov) : S.leads;
+  const locs=[...new Set(base.map(l=>(l.localidad||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
+  sel.innerHTML='<option value="">Todas</option>'+locs.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  sel.value = locs.includes(prev) ? prev : '';
+}
+$('buscar').oninput=()=>{ clearTimeout(window._filtroT); window._filtroT=setTimeout(render,180); };
+$('f-tipo').onchange=render; $('f-orden').onchange=render; $('f-loc').onchange=render;
+$('f-prov').onchange=()=>{ poblarLocalidades(); render(); };
 
 // Delegación de clicks de las tarjetas
 $('grid').addEventListener('click', async (e)=>{
