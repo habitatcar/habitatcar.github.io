@@ -981,6 +981,7 @@ let provinciasCargadas = false;
 let todasLasProvincias = [];
 let usosParaVip = 0;
 let modalVipMostrado = false;
+let suprimirModal100 = false;
 let filtroProvinciaActivo = false;
 let filtroLocalidadActivo = false;
 let filtroCercaniaActivo = false;
@@ -1190,7 +1191,7 @@ async function actualizarContadorProgreso() {
                 medallaIcono.innerHTML = '🏅';
             }
             const yaRecibioRecompensa = data.recompensa_vip_recibida === true;
-            if (usosVip >= 100 && !yaRecibioRecompensa && !modalVipMostrado) {
+            if (usosVip >= 100 && !yaRecibioRecompensa && !modalVipMostrado && !suprimirModal100) {
                 mostrarModalRecompensaVIP(usosVip);
                 modalVipMostrado = true;
             }
@@ -1236,6 +1237,7 @@ async function convertirAVipYA() {
         alert('No pudimos convertirte. Intentá de nuevo o contactá a soporte.');
     }
 }
+window.convertirAVipYA = convertirAVipYA;
 
 function obtenerUbicacion() {
     return new Promise((resolve) => {
@@ -1609,6 +1611,10 @@ window.finalizar = async (id, nom) => {
             return;
         }
         
+        // Mostrar SIEMPRE primero la pantalla de éxito (código de barras) y recién
+        // al terminar el countdown evaluar el modal de los 100 (para que el comercio
+        // pueda registrar el código antes).
+        suprimirModal100 = true;
         const idManual = generarCodigoLeadAleatorio();
         
         await updateDoc(refComercio, { totalUsos: increment(1), lastSubmission: timestamp });
@@ -1674,9 +1680,14 @@ window.finalizar = async (id, nom) => {
                 }
                 // ✅ Ahora que la pantalla está oculta, agregamos el botón de calificar
                 agregarBotonCalificar(idParaCalificar, nomParaCalificar);
+                // Recién ahora evaluamos el modal de los 100 (después de que el comercio
+                // pudo registrar el código de barras/alfanumérico)
+                suprimirModal100 = false;
+                actualizarContadorProgreso();
             }
         }, 1000);
     } catch(e) {
+        suprimirModal100 = false;
         console.error("Error de Validación:", e);
         alert("Error crítico: " + e.message);
     }

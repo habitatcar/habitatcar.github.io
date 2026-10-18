@@ -572,15 +572,15 @@
         // FILTRADO Y RENDERIZADO
         // =============================================
         window.filtrarVips = () => {
-            const busq = document.getElementById('buscador').value.toLowerCase();
+            const busq = document.getElementById('buscador').value.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim();
             const prov = document.getElementById('filtro-provincia').value;
             const loc = document.getElementById('filtro-localidad').value;
             
             let filtrados = todosLosVips.filter(v => {
                 const apellido = v.apellido || '';
                 const nombres = v.nombres || '';
-                const nombreComp = `${apellido} ${nombres}`.toLowerCase();
-                const matchBusq = nombreComp.includes(busq) || (v.whatsapp && v.whatsapp.includes(busq));
+                const nombreComp = `${apellido} ${nombres} ${v.email || ''}`.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+                const matchBusq = nombreComp.includes(busq) || (v.whatsapp && String(v.whatsapp).includes(busq));
                 const matchProv = prov === "" || (v.provincia || '').toLowerCase() === prov.toLowerCase();
                 const matchLoc = loc === "" || (v.localidad || v.ciudad || '').toLowerCase() === loc.toLowerCase();
                 return matchBusq && matchProv && matchLoc;
