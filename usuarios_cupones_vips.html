@@ -506,6 +506,15 @@ async function hcAsegurarSesion(){
         let comercioCalifVIP = null;
         let seleccionCalifVIP = null;
 
+        // ===== Opiniones por canje (VIP): se puede calificar tantas veces como canjes se hicieron =====
+        function califHechasVIP(cid) { return parseInt(localStorage.getItem(`califdone_${leadId}_${cid}`)) || 0; }
+        function marcarCalifHechaVIP(cid) { try { localStorage.setItem(`califdone_${leadId}_${cid}`, String(califHechasVIP(cid) + 1)); } catch(e){} }
+        function usosEfectivosVip(cid, nombre) {
+            const local = parseInt(localStorage.getItem('uso_vip_' + leadId + '_' + cid)) || 0;
+            return Math.max(usosVipComercio(nombre) || 0, local);
+        }
+        function califRestantesVIP(cid, nombre) { return Math.max(0, usosEfectivosVip(cid, nombre) - califHechasVIP(cid)); }
+
         // ========== TIPOS DE CALIFICACIÓN VIP ==========
         const tiposCalifVIP = [
             { id: "muy_malo", texto: "Naaaa...", icono: "fa-face-frown", color: "#dc3545", estrellas: 3 },
@@ -878,6 +887,10 @@ async function hcAsegurarSesion(){
             });
             localStorage.setItem('inicios_cupones_vip_' + leadId, JSON.stringify(inicios));
             contenedor.innerHTML = html;
+            // Re-agregar el boton de calificar donde queden opiniones pendientes (canjes sin calificar)
+            try {
+                comerciosCompletos.forEach(c => { if (califRestantesVIP(c.id, c.nombre) > 0) agregarBotonCalificarVIP(c.id, c.nombre); });
+            } catch (eCalif) { console.error('re-add calificar VIP:', eCalif); }
             if (scrollPosition > 0) setTimeout(() => window.scrollTo({ top: scrollPosition, behavior: 'auto' }), 100);
         }
 
@@ -1032,10 +1045,12 @@ async function hcAsegurarSesion(){
                     totales[tipoId] = (totales[tipoId] || 0) + 1;
                     await updateDoc(ref, { calificaciones: califs, total_por_tipo: totales, ultima_actualizacion: Date.now() });
                 }
-                // Marcar como ya calificado y remover botón
-                yaCalificadoVIP[comercioCalifVIP.id] = true;
-                const btn = document.getElementById(`btn-calificar-${comercioCalifVIP.id}`);
-                if (btn) btn.remove();
+                // Registrar la opinion enviada; si quedan canjes sin calificar, dejamos el boton para volver a opinar
+                marcarCalifHechaVIP(comercioCalifVIP.id);
+                if (califRestantesVIP(comercioCalifVIP.id, comercioCalifVIP.nombre) <= 0) {
+                    const btn = document.getElementById(`btn-calificar-${comercioCalifVIP.id}`);
+                    if (btn) btn.remove();
+                }
                 return true;
             } catch(e) {
                 console.error("Error calif VIP:", e);
@@ -1045,7 +1060,7 @@ async function hcAsegurarSesion(){
 
         // Agregar botón de calificar a la tarjeta
         function agregarBotonCalificarVIP(id, nombre) {
-            if (yaCalificadoVIP[id]) return;
+            if (califRestantesVIP(id, nombre) <= 0) return;
             setTimeout(() => {
                 const stack = document.getElementById(`btn-stack-${id}`);
                 if (!stack || document.getElementById(`btn-calificar-${id}`)) return;

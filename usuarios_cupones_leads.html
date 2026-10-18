@@ -238,51 +238,41 @@ transition: transform 0.2s;
 transform: translateY(-2px);
 }
 .card.agotado {
-opacity: 0.7;
-background: #f0f0f0;
-position: relative;
+    background: #f0f0f0;
+    position: relative;
 }
 .card.agotado::after {
-content: "AGOTADO";
-position: absolute;
-top: 50%;
-left: 50%;
-transform: translate(-50%, -50%) rotate(-20deg);
-font-size: 36px;
-font-weight: bold;
-color: rgba(230,0,0,0.6);
-border: 4px solid rgba(230,0,0,0.6);
-padding: 8px;
-border-radius: 8px;
-background: rgba(255,255,255,0.8);
-pointer-events: none;
-z-index: 5;
+    content: "AGOTADO";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%) rotate(-20deg);
+    font-size: 36px;
+    font-weight: bold;
+    color: rgba(230,0,0,0.6);
+    border: 4px solid rgba(230,0,0,0.6);
+    padding: 8px;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.8);
+    pointer-events: none;
+    z-index: 5;
 }
+/* La tarjeta agotada se ve apagada, PERO el boton de calificar queda 100% visible y activo */
+.card.agotado > *:not(.btn-stack) { opacity: 0.5; }
+.card.agotado .btn-stack > *:not(.btn-calificar-tarjeta) { opacity: 0.5; }
 .btn-usar.disabled-btn, .btn-validar.disabled-btn {
-background: var(--gris-desactivado) !important;
-color: #666 !important;
-cursor: not-allowed !important;
-pointer-events: none !important;
-opacity: 0.6;
-}
-.card.agotado .btn-conozca,
-.card.agotado .btn-llegar,
-.card.agotado .btn-sorteo,
-.card.agotado .btn-calificar-tarjeta {
-opacity: 1 !important;
-pointer-events: auto !important;
-filter: none !important;
-background: var(--azul-lindo) !important;
-}
-.card.agotado .btn-llegar {
-background: var(--verde) !important;
-}
-.card.agotado .btn-sorteo {
-background: var(--naranja-sorteo) !important;
+    background: var(--gris-desactivado) !important;
+    color: #666 !important;
+    cursor: not-allowed !important;
+    pointer-events: none !important;
+    opacity: 0.6 !important;
 }
 .card.agotado .btn-calificar-tarjeta {
-background: var(--dorado) !important;
-color: #000 !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    filter: none !important;
+    background: var(--dorado) !important;
+    color: #000 !important;
 }
 @keyframes pulsoRecuadro {
 0% { border-color: rgba(230,0,0,0.2); box-shadow: 0 0 2px rgba(230,0,0,0.1); }
@@ -989,6 +979,15 @@ let scrollPosition = 0;
 let comercioParaCalificar = null;
 let yaCalificado = {};
 
+// ===== Opiniones por canje: se puede calificar tantas veces como canjes se hicieron en el comercio =====
+function califHechas(cid) { return parseInt(localStorage.getItem(`califdone_${leadId}_${cid}`)) || 0; }
+function marcarCalifHecha(cid) { try { localStorage.setItem(`califdone_${leadId}_${cid}`, String(califHechas(cid) + 1)); } catch(e){} }
+function usosEfectivosComercio(cid, nombre) {
+    const local = parseInt(localStorage.getItem(`uso_lead_${leadId}_${cid}`)) || 0;
+    return Math.max(usosLeadComercio(nombre) || 0, local);
+}
+function califRestantes(cid, nombre) { return Math.max(0, usosEfectivosComercio(cid, nombre) - califHechas(cid)); }
+
 // ========== CAMBIO #2: NUEVOS TEXTOS Y ESTRELLAS EN CALIFICACIONES ==========
 const tiposCalificacion = [
     { id: "muy_malo", nombre: "Muy Malo", texto: "Naaaa...", icono: "fa-face-frown", color: "estrella-roja-calif", estrellas: 3 },
@@ -1076,9 +1075,12 @@ async function guardarCalificacion(comercio, tipoId, comentario) {
             totalPorTipo[tipoId] = (totalPorTipo[tipoId] || 0) + 1;
             await updateDoc(docRef, { calificaciones: calificaciones, total_por_tipo: totalPorTipo, ultima_actualizacion: Date.now() });
         }
-        yaCalificado[comercio.id] = true;
+        marcarCalifHecha(comercio.id);
         const btnCalificar = document.getElementById(`btn-calificar-${comercio.id}`);
-        if (btnCalificar) btnCalificar.remove();
+        // Si todavia le quedan opiniones pendientes (hizo mas de un canje), dejamos el boton para que pueda volver a opinar
+        if (califRestantes(comercio.id, comercio.nombre) <= 0) {
+            if (btnCalificar) btnCalificar.remove();
+        }
         mostrarAlerta("✅ ¡Gracias por tu calificación!");
     } catch (error) {
         console.error("Error guardando calificación:", error);
@@ -1095,7 +1097,7 @@ function mostrarAlerta(mensaje) {
 }
 
 function agregarBotonCalificar(comercioId, nombreComercio) {
-    if (yaCalificado[comercioId]) return;
+    if (califRestantes(comercioId, nombreComercio) <= 0) return;
     setTimeout(() => {
         const btnStack = document.getElementById(`btn-stack-${comercioId}`);
         if (!btnStack) return;
@@ -1514,6 +1516,10 @@ function renderizarComercios(comercios) {
     });
     localStorage.setItem('inicios_cupones_' + leadId, JSON.stringify(inicios));
     contenedor.innerHTML = html;
+    // Re-agregar el boton de calificar en los comercios donde queden opiniones pendientes (canjes sin calificar)
+    try {
+        comerciosCompletos.forEach(c => { if (califRestantes(c.id, c.nombre) > 0) agregarBotonCalificar(c.id, c.nombre); });
+    } catch (eCalif) { console.error('re-add calificar:', eCalif); }
     if (scrollPosition > 0) {
         setTimeout(() => window.scrollTo({ top: scrollPosition, behavior: 'auto' }), 100);
     }
