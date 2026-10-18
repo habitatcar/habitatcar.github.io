@@ -99,7 +99,7 @@
     <span class="pill" id="conn">conectando…</span>
     <span class="pill" id="who"></span>
     <button class="gris mini" id="btn-refresh">↻ Refrescar</button>
-    <button class="gris mini" id="btn-reset-reward" title="Borrar localStorage recompensa_vip_100 para volver a ver el modal">🔄 Reset VIP</button>
+    <button class="gris mini" id="btn-reset-reward" title="Resetear la recompensa VIP (recompensa_vip_recibida) de los usuarios simulados para volver a ver el modal">🔄 Reset VIP</button>
     <button class="rojo mini" id="btn-logout">Salir</button>
   </header>
 
@@ -635,7 +635,18 @@ $('btn-crear').onclick=async()=>{
 })();
 
 $('btn-refresh').onclick=()=> cargarTodo();
-$('btn-reset-reward').onclick=()=>{ localStorage.removeItem('recompensa_vip_100'); toast('🔄 Recompensa VIP reseteada. El modal volverá a salir al llegar a 100.'); };
+$('btn-reset-reward').onclick=async()=>{
+  try{ localStorage.removeItem('recompensa_vip_100'); }catch(e){}
+  try{
+    const pend=(S.leads||[]).filter(l=>l.recompensa_vip_recibida===true);
+    for(let i=0;i<pend.length;i+=450){
+      const b=writeBatch(db);
+      pend.slice(i,i+450).forEach(l=>{ b.update(doc(db,'leads',l.id),{recompensa_vip_recibida:false}); l.recompensa_vip_recibida=false; });
+      await b.commit();
+    }
+    toast('🔄 Recompensa VIP reseteada ('+pend.length+' usuarios simulados). El modal volverá a salir al llegar a 100.');
+  }catch(e){ toast('Error reseteando: '+e.message, true); }
+};
 </script>
 </body>
 </html>
