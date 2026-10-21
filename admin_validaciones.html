@@ -333,7 +333,7 @@
     import { getFirestore, collection, query, where, onSnapshot, doc, updateDoc, getDoc, addDoc, deleteDoc, setDoc, getDocs } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
     import { getStorage } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-storage.js";
     import { getFunctions, httpsCallable } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-functions.js";
-    import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+    import { getAuth, createUserWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 
     const firebaseConfig = {
         apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
@@ -731,6 +731,10 @@
         `;
     }
 
+    // Genera una contraseña temporal DISTINTA para cada comercio aprobado.
+    // Antes todas las cuentas usaban la fija "123456" (cualquiera con el email podía entrar).
+    const generarPassTemporal = () => "HC" + Math.random().toString(36).substring(2, 8).toUpperCase();
+
     window.aprobarComercio = async () => {
         if (!postulacionActual || tipoActual!=='comercio') { alert("❌ Error"); return; }
         if (!confirm("¿Aprobar este comercio?")) return;
@@ -740,13 +744,22 @@
             const token = `token_${base}_${Math.floor(100000+Math.random()*899999)}`;
             
             let uid = null;
+            let passTemporal = generarPassTemporal();
+            let passCambiada = false;
+            
             try {
-                const uc = await createUserWithEmailAndPassword(auth, postulacionActual.email, "123456");
+                const uc = await createUserWithEmailAndPassword(auth, postulacionActual.email, passTemporal);
                 uid = uc.user.uid;
             } catch(e) {
                 if (e.code === 'auth/email-already-in-use') {
-                    const si = await signInWithEmailAndPassword(auth, postulacionActual.email, "123456");
-                    uid = si.user.uid; await signOut(auth);
+                    // El email ya tiene cuenta: se reutiliza el comercio previo con ese mail.
+                    // Antes fallaba si ese comercio ya habia cambiado su contraseña.
+                    const snap = await getDocs(query(collection(db,"comercios"), where("emailDueno","==",postulacionActual.email)));
+                    if (snap.empty) throw new Error("Ese email ya tiene una cuenta de acceso. El comercio debe recuperar su contraseña desde su panel.");
+                    const previo = snap.docs[0].data();
+                    uid = previo.uid;
+                    passTemporal = previo.password || "123456";
+                    passCambiada = previo.password_cambiada === true;
                 } else throw e;
             }
             if (!uid) { alert("❌ No se pudo obtener UID"); return; }
@@ -763,15 +776,16 @@
                 estado:"activo", nivel_confianza:0, usos_cupones:0, postulacion_id:postulacionActual.id,
                 fecha_alta:new Date().toISOString(), foto_fachada_url:postulacionActual.foto_fachada_url,
                 foto_dni_url:postulacionActual.foto_dni_url, foto_selfie_url:postulacionActual.foto_selfie_url,
-                constancia_afip_url:postulacionActual.constancia_afip_url, password:"123456",
+                constancia_afip_url:postulacionActual.constancia_afip_url, password:passTemporal,
+                password_cambiada:passCambiada,
                 rol:"comerciante", publicado:false
             });
             await updateDoc(doc(db, "postulaciones_comercios", postulacionActual.id), {
                 estado:"validado", fecha_validacion:new Date().toISOString(),
                 validado_por:"admin@habitatcar.com", id_comercio_generado:idCom, token_qr_generado:token
             });
-            try { await httpsCallable(functions, 'enviarEmailSetup')({email:postulacionActual.email, nombreComercio:postulacionActual.nombre_comercio, idComercio:idCom}); } catch(e){}
-            alert(`✅ Aprobado\nID: ${idCom}\nPass: 123456\n\n⚠️ El comercio debe publicar manualmente desde su panel`);
+            try { await httpsCallable(functions, 'enviarEmailSetup')({email:postulacionActual.email, nombreComercio:postulacionActual.nombre_comercio, idComercio:idCom, password:passTemporal}); } catch(e){}
+            alert(`✅ Aprobado\nID: ${idCom}\nPass: ${passTemporal}\n\n⚠️ El comercio debe publicar manualmente desde su panel`);
             cerrarModal();
         } catch(e) { 
             if (e.code === 'permission-denied') alert("❌ Sin permisos para aprobar");
