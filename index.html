@@ -145,12 +145,16 @@
 
         <button class="btn-login" id="btn-login">INGRESAR AL SISTEMA</button>
 
+        <p style="margin-top:15px; font-size:0.9em;">
+            <a href="#" id="recuperar-pass" style="color: var(--oro); text-decoration: none;">¿Olvidaste tu contraseña?</a>
+        </p>
+
         <p id="error-msg">⚠️ Credenciales incorrectas</p>
     </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-        import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+        import { getAuth, signInWithEmailAndPassword, setPersistence, browserLocalPersistence, onAuthStateChanged, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
         import { getFirestore, doc, getDoc, addDoc, collection } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 
         const firebaseConfig = {
@@ -166,10 +170,32 @@
         const auth = getAuth(app);
         const db = getFirestore(app);
 
+        // Forzar persistencia para recordar sesión
+        setPersistence(auth, browserLocalPersistence).catch((err) => console.error("Error al setear persistencia:", err));
+
         const btnLogin = document.getElementById('btn-login');
         const userInput = document.getElementById('user');
         const passInput = document.getElementById('pass');
         const errorMsg = document.getElementById('error-msg');
+
+        // Precargar email recordado
+        const savedEmail = localStorage.getItem('habitatcar_admin_email');
+        if (savedEmail) {
+            userInput.value = savedEmail;
+        }
+
+        // Auto-redirección si ya hay sesión de admin activa
+        onAuthStateChanged(auth, async (user) => {
+            if (!user) return;
+            try {
+                const userDoc = await getDoc(doc(db, "usuarios", user.uid));
+                if (userDoc.exists() && userDoc.data().rol === "admin") {
+                    window.location.href = "admin_comercios.html";
+                }
+            } catch (e) {
+                console.error("Error auto-redirección:", e);
+            }
+        });
 
         window.validarAcceso = async () => {
             const email = userInput.value.trim();
@@ -180,6 +206,9 @@
                 errorMsg.style.display = "block";
                 return;
             }
+            
+            // Guardar email para próxima vez
+            localStorage.setItem('habitatcar_admin_email', email);
             
             // Mostrar loading
             const originalText = btnLogin.innerHTML;
@@ -211,7 +240,7 @@
                     await auth.signOut();
                     throw new Error("No tienes permisos de administrador");
                 }
-                
+                 
             } catch (error) {
                 console.error("Error de login:", error);
                 let mensaje = "❌ Usuario o contraseña incorrectos";
@@ -224,6 +253,29 @@
                 btnLogin.disabled = false;
             }
         };
+
+        // Recuperar contraseña
+        document.getElementById('recuperar-pass').addEventListener('click', async (e) => {
+            e.preventDefault();
+            const email = userInput.value.trim();
+            if (!email) {
+                errorMsg.textContent = "⚠️ Ingresá tu email para recuperar la contraseña";
+                errorMsg.style.display = "block";
+                userInput.focus();
+                return;
+            }
+            try {
+                await sendPasswordResetEmail(auth, email);
+                errorMsg.style.color = "#2ecc71";
+                errorMsg.textContent = "✅ Te enviamos un mail con las instrucciones para restablecer la contraseña";
+                errorMsg.style.display = "block";
+            } catch (error) {
+                console.error("Error recuperar contraseña:", error);
+                errorMsg.style.color = "#dc3545";
+                errorMsg.textContent = "❌ No se pudo enviar el mail de recuperación";
+                errorMsg.style.display = "block";
+            }
+        });
 
         btnLogin.onclick = window.validarAcceso;
         
