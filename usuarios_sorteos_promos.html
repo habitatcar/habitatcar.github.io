@@ -388,7 +388,7 @@
     <div class="container">
         <div class="comercio-info">
             <h1 id="nombre-comercio">CARGANDO...</h1>
-            <p style="color: var(--naranja); font-weight: bold; margin-bottom: 5px; font-size: 1.1em;">SORTEOS Y PROMOCIONES</p>
+            <p id="subtitulo-pagina" style="color: var(--naranja); font-weight: bold; margin-bottom: 5px; font-size: 1.1em;">SORTEOS Y PROMOCIONES</p>
             <p class="leyenda-ecosistema">✨ Este es un espacio Válido para todos los miembros del Ecosistema Habitat-Car. ✨</p>
         </div>
 
@@ -477,6 +477,7 @@
 
         const params = new URLSearchParams(window.location.search);
         const nombreComercio = decodeURIComponent(params.get('id') || "");
+        const tipoVista = (params.get('tipo') || '').toLowerCase();
         
         let datosComercioGlobal = null;
         let fechaSorteoData = "";
@@ -811,7 +812,13 @@
                     
                     document.getElementById('nombre-comercio').innerText = datosComercioGlobal.nombre;
                     
-                    if (datosComercioGlobal.titulo_sorteo) {
+                    if (tipoVista === 'promo') {
+                        document.getElementById('subtitulo-pagina').innerText = 'PROMOCIONES';
+                        document.getElementById('card-sorteo').style.display = 'none';
+                        document.getElementById('contador-transparencia').style.display = 'none';
+                    }
+                    
+                    if (tipoVista !== 'promo' && datosComercioGlobal.titulo_sorteo) {
                         document.getElementById('card-sorteo').style.display = 'flex';
                         document.getElementById('tit-sorteo').innerText = datosComercioGlobal.titulo_sorteo;
                         document.getElementById('desc-sorteo').innerText = datosComercioGlobal.descripcion_sorteo || "";
@@ -834,34 +841,52 @@
                             document.getElementById('fecha-sorteo-container').style.display = 'flex';
                             fechaSorteoData = `${f.fecha} ${f.hora}`;
                         }
-                        
+                         
                         // ✅ ACTIVAR CONTADOR SOLO SI HAY SORTEO
                         onSnapshot(query(collection(db, "participaciones_sorteos"), where("comercio", "==", nombreComercio)), (snap) => {
                             document.getElementById('contador-transparencia').style.display = 'block';
                             document.getElementById('texto-contador').innerHTML = `Ya hay <b style="color:#28a745">${snap.size}</b> personas participando 🎉`;
                         });
-                        
+                         
                         // verificarSorteoFinalizado() maneja internamente verificarParticipacion()
                         // solo cuando confirma que el sorteo no finalizó. Así nunca se solapan.
                         verificarSorteoFinalizado();
-                    } else {
+                    } else if (tipoVista !== 'promo') {
                         // ✅ SI NO HAY SORTEO, ASEGURAR QUE EL CONTADOR NO APAREZCA
                         document.getElementById('contador-transparencia').style.display = 'none';
                     }
-                    
+                     
                     if (datosComercioGlobal.titulo_promo) {
-                        document.getElementById("card-promo").style.display = 'flex';
-                        document.getElementById("tit-promo").innerText = datosComercioGlobal.titulo_promo;
-                        document.getElementById("desc-promo").innerText = datosComercioGlobal.descripcion_promo || "";
-                        
+                        let promoVigente = true;
                         if (datosComercioGlobal.promo_vence) {
-                            const f = formatearFechaHoraArgentina(datosComercioGlobal.promo_vence);
-                            if (f) {
-                                document.getElementById('vence-fecha').innerText = f.fecha;
-                                document.getElementById('vence-hora').innerText = f.hora;
-                                document.getElementById('vence-promo-container').style.display = 'flex';
+                            try {
+                                const vence = new Date(datosComercioGlobal.promo_vence);
+                                const ahora = new Date();
+                                if (vence < ahora) {
+                                    promoVigente = false;
+                                }
+                            } catch (e) {
+                                // Si no se puede parsear, se considera vigente
                             }
                         }
+                        if (promoVigente) {
+                            document.getElementById("card-promo").style.display = 'flex';
+                            document.getElementById("tit-promo").innerText = datosComercioGlobal.titulo_promo;
+                            document.getElementById("desc-promo").innerText = datosComercioGlobal.descripcion_promo || "";
+                             
+                            if (datosComercioGlobal.promo_vence) {
+                                const f = formatearFechaHoraArgentina(datosComercioGlobal.promo_vence);
+                                if (f) {
+                                    document.getElementById('vence-fecha').innerText = f.fecha;
+                                    document.getElementById('vence-hora').innerText = f.hora;
+                                    document.getElementById('vence-promo-container').style.display = 'flex';
+                                }
+                            }
+                        } else {
+                            document.getElementById("card-promo").style.display = 'none';
+                        }
+                    } else {
+                        document.getElementById("card-promo").style.display = 'none';
                     }
                 }
             });

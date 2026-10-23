@@ -1496,10 +1496,29 @@ function renderizarComercios(comercios) {
         const beneficio = c.descLead ? `${c.descLead} ${c.detalleLead || ''}` : "Consultar";
         const tieneRedes = (c.instagram || c.facebook || c.web || c.sitioWeb);
         const btnConozcaHTML = tieneRedes ? `<button class="btn-act btn-conozca" onclick="abrirPopup('${(c.nombre || '').replace(/'/g, "\\'")}', '${(c.instagram || '').replace(/'/g, "\\'")}', '${(c.sitioWeb || '').replace(/'/g, "\\'")}', '${(c.facebook || '').replace(/'/g, "\\'")}', '${(c.web || '').replace(/'/g, "\\'")}')">Conozca el comercio</button>` : '';
-        const tieneSorteo = c.titulo_sorteo || c.titulo_promo;
+        const tieneSorteo = !!c.titulo_sorteo && String(c.titulo_sorteo).trim() !== '';
+        const tienePromo = !!c.titulo_promo && String(c.titulo_promo).trim() !== '';
+        let promoVigente = false;
+        if (tienePromo && c.promo_vence) {
+            try {
+                const vence = new Date(c.promo_vence);
+                const hoy = new Date();
+                vence.setHours(23,59,59,999);
+                if (vence >= hoy) promoVigente = true;
+            } catch(e) { promoVigente = true; }
+        } else if (tienePromo) {
+            promoVigente = true;
+        }
         const yaTocado = localStorage.getItem('toco_sorteo_' + c.id) === 'true';
         const claseAnimacion = yaTocado ? 'sin-pulso' : 'animar-pulso';
-        const botonSorteo = tieneSorteo ? `<button class="btn-act btn-sorteo ${claseAnimacion}" id="btn-sorteo-${c.id}" onclick="tocarSorteo('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')">🎁 SORTEOS y PROMOS</button>` : '';
+        let botonesExtra = '';
+        if (tieneSorteo) {
+            botonesExtra += `<button class="btn-act btn-sorteo ${claseAnimacion}" id="btn-sorteo-${c.id}" onclick="tocarSorteo('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')">🏆 IMPERDIBLE SORTEO</button>`;
+        }
+        if (promoVigente) {
+            botonesExtra += `<button class="btn-act" style="background:#28a745" id="btn-promo-${c.id}" onclick="tocarPromo('${c.id}', '${(c.nombre || '').replace(/'/g, "\\'")}')">🏷️ PROMOCIONES</button>`;
+        }
+        const botonSorteo = botonesExtra;
         let infoVencimiento = "";
         if (!mostrarReloj) {
             infoVencimiento = `<span class="ico-large">⏳</span>Sin vencimiento`;
@@ -1576,7 +1595,10 @@ window.tocarSorteo = (id, nombre) => {
     const btn = document.getElementById(`btn-sorteo-${id}`);
     if (btn) { btn.classList.remove('animar-pulso'); btn.classList.add('sin-pulso'); }
     localStorage.setItem('toco_sorteo_' + id, 'true');
-    window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}`;
+    window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}&tipo=sorteo`;
+};
+window.tocarPromo = (id, nombre) => {
+    window.location.href = `usuarios_sorteos_promos.html?id=${encodeURIComponent(nombre)}&tipo=promo`;
 };
 window.abrirQR = (id, token) => {
     idEnProceso = id;
