@@ -321,7 +321,7 @@ import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebas
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, onSnapshot,
-  query, where, increment, arrayUnion, writeBatch, deleteField }
+  query, where, increment, arrayUnion, writeBatch, deleteField, setDoc }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
 
@@ -1053,36 +1053,47 @@ function renderGanadores(s){
 }
 
 async function renderParticipantes(com,s){
-  let base = scActual.snapshot && Array.isArray(scActual.snapshot.participantes) ? scActual.snapshot.participantes : (Array.isArray(s.participantes)? s.participantes : (Array.isArray(s.listaParticipantes)? s.listaParticipantes : []));
+  // Intentar cargar primero desde snapshot si existe
+  let base = scActual.snapshot && Array.isArray(scActual.snapshot.participantes) ? scActual.snapshot.participantes : [];
+  
+  // Si el snapshot está vacío o no existe, forzamos carga desde colecciones de participantes
   if(!base.length){
+    toast('Cargando participantes desde DB...');
     try{
       const q1 = query(collection(db,'admin_participantes_sorteos'), where('comercio','==',com.nombre));
       const q2 = query(collection(db,'participaciones_sorteos'), where('comercio','==',com.nombre));
+      // Queries sin filtro por si el índice/permiso falla
       const q3 = query(collection(db,'admin_participantes_sorteos'));
       const q4 = query(collection(db,'participaciones_sorteos'));
+      
       const res = await Promise.allSettled([getDocs(q1), getDocs(q2), getDocs(q3), getDocs(q4)]);
       const seen = new Set();
+      
       res.forEach(r=>{
-        if(r.status!=='fulfilled') return;
+        if(r.status !== 'fulfilled') return;
         r.value.docs.forEach(d=>{
           const x = d.data();
-          if(x.comercio && x.comercio !== com.nombre) return;
-          const pid = x.usuarioId||x.id||d.id;
-          if(!seen.has(pid)){ seen.add(pid); base.push({...x, usuarioId: pid}); }
+          // Filtramos localmente para asegurar que sean del comercio
+          if(x.comercio && x.comercio === com.nombre){
+             const pid = x.usuarioId||x.id||d.id;
+             if(!seen.has(pid)){ seen.add(pid); base.push({...x, usuarioId: pid}); }
+          }
         });
       });
+      
       if(base.length) toast(`✅ ${base.length} participantes cargados`);
+      else toast('No se encontraron participantes en la base de datos', true);
     }catch(e){
-      console.error("Error renderParticipantes:", e);
-      toast('No se pueden cargar participantes: error de permisos o datos', true);
+      console.error("Error crítico en renderParticipantes:", e);
+      toast('Error cargando participantes: ' + e.message, true);
     }
+  } else {
+      toast(`✅ Snapshot cargado: ${base.length} participantes`);
   }
+  
   $('sc-cnt-part').textContent = base.length;
-  const tbody = $('sc-participantes');
-  if(!base.length){ 
-    tbody.innerHTML='<tr><td colspan="8" class="sub" style="padding:8px">Sin participantes.</td></tr>';
-    return; 
-  }
+  // ... resto del render
+
   const leadsMap = new Map(S.leads.map(l=>[l.id,l]));
   tbody.innerHTML = base.map(p=>{
     const idp = p.usuarioId||p.id||'';
