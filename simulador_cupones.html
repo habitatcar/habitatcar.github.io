@@ -844,13 +844,13 @@ function renderListaSorteos(com){
   if(!scSorteos.length){ lista.innerHTML=''; empty.style.display='block'; return; }
   empty.style.display='none';
   lista.innerHTML = scSorteos.map((s,idx)=>{
-    const fecha = s.fechaSort ? new Date(s.fechaSort).toLocaleString() : (s.fecha||'');
+    const fecha = formatFecha(s.fechaSort||s.fecha||s.timestamp);
     const premios = Array.isArray(s.premios)? s.premios.length : (s.premio?1:0);
     const gan = Array.isArray(s.ganadores)? s.ganadores.length : 0;
-    const part = Array.isArray(s.participantes)? s.participantes.length : 0;
+    const part = Array.isArray(s.participantes)? s.participantes.length : (Array.isArray(s.listaParticipantes)? s.listaParticipantes.length : 0);
     return `<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;cursor:pointer" data-idx="${idx}">
       <div style="flex:1;min-width:200px">
-        <div style="font-weight:700;color:var(--dorado)">${esc(s.premio||'Sorteo')}</div>
+        <div style="font-weight:700;color:var(--dorado)">${esc(s.premio||s.titulo||'Sorteo')}</div>
         <div class="sub">${fecha} · Premios: ${premios} · Ganadores: ${gan} · Participantes: ${part}</div>
       </div>
       <button class="gris mini">VER DETALLE</button>
@@ -861,11 +861,17 @@ function renderListaSorteos(com){
   });
 }
 
+function formatFecha(v){
+  if(!v) return '-';
+  if(typeof v === 'object' && v.seconds) return new Date(v.seconds*1000).toLocaleString();
+  try{ return new Date(v).toLocaleString(); }catch(e){ return String(v); }
+}
+
 async function verDetalleSorteo(com, s){
   scActual = {com,s, key: s.docId || (com.id+'_'+(s.premio||''))};
   $('sc-detalle').style.display='block';
   const h = $('sc-detalle-header');
-  const fecha = s.fechaSort ? new Date(s.fechaSort).toLocaleString() : (s.fecha||'');
+  const fecha = formatFecha(s.fechaSort||s.fecha||s.timestamp);
   h.innerHTML = `<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px">
     <div style="font-weight:700;color:var(--dorado)">${esc(s.premio||'Sorteo')}</div>
     <div class="sub">Comercio: ${esc(com.nombre)} · Fecha/Hora: ${fecha} · ID Historial: ${esc(s.docId||'-')}</div>
@@ -962,17 +968,28 @@ function renderGanadores(s){
 }
 
 async function renderParticipantes(com,s){
-  const base = scActual.snapshot && Array.isArray(scActual.snapshot.participantes) ? scActual.snapshot.participantes : (Array.isArray(s.participantes)? s.participantes : []);
+  let base = scActual.snapshot && Array.isArray(scActual.snapshot.participantes) ? scActual.snapshot.participantes : (Array.isArray(s.participantes)? s.participantes : (Array.isArray(s.listaParticipantes)? s.listaParticipantes : []));
+  if(!base.length){
+    try{
+      const q1 = query(collection(db,'admin_participantes_sorteos'), where('comercio','==',com.nombre));
+      const q2 = query(collection(db,'participaciones_sorteos'), where('comercio','==',com.nombre));
+      const [a1,a2] = await Promise.all([getDocs(q1).catch(()=>({docs:[]})), getDocs(q2).catch(()=>({docs:[]}))]);
+      const seen = new Set();
+      [...a1.docs,...a2.docs].forEach(d=>{
+        const x = d.data();
+        const pid = x.usuarioId||x.id||d.id;
+        if(!seen.has(pid)){ seen.add(pid); base.push(x); }
+      });
+    }catch(e){}
+  }
   $('sc-cnt-part').textContent = base.length;
   const tbody = $('sc-participantes');
   if(!base.length){ tbody.innerHTML='<tr><td colspan="8" class="sub" style="padding:8px">Sin participantes.</td></tr>'; return; }
-  // intentar enriquecer con leads/vips si faltan datos
   const leadsMap = new Map(S.leads.map(l=>[l.id,l]));
-  // vips no cargados aqui, pero snapshot debería tenerlos
   tbody.innerHTML = base.map(p=>{
     const idp = p.usuarioId||p.id||'';
     const l = leadsMap.get(idp);
-    const nom = p.nombre || ((l&&l.apellido)? l.apellido+', '+(l.nombres||l.nombre): (l?(l.apellido||'')+', '+(l.nombres||l.nombre):'-'));
+    const nom = p.nombre || ((p.apellido||l&&l.apellido)? (p.apellido||l.apellido)+', '+(p.nombres||p.nombre||l&&l.nombres||l&&l.nombre||'') : (l?(l.apellido||'')+', '+(l.nombres||l.nombre||''):'-'));
     const wa = p.whatsapp||p.celular||(l&&l.whatsapp)||'-';
     const em = p.email||(l&&l.email)||'-';
     const prv = p.provincia||(l&&l.provincia)||'-';
