@@ -899,19 +899,32 @@ $('sc-guardar-snapshot').onclick = async ()=>{
   if(!scActual) return;
   try{
     const s = scActual.s;
-    const part = Array.isArray(s.participantes)? s.participantes : [];
-    const gan = Array.isArray(s.ganadores)? s.ganadores : [];
+    let part = Array.isArray(s.participantes)? s.participantes : (Array.isArray(s.listaParticipantes)? s.listaParticipantes : []);
+    let gan = Array.isArray(s.ganadores)? s.ganadores : [];
+    if(!part.length || !gan.length){
+      const q1 = query(collection(db,'admin_participantes_sorteos'), where('comercio','==',scActual.com.nombre));
+      const q2 = query(collection(db,'participaciones_sorteos'), where('comercio','==',scActual.com.nombre));
+      const [a1,a2] = await Promise.all([getDocs(q1).catch(()=>({docs:[]})), getDocs(q2).catch(()=>({docs:[]}))]);
+      const seen = new Set();
+      [...a1.docs,...a2.docs].forEach(d=>{
+        const x = d.data();
+        const pid = x.usuarioId||x.id||d.id;
+        if(!seen.has(pid)){ seen.add(pid); part.push({...x, usuarioId: pid}); }
+      });
+      if(!gan.length && s.ganadores) gan = Array.isArray(s.ganadores)? s.ganadores : [];
+    }
     const snap = {
       key: scActual.key,
       comercioId: scActual.com.id,
       comercio: scActual.com.nombre,
-      premio: s.premio||'',
-      fechaSort: s.fechaSort||Date.now(),
-      origen: s.origen||'simulador',
+      premio: s.premio||s.titulo||'',
+      fechaSort: s.fechaSort||s.fecha_sorteo||s.timestamp||Date.now(),
+      origen: s.origen||'real',
       esSimulacion: s.esSimulacion===true,
       participantes: part,
       ganadores: gan,
-      creado: Date.now()
+      creado: Date.now(),
+      creadoPor: S.user? S.user.email : 'admin'
     };
     const q = query(collection(db,'sorteo_snapshot_participantes'), where('key','==',scActual.key));
     const ex = await getDocs(q);
@@ -933,31 +946,35 @@ $('sc-ver-auditoria').onclick = async ()=>{
     const items = snap.docs.map(d=>d.data()).sort((a,b)=>(b.fecha||0)-(a.fecha||0));
     if(!items.length){ box.innerHTML='<div class="sub">Sin auditoría registrada.</div>'; return; }
     box.innerHTML = '<div style="display:flex; flex-direction:column; gap:8px">'+items.map(it=>`<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px">
-      <div class="sub">${new Date(it.fecha||Date.now()).toLocaleString()} · ${esc(it.quien||'admin')} · ${esc(it.origen||'')}</div>
+      <div class="sub">${formatFecha(it.fecha)} · ${esc(it.quien||'admin')} · ${esc(it.origen||'')}</div>
       <div style="font-weight:600;color:var(--dorado)">${esc(it.campo||'MODIFICACION')}</div>
-      <div class="sub">ANTES: ${esc(JSON.stringify(it.antes))}</div>
-      <div class="sub">DESPUÉS: ${esc(JSON.stringify(it.despues))}</div>
+      <div class="sub">ANTES: ${esc(typeof it.antes==='object'?JSON.stringify(it.antes):it.antes)}</div>
+      <div class="sub">DESPUÉS: ${esc(typeof it.despues==='object'?JSON.stringify(it.despues):it.despues)}</div>
     </div>`).join('')+'</div>';
-  }catch(e){ box.innerHTML='<div class="sub">Error cargando auditoría</div>'; }
+  }catch(e){ box.innerHTML='<div class="sub">Error cargando auditoría: '+esc(e.message)+'</div>'; }
 };
 
 function renderGanadores(s){
   const g = Array.isArray(s.ganadores)? s.ganadores : [];
   $('sc-cnt-ganadores').textContent = g.length;
   const box = $('sc-ganadores');
+  const fecha = formatFecha(s.fechaSort||s.fecha||s.fecha_sorteo||s.timestamp);
+  const comNom = scActual? scActual.com.nombre : (s.comercio||'');
   box.innerHTML = g.length? g.map((gg,i)=>{
     const idk = (gg.usuarioId||gg.id||i)+''+i;
     const est = (scEntrega[idk] && scEntrega[idk].estado) || 'PENDIENTE';
+    const nomFull = esc((gg.apellido||'') + (gg.apellido&& (gg.nombre||gg.nombres)? ', ':'') + (gg.nombre||gg.nombres||'-'));
     return `<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px">
       <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
         <div>
-          <div style="font-weight:700;color:var(--dorado)">${esc(gg.apellido||'')}, ${esc(gg.nombre||gg.nombres||'-')}</div>
-          <div class="sub">WhatsApp: ${esc(gg.whatsapp||'-')} · Email: ${esc(gg.email||'-')} · ${esc(gg.provincia||'')}${gg.provincia&&gg.localidad?', ':''}${esc(gg.localidad||'')}</div>
-          <div class="sub">Tipo: ${esc(gg.tipo||'-')} · ID: ${esc(gg.usuarioId||'-')}</div>
+          <div style="font-weight:700;color:var(--dorado)">${nomFull}</div>
+          <div class="sub">WhatsApp: ${esc(gg.whatsapp||gg.celular||'-')} · Email: ${esc(gg.email||'-')} · ${esc(gg.provincia||'')}${gg.provincia&&gg.localidad?', ':''}${esc(gg.localidad||'')}</div>
+          <div class="sub">Tipo: ${esc(gg.tipo||'-')} · ID: ${esc(gg.usuarioId||gg.id||'-')}</div>
+          <div class="sub">🏆 Premio: ${esc(s.premio||s.titulo||'-')} · Comercio: ${esc(comNom)} · Fecha/Hora: ${fecha}</div>
         </div>
         <div style="text-align:right">
           <div class="pill2">ESTADO: ${esc(est)}</div><br>
-          <button class="dorado mini" style="margin-top:6px" data-me="${idk}" data-nom="${esc((gg.apellido||'')+', '+(gg.nombre||gg.nombres||''))}">GESTIONAR ENTREGA</button>
+          <button class="dorado mini" style="margin-top:6px" data-me="${idk}" data-nom="${nomFull.replace(/"/g,'&quot;')}">GESTIONAR ENTREGA</button>
         </div>
       </div>
     </div>`;
