@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Simulador de Usuarios | Cupones Habitat-Car</title>
+<title>Simulador de Cupones | Habitat-Car</title>
 <style>
   :root{
     --azul:#004a99; --azul-osc:#00284f; --azul-claro:#0a6fdc;
@@ -70,6 +70,11 @@
   #toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:80}
   .toast{background:#0c2a17;border:1px solid var(--verde);color:#c9ffdd;padding:10px 14px;border-radius:10px;font-size:.8em;box-shadow:0 6px 18px rgba(0,0,0,.4)}
   .toast.err{background:#2a0c0c;border-color:var(--rojo);color:#ffc9c9}
+  /* Modal entrega */
+  #modal-entrega{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,8,18,.75);z-index:90;padding:16px}
+  #modal-entrega .box{background:#0a1c36;border:1px solid #1d3f6d;border-radius:16px;padding:22px;width:520px;max-width:100%;max-height:92vh;overflow:auto}
+  #modal-entrega h3{margin:0 0 10px;color:var(--dorado);font-size:1em}
+  .pill2{font-size:.72em;padding:4px 8px;border-radius:12px;background:#0a1a30;border:1px solid #2c4368;color:var(--muted)}
   .spin{display:inline-block;width:12px;height:12px;border:2px solid #ffffff55;border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
   @keyframes sp{to{transform:rotate(360deg)}}
   .warn{background:#2a2007;border:1px solid #7a5c00;color:#ffe6a3;padding:9px 12px;border-radius:10px;font-size:.76em;margin-top:10px}
@@ -100,13 +105,21 @@
 <div class="wrap" id="app" style="display:none">
 
   <header class="top">
-    <h1>🧪 Simulador de Usuarios<small>Cupones Habitat-Car · escribe en la base REAL (usuarios marcados como «simulador»)</small></h1>
+    <h1>🧪 Simulador de Cupones<small>Habitat-Car · gestión y auditoría de sorteos</small></h1>
     <span class="pill" id="conn">conectando…</span>
     <span class="pill" id="who"></span>
     <button class="gris mini" id="btn-refresh">↻ Refrescar</button>
     <button class="gris mini" id="btn-reset-reward" title="Resetear la recompensa VIP (recompensa_vip_recibida) de los usuarios simulados para volver a ver el modal">🔄 Reset VIP</button>
     <button class="rojo mini" id="btn-logout">Salir</button>
   </header>
+
+  <div class="card" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+    <button class="dorado" id="tab-usuarios">SIMULADOR DE USUARIOS</button>
+    <button class="gris" id="tab-comercios">SIMULADOR COMERCIOS</button>
+    <span class="pill">Todo lo simulado se marca con <code>origen: simulador</code> / <code>esSimulacion: true</code></span>
+  </div>
+
+  <div id="panel-usuarios">
 
   <!-- Generador masivo -->
   <div class="card">
@@ -177,6 +190,100 @@
     <p class="sub" id="empty" style="margin-top:14px;display:none">No hay usuarios simulados todavía. Usá el generador de arriba.</p>
   </div>
 
+  </div><!-- /panel-usuarios -->
+
+  <!-- ================= PANEL COMERCIOS ================= -->
+  <div id="panel-comercios" style="display:none">
+
+    <div class="card">
+      <h2>🏬 Historial de Sorteos por Comercio</h2>
+      <p class="sub">Seleccioná un comercio para ver todos sus sorteos, participantes, ganadores, auditoría y seguimiento de entrega de premios.</p>
+      <div class="row">
+        <div style="flex:2"><label>Comercio</label><select id="sc-comercio"></select></div>
+        <div style="flex:0 0 auto"><label>&nbsp;</label><button class="dorado" id="sc-cargar">CARGAR HISTORIAL</button></div>
+        <div style="flex:0 0 auto"><label>&nbsp;</label><button class="gris" id="sc-refrescar">↻ Refrescar</button></div>
+      </div>
+      <div class="btns">
+        <button class="rojo mini" id="btn-purge-sim">🗑 ELIMINAR TODO LO SIMULADO</button>
+      </div>
+      <div class="warn">⚠️ El purge borra ÚNICAMENTE lo marcado con <code>origen:"simulador"</code> / <code>esSimulacion:true</code> en sorteos, auditoría, entregas y snapshots. No toca informes reales.</div>
+    </div>
+
+    <div class="card">
+      <h2>📋 Listado de Sorteos <span class="pill" id="sc-cnt-sorteos">0</span></h2>
+      <p class="sub">Click en un sorteo para ver detalle completo, participantes, ganadores y entrega (doble vía).</p>
+      <div id="sc-lista-sorteos" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;"></div>
+      <p class="sub" id="sc-empty-sorteos" style="display:none">No hay sorteos para este comercio.</p>
+    </div>
+
+    <div class="card" id="sc-detalle" style="display:none">
+      <h2>🔎 Detalle del Sorteo</h2>
+      <div id="sc-detalle-header" style="margin-bottom:10px;"></div>
+      <div class="row" style="margin-top:10px">
+        <div style="flex:1"><button class="gris mini" id="sc-guardar-snapshot">💾 Guardar/Actualizar SNAPSHOT inmutable</button></div>
+        <div style="flex:1"><button class="gris mini" id="sc-ver-auditoria">📜 Ver Auditoría (antes/después)</button></div>
+      </div>
+      <div id="sc-auditoria" style="display:none; margin-top:12px;"></div>
+      <div class="card" style="margin-top:12px">
+        <h2>🏆 Ganadores <span class="pill" id="sc-cnt-ganadores">0</span></h2>
+        <p class="sub">Datos completos + seguimiento de entrega (doble vía: ganador y comerciante).</p>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px" id="sc-ganadores"></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h2>👥 Todos los participantes (LEAD + VIP) <span class="pill" id="sc-cnt-part">0</span></h2>
+        <p class="sub">Se prioriza el <b>snapshot</b> inmutable. Si no existe, se completa con los datos actuales de leads/vips.</p>
+        <div style="overflow:auto; margin-top:10px">
+          <table style="width:100%; border-collapse:collapse; font-size:.78em">
+            <thead>
+              <tr style="background:#08152a">
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Tipo</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Apellido, Nombre</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">WhatsApp</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Email</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Provincia</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Localidad</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Usuario ID</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Origen</th>
+              </tr>
+            </thead>
+            <tbody id="sc-participantes"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /panel-comercios -->
+
+</div>
+
+<!-- ================= MODAL ENTREGA PREMIO ================= -->
+<div id="modal-entrega">
+  <div class="box">
+    <h3 id="me-titulo">Seguimiento de entrega</h3>
+    <input type="hidden" id="me-key">
+    <div id="me-estado" class="warn" style="margin-bottom:12px"></div>
+    <div class="two">
+      <div><label>Marcar como ganador</label><button class="verde mini" id="me-ganador" style="width:100%">✅ COBRÉ MI PREMIO</button></div>
+      <div><label>Marcar como comerciante</label><button class="verde mini" id="me-comercio" style="width:100%">✅ ENTREGUÉ EL PREMIO</button></div>
+    </div>
+    <div style="margin-top:12px">
+      <label>Marcar premio vacante</label>
+      <select id="me-motivo">
+        <option value="no_se_presento">El ganador no se presentó</option>
+        <option value="sin_contacto">No se pudo contactar al ganador</option>
+        <option value="vencido">Venció el plazo de retiro</option>
+        <option value="rechazo">El ganador rechazó el premio</option>
+        <option value="datos_invalidos">Datos de contacto inválidos</option>
+        <option value="otro">Otro motivo</option>
+      </select>
+      <input id="me-motivo-txt" placeholder="Detalle / aclaración (opcional)" style="margin-top:8px">
+    </div>
+    <div class="btns">
+      <button class="rojo" id="me-vacante">🚫 MARCAR PREMIO VACANTE</button>
+      <button class="gris" id="me-reset">↺ RESET (volver a pendiente)</button>
+      <button class="gris" id="me-cerrar">Cerrar</button>
+    </div>
+  </div>
 </div>
 
 <!-- ================= MODAL EDITAR ================= -->
@@ -682,6 +789,270 @@ $('btn-crear').onclick=async()=>{
   $('gen-prov').innerHTML='<option value="">— mezclar todas —</option>'+provOpts;
   $('cr-prov').innerHTML='<option value="">—</option>'+provOpts;
 })();
+
+// Tabs
+$('tab-usuarios').onclick=()=>{
+  $('panel-usuarios').style.display='block';
+  $('panel-comercios').style.display='none';
+  $('tab-usuarios').className='dorado';
+  $('tab-comercios').className='gris';
+};
+$('tab-comercios').onclick=()=>{
+  $('panel-usuarios').style.display='none';
+  $('panel-comercios').style.display='block';
+  $('tab-usuarios').className='gris';
+  $('tab-comercios').className='dorado';
+  cargarComerciosSC();
+};
+
+let scComercios = [];
+let scSorteos = [];
+let scActual = null;
+let scEntrega = {};
+
+async function cargarComerciosSC(){
+  try{
+    if(scComercios.length) return;
+    const snap = await getDocs(collection(db,'comercios'));
+    scComercios = snap.docs.map(d=>({id:d.id,...d.data()})).filter(c=>c.nombre).sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)));
+    const sel = $('sc-comercio');
+    sel.innerHTML = scComercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('');
+  }catch(e){ toast('Error cargando comercios: '+e.message,true); }
+}
+
+$('sc-cargar').onclick = cargarHistorialSC;
+$('sc-refrescar').onclick = cargarHistorialSC;
+
+async function cargarHistorialSC(){
+  try{
+    const sel = $('sc-comercio');
+    const id = sel.value;
+    const com = scComercios.find(c=>c.id===id);
+    if(!com){ toast('Elegí un comercio',true); return; }
+    const snap = await getDocs(query(collection(db,'historial_sorteos'), where('comercio','==',com.nombre)));
+    scSorteos = snap.docs.map(d=>({docId:d.id,...d.data()}));
+    scSorteos.sort((a,b)=>(b.fechaSort||b.timestamp||0)-(a.fechaSort||a.timestamp||0));
+    renderListaSorteos(com);
+  }catch(e){ toast('Error: '+e.message,true); }
+}
+
+function renderListaSorteos(com){
+  const lista = $('sc-lista-sorteos');
+  const cnt = $('sc-cnt-sorteos');
+  const empty = $('sc-empty-sorteos');
+  cnt.textContent = scSorteos.length;
+  if(!scSorteos.length){ lista.innerHTML=''; empty.style.display='block'; return; }
+  empty.style.display='none';
+  lista.innerHTML = scSorteos.map((s,idx)=>{
+    const fecha = s.fechaSort ? new Date(s.fechaSort).toLocaleString() : (s.fecha||'');
+    const premios = Array.isArray(s.premios)? s.premios.length : (s.premio?1:0);
+    const gan = Array.isArray(s.ganadores)? s.ganadores.length : 0;
+    const part = Array.isArray(s.participantes)? s.participantes.length : 0;
+    return `<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;cursor:pointer" data-idx="${idx}">
+      <div style="flex:1;min-width:200px">
+        <div style="font-weight:700;color:var(--dorado)">${esc(s.premio||'Sorteo')}</div>
+        <div class="sub">${fecha} · Premios: ${premios} · Ganadores: ${gan} · Participantes: ${part}</div>
+      </div>
+      <button class="gris mini">VER DETALLE</button>
+    </div>`;
+  }).join('');
+  lista.querySelectorAll('[data-idx]').forEach(el=>{
+    el.onclick = ()=> verDetalleSorteo(com, scSorteos[Number(el.getAttribute('data-idx'))]);
+  });
+}
+
+async function verDetalleSorteo(com, s){
+  scActual = {com,s, key: s.docId || (com.id+'_'+(s.premio||''))};
+  $('sc-detalle').style.display='block';
+  const h = $('sc-detalle-header');
+  const fecha = s.fechaSort ? new Date(s.fechaSort).toLocaleString() : (s.fecha||'');
+  h.innerHTML = `<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px">
+    <div style="font-weight:700;color:var(--dorado)">${esc(s.premio||'Sorteo')}</div>
+    <div class="sub">Comercio: ${esc(com.nombre)} · Fecha/Hora: ${fecha} · ID Historial: ${esc(s.docId||'-')}</div>
+    <div class="sub">Origen: ${esc(s.origen||'real')} ${s.esSimulacion?'· SIMULADO':''}</div>
+  </div>`;
+  await cargarSnapshotYEntregas();
+  renderGanadores(s);
+  await renderParticipantes(com,s);
+}
+
+async function cargarSnapshotYEntregas(){
+  const key = scActual.key;
+  try{
+    const ds = await getDocs(query(collection(db,'sorteo_snapshot_participantes'), where('key','==',key)));
+    scActual.snapshot = ds.empty ? null : ds.docs[0].data();
+  }catch(e){}
+  try{
+    const de = await getDocs(query(collection(db,'sorteo_entrega_premios'), where('key','==',key)));
+    scEntrega = {};
+    de.forEach(d=>{ scEntrega[d.id] = d.data(); });
+  }catch(e){}
+}
+
+$('sc-guardar-snapshot').onclick = async ()=>{
+  if(!scActual) return;
+  try{
+    const s = scActual.s;
+    const part = Array.isArray(s.participantes)? s.participantes : [];
+    const gan = Array.isArray(s.ganadores)? s.ganadores : [];
+    const snap = {
+      key: scActual.key,
+      comercioId: scActual.com.id,
+      comercio: scActual.com.nombre,
+      premio: s.premio||'',
+      fechaSort: s.fechaSort||Date.now(),
+      origen: s.origen||'simulador',
+      esSimulacion: s.esSimulacion===true,
+      participantes: part,
+      ganadores: gan,
+      creado: Date.now()
+    };
+    const q = query(collection(db,'sorteo_snapshot_participantes'), where('key','==',scActual.key));
+    const ex = await getDocs(q);
+    if(ex.empty) await addDoc(collection(db,'sorteo_snapshot_participantes'), snap);
+    else await updateDoc(doc(db,'sorteo_snapshot_participantes', ex.docs[0].id), snap);
+    scActual.snapshot = snap;
+    toast('Snapshot inmutable guardado/actualizado');
+    await verDetalleSorteo(scActual.com, scActual.s);
+  }catch(e){ toast('Error: '+e.message,true); }
+};
+
+$('sc-ver-auditoria').onclick = async ()=>{
+  const box = $('sc-auditoria');
+  box.style.display = box.style.display==='block'?'none':'block';
+  if(box.style.display!=='block') return;
+  try{
+    const q = query(collection(db,'sorteo_auditoria_mods'), where('key','==',scActual.key));
+    const snap = await getDocs(q);
+    const items = snap.docs.map(d=>d.data()).sort((a,b)=>(b.fecha||0)-(a.fecha||0));
+    if(!items.length){ box.innerHTML='<div class="sub">Sin auditoría registrada.</div>'; return; }
+    box.innerHTML = '<div style="display:flex; flex-direction:column; gap:8px">'+items.map(it=>`<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px">
+      <div class="sub">${new Date(it.fecha||Date.now()).toLocaleString()} · ${esc(it.quien||'admin')} · ${esc(it.origen||'')}</div>
+      <div style="font-weight:600;color:var(--dorado)">${esc(it.campo||'MODIFICACION')}</div>
+      <div class="sub">ANTES: ${esc(JSON.stringify(it.antes))}</div>
+      <div class="sub">DESPUÉS: ${esc(JSON.stringify(it.despues))}</div>
+    </div>`).join('')+'</div>';
+  }catch(e){ box.innerHTML='<div class="sub">Error cargando auditoría</div>'; }
+};
+
+function renderGanadores(s){
+  const g = Array.isArray(s.ganadores)? s.ganadores : [];
+  $('sc-cnt-ganadores').textContent = g.length;
+  const box = $('sc-ganadores');
+  box.innerHTML = g.length? g.map((gg,i)=>{
+    const idk = (gg.usuarioId||gg.id||i)+''+i;
+    const est = (scEntrega[idk] && scEntrega[idk].estado) || 'PENDIENTE';
+    return `<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px">
+      <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <div style="font-weight:700;color:var(--dorado)">${esc(gg.apellido||'')}, ${esc(gg.nombre||gg.nombres||'-')}</div>
+          <div class="sub">WhatsApp: ${esc(gg.whatsapp||'-')} · Email: ${esc(gg.email||'-')} · ${esc(gg.provincia||'')}${gg.provincia&&gg.localidad?', ':''}${esc(gg.localidad||'')}</div>
+          <div class="sub">Tipo: ${esc(gg.tipo||'-')} · ID: ${esc(gg.usuarioId||'-')}</div>
+        </div>
+        <div style="text-align:right">
+          <div class="pill2">ESTADO: ${esc(est)}</div><br>
+          <button class="dorado mini" style="margin-top:6px" data-me="${idk}" data-nom="${esc((gg.apellido||'')+', '+(gg.nombre||gg.nombres||''))}">GESTIONAR ENTREGA</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('') : '<div class="sub">Sin ganadores.</div>';
+  box.querySelectorAll('[data-me]').forEach(b=>{
+    b.onclick = ()=> abrirModalEntrega(b.getAttribute('data-me'), b.getAttribute('data-nom'));
+  });
+}
+
+async function renderParticipantes(com,s){
+  const base = scActual.snapshot && Array.isArray(scActual.snapshot.participantes) ? scActual.snapshot.participantes : (Array.isArray(s.participantes)? s.participantes : []);
+  $('sc-cnt-part').textContent = base.length;
+  const tbody = $('sc-participantes');
+  if(!base.length){ tbody.innerHTML='<tr><td colspan="8" class="sub" style="padding:8px">Sin participantes.</td></tr>'; return; }
+  // intentar enriquecer con leads/vips si faltan datos
+  const leadsMap = new Map(S.leads.map(l=>[l.id,l]));
+  // vips no cargados aqui, pero snapshot debería tenerlos
+  tbody.innerHTML = base.map(p=>{
+    const idp = p.usuarioId||p.id||'';
+    const l = leadsMap.get(idp);
+    const nom = p.nombre || ((l&&l.apellido)? l.apellido+', '+(l.nombres||l.nombre): (l?(l.apellido||'')+', '+(l.nombres||l.nombre):'-'));
+    const wa = p.whatsapp||p.celular||(l&&l.whatsapp)||'-';
+    const em = p.email||(l&&l.email)||'-';
+    const prv = p.provincia||(l&&l.provincia)||'-';
+    const loc = p.localidad||(l&&l.localidad)||'-';
+    const tip = p.tipo||(l&&tipoDe(l))||'-';
+    return `<tr>
+      <td style="padding:6px 8px;border:1px solid #16345e">${esc(tip)}</td>
+      <td style="padding:6px 8px;border:1px solid #16345e">${esc(nom)}</td>
+      <td style="padding:6px 8px;border:1px solid #16345e">${esc(wa)}</td>
+      <td style="padding:6px 8px;border:1px solid #16345e">${esc(em)}</td>
+      <td style="padding:6px 8px;border:1px solid #16345e">${esc(prv)}</td>
+      <td style="padding:6px 8px;border:1px solid #16345e">${esc(loc)}</td>
+      <td style="padding:6px 8px;border:1px solid #16345e">${esc(idp)}</td>
+      <td style="padding:6px 8px;border:1px solid #16345e">${esc(p.origen|| (scActual.s&&scActual.s.origen)||'')}</td>
+    </tr>`;
+  }).join('');
+}
+
+function abrirModalEntrega(key, nom){
+  $('me-key').value = key;
+  $('me-titulo').textContent = 'Seguimiento: '+nom;
+  const est = (scEntrega[key] && scEntrega[key].estado) || 'PENDIENTE';
+  $('me-estado').textContent = 'Estado actual: '+est;
+  $('me-motivo').value = 'no_se_presento';
+  $('me-motivo-txt').value = '';
+  $('modal-entrega').style.display = 'flex';
+}
+$('me-cerrar').onclick = ()=> $('modal-entrega').style.display='none';
+$('modal-entrega').addEventListener('click',e=>{ if(e.target===$('modal-entrega')) $('modal-entrega').style.display='none'; });
+
+async function setEntrega(estado, extra){
+  if(!scActual) return;
+  const key = $('me-key').value;
+  const ref = doc(db,'sorteo_entrega_premios', scActual.key+'_'+key);
+  const data = {
+    key: scActual.key,
+    ganadorKey: key,
+    comercioId: scActual.com.id,
+    comercio: scActual.com.nombre,
+    premio: scActual.s.premio||'',
+    estado,
+    origen: scActual.s.esSimulacion?'simulador':'real',
+    esSimulacion: scActual.s.esSimulacion===true,
+    ...(extra||{}),
+    actualizado: Date.now()
+  };
+  await setDoc(ref, data, {merge:true});
+  scEntrega[key] = data;
+  toast('Estado actualizado: '+estado);
+  $('modal-entrega').style.display='none';
+  renderGanadores(scActual.s);
+}
+$('me-ganador').onclick = async ()=> setEntrega('MARCADO_POR_GANADOR', {marcadoPorGanador: Date.now()});
+$('me-comercio').onclick = async ()=> setEntrega('MARCADO_POR_COMERCIO', {marcadoPorComercio: Date.now()});
+$('me-reset').onclick = async ()=> setEntrega('PENDIENTE', {marcadoPorGanador: deleteField(), marcadoPorComercio: deleteField(), motivo: deleteField(), quienVacante: deleteField()});
+$('me-vacante').onclick = async ()=> setEntrega('PREMIO_VACANTE', {motivo: $('me-motivo').value, motivoTxt: $('me-motivo-txt').value, quienVacante: S.user?S.user.email:'admin', fechaVacante: Date.now()});
+
+$('btn-purge-sim').onclick = async ()=>{
+  if(!confirm('¿ELIMINAR TODO LO SIMULADO? Esta acción borra únicamente registros marcados como simulador en sorteos/auditoría/entregas/snapshots. NO SE PUEDE DESHACER.')) return;
+  try{
+    const cols = ['historial_sorteos','admin_participantes_sorteos','participaciones_sorteos','sorteo_auditoria_mods','sorteo_entrega_premios','sorteo_snapshot_participantes','logs_actividad','logs_vip'];
+    let borrados = 0;
+    for(const c of cols){
+      const snap = await getDocs(collection(db,c));
+      for(let i=0;i<snap.docs.length;i+=450){
+        const b = writeBatch(db);
+        snap.docs.slice(i,i+450).forEach(d=>{
+          const x = d.data();
+          if(x.origen==='simulador' || x.esSimulacion===true || (x.detalle&&String(x.detalle).includes('SIMULADO'))){
+            b.delete(d.ref);
+            borrados++;
+          }
+        });
+        await b.commit();
+      }
+    }
+    toast('Purge completado. Borrados: '+borrados);
+    await cargarHistorialSC();
+  }catch(e){ toast('Error purge: '+e.message,true); }
+};
 
 $('btn-refresh').onclick=()=> cargarTodo();
 $('btn-reset-reward').onclick=async()=>{
