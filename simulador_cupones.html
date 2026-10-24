@@ -912,23 +912,23 @@ $('sc-guardar-snapshot').onclick = async ()=>{
     const s = scActual.s;
     let part = Array.isArray(s.participantes)? s.participantes : (Array.isArray(s.listaParticipantes)? s.listaParticipantes : []);
     let gan = Array.isArray(s.ganadores)? s.ganadores : [];
-    if(!part.length || !gan.length){
-      const q1 = query(collection(db,'admin_participantes_sorteos'), where('comercio','==',scActual.com.nombre));
-      const q2 = query(collection(db,'participaciones_sorteos'), where('comercio','==',scActual.com.nombre));
-      const [a1,a2] = await Promise.all([getDocs(q1).catch(()=>({docs:[]})), getDocs(q2).catch(()=>({docs:[]}))]);
-      const seen = new Set();
-      [...a1.docs,...a2.docs].forEach(d=>{
-        const x = d.data();
-        const pid = x.usuarioId||x.id||d.id;
-        if(!seen.has(pid)){ seen.add(pid); part.push({...x, usuarioId: pid}); }
-      });
-      if(!gan.length && s.ganadores) gan = Array.isArray(s.ganadores)? s.ganadores : [];
+    if(!part.length){
+      try{
+        const q1 = query(collection(db,'admin_participantes_sorteos'), where('comercio','==',scActual.com.nombre));
+        const q2 = query(collection(db,'participaciones_sorteos'), where('comercio','==',scActual.com.nombre));
+        const [a1,a2] = await Promise.allSettled([getDocs(q1), getDocs(q2)]);
+        const seen = new Set();
+        if(a1.status==='fulfilled') a1.value.docs.forEach(d=>{ const x=d.data(); const pid=x.usuarioId||x.id||d.id; if(!seen.has(pid)){seen.add(pid); part.push({...x,usuarioId:pid});}});
+        if(a2.status==='fulfilled') a2.value.docs.forEach(d=>{ const x=d.data(); const pid=x.usuarioId||x.id||d.id; if(!seen.has(pid)){seen.add(pid); part.push({...x,usuarioId:pid});}});
+      }catch(e){}
     }
+    if(!gan.length && Array.isArray(s.ganadores)) gan = s.ganadores;
     const snap = {
       key: scActual.key,
       comercioId: scActual.com.id,
       comercio: scActual.com.nombre,
       premio: s.premio||s.titulo||'',
+      descripcion_sorteo: s.descripcion_sorteo||s.descripcion||s.detalle||'',
       fechaSort: s.fechaSort||s.fecha_sorteo||s.timestamp||Date.now(),
       origen: s.origen||'real',
       esSimulacion: s.esSimulacion===true,
@@ -937,13 +937,18 @@ $('sc-guardar-snapshot').onclick = async ()=>{
       creado: Date.now(),
       creadoPor: S.user? S.user.email : 'admin'
     };
-    const q = query(collection(db,'sorteo_snapshot_participantes'), where('key','==',scActual.key));
-    const ex = await getDocs(q);
-    if(ex.empty) await addDoc(collection(db,'sorteo_snapshot_participantes'), snap);
-    else await updateDoc(doc(db,'sorteo_snapshot_participantes', ex.docs[0].id), snap);
-    scActual.snapshot = snap;
-    toast('Snapshot inmutable guardado/actualizado');
-    await verDetalleSorteo(scActual.com, scActual.s);
+    try{
+      const q = query(collection(db,'sorteo_snapshot_participantes'), where('key','==',scActual.key));
+      const ex = await getDocs(q);
+      if(ex.empty) await addDoc(collection(db,'sorteo_snapshot_participantes'), snap);
+      else await updateDoc(doc(db,'sorteo_snapshot_participantes', ex.docs[0].id), snap);
+      scActual.snapshot = snap;
+      toast('Snapshot inmutable guardado/actualizado');
+      await verDetalleSorteo(scActual.com, scActual.s);
+    }catch(e){
+      toast('No se pudo guardar snapshot: '+e.message, true);
+      console.error(e);
+    }
   }catch(e){ toast('Error: '+e.message,true); }
 };
 
