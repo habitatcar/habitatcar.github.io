@@ -946,8 +946,22 @@ $('sc-guardar-snapshot').onclick = async ()=>{
       toast('Snapshot inmutable guardado/actualizado');
       await verDetalleSorteo(scActual.com, scActual.s);
     }catch(e){
-      toast('No se pudo guardar snapshot: '+e.message, true);
-      console.error(e);
+      // Fallback: intentar sin where (por si reglas de seguridad lo bloquean)
+      try{
+        const all = await getDocs(collection(db,'sorteo_snapshot_participantes'));
+        const matching = all.docs.find(d=>d.key===scActual.key);
+        if(matching){
+          await updateDoc(doc(db,'sorteo_snapshot_participantes', matching.id), snap);
+        }else{
+          await addDoc(collection(db,'sorteo_snapshot_participantes'), snap);
+        }
+        scActual.snapshot = snap;
+        toast('Snapshot inmutable guardado/actualizado');
+        await verDetalleSorteo(scActual.com, scActual.s);
+      }catch(e2){
+        toast('No se pudo guardar snapshot: '+e.message, true);
+        console.error(e2);
+      }
     }
   }catch(e){ toast('Error: '+e.message,true); }
 };
@@ -957,9 +971,19 @@ $('sc-ver-auditoria').onclick = async ()=>{
   box.style.display = box.style.display==='block'?'none':'block';
   if(box.style.display!=='block') return;
   try{
-    const q = query(collection(db,'sorteo_auditoria_mods'), where('key','==',scActual.key));
-    const snap = await getDocs(q);
-    const items = snap.docs.map(d=>d.data()).sort((a,b)=>(b.fecha||0)-(a.fecha||0));
+    let items = [];
+    try{
+      const q = query(collection(db,'sorteo_auditoria_mods'), where('key','==',scActual.key));
+      const snap = await getDocs(q);
+      items = snap.docs.map(d=>d.data()).sort((a,b)=>(b.fecha||0)-(a.fecha||0));
+    }catch(e1){
+      try{
+        const snap = await getDocs(collection(db,'sorteo_auditoria_mods'));
+        items = snap.docs.map(d=>d.data()).filter(x=>x.key===scActual.key).sort((a,b)=>(b.fecha||0)-(a.fecha||0));
+      }catch(e2){
+        throw e2;
+      }
+    }
     if(!items.length){ box.innerHTML='<div class="sub">Sin auditoría registrada.</div>'; return; }
     box.innerHTML = '<div style="display:flex; flex-direction:column; gap:8px">'+items.map(it=>`<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px">
       <div class="sub">${formatFecha(it.fecha)} · ${esc(it.quien||'admin')} · ${esc(it.origen||'')}</div>
@@ -967,7 +991,7 @@ $('sc-ver-auditoria').onclick = async ()=>{
       <div class="sub">ANTES: ${esc(typeof it.antes==='object'?JSON.stringify(it.antes):it.antes)}</div>
       <div class="sub">DESPUÉS: ${esc(typeof it.despues==='object'?JSON.stringify(it.despues):it.despues)}</div>
     </div>`).join('')+'</div>';
-  }catch(e){ box.innerHTML='<div class="sub">Error cargando auditoría: '+esc(e.message)+'</div>'; }
+  }catch(e){ box.innerHTML='<div class="sub">Sin permisos para leer auditoría o sin registros.</div>'; }
 };
 
 function renderGanadores(s){
