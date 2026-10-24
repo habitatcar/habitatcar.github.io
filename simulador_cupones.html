@@ -1007,12 +1007,18 @@ async function renderParticipantes(com,s){
     try{
       const q1 = query(collection(db,'admin_participantes_sorteos'), where('comercio','==',com.nombre));
       const q2 = query(collection(db,'participaciones_sorteos'), where('comercio','==',com.nombre));
-      const [a1,a2] = await Promise.all([getDocs(q1).catch(()=>({docs:[]})), getDocs(q2).catch(()=>({docs:[]}))]);
+      const q3 = query(collection(db,'admin_participantes_sorteos'));
+      const q4 = query(collection(db,'participaciones_sorteos'));
+      const res = await Promise.allSettled([getDocs(q1), getDocs(q2), getDocs(q3), getDocs(q4)]);
       const seen = new Set();
-      [...a1.docs,...a2.docs].forEach(d=>{
-        const x = d.data();
-        const pid = x.usuarioId||x.id||d.id;
-        if(!seen.has(pid)){ seen.add(pid); base.push(x); }
+      res.forEach(r=>{
+        if(r.status!=='fulfilled') return;
+        r.value.docs.forEach(d=>{
+          const x = d.data();
+          if(x.comercio && x.comercio !== com.nombre) return;
+          const pid = x.usuarioId||x.id||d.id;
+          if(!seen.has(pid)){ seen.add(pid); base.push({...x, usuarioId: pid}); }
+        });
       });
     }catch(e){}
   }
