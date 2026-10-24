@@ -825,13 +825,22 @@ $('sc-refrescar').onclick = cargarHistorialSC;
 
 async function cargarHistorialSC(){
   try{
+    $('sc-detalle').style.display='none';
+    $('sc-auditoria').style.display='none';
+    $('sc-auditoria').innerHTML='';
+    scActual = null;
+    scEntrega = {};
     const sel = $('sc-comercio');
     const id = sel.value;
     const com = scComercios.find(c=>c.id===id);
     if(!com){ toast('Elegí un comercio',true); return; }
     const snap = await getDocs(query(collection(db,'historial_sorteos'), where('comercio','==',com.nombre)));
     scSorteos = snap.docs.map(d=>({docId:d.id,...d.data()}));
-    scSorteos.sort((a,b)=>(b.fechaSort||b.timestamp||0)-(a.fechaSort||a.timestamp||0));
+    scSorteos.sort((a,b)=>{
+      const fa = (b.fechaSort&&b.fechaSort.seconds?b.fechaSort.seconds : (b.fechaSort||b.timestamp||0));
+      const fb = (a.fechaSort&&a.fechaSort.seconds?a.fechaSort.seconds : (a.fechaSort||a.timestamp||0));
+      return fa-fb;
+    });
     renderListaSorteos(com);
   }catch(e){ toast('Error: '+e.message,true); }
 }
