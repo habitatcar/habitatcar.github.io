@@ -87,6 +87,20 @@
 </head>
 <body>
 
+<!-- ================= LOGIN ================= -->
+<div id="login">
+  <div class="box">
+    <h2>🔐 Simulador de Usuarios</h2>
+    <p>Cupones Habitat-Car · requiere cuenta admin</p>
+    <label>Email</label>
+    <input id="lg-email" type="email" placeholder="admin@habitatcar.com" autocomplete="username">
+    <label>Contraseña</label>
+    <input id="lg-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    <div class="btns"><button id="lg-btn" style="width:100%">INGRESAR</button></div>
+    <div id="msg"></div>
+  </div>
+</div>
+
 <!-- ================= APP ================= -->
 <div class="wrap" id="app" style="display:none">
 
@@ -362,19 +376,34 @@ const provLoc = (p)=>{ const l=LOCALIDADES[p]; return l?pick(l):pick(["Capital",
 const soloDig = (s)=>String(s||'').replace(/\D/g,'');
 
 // ================= AUTENTICACIÓN =================
+$('lg-btn').onclick = async () => {
+  const email=$('lg-email').value.trim(), pass=$('lg-pass').value;
+  if(!email||!pass){ $('msg').textContent='Completá email y contraseña.'; return; }
+  $('msg').textContent=''; $('lg-btn').disabled=true; $('lg-btn').innerHTML='<span class="spin"></span> Ingresando…';
+  try{ await signInWithEmailAndPassword(auth, email, pass); }
+  catch(e){ $('msg').textContent = (e.code==='auth/invalid-credential'||e.code==='auth/wrong-password')?'Email o contraseña incorrectos.':('Error: '+e.message); }
+  finally{ $('lg-btn').disabled=false; $('lg-btn').textContent='INGRESAR'; }
+};
+$('lg-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('lg-btn').click(); });
+
 onAuthStateChanged(auth, async (user)=>{
   if(user){
     S.user=user;
-    const capa = document.getElementById('capa-seguridad');
-    if (capa) capa.style.display = 'none';
+    $('login').style.display='none';
     $('app').style.display='block';
     $('who').textContent = user.email || '(sin email)';
     $('conn').textContent='conectado'; $('conn').classList.add('on');
     if((user.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
     await cargarTodo();
+  } else {
+    S.user=null;
+    if(_leadsUnsub){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
+    $('app').style.display='none';
+    $('login').style.display='flex';
+    $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
   }
 });
-$('btn-logout').onclick = async ()=> { await signOut(auth); window.location.href='index.html'; };
+$('btn-logout').onclick = ()=> signOut(auth);
 
 // ================= CARGA =================
 async function cargarTodo(){
