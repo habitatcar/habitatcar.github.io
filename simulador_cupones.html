@@ -386,21 +386,43 @@ $('lg-btn').onclick = async () => {
 };
 $('lg-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('lg-btn').click(); });
 
+async function aplicarSesion(user){
+  if(!user) return false;
+  S.user=user;
+  $('login').style.display='none';
+  $('app').style.display='block';
+  $('who').textContent = user.email || '(sin email)';
+  $('conn').textContent='conectado'; $('conn').classList.add('on');
+  if((user.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
+  await cargarTodo();
+  return true;
+}
+
+function mostrarLogin(){
+  S.user=null;
+  if(typeof _leadsUnsub==='function'){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
+  $('app').style.display='none';
+  $('login').style.display='flex';
+  $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
+}
+
+// Si ya hay sesión activa, entrar directo
+if(auth.currentUser){
+  aplicarSesion(auth.currentUser);
+} else {
+  // Mostrar login por si acaso, pero onAuthStateChanged lo corregirá
+  $('login').style.display='flex';
+  $('app').style.display='none';
+}
+
 onAuthStateChanged(auth, async (user)=>{
   if(user){
-    S.user=user;
-    $('login').style.display='none';
-    $('app').style.display='block';
-    $('who').textContent = user.email || '(sin email)';
-    $('conn').textContent='conectado'; $('conn').classList.add('on');
-    if((user.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
-    await cargarTodo();
+    await aplicarSesion(user);
   } else {
-    S.user=null;
-    if(_leadsUnsub){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
-    $('app').style.display='none';
-    $('login').style.display='flex';
-    $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
+    // Solo mostrar login si realmente no hay sesión
+    if(!auth.currentUser){
+      mostrarLogin();
+    }
   }
 });
 $('btn-logout').onclick = ()=> signOut(auth);
