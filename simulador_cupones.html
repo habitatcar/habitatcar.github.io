@@ -389,7 +389,7 @@ $('lg-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('lg-btn').cl
 async function aplicarSesion(user){
   if(!user) return false;
   S.user=user;
-  $('login').style.display='none';
+  const lg = $('login'); if(lg) lg.style.display='none';
   $('app').style.display='block';
   $('who').textContent = user.email || '(sin email)';
   $('conn').textContent='conectado'; $('conn').classList.add('on');
@@ -402,24 +402,31 @@ function mostrarLogin(){
   S.user=null;
   if(typeof _leadsUnsub==='function'){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
   $('app').style.display='none';
-  $('login').style.display='flex';
+  const lg = $('login'); if(lg) lg.style.display='flex';
   $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
 }
 
-// Si ya hay sesión activa, entrar directo
-if(auth.currentUser){
-  aplicarSesion(auth.currentUser);
+// Forzar entrada directa si ya hay sesión
+const _u = auth.currentUser;
+if(_u){
+  aplicarSesion(_u);
 } else {
-  // Mostrar login por si acaso, pero onAuthStateChanged lo corregirá
-  $('login').style.display='flex';
+  const lg2 = $('login'); if(lg2) lg2.style.display='flex';
   $('app').style.display='none';
 }
+
+// También intentar con un pequeño delay por si Firebase restaura sesión con retraso
+setTimeout(()=>{
+  const _u2 = auth.currentUser;
+  if(_u2 && S.user !== _u2){
+    aplicarSesion(_u2);
+  }
+}, 500);
 
 onAuthStateChanged(auth, async (user)=>{
   if(user){
     await aplicarSesion(user);
   } else {
-    // Solo mostrar login si realmente no hay sesión
     if(!auth.currentUser){
       mostrarLogin();
     }
