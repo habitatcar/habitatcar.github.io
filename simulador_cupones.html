@@ -87,6 +87,12 @@
 </head>
 <body>
 
+<div id="auth-check" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0a192f;display:flex;align-items:center;justify-content:center;flex-direction:column;gap:12px;z-index:999999;color:#eaf2ff;font-family:'Segoe UI',sans-serif;">
+  <div style="width:38px;height:38px;border:3px solid #1f3b5c;border-top-color:#d4af37;border-radius:50%;animation:hcspin .8s linear infinite;"></div>
+  <div>Verificando sesión...</div>
+  <style>@keyframes hcspin{to{transform:rotate(360deg)}}</style>
+</div>
+
 <!-- ================= LOGIN ================= -->
 <div id="login">
   <div class="box">
@@ -318,7 +324,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, onSnapshot,
   query, where, increment, arrayUnion, writeBatch, deleteField, setDoc }
@@ -337,6 +343,7 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const auth  = getAuth(fbApp);
 const db    = getFirestore(fbApp);
+setPersistence(auth, browserLocalPersistence).catch(()=>{});
 
 // ---- Estado ----
 const S = {
@@ -386,37 +393,48 @@ $('lg-btn').onclick = async () => {
 };
 $('lg-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('lg-btn').click(); });
 
-function entrarConUsuario(user){
-  if(!user) return false;
-  S.user=user;
-  $('login').style.display='none';
-  $('app').style.display='block';
-  $('who').textContent = user.email || '(sin email)';
+const $chk = $('auth-check');
+const $lg  = $('login');
+const $app = $('app');
+if($lg)  $lg.style.display  = 'none';
+if($app) $app.style.display = 'none';
+
+function entrar(u){
+  if(!u) return false;
+  S.user = u;
+  if($lg)  $lg.style.display  = 'none';
+  if($app) $app.style.display = 'block';
+  if($chk) $chk.style.display = 'none';
+  $('who').textContent = u.email || '(sin email)';
   $('conn').textContent='conectado'; $('conn').classList.add('on');
-  if((user.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
+  if((u.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
   cargarTodo();
   return true;
 }
 
-// Forzar entrada si ya hay sesión
-if(entrarConUsuario(auth.currentUser)){ } else {
-  setTimeout(()=>{ if(!$('app').style.display || $('app').style.display==='none') entrarConUsuario(auth.currentUser); }, 250);
-  setTimeout(()=>{ if(!$('app').style.display || $('app').style.display==='none') entrarConUsuario(auth.currentUser); }, 600);
-  setTimeout(()=>{ if(!$('app').style.display || $('app').style.display==='none') entrarConUsuario(auth.currentUser); }, 1000);
+function irLogin(){
+  S.user=null;
+  if(typeof _leadsUnsub==='function'){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
+  if($app) $app.style.display = 'none';
+  if($lg)  $lg.style.display  = 'flex';
+  if($chk) $chk.style.display = 'none';
+  $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
 }
 
-onAuthStateChanged(auth, async (user)=>{
-  if(user){
-    entrarConUsuario(user);
-  } else {
-    if(auth.currentUser) return;
-    S.user=null;
-    if(typeof _leadsUnsub==='function'){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
-    $('app').style.display='none';
-    $('login').style.display='flex';
-    $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
-  }
+let listo = false;
+onAuthStateChanged(auth, (user)=>{
+  if(listo) return;
+  listo = true;
+  if(user){ entrar(user); }
+  else { irLogin(); }
 });
+
+setTimeout(()=>{
+  if(listo) return;
+  listo = true;
+  entrar(auth.currentUser) || irLogin();
+}, 1500);
+
 $('btn-logout').onclick = ()=> signOut(auth);
 
 // ================= CARGA =================
