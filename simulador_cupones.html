@@ -386,11 +386,22 @@ $('lg-btn').onclick = async () => {
 };
 $('lg-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('lg-btn').click(); });
 
-async function aplicarSesion(user){
+// ================= AUTENTICACIÓN =================
+$('lg-btn').onclick = async () => {
+  const email=$('lg-email').value.trim(), pass=$('lg-pass').value;
+  if(!email||!pass){ $('msg').textContent='Completá email y contraseña.'; return; }
+  $('msg').textContent=''; $('lg-btn').disabled=true; $('lg-btn').innerHTML='<span class="spin"></span> Ingresando…';
+  try{ await signInWithEmailAndPassword(auth, email, pass); }
+  catch(e){ $('msg').textContent = (e.code==='auth/invalid-credential'||e.code==='auth/wrong-password')?'Email o contraseña incorrectos.':('Error: '+e.message); }
+  finally{ $('lg-btn').disabled=false; $('lg-btn').textContent='INGRESAR'; }
+};
+$('lg-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('lg-btn').click(); });
+
+async function iniciarConSesion(user){
   if(!user) return false;
-  S.user=user;
-  const lg = $('login'); if(lg) lg.style.display='none';
-  $('app').style.display='block';
+  S.user = user;
+  const lg = $('login'); if(lg) lg.style.display = 'none';
+  const app = $('app'); if(app) app.style.display = 'block';
   $('who').textContent = user.email || '(sin email)';
   $('conn').textContent='conectado'; $('conn').classList.add('on');
   if((user.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
@@ -401,37 +412,41 @@ async function aplicarSesion(user){
 function mostrarLogin(){
   S.user=null;
   if(typeof _leadsUnsub==='function'){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
-  $('app').style.display='none';
-  const lg = $('login'); if(lg) lg.style.display='flex';
+  const app = $('app'); if(app) app.style.display = 'none';
+  const lg = $('login'); if(lg) lg.style.display = 'flex';
   $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
 }
 
-// Forzar entrada directa si ya hay sesión
-const _u = auth.currentUser;
-if(_u){
-  aplicarSesion(_u);
-} else {
-  const lg2 = $('login'); if(lg2) lg2.style.display='flex';
-  $('app').style.display='none';
-}
+// Ocultar ambos mientras se resuelve el estado
+const _loginEl = $('login'); if(_loginEl) _loginEl.style.display = 'none';
+const _appEl   = $('app');   if(_appEl)   _appEl.style.display   = 'none';
 
-// También intentar con un pequeño delay por si Firebase restaura sesión con retraso
-setTimeout(()=>{
-  const _u2 = auth.currentUser;
-  if(_u2 && S.user !== _u2){
-    aplicarSesion(_u2);
+// Esperar a Firebase
+(async () => {
+  try {
+    if (typeof auth.authStateReady === 'function') {
+      await auth.authStateReady();
+    }
+  } catch(e) {}
+  const u = auth.currentUser;
+  if (u) {
+    await iniciarConSesion(u);
+  } else {
+    mostrarLogin();
   }
-}, 500);
+})();
 
 onAuthStateChanged(auth, async (user)=>{
   if(user){
-    await aplicarSesion(user);
+    await iniciarConSesion(user);
   } else {
+    // Solo mostrar login si no hay usuario confirmado
     if(!auth.currentUser){
       mostrarLogin();
     }
   }
 });
+
 $('btn-logout').onclick = ()=> signOut(auth);
 
 // ================= CARGA =================
