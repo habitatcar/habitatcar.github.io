@@ -386,18 +386,45 @@ $('lg-btn').onclick = async () => {
 };
 $('lg-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('lg-btn').click(); });
 
-onAuthStateChanged(auth, async (user)=>{
-  if(user){
-    S.user=user;
+function entrarSiHaySesion(){
+  const u = auth.currentUser;
+  if(u){
+    S.user=u;
     $('login').style.display='none';
     $('app').style.display='block';
-    $('who').textContent = user.email || '(sin email)';
+    $('who').textContent = u.email || '(sin email)';
     $('conn').textContent='conectado'; $('conn').classList.add('on');
-    if((user.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
-    await cargarTodo();
+    if((u.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
+    cargarTodo();
+    return true;
+  }
+  return false;
+}
+
+// Si ya hay sesión en localStorage/Firebase, entrar directo
+if(entrarSiHaySesion()){
+  // ok
+} else {
+  // intentar de nuevo por si se restaura tarde
+  setTimeout(entrarSiHaySesion, 300);
+  setTimeout(entrarSiHaySesion, 700);
+  setTimeout(entrarSiHaySesion, 1000);
+}
+
+onAuthStateChanged(auth, async (user)=>{
+  if(user){
+    if($('app').style.display === 'none'){
+      S.user=user;
+      $('login').style.display='none';
+      $('app').style.display='block';
+      $('who').textContent = user.email || '(sin email)';
+      $('conn').textContent='conectado'; $('conn').classList.add('on');
+      if((user.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
+      await cargarTodo();
+    }
   } else {
     S.user=null;
-    if(_leadsUnsub){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
+    if(typeof _leadsUnsub==='function'){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
     $('app').style.display='none';
     $('login').style.display='flex';
     $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
