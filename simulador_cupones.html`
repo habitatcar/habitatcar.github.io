@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulador de Cupones | Habitat-Car</title>
+<style>
+  :root{
+    --azul:#004a99; --azul-osc:#00284f; --azul-claro:#0a6fdc;
+    --dorado:#d4af37; --verde:#1f9d55; --rojo:#c0392b;
+    --gris:#12203a; --gris2:#1b2e4f; --txt:#eaf2ff; --muted:#8fa6c9;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:'Segoe UI',Tahoma,sans-serif;background:linear-gradient(160deg,#001226,#012243 60%,#001a33);color:var(--txt);min-height:100vh}
+  a{color:var(--azul-claro)}
+  button{cursor:pointer;font-family:inherit;border:none;border-radius:8px;padding:9px 13px;font-weight:600;font-size:.85em;color:#fff;background:var(--azul);transition:.15s}
+  button:hover{filter:brightness(1.15)}
+  button:disabled{opacity:.5;cursor:not-allowed}
+  button.mini{padding:6px 9px;font-size:.78em}
+  button.dorado{background:var(--dorado);color:#1a1200}
+  button.verde{background:var(--verde)}
+  button.rojo{background:var(--rojo)}
+  button.gris{background:#2c4368}
+  input,select{font-family:inherit;font-size:.85em;padding:8px 10px;border-radius:8px;border:1px solid #2c4368;background:#0a1a30;color:var(--txt);width:100%}
+  label{font-size:.72em;color:var(--muted);display:block;margin:8px 0 3px}
+  .wrap{max-width:1400px;margin:0 auto;padding:16px}
+  header.top{display:flex;align-items:center;gap:14px;flex-wrap:wrap;padding:14px 18px;background:rgba(0,20,45,.75);border:1px solid #16345e;border-radius:14px;backdrop-filter:blur(6px)}
+  header.top h1{font-size:1.15em;margin:0;flex:1;min-width:220px}
+  header.top h1 small{display:block;font-weight:400;color:var(--muted);font-size:.62em;letter-spacing:.5px}
+  .pill{font-size:.72em;padding:5px 10px;border-radius:20px;background:#0a1a30;border:1px solid #2c4368;color:var(--muted)}
+  .pill.on{color:#7dffb0;border-color:#1f9d55}
+  .card{background:rgba(10,30,58,.72);border:1px solid #16345e;border-radius:14px;padding:16px 18px;margin-top:16px}
+  .card h2{margin:0 0 4px;font-size:.98em;color:var(--dorado)}
+  .card p.sub{margin:0 0 12px;color:var(--muted);font-size:.78em}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end}
+  .row>div{flex:1;min-width:130px}
+  .btns{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:14px;margin-top:14px}
+  .phone{position:relative;background:linear-gradient(180deg,#0b1c33,#0a1626);border:1px solid #1d3f6d;border-radius:22px;padding:26px 12px 12px;box-shadow:0 8px 22px rgba(0,0,0,.35)}
+  .phone::before{content:"";position:absolute;top:8px;left:50%;transform:translateX(-50%);width:52px;height:6px;border-radius:6px;background:#0a0f18;border:1px solid #234}
+  .phone.vip{border-color:var(--dorado);box-shadow:0 8px 26px rgba(212,175,55,.22)}
+  .phone .badge{position:absolute;top:10px;right:12px;font-size:.6em;font-weight:700;padding:3px 8px;border-radius:12px;letter-spacing:.5px}
+  .phone .badge.lead{background:#0a4d8c;color:#cfe6ff}
+  .phone .badge.vip{background:var(--dorado);color:#231a00}
+  .phone .nm{font-weight:700;font-size:.92em;margin:6px 0 2px}
+  .phone .wa{font-size:.74em;color:var(--muted)}
+  .phone .loc{font-size:.72em;color:var(--muted);min-height:14px}
+  .phone .counters{display:flex;gap:6px;margin:8px 0}
+  .phone .cbox{flex:1;background:#08152a;border:1px solid #17335a;border-radius:8px;padding:5px;text-align:center}
+  .phone .cbox b{display:block;font-size:1.05em}
+  .phone .cbox span{font-size:.6em;color:var(--muted)}
+  .phone .bar{height:6px;border-radius:6px;background:#08152a;overflow:hidden;margin:4px 0 8px}
+  .phone .bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--azul-claro),var(--dorado));width:0}
+  .phone .acts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+  .phone .acts .full{grid-column:1 / -1}
+  .phone .meta{font-size:.62em;color:var(--muted);margin-top:6px;word-break:break-all}
+  #login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,10,22,.9);z-index:50}
+  #login .box{background:#0a1c36;border:1px solid #1d3f6d;border-radius:16px;padding:26px;width:330px}
+  #login h2{color:var(--dorado);margin:0 0 4px;font-size:1.05em}
+  #login p{color:var(--muted);font-size:.75em;margin:0 0 14px}
+  #msg{font-size:.78em;color:#ff9b9b;min-height:16px;margin-top:8px}
+  #modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,8,18,.75);z-index:60;padding:16px}
+  #modal .box{background:#0a1c36;border:1px solid #1d3f6d;border-radius:16px;padding:22px;width:460px;max-width:100%;max-height:92vh;overflow:auto}
+  #modal h3{margin:0 0 10px;color:var(--dorado);font-size:1em}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  #toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:80}
+  .toast{background:#0c2a17;border:1px solid var(--verde);color:#c9ffdd;padding:10px 14px;border-radius:10px;font-size:.8em;box-shadow:0 6px 18px rgba(0,0,0,.4)}
+  .toast.err{background:#2a0c0c;border-color:var(--rojo);color:#ffc9c9}
+  #modal-entrega{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,8,18,.75);z-index:90;padding:16px}
+  #modal-entrega .box{background:#0a1c36;border:1px solid #1d3f6d;border-radius:16px;padding:22px;width:520px;max-width:100%;max-height:92vh;overflow:auto}
+  #modal-entrega h3{margin:0 0 10px;color:var(--dorado);font-size:1em}
+  .pill2{font-size:.72em;padding:4px 8px;border-radius:12px;background:#0a1a30;border:1px solid #2c4368;color:var(--muted)}
+  .spin{display:inline-block;width:12px;height:12px;border:2px solid #ffffff55;border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+  .warn{background:#2a2007;border:1px solid #7a5c00;color:#ffe6a3;padding:9px 12px;border-radius:10px;font-size:.76em;margin-top:10px}
+  .help{position:relative;display:inline-flex;align-items:center;justify-content:center;width:15px;height:15px;border-radius:50%;background:#2c4368;color:#cfe6ff;font-size:.72em;font-weight:700;cursor:help;margin-left:5px;vertical-align:middle;user-select:none}
+  .help:hover{background:var(--dorado);color:#231a00}
+  .help::after{content:attr(data-tip);position:absolute;top:150%;left:-6px;background:#04101f;color:var(--txt);border:1px solid var(--dorado);border-radius:8px;padding:8px 10px;width:230px;font-size:11px;font-weight:400;line-height:1.35;text-align:left;opacity:0;visibility:hidden;transition:.15s;z-index:100;pointer-events:none;box-shadow:0 8px 20px rgba(0,0,0,.5)}
+  .help:hover::after{opacity:1;visibility:visible}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <div class="box">
+    <h2>🔐 Simulador de Usuarios</h2>
+    <p>Cupones Habitat-Car · requiere cuenta admin</p>
+    <label>Email</label>
+    <input id="lg-email" type="email" placeholder="admin@habitatcar.com" autocomplete="username">
+    <label>Contraseña</label>
+    <input id="lg-pass" type="password" placeholder="••••••••" autocomplete="current-password">
+    <div class="btns"><button id="lg-btn" style="width:100%">INGRESAR</button></div>
+    <div id="msg"></div>
+  </div>
+</div>
+
+<div class="wrap" id="app" style="display:none">
+  <header class="top">
+    <h1>🧪 Simulador de Cupones<small>Habitat-Car · gestión y auditoría de sorteos</small></h1>
+    <span class="pill" id="conn">conectando…</span>
+    <span class="pill" id="who"></span>
+    <button class="gris mini" id="btn-refresh">↻ Refrescar</button>
+    <button class="gris mini" id="btn-reset-reward" title="Resetear la recompensa VIP (recompensa_vip_recibida) de los usuarios simulados para volver a ver el modal">🔄 Reset VIP</button>
+    <button class="rojo mini" id="btn-logout">Salir</button>
+  </header>
+
+  <div class="card" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
+    <button class="dorado" id="tab-usuarios">SIMULADOR DE USUARIOS</button>
+    <button class="gris" id="tab-comercios">SIMULADOR COMERCIOS</button>
+    <span class="pill">Todo lo simulado se marca con <code>origen: simulador</code> / <code>esSimulacion: true</code></span>
+  </div>
+
+  <div id="panel-usuarios">
+    <div class="card">
+      <h2>① Generar celulares de prueba</h2>
+      <p class="sub">Crea usuarios ficticios (fichas en la base, sin cuenta de Auth). Quedan marcados con <code>origen:"simulador"</code> para poder borrarlos con un clic.</p>
+      <div class="row">
+        <div><label>Cantidad<span class="help" data-tip="Total de celulares simulados a crear (LEAD + VIP juntos).">?</span></label><input id="gen-n" type="number" value="200" min="1" max="1000"></div>
+        <div><label>% VIP (0-100)<span class="help" data-tip="PORCENTAJE de esos usuarios que serán VIP.">?</span></label><input id="gen-vip" type="number" value="30" min="0" max="100"></div>
+        <div><label>Usos iniciales (máx.)<span class="help" data-tip="TOPE de canjes ya hechos.">?</span></label><input id="gen-usos" type="number" value="0" min="0" max="1000"></div>
+        <div><label>Provincia (opcional)</label><select id="gen-prov"><option value="">— mezclar todas —</option></select></div>
+      </div>
+      <div class="btns">
+        <button class="dorado" id="btn-generar">＋ Generar</button>
+        <button class="gris" id="btn-generar-100">＋100</button>
+        <button class="rojo" id="btn-borrar-todos">🗑 Borrar TODOS los simulados</button>
+      </div>
+      <div class="warn">⚠️ Todo lo que hagas acá se guarda en la base <b>real</b>.</div>
+    </div>
+
+    <div class="card">
+      <h2>② Comercio activo para simular canjes</h2>
+      <p class="sub">Elegí sobre qué comercio caen los canjes.</p>
+      <div class="row">
+        <div style="flex:2"><label>Comercio</label><select id="sel-comercio"></select></div>
+        <div style="flex:0 0 auto"><label>&nbsp;</label><button class="verde" id="btn-canjear-todos">⚡ Canjear +1 a TODOS (visibles)</button></div>
+        <div style="flex:0 0 auto"><label>&nbsp;</label><button class="gris" id="btn-canjear-aleatorio">🎲 +1 a 10 al azar</button></div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div><label>Canjes por comercio: mín</label><input id="bulk-min" type="number" value="8" min="0"></div>
+        <div><label>máx</label><input id="bulk-max" type="number" value="30" min="1"></div>
+        <div style="flex:0 0 auto"><label>&nbsp;</label><button class="dorado" id="btn-simular-todos">🏬 Simular en TODOS los comercios</button></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>③ Crear un usuario a mano</h2>
+      <p class="sub">Simulación artesanal: cargá todos los datos vos mismo.</p>
+      <div class="row">
+        <div><label>Nombres</label><input id="cr-nombres" placeholder="Juan"></div>
+        <div><label>Apellido</label><input id="cr-apellido" placeholder="Pérez"></div>
+        <div><label>WhatsApp</label><input id="cr-wa" placeholder="3884000000"></div>
+        <div><label>Email</label><input id="cr-mail" placeholder="juan@ejemplo.com"></div>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <div><label>Provincia</label><select id="cr-prov"><option value="">—</option></select></div>
+        <div><label>Localidad</label><input id="cr-loc" placeholder="San Salvador"></div>
+        <div><label>Tipo</label><select id="cr-tipo"><option value="LEAD">LEAD</option><option value="VIP">VIP</option></select></div>
+        <div><label>Usos iniciales</label><input id="cr-usos" type="number" value="0" min="0"></div>
+      </div>
+      <div class="btns"><button class="dorado" id="btn-crear">＋ Crear usuario</button></div>
+    </div>
+
+    <div class="card">
+      <h2>④ Celulares simulados <span class="pill" id="cnt">0</span></h2>
+      <p class="sub">Cada tarjeta es un usuario. Botones: canjear, editar, hacer VIP, borrar.</p>
+      <div class="row" style="margin-top:10px">
+        <div style="flex:2"><label>Buscar usuario</label><input id="buscar" placeholder="filtrar…"></div>
+        <div><label>Provincia</label><select id="f-prov"><option value="">Todas</option></select></div>
+        <div><label>Localidad</label><select id="f-loc"><option value="">Todas</option></select></div>
+        <div><label>Filtrar tipo</label><select id="f-tipo"><option value="">Todos</option><option value="LEAD">Solo LEAD</option><option value="VIP">Solo VIP</option></select></div>
+        <div><label>Orden</label><select id="f-orden"><option value="recientes">Más recientes</option><option value="usos">Más usos</option><option value="vip_meta">Cerca de ser VIP</option></select></div>
+      </div>
+      <p class="sub" id="stats-line" style="margin-top:10px"></p>
+      <div class="grid" id="grid"></div>
+      <p class="sub" id="empty" style="margin-top:14px;display:none">No hay usuarios simulados todavía.</p>
+    </div>
+  </div>
+
+  <div id="panel-comercios" style="display:none">
+    <div class="card">
+      <h2>🏬 Historial de Sorteos por Comercio</h2>
+      <p class="sub">Seleccioná un comercio para ver sus sorteos.</p>
+      <div class="row">
+        <div style="flex:2"><label>Comercio</label><select id="sc-comercio"></select></div>
+        <div style="flex:0 0 auto"><label>&nbsp;</label><button class="dorado" id="sc-cargar">CARGAR HISTORIAL</button></div>
+        <div style="flex:0 0 auto"><label>&nbsp;</label><button class="gris" id="sc-refrescar">↻ Refrescar</button></div>
+      </div>
+      <div class="btns">
+        <button class="rojo mini" id="btn-purge-sim">🗑 ELIMINAR TODO LO SIMULADO</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>📋 Listado de Sorteos <span class="pill" id="sc-cnt-sorteos">0</span></h2>
+      <div id="sc-lista-sorteos" style="display:flex; flex-direction:column; gap:10px; margin-top:12px;"></div>
+      <p class="sub" id="sc-empty-sorteos" style="display:none">No hay sorteos para este comercio.</p>
+    </div>
+
+    <div class="card" id="sc-detalle" style="display:none">
+      <h2>🔎 Detalle del Sorteo</h2>
+      <div id="sc-detalle-header" style="margin-bottom:10px;"></div>
+      <div class="row" style="margin-top:10px">
+        <div style="flex:1"><button class="gris mini" id="sc-guardar-snapshot">💾 Guardar SNAPSHOT</button></div>
+        <div style="flex:1"><button class="gris mini" id="sc-ver-auditoria">📜 Ver Auditoría</button></div>
+      </div>
+      <div id="sc-auditoria" style="display:none; margin-top:12px;"></div>
+      <div class="card" style="margin-top:12px">
+        <h2>🏆 Ganadores <span class="pill" id="sc-cnt-ganadores">0</span></h2>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top:10px" id="sc-ganadores"></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h2>👥 Todos los participantes <span class="pill" id="sc-cnt-part">0</span></h2>
+        <div style="overflow:auto; margin-top:10px">
+          <table style="width:100%; border-collapse:collapse; font-size:.78em">
+            <thead style="background:#08152a">
+              <tr>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Tipo</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Nombre</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">WhatsApp</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Email</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Provincia</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Localidad</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">ID</th>
+                <th style="text-align:left; padding:8px; border:1px solid #16345e">Origen</th>
+              </tr>
+            </thead>
+            <tbody id="sc-participantes"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div id="login">
+  <div class="box">
+    <h2>🔐 Simulador de Usuarios</h2>
+    <p>Cupones Habitat-Car · requiere cuenta admin</p>
+    <label>Email</label>
+    <input id="lg-email" type="email" placeholder="admin@habitatcar.com">
+    <label>Contraseña</label>
+    <input id="lg-pass" type="password" placeholder="••••••••">
+    <div class="btns"><button id="lg-btn" style="width:100%">INGRESAR</button></div>
+    <div id="msg"></div>
+  </div>
+</div>
+
+<div id="modal">
+  <div class="box">
+    <h3 id="modal-titulo">Editar usuario</h3>
+    <input type="hidden" id="ed-id">
+    <div class="two">
+      <div><label>Nombres</label><input id="ed-nombres"></div>
+      <div><label>Apellido</label><input id="ed-apellido"></div>
+      <div><label>WhatsApp</label><input id="ed-wa"></div>
+      <div><label>Email</label><input id="ed-mail"></div>
+      <div><label>Provincia</label><input id="ed-prov"></div>
+      <div><label>Localidad</label><input id="ed-loc"></div>
+      <div><label>Tipo</label><select id="ed-tipo"><option value="LEAD">LEAD</option><option value="VIP">VIP</option></select></div>
+      <div><label>Estado</label><select id="ed-estado"><option value="activo">activo</option><option value="suspendido">suspendido</option></select></div>
+      <div><label>Canjes totales</label><input id="ed-usos" type="number"></div>
+      <div><label>Progreso VIP</label><input id="ed-prog" type="number"></div>
+    </div>
+    <div class="btns">
+      <button class="verde" id="btn-guardar-ed">💾 Guardar</button>
+      <button class="gris" id="btn-cerrar-ed">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<div id="modal-entrega">
+  <div class="box">
+    <h3 id="me-titulo">Seguimiento de entrega</h3>
+    <input type="hidden" id="me-key">
+    <div id="me-estado" class="warn" style="margin-bottom:12px"></div>
+    <div class="two">
+      <div><label>Ganador</label><button class="verde mini" id="me-ganador" style="width:100%">✅ COBRÉ</button></div>
+      <div><label>Comercio</label><button class="verde mini" id="me-comercio" style="width:100%">✅ ENTREGUÉ</button></div>
+    </div>
+    <div style="margin-top:12px">
+      <label>Marcar vacante</label>
+      <select id="me-motivo">
+        <option value="no_se_presento">No se presentó</option>
+        <option value="sin_contacto">Sin contacto</option>
+        <option value="vencido">Vencido</option>
+        <option value="rechazo">Rechazó</option>
+        <option value="datos_invalidos">Datos inválidos</option>
+        <option value="otro">Otro</option>
+      </select>
+      <input id="me-motivo-txt" placeholder="Detalle..." style="margin-top:8px">
+    </div>
+    <div class="btns">
+      <button class="rojo" id="me-vacante">🚫 VACANTE</button>
+      <button class="gris" id="me-reset">↺ RESET</button>
+      <button class="gris" id="me-cerrar">Cerrar</button>
+    </div>
+  </div>
+</div>
+
+<div id="toasts"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, onSnapshot, query, where, increment, arrayUnion, writeBatch, setDoc } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+  authDomain: "habitatcar-pro.firebaseapp.com",
+  projectId: "habitatcar-pro",
+  storageBucket: "habitatcar-pro.firebasestorage.app",
+  messagingSenderId: "311691258694",
+  appId: "1:311691258694:web:17a09051dcea7707af9347"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth = getAuth(fbApp);
+const db = getFirestore(fbApp);
+
+const S = { user: null, comercios: [], comercio: null, leads: [], loading: false };
+const $ = (id) => document.getElementById(id);
+const SUPERADMIN = 'admin@habitatcar.com';
+
+function toast(txt, err){
+  const d=document.createElement('div');
+  d.className='toast'+(err?' err':'');
+  d.textContent=txt;
+  $('toasts').appendChild(d);
+  setTimeout(()=>d.remove(),4200);
+}
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})); }
+
+// ================= AUTENTICACIÓN =================
+async function manejarLogin() {
+  const email = $('lg-email').value.trim();
+  const pass = $('lg-pass').value;
+  const btn = $('lg-btn');
+  const msg = $('msg');
+
+  if (!email || !pass) {
+    msg.textContent = '⚠️ Completá email y contraseña.';
+    return;
+  }
+
+  msg.textContent = '';
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spin"></span> Ingresando...';
+
+  try {
+    await signInWithEmailAndPassword(auth, email, pass);
+  } catch (e) {
+    msg.textContent = (e.code === 'auth/invalid-credential' || e.code === 'auth/wrong-password')
+      ? '❌ Email o contraseña incorrectos.'
+      : '❌ Error: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'INGRESAR';
+  }
+}
+
+$('lg-btn').onclick = manejarLogin;
+$('lg-pass').addEventListener('keydown', e => { if (e.key === 'Enter') manejarLogin(); });
+
+function entrarSiHaySesion() {
+  const u = auth.currentUser;
+  if (u) {
+    S.user = u;
+    $('login').style.display = 'none';
+    $('app').style.display = 'block';
+    $('who').textContent = u.email || '(sin email)';
+    $('conn').textContent = 'conectado';
+    $('conn').classList.add('on');
+    cargarTodo();
+    return true;
+  }
+  return false;
+}
+
+onAuthStateChanged(auth, async (user) => {
+  if (user) {
+    S.user = user;
+    $('login').style.display = 'none';
+    $('app').style.display = 'block';
+    $('who').textContent = user.email || '(sin email)';
+    $('conn').textContent = 'conectado';
+    $('conn').classList.add('on');
+    await cargarTodo();
+  } else {
+    S.user = null;
+    $('app').style.display = 'none';
+    $('login').style.display = 'flex';
+    $('conn').textContent = 'desconectado';
+    $('conn').classList.remove('on');
+  }
+});
+
+entrarSiHaySesion();
+
+// ================= CARGA Y RENDER =================
+async function cargarTodo(){
+  try {
+    const cSnap = await getDocs(collection(db,'comercios'));
+    S.comercios = cSnap.docs.map(d=>({ id:d.id, ...d.data()})).sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)));
+    $('sel-comercio').innerHTML = S.comercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('');
+    if(S.comercios[0]) S.comercio = S.comercios[0];
+
+    const lSnap = await getDocs(query(collection(db,'leads'), where('origen','==','simulador')));
+    S.leads = lSnap.docs.map(d=>({ id:d.id, ...d.data() }));
+    render();
+  } catch(e) { toast('Error cargando datos: '+e.message, true); }
+}
+
+function render(){
+  const g = $('grid');
+  if(!S.leads.length){ g.innerHTML=''; $('empty').style.display='block'; return; }
+  $('empty').style.display='none';
+  g.innerHTML = S.leads.map(l=>{
+    const tipo = (l.convertidoVIP===true || l.tipo==='VIP') ? 'VIP' : 'LEAD';
+    const usos = l.usos_count||0;
+    return `<div class="phone ${tipo==='VIP'?'vip':''}" data-id="${l.id}">
+      <span class="badge ${tipo==='VIP'?'vip':'lead'}">${tipo}</span>
+      <div class="nm">${esc(l.apellido||'')}, ${esc(l.nombres||l.nombre||'')}</div>
+      <div class="wa">📱 ${esc(l.whatsapp||'-')}</div>
+      <div class="acts">
+        <button class="verde mini" data-act="canje" data-id="${l.id}">🛒 +1</button>
+        <button class="rojo mini full" data-act="del" data-id="${l.id}">🗑 Borrar</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+$('grid').addEventListener('click', async (e)=>{
+  const btn=e.target.closest('button[data-act]'); if(!btn) return;
+  const id=btn.getAttribute('data-id'), act=btn.getAttribute('data-act');
+  const lead=S.leads.find(l=>l.id===id); if(!lead) return;
+  if(act==='canje'){
+    const com = S.comercio;
+    if(!com){ toast('Elegí comercio', true); return; }
+    await updateDoc(doc(db,'comercios',com.id), { totalUsos: increment(1), lastSubmission: Date.now() });
+    await updateDoc(doc(db,'leads',lead.id), { usos_count: increment(1) });
+    toast('Canje simulador OK');
+    render();
+  } else if(act==='del'){
+    if(confirm('Borrar?')) { await deleteDoc(doc(db,'leads',id)); S.leads = S.//etc
+    render();
+    }
+  }
+});
+
+$('btn-logout').onclick = ()=> signOut(auth);
+</script>
+</body>
+</html>
