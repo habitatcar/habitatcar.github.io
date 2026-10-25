@@ -86,6 +86,19 @@
 </style>
 </head>
 <body>
+<div id="capa-seguridad" style="position:fixed;top:0;left:0;width:100%;height:100%;background:#0a192f;z-index:99999;display:flex;justify-content:center;align-items:center;font-weight:bold;color:#e6f1ff;">VALIDANDO SESIÓN SEGURA...</div>
+<script type="module">
+  import { verificarAccesoAdmin } from './admin_auth.js';
+  (async () => {
+    const ok = await verificarAccesoAdmin();
+    if (!ok) {
+      document.body.innerHTML = '<p style="color:white;text-align:center;padding:50px;font-family:sans-serif;">🔒 Acceso denegado</p>';
+      return;
+    }
+    const capa = document.getElementById('capa-seguridad');
+    if (capa) capa.style.display = 'none';
+  })();
+</script>
 
 <!-- ================= LOGIN ================= -->
 <div id="login">
@@ -376,20 +389,11 @@ const provLoc = (p)=>{ const l=LOCALIDADES[p]; return l?pick(l):pick(["Capital",
 const soloDig = (s)=>String(s||'').replace(/\D/g,'');
 
 // ================= AUTENTICACIÓN =================
-$('lg-btn').onclick = async () => {
-  const email=$('lg-email').value.trim(), pass=$('lg-pass').value;
-  if(!email||!pass){ $('msg').textContent='Completá email y contraseña.'; return; }
-  $('msg').textContent=''; $('lg-btn').disabled=true; $('lg-btn').innerHTML='<span class="spin"></span> Ingresando…';
-  try{ await signInWithEmailAndPassword(auth, email, pass); }
-  catch(e){ $('msg').textContent = (e.code==='auth/invalid-credential'||e.code==='auth/wrong-password')?'Email o contraseña incorrectos.':('Error: '+e.message); }
-  finally{ $('lg-btn').disabled=false; $('lg-btn').textContent='INGRESAR'; }
-};
-$('lg-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('lg-btn').click(); });
-
+// Sistema unificado con admin_auth.js - login local ocultado
+$('login').style.display = 'none';
 onAuthStateChanged(auth, async (user)=>{
   if(user){
     S.user=user;
-    $('login').style.display='none';
     $('app').style.display='block';
     $('who').textContent = user.email || '(sin email)';
     $('conn').textContent='conectado'; $('conn').classList.add('on');
@@ -399,11 +403,10 @@ onAuthStateChanged(auth, async (user)=>{
     S.user=null;
     if(_leadsUnsub){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
     $('app').style.display='none';
-    $('login').style.display='flex';
-    $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
+    window.location.href = 'index.html';
   }
 });
-$('btn-logout').onclick = ()=> signOut(auth);
+$('btn-logout').onclick = async ()=> { await signOut(auth); window.location.href='index.html'; };
 
 // ================= CARGA =================
 async function cargarTodo(){
