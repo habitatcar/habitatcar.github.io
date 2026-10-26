@@ -423,6 +423,14 @@ function irLogin(){
 
 let resuelto = false;
 
+function decidir(){
+  if(resuelto) return;
+  if(entrar(auth.currentUser)){
+    resuelto = true;
+    return;
+  }
+}
+
 onAuthStateChanged(auth, (user)=>{
   if(resuelto) return;
   if(user){
@@ -430,27 +438,24 @@ onAuthStateChanged(auth, (user)=>{
     entrar(user);
     return;
   }
-  // si llega null, NO decidimos todavía. Probamos currentUser por las dudas
-  if(entrar(auth.currentUser)){
-    resuelto = true;
-    return;
-  }
-  // seguimos esperando, los timeouts se encargarán
+  decidir();
 });
 
-const intentar = ()=>{
-  if(resuelto) return;
-  if(entrar(auth.currentUser)){
-    resuelto = true;
-    return;
-  }
-};
+decidir();
+if(typeof auth.authStateReady === 'function'){
+  auth.authStateReady().then(()=>{
+    decidir();
+    setTimeout(decidir, 300);
+    setTimeout(decidir, 700);
+    setTimeout(decidir, 1200);
+  }).catch(()=>{});
+}
 
-intentar();
-setTimeout(intentar, 250);
-setTimeout(intentar, 600);
-setTimeout(intentar, 1000);
-setTimeout(intentar, 1500);
+setTimeout(decidir, 250);
+setTimeout(decidir, 600);
+setTimeout(decidir, 1000);
+setTimeout(decidir, 1600);
+setTimeout(decidir, 2500);
 setTimeout(()=>{
   if(resuelto) return;
   if(entrar(auth.currentUser)){
@@ -459,7 +464,7 @@ setTimeout(()=>{
   }
   resuelto = true;
   irLogin();
-}, 3500);
+}, 5000);
 
 $('btn-logout').onclick = ()=> signOut(auth);
 
