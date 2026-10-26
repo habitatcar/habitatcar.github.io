@@ -324,7 +324,7 @@
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut, setPersistence, browserLocalPersistence }
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
 import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, onSnapshot,
   query, where, increment, arrayUnion, writeBatch, deleteField, setDoc }
@@ -343,7 +343,6 @@ const firebaseConfig = {
 const fbApp = initializeApp(firebaseConfig);
 const auth  = getAuth(fbApp);
 const db    = getFirestore(fbApp);
-setPersistence(auth, browserLocalPersistence).catch(()=>{});
 
 // ---- Estado ----
 const S = {
@@ -421,70 +420,46 @@ function irLogin(){
   $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
 }
 
-let authDecidido = false;
+const $chk = $('auth-check');
+const $lg  = $('login');
+const $app = $('app');
+if($lg)  $lg.style.display  = 'none';
+if($app) $app.style.display = 'none';
 
-function authGo(u){
-  authDecidido = true;
+let yaEntrado = false;
+
+function entrar(u){
+  if(!u || yaEntrado) return false;
+  yaEntrado = true;
+  S.user = u;
+  if($lg)  $lg.style.display  = 'none';
+  if($app) $app.style.display = 'block';
   if($chk) $chk.style.display = 'none';
-  if(u){
-    entrar(u);
-  }else{
-    irLogin();
-  }
+  $('who').textContent = u.email || '(sin email)';
+  $('conn').textContent='conectado'; $('conn').classList.add('on');
+  if((u.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
+  cargarTodo();
+  return true;
 }
 
-// Si ya hay usuario
-if(auth.currentUser){
-  authGo(auth.currentUser);
+function irLogin(){
+  yaEntrado = false;
+  S.user=null;
+  if(typeof _leadsUnsub==='function'){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
+  if($app) $app.style.display = 'none';
+  if($lg)  $lg.style.display  = 'flex';
+  if($chk) $chk.style.display = 'none';
+  $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
 }
 
-onAuthStateChanged(auth, (user)=>{
-  if(authDecidido) return;
+onAuthStateChanged(auth, (user) => {
+  if($chk) $chk.style.display = 'none';
   if(user){
-    clearInterval(authPoll);
-    authGo(user);
-    return;
-  }
-  // Si viene null, NO decidimos. Seguimos esperando a currentUser
-});
-
-// Sondeo agresivo por si tarda en restaurar entre pestañas
-const authPoll = setInterval(()=>{
-  if(authDecidido){
-    clearInterval(authPoll);
-    return;
-  }
-  if(auth.currentUser){
-    clearInterval(authPoll);
-    authGo(auth.currentUser);
-  }
-}, 200);
-
-// Failsafe 1
-setTimeout(()=>{
-  if(authDecidido){
-    clearInterval(authPoll);
-    return;
-  }
-  if(auth.currentUser){
-    clearInterval(authPoll);
-    authGo(auth.currentUser);
-    return;
-  }
-}, 4000);
-
-// Failsafe definitivo: oculto overlay y decido SI O SI
-setTimeout(()=>{
-  clearInterval(authPoll);
-  if(authDecidido) return;
-  if($chk) $chk.style.display = 'none';
-  authDecidido = true;
-  if(auth.currentUser){
-    entrar(auth.currentUser);
+    if(!yaEntrado) entrar(user);
   }else{
-    irLogin();
+    if(!yaEntrado) irLogin();
   }
-}, 4500);
+});
 
 $('btn-logout').onclick = ()=> signOut(auth);
 
@@ -1073,7 +1048,6 @@ $('sc-guardar-snapshot').onclick = async ()=>{
       }
     }
   }catch(e){ toast('Error: '+e.message,true); }
-};
 };
 
 $('sc-ver-auditoria').onclick = async ()=>{
