@@ -421,19 +421,26 @@ function irLogin(){
   $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
 }
 
-let listo = false;
+let resuelto = false;
 onAuthStateChanged(auth, (user)=>{
-  if(listo) return;
-  listo = true;
-  if(user){ entrar(user); }
-  else { irLogin(); }
+  if(resuelto) return;
+  if(user){ resuelto = true; entrar(user); return; }
+  // si aún no hay usuario, intentar con currentUser por si acaso
+  if(entrar(auth.currentUser)){ resuelto = true; return; }
+  // no resolvemos aún, dejar que los timeouts decidan
 });
 
 setTimeout(()=>{
-  if(listo) return;
-  listo = true;
-  entrar(auth.currentUser) || irLogin();
-}, 1500);
+  if(resuelto) return;
+  if(entrar(auth.currentUser)){ resuelto = true; return; }
+}, 400);
+
+setTimeout(()=>{
+  if(resuelto) return;
+  if(entrar(auth.currentUser)){ resuelto = true; return; }
+  resuelto = true;
+  irLogin();
+}, 2000);
 
 $('btn-logout').onclick = ()=> signOut(auth);
 
