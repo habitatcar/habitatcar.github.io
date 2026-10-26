@@ -423,12 +423,15 @@ function irLogin(){
 
 let resuelto = false;
 
-function decidir(){
+function forzarRevision(){
   if(resuelto) return;
-  if(entrar(auth.currentUser)){
+  const u = auth.currentUser;
+  if(u){
     resuelto = true;
-    return;
+    entrar(u);
+    return true;
   }
+  return false;
 }
 
 onAuthStateChanged(auth, (user)=>{
@@ -438,33 +441,51 @@ onAuthStateChanged(auth, (user)=>{
     entrar(user);
     return;
   }
-  decidir();
+  forzarRevision();
 });
 
-decidir();
+forzarRevision();
 if(typeof auth.authStateReady === 'function'){
   auth.authStateReady().then(()=>{
-    decidir();
-    setTimeout(decidir, 300);
-    setTimeout(decidir, 700);
-    setTimeout(decidir, 1200);
+    forzarRevision();
   }).catch(()=>{});
 }
 
-setTimeout(decidir, 250);
-setTimeout(decidir, 600);
-setTimeout(decidir, 1000);
-setTimeout(decidir, 1600);
-setTimeout(decidir, 2500);
+setTimeout(forzarRevision, 200);
+setTimeout(forzarRevision, 500);
+setTimeout(forzarRevision, 800);
+setTimeout(forzarRevision, 1200);
+setTimeout(forzarRevision, 1800);
+setTimeout(forzarRevision, 2500);
+
+// Failsafe definitivo: si sigue el overlay, decido yo sea como sea
 setTimeout(()=>{
   if(resuelto) return;
-  if(entrar(auth.currentUser)){
+  if($chk && $chk.style.display !== 'none'){
+    const u = auth.currentUser;
+    if(u){
+      resuelto = true;
+      entrar(u);
+      return;
+    }
     resuelto = true;
-    return;
+    irLogin();
   }
-  resuelto = true;
-  irLogin();
-}, 5000);
+}, 4000);
+
+setTimeout(()=>{
+  if(resuelto) return;
+  if($chk && $chk.style.display !== 'none'){
+    const u = auth.currentUser;
+    if(u){
+      resuelto = true;
+      entrar(u);
+      return;
+    }
+    resuelto = true;
+    irLogin();
+  }
+}, 5500);
 
 $('btn-logout').onclick = ()=> signOut(auth);
 
