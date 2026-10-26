@@ -424,8 +424,8 @@ function irLogin(){
 let authDecidido = false;
 
 function authGo(u){
-  if(authDecidido) return;
   authDecidido = true;
+  if($chk) $chk.style.display = 'none';
   if(u){
     entrar(u);
   }else{
@@ -441,9 +441,11 @@ if(auth.currentUser){
 onAuthStateChanged(auth, (user)=>{
   if(authDecidido) return;
   if(user){
+    clearInterval(authPoll);
     authGo(user);
+    return;
   }
-  // Si viene null, NO decidimos. Seguimos esperando.
+  // Si viene null, NO decidimos. Seguimos esperando a currentUser
 });
 
 // Sondeo agresivo por si tarda en restaurar entre pestañas
@@ -456,17 +458,36 @@ const authPoll = setInterval(()=>{
     clearInterval(authPoll);
     authGo(auth.currentUser);
   }
-}, 250);
+}, 200);
 
-// Failsafe definitivo
+// Failsafe 1
+setTimeout(()=>{
+  if(authDecidido){
+    clearInterval(authPoll);
+    return;
+  }
+  if(auth.currentUser){
+    clearInterval(authPoll);
+    authGo(auth.currentUser);
+    return;
+  }
+}, 4000);
+
+// Failsafe definitivo: oculto overlay y decido SI O SI
 setTimeout(()=>{
   if(authDecidido){
     clearInterval(authPoll);
     return;
   }
   clearInterval(authPoll);
-  authGo(auth.currentUser);
-}, 7000);
+  if($chk) $chk.style.display = 'none';
+  authDecidido = true;
+  if(auth.currentUser){
+    entrar(auth.currentUser);
+  }else{
+    irLogin();
+  }
+}, 6000);
 
 $('btn-logout').onclick = ()=> signOut(auth);
 
