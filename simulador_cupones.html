@@ -421,71 +421,52 @@ function irLogin(){
   $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
 }
 
-let resuelto = false;
+let authDecidido = false;
 
-function forzarRevision(){
-  if(resuelto) return;
-  const u = auth.currentUser;
+function authGo(u){
+  if(authDecidido) return;
+  authDecidido = true;
   if(u){
-    resuelto = true;
     entrar(u);
-    return true;
+  }else{
+    irLogin();
   }
-  return false;
+}
+
+// Si ya hay usuario
+if(auth.currentUser){
+  authGo(auth.currentUser);
 }
 
 onAuthStateChanged(auth, (user)=>{
-  if(resuelto) return;
+  if(authDecidido) return;
   if(user){
-    resuelto = true;
-    entrar(user);
-    return;
+    authGo(user);
   }
-  forzarRevision();
+  // Si viene null, NO decidimos. Seguimos esperando.
 });
 
-forzarRevision();
-if(typeof auth.authStateReady === 'function'){
-  auth.authStateReady().then(()=>{
-    forzarRevision();
-  }).catch(()=>{});
-}
-
-setTimeout(forzarRevision, 200);
-setTimeout(forzarRevision, 500);
-setTimeout(forzarRevision, 800);
-setTimeout(forzarRevision, 1200);
-setTimeout(forzarRevision, 1800);
-setTimeout(forzarRevision, 2500);
-
-// Failsafe definitivo: si sigue el overlay, decido yo sea como sea
-setTimeout(()=>{
-  if(resuelto) return;
-  if($chk && $chk.style.display !== 'none'){
-    const u = auth.currentUser;
-    if(u){
-      resuelto = true;
-      entrar(u);
-      return;
-    }
-    resuelto = true;
-    irLogin();
+// Sondeo agresivo por si tarda en restaurar entre pestañas
+const authPoll = setInterval(()=>{
+  if(authDecidido){
+    clearInterval(authPoll);
+    return;
   }
-}, 4000);
-
-setTimeout(()=>{
-  if(resuelto) return;
-  if($chk && $chk.style.display !== 'none'){
-    const u = auth.currentUser;
-    if(u){
-      resuelto = true;
-      entrar(u);
-      return;
-    }
-    resuelto = true;
-    irLogin();
+  if(auth.currentUser){
+    clearInterval(authPoll);
+    authGo(auth.currentUser);
   }
-}, 5500);
+}, 250);
+
+// Failsafe definitivo
+setTimeout(()=>{
+  if(authDecidido){
+    clearInterval(authPoll);
+    return;
+  }
+  clearInterval(authPoll);
+  authGo(auth.currentUser);
+}, 7000);
 
 $('btn-logout').onclick = ()=> signOut(auth);
 
