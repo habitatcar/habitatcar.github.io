@@ -398,34 +398,6 @@ const $app = $('app');
 if($lg)  $lg.style.display  = 'none';
 if($app) $app.style.display = 'none';
 
-function entrar(u){
-  if(!u) return false;
-  S.user = u;
-  if($lg)  $lg.style.display  = 'none';
-  if($app) $app.style.display = 'block';
-  if($chk) $chk.style.display = 'none';
-  $('who').textContent = u.email || '(sin email)';
-  $('conn').textContent='conectado'; $('conn').classList.add('on');
-  if((u.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
-  cargarTodo();
-  return true;
-}
-
-function irLogin(){
-  S.user=null;
-  if(typeof _leadsUnsub==='function'){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
-  if($app) $app.style.display = 'none';
-  if($lg)  $lg.style.display  = 'flex';
-  if($chk) $chk.style.display = 'none';
-  $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
-}
-
-const $chk = $('auth-check');
-const $lg  = $('login');
-const $app = $('app');
-if($lg)  $lg.style.display  = 'none';
-if($app) $app.style.display = 'none';
-
 let yaEntrado = false;
 
 function entrar(u){
@@ -452,14 +424,36 @@ function irLogin(){
   $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
 }
 
-onAuthStateChanged(auth, (user) => {
-  if($chk) $chk.style.display = 'none';
-  if(user){
-    if(!yaEntrado) entrar(user);
-  }else{
-    if(!yaEntrado) irLogin();
+const initAuth = async () => {
+  try {
+    if (typeof auth.authStateReady === 'function') {
+      await auth.authStateReady();
+    }
+  } catch(e) {}
+
+  if ($chk) $chk.style.display = 'none';
+
+  const user = auth.currentUser;
+  if (user) {
+    entrar(user);
+  } else {
+    irLogin();
   }
-});
+};
+
+initAuth();
+
+setTimeout(() => {
+  if ($chk && $chk.style.display !== 'none') {
+    $chk.style.display = 'none';
+    const user = auth.currentUser;
+    if (user && !yaEntrado) {
+      entrar(user);
+    } else if (!yaEntrado) {
+      irLogin();
+    }
+  }
+}, 5000);
 
 $('btn-logout').onclick = ()=> signOut(auth);
 
