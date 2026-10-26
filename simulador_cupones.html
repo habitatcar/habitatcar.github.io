@@ -322,6 +322,22 @@
 
 <div id="toasts"></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+/* FAILSAFE (script clásico, independiente del módulo):
+   si el módulo de Firebase no arrancó o no resolvió la sesión, nunca dejar el overlay colgado. */
+window.__hcAuthOK = false;
+window.addEventListener('error', function(e){ console.error('[simulador] error global:', e.message); });
+window.addEventListener('unhandledrejection', function(e){ console.error('[simulador] promesa rechazada:', e.reason); });
+setTimeout(function(){
+  if (window.__hcAuthOK) return;
+  var c = document.getElementById('auth-check'), l = document.getElementById('login');
+  if (c) c.style.display = 'none';
+  if (l) l.style.display = 'flex';
+  var m = document.getElementById('msg');
+  if (m) m.textContent = 'No se pudo verificar la sesión automáticamente. Ingresá con tu cuenta.';
+}, 10000);
+</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
 import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
@@ -329,7 +345,8 @@ import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
 import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, onSnapshot,
   query, where, increment, arrayUnion, writeBatch, deleteField, setDoc }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-import { jsPDF } from "https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js";
+// jsPDF se carga como <script> clásico (UMD) -> window.jspdf.jsPDF
+const jsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : null;
 
 // ---- Config (misma del sitio) ----
 const firebaseConfig = {
@@ -399,6 +416,7 @@ if($lg)  $lg.style.display  = 'none';
 if($app) $app.style.display = 'none';
 
 let yaEntrado = false;
+let _leadsUnsub = null;
 
 function entrar(u){
   if(!u || yaEntrado) return false;
@@ -424,36 +442,31 @@ function irLogin(){
   $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
 }
 
-const initAuth = async () => {
-  try {
-    if (typeof auth.authStateReady === 'function') {
-      await auth.authStateReady();
-    }
-  } catch(e) {}
-
+// Se muestra el login SOLO si Firebase confirma que no hay sesión.
+// onAuthStateChanged dispara una vez con el estado ya restaurado desde IndexedDB
+// (si hay sesión de otra pestaña, user != null); después sigue escuchando login/logout.
+function resolverAuth(user){
+  window.__hcAuthOK = true;
   if ($chk) $chk.style.display = 'none';
+  if (user) entrar(user); else irLogin();
+}
 
-  const user = auth.currentUser;
-  if (user) {
-    entrar(user);
-  } else {
-    irLogin();
-  }
-};
+try {
+  onAuthStateChanged(auth, (user) => {
+    resolverAuth(user);
+  }, (err) => {
+    console.error('[simulador] onAuthStateChanged error:', err);
+    resolverAuth(auth.currentUser);
+  });
+} catch(e) {
+  console.error('[simulador] no se pudo iniciar auth:', e);
+  resolverAuth(null);
+}
 
-initAuth();
-
+// Red de seguridad extra: si en 6s no hubo respuesta, resolver con lo que haya.
 setTimeout(() => {
-  if ($chk && $chk.style.display !== 'none') {
-    $chk.style.display = 'none';
-    const user = auth.currentUser;
-    if (user && !yaEntrado) {
-      entrar(user);
-    } else if (!yaEntrado) {
-      irLogin();
-    }
-  }
-}, 5000);
+  if (!window.__hcAuthOK) resolverAuth(auth.currentUser);
+}, 6000);
 
 $('btn-logout').onclick = ()=> signOut(auth);
 
@@ -485,7 +498,6 @@ async function cargarLeads(){
 }
 
 // ---- Tiempo real: la grilla se actualiza sola (canjes del celular, etc.) ----
-let _leadsUnsub = null;
 function iniciarTiempoReal(){
   if(_leadsUnsub) return;
   try{
