@@ -43,6 +43,9 @@
   .phone .badge{position:absolute;top:10px;right:12px;font-size:.6em;font-weight:700;padding:3px 8px;border-radius:12px;letter-spacing:.5px}
   .phone .badge.lead{background:#0a4d8c;color:#cfe6ff}
   .phone .badge.vip{background:var(--dorado);color:#231a00}
+  .phone .sel{position:absolute;top:9px;left:10px;display:flex;align-items:center;cursor:pointer;z-index:2}
+  .phone .sel input{width:17px;height:17px;margin:0;accent-color:#2ecc71;cursor:pointer}
+  .phone.sel-on{border-color:#2ecc71;box-shadow:0 0 0 2px rgba(46,204,113,.55),0 8px 22px rgba(0,0,0,.35)}
   .phone .nm{font-weight:700;font-size:.92em;margin:6px 0 2px}
   .phone .wa{font-size:.74em;color:var(--muted)}
   .phone .loc{font-size:.72em;color:var(--muted);min-height:14px}
@@ -83,6 +86,18 @@
   .help:hover{background:var(--dorado);color:#231a00}
   .help::after{content:attr(data-tip);position:absolute;top:150%;left:-6px;background:#04101f;color:var(--txt);border:1px solid var(--dorado);border-radius:8px;padding:8px 10px;width:230px;font-size:11px;font-weight:400;line-height:1.35;text-align:left;opacity:0;visibility:hidden;transition:.15s;z-index:100;pointer-events:none;box-shadow:0 8px 20px rgba(0,0,0,.5)}
   .help:hover::after{opacity:1;visibility:visible}
+  /* La ficha del detalle parpadea 3 veces al abrirse */
+  @keyframes destacar3{0%,100%{outline-color:transparent}15%,45%,75%{outline-color:var(--dorado)}30%,60%,90%{outline-color:transparent}}
+  .destacar{outline:3px solid transparent;outline-offset:4px;animation:destacar3 1.2s ease-in-out 3}
+  /* Estado de la recompensa VIP en cada tarjeta */
+  .vip-ya{display:inline-block;margin-top:6px;font-size:.7em;padding:3px 8px;border-radius:10px;background:#3a2a05;border:1px solid #b8860b;color:#ffd76a}
+  .vip-listo{display:inline-block;margin-top:6px;font-size:.7em;padding:3px 8px;border-radius:10px;background:#093018;border:1px solid #2ecc71;color:#7ff0a8}
+  #vip-resultado{display:none;margin-top:12px;background:#08251a;border:1px solid #2ecc71;border-radius:10px;padding:12px;font-size:.82em;line-height:1.5}
+  /* Fichas de datos legales y constancias */
+  .caja-legal{background:#08152a;border:1px solid #16345e;border-radius:10px;padding:12px;margin-top:12px}
+  .caja-legal summary{cursor:pointer;color:var(--dorado);font-weight:700;font-size:.85em}
+  .caja-legal .row{margin-top:10px}
+  .fila-const{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between;background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px;margin-top:8px;font-size:.8em}
 </style>
 </head>
 <body>
@@ -115,7 +130,6 @@
     <span class="pill" id="conn">conectando…</span>
     <span class="pill" id="who"></span>
     <button class="gris mini" id="btn-refresh">↻ Refrescar</button>
-    <button class="gris mini" id="btn-reset-reward" title="Resetear la recompensa VIP (recompensa_vip_recibida) de los usuarios simulados para volver a ver el modal">🔄 Reset VIP</button>
     <button class="rojo mini" id="btn-logout">Salir</button>
   </header>
 
@@ -184,6 +198,14 @@
   <div class="card">
     <h2>④ Celulares simulados <span class="pill" id="cnt">0</span></h2>
     <p class="sub">Cada tarjeta es un usuario. Botones: canjear, editar, hacer VIP, borrar.</p>
+    <div class="btns" style="margin-top:6px">
+      <button class="gris mini" id="btn-sel-pagina">☑ Marcar los de esta página</button>
+      <button class="gris mini" id="btn-sel-limpiar">✖ Desmarcar todo</button>
+      <button class="dorado mini" id="btn-reset-reward" title="Reinicia la marca de 'recompensa VIP ya recibida' SOLO en los usuarios que marcaste con la casilla, así el modal de los 100 canjes vuelve a aparecer en ellos.">🔄 Reiniciar recompensa VIP de los marcados (<span id="sel-cnt">0</span>)</button>
+      <button class="rojo mini" id="btn-reset-todos" title="Reinicia la marca de recompensa VIP en TODOS los usuarios simulados, sin elegir.">⚠️ Reiniciar a TODOS</button>
+    </div>
+    <p class="sub" id="vip-resumen" style="margin-top:10px"></p>
+    <div id="vip-resultado"></div>
     <div class="row" style="margin-top:10px">
       <div style="flex:2"><label>Buscar usuario (nombre / whatsapp / email)</label><input id="buscar" placeholder="filtrar…"></div>
       <div><label>Provincia</label><select id="f-prov"><option value="">Todas</option></select></div>
@@ -193,6 +215,14 @@
     </div>
     <p class="sub" id="stats-line" style="margin-top:10px"></p>
     <div class="grid" id="grid"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:center;margin-top:16px">
+      <div id="pager" style="display:flex;gap:6px;flex-wrap:wrap;align-items:center"></div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <label style="margin:0;font-size:.75em;color:var(--muted)">Ir a página</label>
+        <input id="pg-input" type="number" min="1" placeholder="#" style="width:85px">
+        <button class="gris mini" id="pg-ir">IR</button>
+      </div>
+    </div>
     <p class="sub" id="empty" style="margin-top:14px;display:none">No hay usuarios simulados todavía. Usá el generador de arriba.</p>
   </div>
 
@@ -226,9 +256,63 @@
       <h2>🔎 Detalle del Sorteo</h2>
       <div id="sc-detalle-header" style="margin-bottom:10px;"></div>
       <div class="row" style="margin-top:10px">
-        <div style="flex:1"><button class="gris mini" id="sc-guardar-snapshot">💾 Guardar/Actualizar SNAPSHOT inmutable</button></div>
+        <div style="flex:1"><button class="dorado mini" id="sc-guardar-snapshot">📄 DESCARGAR PDF DEL SORTEO (para guardar)</button></div>
         <div style="flex:1"><button class="gris mini" id="sc-ver-auditoria">📜 Ver Auditoría (antes/después)</button></div>
       </div>
+
+      <details class="caja-legal" id="caja-legal-com">
+        <summary>🏬 Datos legales del comercio (titular / CUIT / IVA) — salen impresos en el PDF</summary>
+        <div class="row">
+          <div style="flex:2"><label>Titular o razón social</label><input id="lg-titular" placeholder="Ej: Juan Pérez · Almacén 208 S.R.L. · Municipalidad de ..."></div>
+          <div><label>CUIT / CUIL</label><input id="lg-cuit" placeholder="20-12345678-9"></div>
+        </div>
+        <div class="row">
+          <div><label>Condición frente al IVA</label><select id="lg-iva">
+            <option value="">(sin dato)</option>
+            <option>Responsable Inscripto</option>
+            <option>Monotributista</option>
+            <option>Exento</option>
+            <option>Consumidor Final</option>
+            <option>No alcanzado</option>
+            <option>No categorizado</option>
+          </select></div>
+          <div><label>Tipo de persona</label><select id="lg-tipo">
+            <option value="">(sin dato)</option>
+            <option>Persona física</option>
+            <option>Persona jurídica privada</option>
+            <option>Ente público</option>
+          </select></div>
+          <div style="flex:2"><label>Domicilio legal</label><input id="lg-domicilio" placeholder="Calle, número, localidad, provincia"></div>
+        </div>
+        <div class="btns"><button class="verde mini" id="lg-guardar">💾 Guardar datos legales del comercio</button></div>
+        <p class="sub" id="lg-estado"></p>
+      </details>
+
+      <details class="caja-legal" id="caja-legal-emi">
+        <summary>🏢 Datos de Habitat-Car (emisor) — logo + credenciales del encabezado</summary>
+        <div class="row">
+          <div style="flex:2"><label>Nombre comercial</label><input id="em-nombre" placeholder="HABITAT-CAR"></div>
+          <div style="flex:2"><label>Razón social (si es distinta)</label><input id="em-razon" placeholder="Razón social completa"></div>
+          <div><label>CUIT</label><input id="em-cuit" placeholder="30-XXXXXXXX-X"></div>
+        </div>
+        <div class="row">
+          <div><label>Condición frente al IVA</label><input id="em-iva" placeholder="Responsable Inscripto"></div>
+          <div style="flex:2"><label>Domicilio legal</label><input id="em-domicilio" placeholder="Calle, número, localidad, provincia"></div>
+        </div>
+        <div class="row">
+          <div><label>Teléfono</label><input id="em-telefono" placeholder="+54 9 ..."></div>
+          <div style="flex:2"><label>Email</label><input id="em-email" placeholder="habitatcar@gmail.com"></div>
+          <div style="flex:2"><label>Sitio web</label><input id="em-web" placeholder="www.habitatcar.com"></div>
+        </div>
+        <div class="btns"><button class="verde mini" id="em-guardar">💾 Guardar datos del emisor</button></div>
+        <p class="sub" id="em-estado"></p>
+      </details>
+
+      <div class="row" style="margin-top:10px">
+        <div style="flex:1"><button class="gris mini" id="sc-ver-constancias">📚 Constancias guardadas en la base (ver / descargar / borrar)</button></div>
+      </div>
+      <div id="sc-constancias" style="display:none;margin-top:10px"></div>
+
       <div id="sc-auditoria" style="display:none; margin-top:12px;"></div>
       <div class="card" style="margin-top:12px">
         <h2>🏆 Ganadores <span class="pill" id="sc-cnt-ganadores">0</span></h2>
@@ -474,19 +558,50 @@ $('btn-logout').onclick = ()=> signOut(auth);
 async function cargarTodo(){
   await Promise.all([cargarComercios(), cargarLeads()]);
   iniciarTiempoReal();
+  iniciarComerciosRT();
 }
 async function cargarComercios(){
   try{
     const snap = await getDocs(collection(db,'comercios'));
-    S.comercios = snap.docs.map(d=>({ id:d.id, ...d.data() }))
+    aplicarListaComercios(snap.docs.map(d=>({ id:d.id, ...d.data() }))
       .filter(c=>c.nombre)
-      .sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)));
-    const opts = S.comercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('');
-    $('sel-comercio').innerHTML = opts || '<option value="">(no hay comercios)</option>';
-    if(S.comercios[0]) S.comercio = S.comercios[0];
-    $('sel-comercio').onchange = ()=>{ S.comercio = S.comercios.find(c=>c.id===$('sel-comercio').value)||null; };
+      .sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre))));
   }catch(e){ toast('Error cargando comercios: '+e.message, true); }
 }
+
+// Vuelca la lista de comercios en los dos desplegables, sin perder lo que estaba elegido
+function aplicarListaComercios(lista){
+  S.comercios = lista;
+  const sel=$('sel-comercio');
+  if(sel){
+    const prev=sel.value;
+    sel.innerHTML = S.comercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('') || '<option value="">(no hay comercios)</option>';
+    if(prev && S.comercios.some(c=>c.id===prev)) sel.value=prev;
+    S.comercio = S.comercios.find(c=>c.id===sel.value) || S.comercios[0] || null;
+  }
+  const selSC=$('sc-comercio');
+  if(selSC){
+    const prevSC=selSC.value;
+    scComercios = [...S.comercios];
+    selSC.innerHTML = scComercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('') || '<option value="">(no hay comercios)</option>';
+    if(prevSC && scComercios.some(c=>c.id===prevSC)) selSC.value=prevSC;
+  }
+}
+
+// Escucha la colección de comercios en vivo: si se crea uno nuevo, aparece al instante
+let _comerciosUnsub = null;
+function iniciarComerciosRT(){
+  if(_comerciosUnsub) return;
+  try{
+    _comerciosUnsub = onSnapshot(collection(db,'comercios'), (snap)=>{
+      aplicarListaComercios(snap.docs.map(d=>({ id:d.id, ...d.data() }))
+        .filter(c=>c.nombre)
+        .sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre))));
+    }, (err)=>{ console.error('[simulador] comercios en vivo:', err); });
+  }catch(e){ console.error('[simulador] comercios en vivo:', e); }
+}
+
+$('sel-comercio').onchange = ()=>{ S.comercio = S.comercios.find(c=>c.id===$('sel-comercio').value)||null; };
 async function cargarLeads(){
   $('grid').innerHTML='<p class="sub">Cargando…</p>';
   try{
@@ -525,40 +640,97 @@ function aplicarFiltros(){
   else arr.sort((a,b)=>(b.fechaRegistro||0)-(a.fechaRegistro||0));
   return arr;
 }
+// ---- Paginación: 50 usuarios por página ----
+const POR_PAGINA = 50;
+let paginaActual = 1;
+// Usuarios marcados con la casilla (para reiniciar la recompensa VIP de a uno o por lotes)
+const selVip = new Set();
+function totalPaginas(total){ return Math.max(1, Math.ceil(total / POR_PAGINA)); }
+
 function render(){
   const arr = aplicarFiltros();
   $('cnt').textContent = S.leads.length;
   const vips = S.leads.filter(l=>tipoDe(l)==='VIP').length;
   $('stats-line').textContent = `Simulados: ${S.leads.length} · VIP: ${vips} · LEAD: ${S.leads.length-vips} · visibles: ${arr.length}`;
-  const g=$('grid');
-  if(!arr.length){ g.innerHTML=''; $('empty').style.display='block'; return; }
-  $('empty').style.display='none';
-  g.innerHTML = arr.map(l=>{
-    const tipo=tipoDe(l);
-    const usos=l.usos_count||0, prog=l.usos_para_vip||0;
-    const pct=Math.min(100, prog);
-    const nombre=`${esc(l.apellido?l.apellido+', ':'')}${esc(l.nombres||l.nombre||'(sin nombre)')}`;
-    return `<div class="phone ${tipo==='VIP'?'vip':''}" data-id="${l.id}">
-      <span class="badge ${tipo==='VIP'?'vip':'lead'}">${tipo}</span>
-      <div class="nm">${nombre}</div>
-      <div class="wa">📱 ${esc(l.whatsapp||'-')}</div>
-      <div class="loc">📍 ${esc(l.localidad||'')}${l.localidad&&l.provincia?', ':''}${esc(l.provincia||'')}</div>
-      <div class="counters">
-        <div class="cbox"><b>${usos}</b><span>USOS</span></div>
-        <div class="cbox"><b>${prog}</b><span>PROG /100</span></div>
-      </div>
-      <div class="bar"><i style="width:${pct}%"></i></div>
-      ${prog>=100?'<div class="meta" style="color:#ffd76a">👑 Meta VIP alcanzada</div>':''}
-      <div class="acts">
-        <button class="verde mini" data-act="canje" data-id="${l.id}">🛒 Canjear +1</button>
-        <button class="gris mini" data-act="canje10" data-id="${l.id}">+10</button>
-        <button class="mini" data-act="edit" data-id="${l.id}">✏️ Editar</button>
-        ${tipo==='VIP'?'':`<button class="dorado mini" data-act="vip" data-id="${l.id}">👑 VIP</button>`}
-        <button class="rojo mini full" data-act="del" data-id="${l.id}">🗑 Borrar</button>
-      </div>
-      <div class="meta">ID: ${l.id}<br>${esc(l.email||'')}</div>
-    </div>`;
-  }).join('');
+  const conRec = S.leads.filter(l=>l.recompensa_vip_recibida===true).length;
+  const disponibles = S.leads.filter(l=>l.recompensa_vip_recibida!==true && (l.usos_para_vip||0)>=100).length;
+  const res = $('vip-resumen');
+  if(res) res.innerHTML = `🎁 <b>Recompensa VIP</b> — ya recibida: <b style="color:#ffd76a">${conRec}</b> · disponible (lista para mostrarse): <b style="color:#7ff0a8">${disponibles}</b> · marcados con la casilla: <b>${selVip.size}</b>`;
+  renderGrilla(arr);
+}
+
+function tarjetaHTML(l){
+  const tipo=tipoDe(l);
+  const usos=l.usos_count||0, prog=l.usos_para_vip||0;
+  const pct=Math.min(100, prog);
+  const nombre=`${esc(l.apellido?l.apellido+', ':'')}${esc(l.nombres||l.nombre||'(sin nombre)')}`;
+  return `<div class="phone ${tipo==='VIP'?'vip':''} ${selVip.has(l.id)?'sel-on':''}" data-id="${l.id}">
+    <label class="sel" title="Marcar este usuario (para reiniciar su recompensa VIP de a uno o por lotes)"><input type="checkbox" class="chk-sel" data-id="${l.id}" ${selVip.has(l.id)?'checked':''}></label>
+    <span class="badge ${tipo==='VIP'?'vip':'lead'}">${tipo}</span>
+    <div class="nm">${nombre}</div>
+    <div class="wa">📱 ${esc(l.whatsapp||'-')}</div>
+    <div class="loc">📍 ${esc(l.localidad||'')}${l.localidad&&l.provincia?', ':''}${esc(l.provincia||'')}</div>
+    <div class="counters">
+      <div class="cbox"><b>${usos}</b><span>USOS</span></div>
+      <div class="cbox"><b>${prog}</b><span>PROG /100</span></div>
+    </div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+    ${prog>=100?'<div class="meta" style="color:#ffd76a">👑 Meta VIP alcanzada</div>':''}
+    ${l.recompensa_vip_recibida===true
+      ? '<div class="meta"><span class="vip-ya">🎁 Recompensa VIP YA recibida</span></div>'
+      : (prog>=100 ? '<div class="meta"><span class="vip-listo">🎁 Recompensa VIP DISPONIBLE</span></div>' : '')}
+    <div class="acts">
+      <button class="verde mini" data-act="canje" data-id="${l.id}">🛒 Canjear +1</button>
+      <button class="gris mini" data-act="canje10" data-id="${l.id}">+10</button>
+      <button class="mini" data-act="edit" data-id="${l.id}">✏️ Editar</button>
+      ${tipo==='VIP'?'':`<button class="dorado mini" data-act="vip" data-id="${l.id}">👑 VIP</button>`}
+      <button class="rojo mini full" data-act="del" data-id="${l.id}">🗑 Borrar</button>
+    </div>
+    <div class="meta">ID: ${l.id}<br>${esc(l.email||'')}</div>
+  </div>`;
+}
+
+function actualizarContadorSel(){
+  const el = $('sel-cnt'); if(el) el.textContent = selVip.size;
+}
+
+function renderGrilla(arr){
+  const g=$('grid'), empty=$('empty');
+  actualizarContadorSel();
+  const tp = totalPaginas(arr.length);
+  if(paginaActual>tp) paginaActual=tp;
+  if(paginaActual<1)  paginaActual=1;
+  if(!arr.length){ g.innerHTML=''; empty.style.display='block'; dibujarPager(1,0,0,0); return; }
+  empty.style.display='none';
+  const ini = (paginaActual-1)*POR_PAGINA;
+  const vis = arr.slice(ini, ini+POR_PAGINA);
+  g.innerHTML = vis.map(tarjetaHTML).join('');
+  dibujarPager(tp, arr.length, ini, vis.length);
+}
+
+function dibujarPager(tp, total, ini, mostrados){
+  const pager=$('pager'); if(!pager) return;
+  if(tp<=1){ pager.innerHTML=''; return; }
+  const btn=(n, txt, activo, dis)=>{
+    if(dis) return `<button class="gris mini" disabled style="opacity:.4">${txt}</button>`;
+    return `<button class="${activo?'dorado':'gris'} mini" data-pg="${n}">${txt}</button>`;
+  };
+  const items=[];
+  items.push(btn(paginaActual-1,'◀',false,paginaActual<=1));
+  const desde=Math.max(1,paginaActual-2), hasta=Math.min(tp,paginaActual+2);
+  if(desde>1){ items.push(btn(1,'1',false,false)); if(desde>2) items.push('<span class="pill">…</span>'); }
+  for(let p=desde;p<=hasta;p++) items.push(btn(p,String(p),p===paginaActual,false));
+  if(hasta<tp){ if(hasta<tp-1) items.push('<span class="pill">…</span>'); items.push(btn(tp,String(tp),false,false)); }
+  items.push(btn(paginaActual+1,'▶',false,paginaActual>=tp));
+  items.push(`<span class="pill">Página ${paginaActual} de ${tp} · ${ini+1}-${ini+mostrados} de ${total}</span>`);
+  pager.innerHTML = items.join('');
+  pager.querySelectorAll('button[data-pg]').forEach(b=>{
+    b.onclick=()=>{
+      paginaActual = parseInt(b.getAttribute('data-pg'))||1;
+      renderGrilla(aplicarFiltros());
+      window.scrollTo({top:0,behavior:'smooth'});
+    };
+  });
 }
 function poblarProvincias(){
   const sel=$('f-prov'); if(!sel) return;
@@ -577,9 +749,22 @@ function poblarLocalidades(){
   sel.innerHTML='<option value="">Todas</option>'+locs.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
   sel.value = locs.includes(prev) ? prev : '';
 }
-$('buscar').oninput=()=>{ clearTimeout(window._filtroT); window._filtroT=setTimeout(render,180); };
-$('f-tipo').onchange=render; $('f-orden').onchange=render; $('f-loc').onchange=render;
-$('f-prov').onchange=()=>{ poblarLocalidades(); render(); };
+function filtroCambio(){ paginaActual=1; render(); }
+$('buscar').oninput=()=>{ clearTimeout(window._filtroT); window._filtroT=setTimeout(filtroCambio,180); };
+$('f-tipo').onchange=filtroCambio; $('f-orden').onchange=filtroCambio; $('f-loc').onchange=filtroCambio;
+$('f-prov').onchange=()=>{ paginaActual=1; poblarLocalidades(); render(); };
+
+// Ir a una página por número
+$('pg-ir').onclick=()=>{
+  const arr=aplicarFiltros();
+  const tp=totalPaginas(arr.length);
+  const n=parseInt($('pg-input').value);
+  paginaActual = Math.min(tp, Math.max(1, isNaN(n)?1:n));
+  $('pg-input').value='';
+  renderGrilla(aplicarFiltros());
+  window.scrollTo({top:0,behavior:'smooth'});
+};
+$('pg-input').addEventListener('keydown', e=>{ if(e.key==='Enter') $('pg-ir').click(); });
 
 // Delegación de clicks de las tarjetas
 $('grid').addEventListener('click', async (e)=>{
@@ -593,6 +778,15 @@ $('grid').addEventListener('click', async (e)=>{
     else if(act==='edit')    abrirEdicion(lead);
     else if(act==='del')     await borrarLead(lead);
   }catch(err){ toast('Error: '+err.message, true); }
+});
+
+// Marcar / desmarcar usuarios con la casilla de cada tarjeta
+$('grid').addEventListener('change', (e)=>{
+  const chk = e.target.closest('input.chk-sel'); if(!chk) return;
+  const id = chk.getAttribute('data-id');
+  if(chk.checked) selVip.add(id); else selVip.delete(id);
+  const card = chk.closest('.phone'); if(card) card.classList.toggle('sel-on', chk.checked);
+  actualizarContadorSel();
 });
 
 // ================= NÚCLEO: SIMULAR CANJE (igual que el sitio real) =================
@@ -645,13 +839,24 @@ async function simularCanje(lead, veces, comArg, silent){
     usos_count: increment(veces),
     lastSubmission: ahora
   };
-  if(tipo!=='VIP') upd.usos_para_vip = increment(veces);
+  if(tipo!=='VIP'){
+    upd.usos_para_vip = increment(veces);
+    // Igual que el sitio real: al llegar a 100 canjes el usuario ya "vio" su recompensa VIP
+    const progNuevo = (lead.usos_para_vip||0) + veces;
+    if(progNuevo >= 100 && lead.recompensa_vip_recibida !== true){
+      upd.recompensa_vip_recibida = true;
+      upd.fecha_recompensa_vip = ahora;
+    }
+  }
   upd.cupones_detallados = arrayUnion({ comercio:nom, fecha, hora, codigo, timestamp:ahora, usoNumero:nuevoUsoLead, simulado:true });
   await updateDoc(doc(db,'leads',lead.id), upd);
 
   // reflejar localmente
   lead.usos_count=(lead.usos_count||0)+veces;
-  if(tipo!=='VIP') lead.usos_para_vip=(lead.usos_para_vip||0)+veces;
+  if(tipo!=='VIP'){
+    lead.usos_para_vip=(lead.usos_para_vip||0)+veces;
+    if(lead.usos_para_vip>=100 && lead.recompensa_vip_recibida!==true) lead.recompensa_vip_recibida=true;
+  }
   if(!silent){
     render();
     toast(`🛒 ${nombreUsuario||'Usuario'} +${veces} en «${nom}» (${tipo})`);
@@ -877,11 +1082,12 @@ let scEntrega = {};
 
 async function cargarComerciosSC(){
   try{
-    if(scComercios.length) return;
     const snap = await getDocs(collection(db,'comercios'));
     scComercios = snap.docs.map(d=>({id:d.id,...d.data()})).filter(c=>c.nombre).sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)));
     const sel = $('sc-comercio');
-    sel.innerHTML = scComercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('');
+    const prev = sel.value;
+    sel.innerHTML = scComercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('') || '<option value="">(no hay comercios)</option>';
+    if(prev && scComercios.some(c=>c.id===prev)) sel.value=prev;
   }catch(e){ toast('Error cargando comercios: '+e.message,true); }
 }
 
@@ -942,20 +1148,49 @@ function formatFecha(v){
 }
 
 async function verDetalleSorteo(com, s){
-  scActual = {com,s, key: s.docId || (com.id+'_'+(s.premio||''))};
-  $('sc-detalle').style.display='block';
-  const h = $('sc-detalle-header');
-  const fecha = formatFecha(s.fechaSort||s.fecha||s.fecha_sorteo||s.timestamp);
-  const desc = s.descripcion_sorteo || s.descripcion || s.detalle || '';
-  h.innerHTML = `<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px">
+  const det = $('sc-detalle');
+  const keySorteo = s.docId || (com.id+'_'+(s.premio||''));
+
+  // Si ya está abierto ESTE mismo sorteo, el botón lo cierra
+  if(det.style.display === 'block' && scActual && scActual.key === keySorteo){
+    det.style.display = 'none';
+    det.classList.remove('destacar');
+    scActual = null;
+    $('sc-auditoria').style.display = 'none';
+    det.scrollIntoView({behavior:'smooth', block:'center'});
+    return;
+  }
+
+  det.style.display = 'block';
+  // Parpadeo inmediato (3 veces) para que se vea dónde se abrió la ficha
+  setTimeout(()=>{
+    try{
+      det.scrollIntoView({behavior:'smooth', block:'start'});
+      det.classList.remove('destacar');
+      void det.offsetWidth; // reinicia la animación
+      det.classList.add('destacar');
+      setTimeout(()=>det.classList.remove('destacar'), 4200);
+    }catch(e){}
+  }, 60);
+  try{
+    scActual = {com,s, key: keySorteo};
+    const h = $('sc-detalle-header');
+    const fecha = formatFecha(s.fechaSort||s.fecha||s.fecha_sorteo||s.timestamp);
+    const desc = s.descripcion_sorteo || s.descripcion || s.detalle || '';
+    h.innerHTML = `<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px">
     <div style="font-weight:700;color:var(--dorado)">${esc(s.premio||s.titulo||'Sorteo')}</div>
     ${desc? `<div class="sub" style="white-space:pre-wrap">${esc(desc)}</div>`:''}
     <div class="sub">Comercio: ${esc(com.nombre)} · Fecha/Hora: ${fecha} · ID Historial: ${esc(s.docId||s.id||'-')}</div>
     <div class="sub">Origen: ${esc(s.origen||'real')} ${s.esSimulacion?'· SIMULADO':''}</div>
   </div>`;
-  await cargarSnapshotYEntregas();
-  renderGanadores(s);
-  await renderParticipantes(com,s);
+    try{ await cargarSnapshotYEntregas(); }catch(e){}
+    try{ renderGanadores(s); }catch(e){ console.error('renderGanadores:', e); }
+    try{ await renderParticipantes(com,s); }catch(e){ console.error('renderParticipantes:', e); }
+    try{ await cargarFichasLegales(com); }catch(e){ console.error('cargarFichasLegales:', e); }
+  }catch(e){
+    console.error('verDetalleSorteo:', e);
+    try{ $('sc-detalle-header').innerHTML = '<div class="sub" style="color:#ffb3b3">No se pudo abrir el detalle completo: '+esc(e.message||e)+'</div>'; }catch(_){}
+  }
 }
 
 async function cargarSnapshotYEntregas(){
@@ -971,117 +1206,688 @@ async function cargarSnapshotYEntregas(){
   }catch(e){}
 }
 
-$('sc-guardar-snapshot').onclick = async ()=>{
-  if(!scActual) return;
-  try{
-    const s = scActual.s;
-    let part = Array.isArray(s.participantes)? s.participantes : (Array.isArray(s.listaParticipantes)? s.listaParticipantes : []);
-    let gan = Array.isArray(s.ganadores)? s.ganadores : [];
-    if(!part.length){
-      try{
-        const q1 = query(collection(db,'admin_participantes_sorteos'), where('comercio','==',scActual.com.nombre));
-        const q2 = query(collection(db,'participaciones_sorteos'), where('comercio','==',scActual.com.nombre));
-        const [a1,a2] = await Promise.allSettled([getDocs(q1), getDocs(q2)]);
-        const seen = new Set();
-        if(a1.status==='fulfilled') a1.value.docs.forEach(d=>{ const x=d.data(); const pid=x.usuarioId||x.id||d.id; if(!seen.has(pid)){seen.add(pid); part.push({...x,usuarioId:pid});}});
-        if(a2.status==='fulfilled') a2.value.docs.forEach(d=>{ const x=d.data(); const pid=x.usuarioId||x.id||d.id; if(!seen.has(pid)){seen.add(pid); part.push({...x,usuarioId:pid});}});
-      }catch(e){}
-    }
-    if(!gan.length && Array.isArray(s.ganadores)) gan = s.ganadores;
-    const snap = {
-      key: scActual.key,
-      comercioId: scActual.com.id,
-      comercio: scActual.com.nombre,
-      premio: s.premio||s.titulo||'',
-      descripcion_sorteo: s.descripcion_sorteo||s.descripcion||s.detalle||'',
-      fechaSort: s.fechaSort||s.fecha_sorteo||s.timestamp||Date.now(),
-      origen: s.origen||'real',
-      esSimulacion: s.esSimulacion===true,
-      participantes: part,
-      ganadores: gan,
-      creado: Date.now(),
-      creadoPor: S.user? S.user.email : 'admin'
+// ================= PDF DEL SORTEO (constancia para guardar) =================
+function slugPDF(t){
+  return String(t||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/[^a-zA-Z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40);
+}
+function nombreArchivoPDF(com, s){
+  const f = new Date();
+  const ymd = `${f.getFullYear()}-${String(f.getMonth()+1).padStart(2,'0')}-${String(f.getDate()).padStart(2,'0')}`;
+  return `Sorteo_${slugPDF(com.nombre)||'comercio'}_${slugPDF(s.premio||s.titulo||'premio')||'premio'}_${ymd}.pdf`;
+}
+function textoPlano(x){
+  if(x===null||x===undefined||x==='') return '-';
+  if(typeof x==='object'){ try{ return JSON.stringify(x); }catch(e){ return '-'; } }
+  return String(x);
+}
+
+// Junta la lista de participantes probando todas las fuentes posibles
+async function obtenerParticipantes(com, s){
+  let base = Array.isArray(s.participantes) ? s.participantes.slice()
+           : (Array.isArray(s.listaParticipantes) ? s.listaParticipantes.slice() : []);
+  if(!base.length && scActual && scActual.snapshot && Array.isArray(scActual.snapshot.participantes)){
+    base = scActual.snapshot.participantes.slice();
+  }
+  if(!base.length){
+    const seen = new Set();
+    const juntar = (docs)=>{
+      docs.forEach(d=>{
+        const x = d.data();
+        if(x.comercio && x.comercio === com.nombre){
+          const pid = x.usuarioId||x.id||d.id;
+          if(!seen.has(pid)){ seen.add(pid); base.push({...x, usuarioId: pid}); }
+        }
+      });
     };
     try{
-      const q = query(collection(db,'sorteo_snapshot_participantes'), where('key','==',scActual.key));
-      const ex = await getDocs(q);
-      if(ex.empty) await addDoc(collection(db,'sorteo_snapshot_participantes'), snap);
-      else await updateDoc(doc(db,'sorteo_snapshot_participantes', ex.docs[0].id), snap);
-      scActual.snapshot = snap;
-      toast('Snapshot inmutable guardado/actualizado');
-      await verDetalleSorteo(scActual.com, scActual.s);
-    }catch(e){
-      // Fallback Firestore: intentar sin where
+      const r1 = await Promise.allSettled([
+        getDocs(query(collection(db,'admin_participantes_sorteos'), where('comercio','==',com.nombre))),
+        getDocs(query(collection(db,'participaciones_sorteos'), where('comercio','==',com.nombre)))
+      ]);
+      r1.forEach(r=>{ if(r.status==='fulfilled') juntar(r.value.docs); });
+    }catch(e){ console.error('obtenerParticipantes r1:', e); }
+    // Plan B: sin filtro, por si el índice o el permiso de la consulta filtrada falla
+    if(!base.length){
       try{
-        const all = await getDocs(collection(db,'sorteo_snapshot_participantes'));
-        const matching = all.docs.find(d=>d.key===scActual.key);
-        if(matching){
-          await updateDoc(doc(db,'sorteo_snapshot_participantes', matching.id), snap);
-        }else{
-          await addDoc(collection(db,'sorteo_snapshot_participantes'), snap);
-        }
-        scActual.snapshot = snap;
-        toast('Snapshot inmutable guardado/actualizado');
-        await verDetalleSorteo(scActual.com, scActual.s);
-        return;
-      }catch(e2){
-        // Si Firestore falla totalmente, generamos PDF para el usuario
-        try{
-          const pdf = new jsPDF();
-          pdf.setFontSize(12);
-          pdf.setTextColor(255,255,255);
-          pdf.addPage();
-          pdf.setFontStyle('bold');
-          pdf.cell(0, 10, 'REPORTE DE SORTEO - Habitat-Car', 0, 1, 'C');
-          pdf.ln(5);
-          pdf.setFontSize(10);
-          pdf.setTextColor(100,100,100);
-          pdf.cell(0, 5, 'Comercio: ' + (scActual.com.nombre || '-'), 0, 1);
-          pdf.cell(0, 5, 'Premio: ' + (s.premio||s.titulo||'-'), 0, 1);
-          pdf.cell(0, 5, 'Fecha/Hora: ' + formatFecha(s.fechaSort||s.fecha_sorteo||s.timestamp||Date.now()), 0, 1);
-          pdf.cell(0, 5, 'Participantes: ' + part.length, 0, 1);
-          pdf.cell(0, 5, 'Ganadores: ' + gan.length, 0, 1);
-          pdf.ln(5);
-          pdf.setFontStyle('italic');
-          pdf.cell(0, 5, '💾 PDF generado por simulador - datos simulados', 0, 1, 'C');
-          pdf.output('dataurlnewwindow', 'reporte-sorteo-' + scActual.key + '.pdf');
-          toast('PDF generado y descargado automáticamente', true);
-          console.log('PDF generado como alternativa al snapshot');
-        }catch(pdfError){
-          toast('No se pudo guardar snapshot ni generar PDF: ' + e.message, true);
-          console.error('Error saving snapshot and generating PDF:', pdfError);
-        }
-      }
+        const r2 = await Promise.allSettled([
+          getDocs(collection(db,'admin_participantes_sorteos')),
+          getDocs(collection(db,'participaciones_sorteos'))
+        ]);
+        r2.forEach(r=>{ if(r.status==='fulfilled') juntar(r.value.docs); });
+      }catch(e){ console.error('obtenerParticipantes r2:', e); }
     }
-  }catch(e){ toast('Error: '+e.message,true); }
+  }
+  return base;
+}
+
+// ================= DATOS LEGALES Y EMISOR (para la constancia) =================
+let scLegales = {};
+let emisorDatos = null;
+
+async function cargarEmisor(){
+  if(emisorDatos) return emisorDatos;
+  try{
+    const d = await getDoc(doc(db,'configuracion','emisor'));
+    emisorDatos = d.exists() ? (d.data()||{}) : {};
+  }catch(e){ emisorDatos = {}; }
+  return emisorDatos;
+}
+
+async function cargarLegales(comercioId){
+  scLegales = {};
+  try{
+    const d = await getDoc(doc(db,'comercios_legales', comercioId));
+    scLegales = d.exists() ? (d.data()||{}) : {};
+  }catch(e){ scLegales = {}; }
+  return scLegales;
+}
+
+// Baja una imagen y la convierte a dataURL (para meterla en el PDF)
+async function cargarImagen(url){
+  if(!url) return null;
+  try{
+    const r = await fetch(url, {mode:'cors'});
+    if(!r.ok) return null;
+    const blob = await r.blob();
+    const bmp = await createImageBitmap(blob);
+    // Achicamos la imagen: en el PDF se imprime chica y así el archivo pesa mucho menos
+    const MAX_ANCHO = 420;
+    const escala = Math.min(1, MAX_ANCHO / (bmp.width || MAX_ANCHO));
+    const cv = document.createElement('canvas');
+    cv.width = Math.max(1, Math.round((bmp.width||MAX_ANCHO) * escala));
+    cv.height = Math.max(1, Math.round((bmp.height||MAX_ANCHO) * escala));
+    const ctx = cv.getContext('2d');
+    const esPng = (blob.type||'').includes('png');
+    if(!esPng){ ctx.fillStyle = '#ffffff'; ctx.fillRect(0,0,cv.width,cv.height); }
+    ctx.imageSmoothingQuality = 'high';
+    ctx.drawImage(bmp, 0, 0, cv.width, cv.height);
+    const dataURL = esPng ? cv.toDataURL('image/png') : cv.toDataURL('image/jpeg', 0.92);
+    return { dataURL, w: cv.width, h: cv.height, tipo: esPng ? 'PNG' : 'JPEG' };
+  }catch(e){ return null; }
+}
+
+// Código único de la constancia (para encontrarla y para verificarla)
+function codigoConstancia(com, s, participantes){
+  const f = new Date();
+  const ymd = `${f.getFullYear()}${String(f.getMonth()+1).padStart(2,'0')}${String(f.getDate()).padStart(2,'0')}`;
+  const base = [com.id, s.docId||s.id||s.premio||'', s.fechaSort||s.timestamp||'', participantes.length, Date.now()].join('|');
+  let h = 0;
+  for(let i=0;i<base.length;i++){ h = (h*31 + base.charCodeAt(i)) >>> 0; }
+  const rnd = h.toString(36).toUpperCase().padStart(6,'0').slice(-6);
+  return 'HC-' + ymd + '-' + rnd;
+}
+
+// Guarda el PDF (y todos los datos) en Firestore troceado, así sobrevive a borrados
+async function guardarConstancia(payload, meta){
+  const json = JSON.stringify(payload);
+  const CH = 400000; // cada trozo queda bien por debajo del límite de 1 MB por documento
+  const total = Math.max(1, Math.ceil(json.length / CH));
+  // Escribimos de a uno (no en un solo lote): los PDFs grandes tienen varios trozos
+  for(let i=0;i<total;i++){
+    await setDoc(doc(db,'sorteo_pdf_partes', meta.codigo + '_' + String(i).padStart(3,'0')), {
+      codigo: meta.codigo, i, data: json.slice(i*CH, (i+1)*CH)
+    });
+  }
+  await setDoc(doc(db,'sorteo_pdf_constancias', meta.codigo), { ...meta, partes: total });
+  return total;
+}
+
+async function descargarConstancia(codigo){
+  try{
+    const snap = await getDocs(query(collection(db,'sorteo_pdf_partes'), where('codigo','==',codigo)));
+    if(snap.empty) throw new Error('No encontré el contenido guardado de esta constancia.');
+    const partes = snap.docs.map(d=>d.data()).sort((a,b)=>(a.i||0)-(b.i||0));
+    const j = JSON.parse(partes.map(p=>p.data||'').join(''));
+    const bin = atob(j.pdf||'');
+    const arr = new Uint8Array(bin.length);
+    for(let i=0;i<bin.length;i++) arr[i] = bin.charCodeAt(i);
+    const blob = new Blob([arr], {type:'application/pdf'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = j.nombreArchivo || (codigo + '.pdf');
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+    toast('⬇ Constancia descargada: ' + a.download);
+  }catch(e){
+    console.error('descargarConstancia:', e);
+    toast('No se pudo descargar la constancia: ' + (e.message||e), true);
+  }
+}
+
+async function listarConstancias(comercioId){
+  const box = $('sc-constancias');
+  if(!box) return;
+  box.style.display = 'block';
+  box.innerHTML = '<div class="sub">Buscando constancias guardadas…</div>';
+  try{
+    const snap = await getDocs(query(collection(db,'sorteo_pdf_constancias'), where('comercioId','==',comercioId)));
+    const items = snap.docs.map(d=>({ id:d.id, ...d.data() })).sort((a,b)=>(b.creado||0)-(a.creado||0));
+    if(!items.length){
+      box.innerHTML = '<div class="sub">Todavía no hay constancias guardadas de este comercio. Generá el PDF con el botón de arriba y se guarda solo.</div>';
+      return;
+    }
+    box.innerHTML = `<p class="sub" style="margin-bottom:4px">${items.length} constancia(s) guardada(s) en la base. Se pueden volver a descargar aunque se borre el sorteo o el ganador.</p>` +
+      items.map(x=>`<div class="fila-const" data-const="${esc(x.id)}">
+        <div style="flex:1;min-width:220px">
+          <div style="font-weight:700;color:var(--dorado)">${esc(x.premio||'(sin premio)')}</div>
+          <div class="sub">${esc(x.fechaSorteo||'')} · ${x.totalParticipantes||0} participantes · ${x.totalGanadores||0} ganadores</div>
+          <div class="sub">Código: ${esc(x.codigo||x.id)} · ${Math.round(((x.bytes||0)*0.75)/1024)} KB · ${new Date(x.creado||Date.now()).toLocaleString()}</div>
+          ${x.titular?`<div class="sub">Titular: ${esc(x.titular)}${x.cuit?' · CUIT '+esc(x.cuit):''}</div>`:''}
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="verde mini" data-acc="dl">⬇ Descargar</button>
+          <button class="rojo mini" data-acc="del">🗑 Borrar</button>
+        </div>
+      </div>`).join('');
+    box.querySelectorAll('[data-const]').forEach(fila=>{
+      const id = fila.getAttribute('data-const');
+      const dl = fila.querySelector('[data-acc="dl"]');
+      const del = fila.querySelector('[data-acc="del"]');
+      if(dl) dl.onclick = ()=> descargarConstancia(id);
+      if(del) del.onclick = async ()=>{
+        if(!confirm('¿Borrar esta constancia guardada? Se borra el PDF de la base (el sorteo y los usuarios NO se tocan).')) return;
+        try{
+          const ps = await getDocs(query(collection(db,'sorteo_pdf_partes'), where('codigo','==',id)));
+          const b = writeBatch(db);
+          ps.forEach(d=>b.delete(d.ref));
+          b.delete(doc(db,'sorteo_pdf_constancias', id));
+          await b.commit();
+          toast('🗑 Constancia borrada.');
+          listarConstancias(comercioId);
+        }catch(e){ toast('No se pudo borrar: ' + (e.message||e), true); }
+      };
+    });
+  }catch(e){
+    box.innerHTML = '<div class="sub" style="color:#ffb3b3">No se pudieron leer las constancias: ' + esc(e.message||e) + '</div>';
+  }
+}
+
+// ---- Fichas: datos legales del comercio y datos del emisor ----
+async function cargarFichasLegales(com){
+  const est = $('lg-estado');
+  if(est) est.textContent = 'Cargando…';
+  const leg = await cargarLegales(com.id);
+  if($('lg-titular')) $('lg-titular').value = leg.titular || '';
+  if($('lg-cuit')) $('lg-cuit').value = leg.cuit || '';
+  if($('lg-iva')) $('lg-iva').value = leg.condicionIva || '';
+  if($('lg-tipo')) $('lg-tipo').value = leg.tipoPersona || '';
+  if($('lg-domicilio')) $('lg-domicilio').value = leg.domicilio || '';
+  if(est) est.textContent = Object.keys(leg).length
+    ? ('Guardado' + (leg.actualizado ? ' el ' + new Date(leg.actualizado).toLocaleString() : ''))
+    : 'Sin datos guardados todavía para este comercio.';
+
+  const em = await cargarEmisor();
+  if($('em-nombre')) $('em-nombre').value = em.nombre || 'HABITAT-CAR';
+  if($('em-razon')) $('em-razon').value = em.razonSocial || '';
+  if($('em-cuit')) $('em-cuit').value = em.cuit || '';
+  if($('em-iva')) $('em-iva').value = em.condicionIva || '';
+  if($('em-domicilio')) $('em-domicilio').value = em.domicilio || EMISOR_DEFECTO.domicilio;
+  if($('em-telefono')) $('em-telefono').value = em.telefono || EMISOR_DEFECTO.telefono;
+  if($('em-email')) $('em-email').value = em.email || '';
+  if($('em-web')) $('em-web').value = em.web || '';
+  const ee = $('em-estado');
+  if(ee) ee.textContent = em.actualizado ? ('Guardado el ' + new Date(em.actualizado).toLocaleString()) : 'Sin datos guardados todavía.';
+}
+
+$('lg-guardar').onclick = async ()=>{
+  if(!scActual){ toast('Primero abrí el detalle de un sorteo.', true); return; }
+  const btn = $('lg-guardar'); const viejo = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Guardando…';
+  try{
+    const datos = {
+      titular: $('lg-titular').value.trim(),
+      cuit: $('lg-cuit').value.trim(),
+      condicionIva: $('lg-iva').value,
+      tipoPersona: $('lg-tipo').value,
+      domicilio: $('lg-domicilio').value.trim(),
+      comercioId: scActual.com.id,
+      comercioNombre: scActual.com.nombre || '',
+      actualizado: Date.now(),
+      actualizadoPor: (S.user && S.user.email) || 'admin'
+    };
+    await setDoc(doc(db,'comercios_legales', scActual.com.id), datos, {merge:true});
+    scLegales = { ...(scLegales||{}), ...datos };
+    $('lg-estado').textContent = '✅ Guardado el ' + new Date(datos.actualizado).toLocaleString();
+    toast('💾 Datos legales guardados. Ahora salen impresos en el PDF.');
+  }catch(e){
+    console.error('lg-guardar:', e);
+    toast('No se pudieron guardar los datos legales: ' + (e.message||e), true);
+  }finally{ btn.disabled = false; btn.textContent = viejo; }
 };
+
+$('em-guardar').onclick = async ()=>{
+  const btn = $('em-guardar'); const viejo = btn.textContent;
+  btn.disabled = true; btn.textContent = '⏳ Guardando…';
+  try{
+    const datos = {
+      nombre: $('em-nombre').value.trim() || 'HABITAT-CAR',
+      razonSocial: $('em-razon').value.trim(),
+      cuit: $('em-cuit').value.trim(),
+      condicionIva: $('em-iva').value.trim(),
+      domicilio: $('em-domicilio').value.trim(),
+      telefono: $('em-telefono').value.trim(),
+      email: $('em-email').value.trim(),
+      web: $('em-web').value.trim(),
+      actualizado: Date.now(),
+      actualizadoPor: (S.user && S.user.email) || 'admin'
+    };
+    await setDoc(doc(db,'configuracion','emisor'), datos, {merge:true});
+    emisorDatos = { ...(emisorDatos||{}), ...datos };
+    $('em-estado').textContent = '✅ Guardado el ' + new Date(datos.actualizado).toLocaleString();
+    toast('💾 Datos de Habitat-Car guardados.');
+  }catch(e){
+    console.error('em-guardar:', e);
+    toast('No se pudieron guardar los datos del emisor: ' + (e.message||e), true);
+  }finally{ btn.disabled = false; btn.textContent = viejo; }
+};
+
+$('sc-ver-constancias').onclick = ()=>{
+  if(!scActual){ toast('Primero abrí el detalle de un sorteo.', true); return; }
+  const box = $('sc-constancias');
+  if(box.style.display === 'block'){ box.style.display = 'none'; return; }
+  listarConstancias(scActual.com.id);
+};
+
+// ---- Identidad de Habitat-Car para la constancia (se pueden pisar desde el panel «Datos de Habitat-Car») ----
+const EMISOR_DEFECTO = {
+  nombre: 'HABITAT-CAR',
+  slogan: 'Negocios inmobiliarios - Gestiones del automotor',
+  responsable: 'Lorenzo Maximiliano Guerrero',
+  matricula: 'Martillero y Corredor Inmobiliario - M.P. 279',
+  domicilio: 'Ernesto Romero 118 - Villa Jardín de Reyes - San Salvador de Jujuy - Jujuy - Argentina',
+  telefono: '388-4618228'
+};
+const HC_LOGO = { dataURL: 'data:image/png;base64,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', w: 798, h: 219, tipo: 'PNG' };
+
+async function generarPDFSorteo(com, s, participantes){
+  const jsPDFCtor = window.jspdf && window.jspdf.jsPDF;
+  if(!jsPDFCtor){ toast('No se pudo cargar el generador de PDF (revisá la conexión a internet).', true); return null; }
+
+  // Datos que van impresos: emisor (Habitat-Car), titular del comercio, logos
+  const emisorBD = await cargarEmisor();
+  const emisor = Object.assign({}, EMISOR_DEFECTO);
+  Object.keys(emisorBD||{}).forEach(function(k){
+    const v = emisorBD[k];
+    if(v!==undefined && v!==null && String(v).trim()!=='') emisor[k] = v;
+  });
+  const legales = await cargarLegales(com.id);
+  const imgEmisor = HC_LOGO;
+  const imgComercio = com.logoUrl ? await cargarImagen(com.logoUrl) : null;
+  const codigo = codigoConstancia(com, s, participantes);
+
+  const pdf = new jsPDFCtor({orientation:'landscape', unit:'mm', format:'a4', compress:true});
+  const W = pdf.internal.pageSize.getWidth();
+  const H = pdf.internal.pageSize.getHeight();
+  const M = 12;
+  const ANCHO = W - M*2;
+  let y = M;
+
+  const ganadores = Array.isArray(s.ganadores)? s.ganadores : [];
+  const fecha = formatFecha(s.fechaSort||s.fecha||s.fecha_sorteo||s.timestamp);
+  const desc = s.descripcion_sorteo || s.descripcion || s.detalle || '';
+  const ahora = new Date().toLocaleString();
+  const idSorteo = s.docId || s.id || (scActual && scActual.key) || '-';
+
+  const nuevaPagina = ()=>{
+    pdf.addPage('a4','landscape');
+    pdf.setFont('helvetica','italic'); pdf.setFontSize(8); pdf.setTextColor(120);
+    pdf.text('(continuación) ' + (com.nombre||'') + ' · ' + (s.premio||s.titulo||''), M, 8);
+    y = 14;
+  };
+  const salto = (alto)=>{ if(y + alto > H - 16) nuevaPagina(); };
+
+  // ---- Encabezado: logo + credenciales del emisor (Habitat-Car) ----
+  pdf.setFillColor(0,175,239); pdf.rect(0,0,W,3,'F');
+  let xLogo = M;
+  if(imgEmisor){
+    const hL = 17;
+    const wL = hL * (imgEmisor.w / imgEmisor.h);
+    try{ pdf.addImage(imgEmisor.dataURL, imgEmisor.tipo, M, 8.5, wL, hL); xLogo = M + wL + 9; }catch(e){ xLogo = M; }
+  }
+  if(xLogo > M){ pdf.setDrawColor(200,210,226); pdf.setLineWidth(0.3); pdf.line(xLogo-4.5, 9, xLogo-4.5, 26); }
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(11); pdf.setTextColor(8,21,42);
+  pdf.text(emisor.responsable || emisor.nombre || 'HABITAT-CAR', xLogo, 12);
+  const anchoCred = Math.max(70, W - xLogo - M - 72);
+  const itemsHdr = [
+    [emisor.matricula, (emisor.razonSocial && emisor.razonSocial !== emisor.nombre) ? emisor.razonSocial : ''].filter(Boolean).join('  ·  '),
+    emisor.domicilio || '',
+    [emisor.telefono ? ('Cel. ' + emisor.telefono) : '', emisor.email || '', emisor.web || '',
+     emisor.cuit ? ('CUIT ' + emisor.cuit) : '', emisor.condicionIva || ''].filter(Boolean).join('  ·  ')
+  ].filter(Boolean);
+  pdf.setFont('helvetica','normal'); pdf.setFontSize(8); pdf.setTextColor(60,70,90);
+  let lineasEm = [];
+  itemsHdr.forEach(function(t){ lineasEm = lineasEm.concat(pdf.splitTextToSize(t, anchoCred)); });
+  pdf.text(lineasEm.slice(0,4), xLogo, 17, {lineHeightFactor:1.35});
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(14); pdf.setTextColor(8,21,42);
+  pdf.text('CONSTANCIA DE SORTEO', W-M, 13, {align:'right'});
+  pdf.setFontSize(8); pdf.setTextColor(0,120,190);
+  pdf.text('Código de verificación: ' + codigo, W-M, 19, {align:'right'});
+  pdf.setFont('helvetica','normal'); pdf.setTextColor(90,100,120);
+  pdf.text('Generado el ' + ahora, W-M, 23.5, {align:'right'});
+  // franja con el slogan
+  pdf.setFillColor(8,21,42); pdf.rect(0,30,W,7.5,'F');
+  pdf.setFillColor(0,175,239); pdf.rect(0,30,W,0.8,'F');
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(9); pdf.setTextColor(255,255,255);
+  pdf.text(String(emisor.slogan || '').toUpperCase().replace(/\s-\s/g,'  ·  '), W/2, 35.4, {align:'center'});
+  y = 44;
+
+  // ---- Fichas: comercio organizador y titular/responsable ----
+  const boxW = (ANCHO - 6) / 2;
+  const boxH = 32;
+  const dibujarCaja = (x0, titulo, lineaFuerte, lineaResto, logo)=>{
+    pdf.setFillColor(246,248,252); pdf.setDrawColor(200,210,226); pdf.setLineWidth(0.25);
+    pdf.rect(x0, y, boxW, boxH, 'FD');
+    pdf.setFillColor(0,175,239); pdf.rect(x0, y, 1.2, boxH, 'F');
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(6.4); pdf.setTextColor(120);
+    pdf.text(titulo, x0+3, y+4.5);
+    let tx = x0 + 3;
+    if(logo){
+      const hL = 11;
+      const wL = Math.min(30, hL * (logo.w / logo.h));
+      try{ pdf.addImage(logo.dataURL, logo.tipo, x0+3, y+9, wL, hL); tx = x0 + 3 + wL + 3; }catch(e){ tx = x0 + 3; }
+    }
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(9); pdf.setTextColor(8,21,42);
+    const lf = pdf.splitTextToSize(textoPlano(lineaFuerte), boxW - (tx - x0) - 4);
+    pdf.text(lf.slice(0,2), tx, logo ? y+14 : y+10.5);
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(6.8); pdf.setTextColor(70);
+    const lr = pdf.splitTextToSize(String(lineaResto||''), boxW - 6);
+    pdf.text(lr.slice(0,4), x0+3, y + (logo ? 23 : 17));
+  };
+  const restoCom = [
+    com.rubro,
+    com.direccion,
+    [com.ciudad, com.provincia].filter(Boolean).join(', '),
+    com.telefono ? ('Tel. ' + com.telefono) : '',
+    com.emailDueno || com.email || '',
+    com.idComercio ? ('ID ' + com.idComercio) : ''
+  ].filter(Boolean).join('  ·  ');
+  const restoTit = [
+    legales.tipoPersona,
+    legales.cuit ? ('CUIT/CUIL ' + legales.cuit) : '',
+    legales.condicionIva,
+    legales.domicilio
+  ].filter(Boolean).join('  ·  ');
+  dibujarCaja(M, 'COMERCIO ORGANIZADOR', com.nombre || '-', restoCom, imgComercio);
+  dibujarCaja(M + boxW + 6, 'TITULAR / RESPONSABLE DEL COMERCIO', legales.titular || com.nombre || '-',
+    restoTit || 'Datos legales sin completar (usá «Datos legales del comercio» en el simulador).', null);
+  y += boxH + 6;
+
+  // ---- Datos del sorteo ----
+  const fila = (etq, val)=>{
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(8.5); pdf.setTextColor(90);
+    pdf.text(etq+':', M, y);
+    pdf.setFont('helvetica','normal'); pdf.setTextColor(20);
+    const lineas = pdf.splitTextToSize(String(val==null||val===''?'-':val), ANCHO - 45);
+    pdf.text(lineas, M+45, y);
+    y += 5 * Math.max(1, lineas.length);
+  };
+  fila('Comercio', com.nombre||'-');
+  fila('Premio', s.premio||s.titulo||'-');
+  fila('Descripción', desc||'-');
+  fila('Fecha y hora del sorteo', fecha);
+  fila('ID del sorteo', idSorteo);
+  fila('Ganadores', String(ganadores.length));
+  fila('Participantes', String(participantes.length));
+  y += 3;
+
+  // ---- Ganadores ----
+  salto(10);
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(10); pdf.setTextColor(8,21,42);
+  pdf.setFillColor(0,175,239); pdf.rect(M, y-3.6, 1.2, 4.6, 'F');
+  pdf.text('GANADORES', M+3, y); y += 5;
+  if(!ganadores.length){
+    pdf.setFont('helvetica','italic'); pdf.setFontSize(8.5); pdf.setTextColor(120);
+    pdf.text('Sin ganadores registrados.', M, y); y += 6;
+  }else{
+    ganadores.forEach((g,i)=>{
+      const idk = (g.usuarioId||g.id||i)+''+i;
+      const est = (scEntrega[idk] && scEntrega[idk].estado) || 'PENDIENTE';
+      const nom = `${g.apellido||''}${g.apellido&&(g.nombre||g.nombres)?', ':''}${g.nombre||g.nombres||'-'}`;
+      salto(12);
+      pdf.setFont('helvetica','bold'); pdf.setFontSize(9); pdf.setTextColor(20);
+      const l1 = pdf.splitTextToSize(`#${i+1}  ${nom}`, ANCHO);
+      pdf.text(l1, M, y); y += 4.5 * Math.max(1,l1.length);
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(7.5); pdf.setTextColor(80);
+      const l2 = pdf.splitTextToSize(`WhatsApp: ${textoPlano(g.whatsapp||g.celular)}   Email: ${textoPlano(g.email)}   ${textoPlano(g.provincia)}${g.localidad?', '+g.localidad:''}   Tipo: ${textoPlano(g.tipo)}   ID: ${textoPlano(g.usuarioId||g.id)}   ESTADO DE ENTREGA: ${est}`, ANCHO);
+      pdf.text(l2, M, y); y += 4 * l2.length + 2.5;
+    });
+  }
+
+  // ---- Tabla de participantes ----
+  y += 3;
+  salto(20);
+  pdf.setFont('helvetica','bold'); pdf.setFontSize(10); pdf.setTextColor(8,21,42);
+  pdf.setFillColor(0,175,239); pdf.rect(M, y-3.6, 1.2, 4.6, 'F');
+  pdf.text('PARTICIPANTES DEL COMERCIO (' + participantes.length + ')', M+3, y); y += 4;
+
+  const cols = [
+    {t:'#', w:8},
+    {t:'Tipo', w:14},
+    {t:'Apellido y Nombre', w:70},
+    {t:'WhatsApp', w:28},
+    {t:'Email', w:62},
+    {t:'Provincia', w:30},
+    {t:'Localidad', w:30},
+    {t:'ID', w:31}
+  ];
+  const cabezaTabla = ()=>{
+    pdf.setFillColor(8,21,42); pdf.rect(M, y, ANCHO, 6, 'F');
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(7.5); pdf.setTextColor(255,255,255);
+    let x = M + 1.5;
+    cols.forEach(c=>{ pdf.text(c.t, x, y+4); x += c.w; });
+    y += 6;
+  };
+
+  cabezaTabla();
+  if(!participantes.length){
+    pdf.setFont('helvetica','italic'); pdf.setFontSize(8); pdf.setTextColor(120);
+    pdf.text('Sin participantes legibles para este comercio (lista vacía o sin permiso de lectura).', M, y+5);
+    y += 10;
+  }else{
+    const leadsMap = new Map((S.leads||[]).map(l=>[l.id,l]));
+    participantes.forEach((p,i)=>{
+      if(y + 5.5 > H - 16){ nuevaPagina(); cabezaTabla(); }
+      const idp = p.usuarioId||p.id||'';
+      const l = leadsMap.get(idp);
+      const ap = p.apellido || (l&&l.apellido) || '';
+      const no = p.nombres || p.nombre || (l&&(l.nombres||l.nombre)) || '';
+      const nom = ap ? (ap + (no? ', '+no : '')) : (no || '-');
+      const vals = [
+        String(i+1),
+        p.tipo||(l?tipoDe(l):'-'),
+        nom,
+        p.whatsapp||p.celular||(l&&l.whatsapp)||'-',
+        p.email||(l&&l.email)||'-',
+        p.provincia||(l&&l.provincia)||'-',
+        p.localidad||(l&&l.localidad)||'-',
+        idp||'-'
+      ];
+      if(i%2===0){ pdf.setFillColor(245,247,250); pdf.rect(M, y, ANCHO, 5.5, 'F'); }
+      pdf.setFont('helvetica','normal'); pdf.setFontSize(7);
+      let x = M + 1.5;
+      vals.forEach((v,j)=>{
+        const c = cols[j];
+        let t = textoPlano(v);
+        const maxW = c.w - 2;
+        if(pdf.getTextWidth(t) > maxW){
+          while(t.length > 1 && pdf.getTextWidth(t + '…') > maxW) t = t.slice(0,-1);
+          t = t + '…';
+        }
+        pdf.setTextColor(35);
+        pdf.text(t, x, y+3.9);
+        x += c.w;
+      });
+      pdf.setDrawColor(220,226,236); pdf.setLineWidth(0.1);
+      pdf.line(M, y+5.5, M+ANCHO, y+5.5);
+      y += 5.5;
+    });
+  }
+
+  // ---- Pie de página en todas las hojas ----
+  const total = pdf.internal.getNumberOfPages();
+  const datosPie = [emisor.nombre || 'HABITAT-CAR', emisor.slogan || '', emisor.domicilio || '',
+    emisor.telefono ? ('Cel. ' + emisor.telefono) : ''].filter(Boolean).join('  ·  ');
+  for(let p=1;p<=total;p++){
+    pdf.setPage(p);
+    if(p>1){
+      pdf.setFillColor(0,175,239); pdf.rect(0,0,W,2,'F');
+      try{ const hS = 7; const wS = hS * (imgEmisor.w / imgEmisor.h); pdf.addImage(imgEmisor.dataURL, imgEmisor.tipo, W-M-wS, 3.5, wS, hS); }catch(e){}
+    }
+    pdf.setDrawColor(0,175,239); pdf.setLineWidth(0.5);
+    pdf.line(M, H-14, W-M, H-14);
+    pdf.setFont('helvetica','bold'); pdf.setFontSize(7.2); pdf.setTextColor(8,21,42);
+    pdf.text(pdf.splitTextToSize(datosPie, ANCHO-28).slice(0,1), M, H-10);
+    pdf.setFont('helvetica','normal'); pdf.setFontSize(6.6); pdf.setTextColor(110);
+    pdf.text('Documento generado automáticamente por el sistema de cupones Habitat-Car. · Verificación: ' + codigo, M, H-6);
+    pdf.setFontSize(7); pdf.text('Página '+p+' de '+total, W-M, H-10, {align:'right'});
+  }
+
+  const nombre = nombreArchivoPDF(com, s);
+  try{
+    pdf.setProperties({
+      title: 'Constancia de sorteo - '+(com.nombre||'')+' - '+(s.premio||s.titulo||''),
+      subject: 'Sorteo '+idSorteo+' · Código '+codigo,
+      author: emisor.nombre || 'Habitat-Car',
+      keywords: codigo
+    });
+  }catch(e){}
+
+  let b64 = '';
+  try{ b64 = String(pdf.output('datauristring')).split(',').slice(1).join(','); }catch(e){ b64 = ''; }
+
+  const payload = {
+    version: 1, codigo, nombreArchivo: nombre,
+    emisor, legales,
+    comercio: {
+      id: com.id, nombre: com.nombre||'', rubro: com.rubro||'', direccion: com.direccion||'',
+      ciudad: com.ciudad||'', provincia: com.provincia||'', telefono: com.telefono||'',
+      email: com.emailDueno||com.email||'', logoUrl: com.logoUrl||'', idComercio: com.idComercio||''
+    },
+    sorteo: { id: idSorteo, premio: s.premio||s.titulo||'', descripcion: desc, fecha, ganadores, participantes },
+    pdf: b64
+  };
+  const nombresGan = ganadores.slice(0,20).map(g=>(((g.apellido||'')+', '+(g.nombre||g.nombres||'')).replace(/^,\s*/,'') || '-'));
+  const meta = {
+    codigo, nombreArchivo: nombre,
+    comercioId: com.id, comercio: com.nombre||'',
+    premio: s.premio||s.titulo||'', fechaSorteo: fecha, idSorteo,
+    totalGanadores: ganadores.length, totalParticipantes: participantes.length,
+    ganadoresNombres: nombresGan,
+    titular: legales.titular||'', cuit: legales.cuit||'',
+    bytes: b64.length, creado: Date.now(),
+    creadoPor: (S.user && S.user.email) || 'admin',
+    esSimulacion: s.esSimulacion === true
+  };
+
+  pdf.save(nombre);
+  return { nombre, b64, payload, meta };
+}
+
+(function(){
+  var btnSnap = document.getElementById('sc-guardar-snapshot');
+  if(btnSnap){
+    btnSnap.onclick = async function(){
+      try{
+        if(typeof window.$ === 'function'){
+          // ok
+        }else{
+          window.$ = function(id){ return document.getElementById(id); };
+        }
+        if(!scActual){ try{ toast('Primero abrí el detalle de un sorteo.', true); }catch(e){} return; }
+        var btn = document.getElementById('sc-guardar-snapshot');
+        if(!btn) return;
+        var viejo = btn.textContent;
+        btn.disabled = true; btn.textContent = '⏳ Generando PDF…';
+        try{
+          var com = scActual.com, s = scActual.s;
+          var participantes = [];
+          try{
+            if(typeof obtenerParticipantes === 'function'){
+              participantes = await obtenerParticipantes(com,s);
+            }
+          }catch(e){}
+          if(!Array.isArray(participantes)){
+            participantes = Array.isArray(s && s.participantes)?s.participantes:(Array.isArray(s && s.listaParticipantes)?s.listaParticipantes:[]);
+          }
+          var res = null;
+          try{
+            if(typeof generarPDFSorteo === 'function'){
+              res = await generarPDFSorteo(com,s,participantes);
+            }
+          }catch(e){ throw e; }
+          if(!res){ btn.disabled=false; btn.textContent=viejo; return; }
+          try{ toast('📄 PDF descargado: '+res.nombre); }catch(e){}
+          btn.textContent = '⏳ Guardando la constancia en la base…';
+          try{
+            if(!res.b64) throw new Error('el PDF salió vacío');
+            if(typeof guardarConstancia === 'function'){
+              await guardarConstancia(res.payload,res.meta);
+            }
+            try{ toast('🗄 Constancia guardada en la base con el código '+res.meta.codigo+' (se puede volver a descargar).'); }catch(e){}
+            try{
+              var cbox=document.getElementById('sc-constancias');
+              if(cbox && cbox.style.display==='block' && typeof listarConstancias==='function'){ listarConstancias(com.id); }
+            }catch(e){}
+          }catch(e){
+            console.error('guardarConstancia:',e);
+            try{ toast('El PDF se descargó, pero NO se pudo guardar en la base: '+(e.message||e), true); }catch(x){}
+          }
+          btn.disabled=false; btn.textContent=viejo; return;
+        }catch(e){
+          console.error('PDF:',e);
+          try{ toast('No se pudo generar el PDF: '+(e.message||e), true); }catch(x){}
+          btn.disabled=false; btn.textContent=viejo; return;
+        }
+      }catch(e){
+        console.error('handler:',e);
+        try{ alert('Error: '+(e.message||e)); }catch(x){}
+      }
+    };
+  }
+})();
 
 $('sc-ver-auditoria').onclick = async ()=>{
   const box = $('sc-auditoria');
-  box.style.display = box.style.display==='block'?'none':'block';
-  if(box.style.display!=='block') return;
+  if(!scActual){ toast('Primero abrí el detalle de un sorteo.', true); return; }
+  const abrir = box.style.display !== 'block';
+  box.style.display = abrir ? 'block' : 'none';
+  if(!abrir) return;
+  box.innerHTML = '<div class="sub">Buscando registros de auditoría…</div>';
+
+  let items = null, error = null;
   try{
-    let items = [];
+    const snap = await getDocs(query(collection(db,'sorteo_auditoria_mods'), where('key','==',scActual.key)));
+    items = snap.docs.map(d=>d.data()).sort((a,b)=>(b.fecha||0)-(a.fecha||0));
+  }catch(e1){
     try{
-      const q = query(collection(db,'sorteo_auditoria_mods'), where('key','==',scActual.key));
-      const snap = await getDocs(q);
-      items = snap.docs.map(d=>d.data()).sort((a,b)=>(b.fecha||0)-(a.fecha||0));
-    }catch(e1){
-      try{
-        const snap = await getDocs(collection(db,'sorteo_auditoria_mods'));
-        items = snap.docs.map(d=>d.data()).filter(x=>x.key===scActual.key).sort((a,b)=>(b.fecha||0)-(a.fecha||0));
-      }catch(e2){
-        throw e2;
-      }
+      const snap = await getDocs(collection(db,'sorteo_auditoria_mods'));
+      items = snap.docs.map(d=>d.data()).filter(x=>x.key===scActual.key).sort((a,b)=>(b.fecha||0)-(a.fecha||0));
+    }catch(e2){ error = e2; }
+  }
+
+  if(error){
+    const code = String(error.code||'');
+    if(code.indexOf('permission-denied') >= 0){
+      box.innerHTML = '<div class="sub">🔒 <b>Sin permiso para leer la auditoría.</b><br>La base de datos no le permite a esta cuenta ('
+        + esc((S.user&&S.user.email)||'esta sesión') + ') leer la colección <code>sorteo_auditoria_mods</code>.<br>'
+        + 'No es un error del simulador: hay que habilitar el permiso en las reglas de Firebase para el rol admin.</div>';
+    }else{
+      box.innerHTML = '<div class="sub">⚠️ No se pudo leer la auditoría: ' + esc(error.message||String(error)) + '</div>';
     }
-    if(!items.length){ box.innerHTML='<div class="sub">Sin auditoría registrada.</div>'; return; }
-    box.innerHTML = '<div style="display:flex; flex-direction:column; gap:8px">'+items.map(it=>`<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px">
+    return;
+  }
+  if(!items.length){
+    box.innerHTML = '<div class="sub">Sin cambios registrados para este sorteo (nadie lo modificó después de crearlo).</div>';
+    return;
+  }
+  box.innerHTML = '<div style="display:flex; flex-direction:column; gap:8px">'+items.map(it=>`<div style="background:#08152a;border:1px solid #16345e;border-radius:10px;padding:10px 12px">
       <div class="sub">${formatFecha(it.fecha)} · ${esc(it.quien||'admin')} · ${esc(it.origen||'')}</div>
       <div style="font-weight:600;color:var(--dorado)">${esc(it.campo||'MODIFICACION')}</div>
       <div class="sub">ANTES: ${esc(typeof it.antes==='object'?JSON.stringify(it.antes):it.antes)}</div>
       <div class="sub">DESPUÉS: ${esc(typeof it.despues==='object'?JSON.stringify(it.despues):it.despues)}</div>
     </div>`).join('')+'</div>';
-  }catch(e){ box.innerHTML='<div class="sub">Sin permisos para leer auditoría o sin registros.</div>'; }
 };
 
 function renderGanadores(s){
@@ -1116,68 +1922,56 @@ function renderGanadores(s){
 }
 
 async function renderParticipantes(com,s){
-  // Intentar cargar primero desde snapshot si existe
-  let base = scActual.snapshot && Array.isArray(scActual.snapshot.participantes) ? scActual.snapshot.participantes : [];
-  
-  // Si el snapshot está vacío o no existe, forzamos carga desde colecciones de participantes
-  if(!base.length){
-    toast('Cargando participantes desde DB...');
-    try{
-      const q1 = query(collection(db,'admin_participantes_sorteos'), where('comercio','==',com.nombre));
-      const q2 = query(collection(db,'participaciones_sorteos'), where('comercio','==',com.nombre));
-      // Queries sin filtro por si el índice/permiso falla
-      const q3 = query(collection(db,'admin_participantes_sorteos'));
-      const q4 = query(collection(db,'participaciones_sorteos'));
-      
-      const res = await Promise.allSettled([getDocs(q1), getDocs(q2), getDocs(q3), getDocs(q4)]);
-      const seen = new Set();
-      
-      res.forEach(r=>{
-        if(r.status !== 'fulfilled') return;
-        r.value.docs.forEach(d=>{
-          const x = d.data();
-          // Filtramos localmente para asegurar que sean del comercio
-          if(x.comercio && x.comercio === com.nombre){
-             const pid = x.usuarioId||x.id||d.id;
-             if(!seen.has(pid)){ seen.add(pid); base.push({...x, usuarioId: pid}); }
-          }
-        });
-      });
-      
-      if(base.length) toast(`✅ ${base.length} participantes cargados`);
-      else toast('No se encontraron participantes en la base de datos', true);
-    }catch(e){
-      console.error("Error crítico en renderParticipantes:", e);
-      toast('Error cargando participantes: ' + e.message, true);
-    }
-  } else {
-      toast(`✅ Snapshot cargado: ${base.length} participantes`);
+  const tbody = document.getElementById('sc-participantes');
+  if(!tbody){
+    console.warn('renderParticipantes: no existe #sc-participantes en el DOM, se omite el render de la tabla.');
+    try{ var cntp = (typeof $ === 'function'?$('sc-cnt-part'):document.getElementById('sc-cnt-part')); if(cntp) cntp.textContent = (Array.isArray(s&&s.participantes)?s.participantes.length:0); }catch(e){}
+    return;
   }
-  
-  $('sc-cnt-part').textContent = base.length;
-  // ... resto del render
+  var base = [];
+  try{
+    if(typeof obtenerParticipantes === 'function'){
+      base = await obtenerParticipantes(com, s);
+    }
+  }catch(e){
+    console.error('Error cargando participantes:', e);
+    try{ var cntp2 = (typeof $ === 'function'?$('sc-cnt-part'):document.getElementById('sc-cnt-part')); if(cntp2) cntp2.textContent = '0'; }catch(ex){}
+    try{ tbody.innerHTML = '<tr><td colspan="8" style="padding:10px;border:1px solid #16345e;color:#ffb3b3">No se pudieron leer los participantes: '+esc(e.message||e)+'</td></tr>'; }catch(ex){}
+    return;
+  }
 
-  const leadsMap = new Map(S.leads.map(l=>[l.id,l]));
-  tbody.innerHTML = base.map(p=>{
-    const idp = p.usuarioId||p.id||'';
-    const l = leadsMap.get(idp);
-    const nom = p.nombre || ((p.apellido||l&&l.apellido)? (p.apellido||l.apellido)+', '+(p.nombres||p.nombre||l&&l.nombres||l&&l.nombre||'') : (l?(l.apellido||'')+', '+(l.nombres||l.nombre||''):'-'));
-    const wa = p.whatsapp||p.celular||(l&&l.whatsapp)||'-';
-    const em = p.email||(l&&l.email)||'-';
-    const prv = p.provincia||(l&&l.provincia)||'-';
-    const loc = p.localidad||(l&&l.localidad)||'-';
-    const tip = p.tipo||(l&&tipoDe(l))||'-';
-    return `<tr>
-      <td style="padding:6px 8px;border:1px solid #16345e">${esc(tip)}</td>
-      <td style="padding:6px 8px;border:1px solid #16345e">${esc(nom)}</td>
-      <td style="padding:6px 8px;border:1px solid #16345e">${esc(wa)}</td>
-      <td style="padding:6px 8px;border:1px solid #16345e">${esc(em)}</td>
-      <td style="padding:6px 8px;border:1px solid #16345e">${esc(prv)}</td>
-      <td style="padding:6px 8px;border:1px solid #16345e">${esc(loc)}</td>
-      <td style="padding:6px 8px;border:1px solid #16345e">${esc(idp)}</td>
-      <td style="padding:6px 8px;border:1px solid #16345e">${esc(p.origen|| (scActual.s&&scActual.s.origen)||'')}</td>
-    </tr>`;
-  }).join('');
+  try{ var cntp3 = (typeof $ === 'function'?$('sc-cnt-part'):document.getElementById('sc-cnt-part')); if(cntp3) cntp3.textContent = Array.isArray(base)?base.length:0; }catch(e){}
+
+  if(!Array.isArray(base) || !base.length){
+    try{ tbody.innerHTML = '<tr><td colspan="8" style="padding:10px;border:1px solid #16345e;color:#ffe6a3">Sin participantes registrados para este comercio.</td></tr>'; }catch(e){}
+    return;
+  }
+
+  try{
+    var leadsMap = new Map((Array.isArray(window.S&&S.leads)?S.leads:[]).map(function(l){return [l.id,l];}));
+    tbody.innerHTML = base.map(function(p){
+      var idp = p.usuarioId||p.id||'';
+      var l = leadsMap.get(idp);
+      var nom = p.nombre || ((p.apellido||l&&l.apellido)? (p.apellido||l.apellido)+', '+(p.nombres||p.nombre||l&&l.nombres||l&&l.nombre||'') : (l?(l.apellido||'')+', '+(l.nombres||l.nombre||''):'-'));
+      var wa = p.whatsapp||p.celular||(l&&l.whatsapp)||'-';
+      var em = p.email||(l&&l.email)||'-';
+      var prv = p.provincia||(l&&l.provincia)||'-';
+      var loc = p.localidad||(l&&l.localidad)||'-';
+      var tip = p.tipo||(l&&typeof tipoDe==='function'&&tipoDe(l))||'-';
+      return '<tr>'+
+        '<td style="padding:6px 8px;border:1px solid #16345e">'+esc(tip)+'</td>'+
+        '<td style="padding:6px 8px;border:1px solid #16345e">'+esc(nom)+'</td>'+
+        '<td style="padding:6px 8px;border:1px solid #16345e">'+esc(wa)+'</td>'+
+        '<td style="padding:6px 8px;border:1px solid #16345e">'+esc(em)+'</td>'+
+        '<td style="padding:6px 8px;border:1px solid #16345e">'+esc(prv)+'</td>'+
+        '<td style="padding:6px 8px;border:1px solid #16345e">'+esc(loc)+'</td>'+
+        '<td style="padding:6px 8px;border:1px solid #16345e">'+esc(idp)+'</td>'+
+        '<td style="padding:6px 8px;border:1px solid #16345e">'+esc(p.origen|| (scActual && scActual.s && scActual.s.origen)||'')+'</td>'+
+      '</tr>';
+    }).join('');
+  }catch(e){
+    console.error('renderParticipantes map:', e);
+  }
 }
 
 function abrirModalEntrega(key, nom){
@@ -1244,17 +2038,75 @@ $('btn-purge-sim').onclick = async ()=>{
 };
 
 $('btn-refresh').onclick=()=> cargarTodo();
-$('btn-reset-reward').onclick=async()=>{
+
+// ---- Reiniciar recompensa VIP: de a uno, por lotes marcados, o a todos ----
+async function reiniciarRecompensa(ids, boton){
+  if(!ids.length){ toast('Marcá al menos un usuario con la casilla verde.', true); return; }
+  const etiqueta = ids.length===1
+    ? 'este usuario (' + (()=>{ const l=S.leads.find(x=>x.id===ids[0]); return l? ((l.apellido||'')+', '+(l.nombres||l.nombre||'')).replace(/^,\s*/,'') : '1 usuario'; })() + ')'
+    : 'los ' + ids.length + ' usuarios marcados';
+  if(!confirm('¿Reiniciar la recompensa VIP de ' + etiqueta + '?\n\nVan a volver a ver el modal de los 100 canjes. No se borra ningún usuario ni ningún canje.')) return;
+  const btn = boton || $('btn-reset-reward');
+  const viejo = btn.textContent;
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Reiniciando…';
   try{ localStorage.removeItem('recompensa_vip_100'); }catch(e){}
   try{
-    const pend=(S.leads||[]).filter(l=>l.recompensa_vip_recibida===true);
-    for(let i=0;i<pend.length;i+=450){
+    for(let i=0;i<ids.length;i+=450){
       const b=writeBatch(db);
-      pend.slice(i,i+450).forEach(l=>{ b.update(doc(db,'leads',l.id),{recompensa_vip_recibida:false}); l.recompensa_vip_recibida=false; });
+      ids.slice(i,i+450).forEach(id=>{ b.update(doc(db,'leads',id),{recompensa_vip_recibida:false}); });
       await b.commit();
     }
-    toast('🔄 Recompensa VIP reseteada ('+pend.length+' usuarios simulados). El modal volverá a salir al llegar a 100.');
-  }catch(e){ toast('Error reseteando: '+e.message, true); }
+    ids.forEach(id=>{ const l=S.leads.find(x=>x.id===id); if(l){ l.recompensa_vip_recibida=false; l.fecha_recompensa_vip=null; } });
+    selVip.clear();
+    render();
+    // Resultado visible (queda en pantalla hasta que lo cierres)
+    const nombres = ids.map(id=>{
+      const l=S.leads.find(x=>x.id===id);
+      return l ? (((l.apellido||'')+', '+(l.nombres||l.nombre||'')).replace(/^,\s*/,'') || id) : id;
+    });
+    const caja = $('vip-resultado');
+    if(caja){
+      caja.style.display='block';
+      caja.innerHTML = `<div style="font-weight:700;color:#7ff0a8;margin-bottom:6px">✅ Recompensa VIP reiniciada en ${ids.length} ${ids.length===1?'usuario':'usuarios'}</div>
+        <div class="sub">Estos usuarios ya NO tienen la marca «🎁 Recompensa VIP YA recibida»: ahora les dice «🎁 Recompensa VIP DISPONIBLE», así que el cartel de los 100 canjes les vuelve a aparecer.</div>
+        <div style="margin-top:8px;line-height:1.6">${nombres.slice(0,20).map(n=>'• '+esc(n)).join('<br>')}${nombres.length>20?`<br>… y ${nombres.length-20} más`:''}</div>
+        <div style="margin-top:10px"><button class="gris mini" id="vip-resultado-cerrar">✖ Cerrar este resumen</button></div>`;
+      const bc = $('vip-resultado-cerrar');
+      if(bc) bc.onclick = ()=>{ caja.style.display='none'; };
+      try{ caja.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){}
+    }
+    toast('🔄 Recompensa VIP reiniciada en ' + ids.length + (ids.length===1?' usuario.':' usuarios.'));
+  }catch(e){
+    toast('Error reiniciando: '+e.message, true);
+  }finally{
+    btn.disabled=false; btn.textContent=viejo;
+  }
+}
+
+// Solo los marcados con la casilla
+$('btn-reset-reward').onclick = ()=> reiniciarRecompensa([...selVip], $('btn-reset-reward'));
+
+// Todos, con aviso bien claro
+$('btn-reset-todos').onclick = ()=>{
+  const todos = (S.leads||[]).map(l=>l.id);
+  if(!todos.length){ toast('No hay usuarios simulados.', true); return; }
+  reiniciarRecompensa(todos, $('btn-reset-todos'));
+};
+
+// Marcar todos los que se ven en la página actual
+$('btn-sel-pagina').onclick = ()=>{
+  const arr = aplicarFiltros();
+  const ini = (paginaActual-1)*POR_PAGINA;
+  arr.slice(ini, ini+POR_PAGINA).forEach(l=>selVip.add(l.id));
+  renderGrilla(aplicarFiltros());
+  toast('☑ Marcados ' + selVip.size + ' usuarios. Ahora tocá "Reiniciar recompensa VIP de los marcados".');
+};
+
+// Desmarcar todo
+$('btn-sel-limpiar').onclick = ()=>{
+  selVip.clear();
+  renderGrilla(aplicarFiltros());
+  toast('Selección vacía.');
 };
 </script>
 </body>
