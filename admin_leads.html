@@ -5,6 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Panel Leads | Hábitat-Car</title>
 
+    <!-- ========== ARRANQUE RÁPIDO DE FIRESTORE (corre ANTES que el bloque de seguridad) ========== -->
+    <link rel="preconnect" href="https://www.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://firestore.googleapis.com">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js">
+    <link rel="modulepreload" href="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js">
+    <script type="module">
+        // Caché persistente (IndexedDB): desde la 2ª visita los leads salen del disco al instante y el servidor
+        // solo manda los cambios. Auto-detección de long-polling evita los ~10-20 s de espera cuando la red
+        // (proxy/antivirus) bloquea el streaming de Firestore. Si algo falla, el resto de la página usa getFirestore() normal.
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+        import { initializeFirestore, persistentLocalCache, persistentMultipleTabManager } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+        try {
+            const appRapida = initializeApp({
+                apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+                authDomain: "habitatcar-pro.firebaseapp.com",
+                projectId: "habitatcar-pro",
+                storageBucket: "habitatcar-pro.firebasestorage.app",
+                messagingSenderId: "311691258694",
+                appId: "1:311691258694:web:17a09051dcea7707af9347"
+            });
+            try {
+                initializeFirestore(appRapida, {
+                    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+                    experimentalAutoDetectLongPolling: true
+                });
+            } catch (e1) {
+                console.warn("[leads] caché persistente no disponible, uso la normal:", e1.message);
+                try { initializeFirestore(appRapida, { experimentalAutoDetectLongPolling: true }); } catch (e2) {}
+            }
+        } catch (e) { console.warn("[leads] arranque rápido omitido:", e.message); }
+    </script>
+
     <!-- ========== BLOQUE DE SEGURIDAD ========== -->
     <script type="module">
         import { verificarAccesoAdmin } from './admin_auth.js';
@@ -21,11 +53,31 @@
     </script>
     <!-- ========== FIN BLOQUE DE SEGURIDAD ========== -->
 
-    <!-- Librerías para generación de PDF y gráficos -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- Librerías para generación de PDF y gráficos: ya NO bloquean la carga (se bajan después de mostrar la tabla) -->
+    <script>
+        window.cargarLibsPDF = (function () {
+            var p = null;
+            function cargar(src) {
+                return new Promise(function (res) {
+                    var sc = document.createElement('script');
+                    sc.src = src; sc.onload = res; sc.onerror = res;
+                    document.head.appendChild(sc);
+                });
+            }
+            return function () {
+                if (!p) {
+                    p = cargar('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js')
+                        .then(function () { return cargar('https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js'); })
+                        .then(function () { return Promise.all([
+                            cargar('https://cdn.jsdelivr.net/npm/chart.js'),
+                            cargar('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js')
+                        ]); });
+                }
+                return p;
+            };
+        })();
+        window.addEventListener('load', function () { setTimeout(window.cargarLibsPDF, 2500); });
+    </script>
 
     <style>
         :root {
@@ -307,7 +359,7 @@
                     <th class="col-checkbox"><input type="checkbox" id="select-all" onclick="seleccionarTodos(this.checked)"></th>
                    </tr>
             </thead>
-            <tbody id="lista-leads"></tbody>
+            <tbody id="lista-leads"><tr id="fila-cargando"><td colspan="10" style="text-align:center;padding:40px;color:#8892b0;font-size:1.05em;">⏳ Cargando leads... <span id="seg-carga">0</span> s</td></tr></tbody>
            </table>
     </div>
 
@@ -328,6 +380,13 @@
         const db = getFirestore(app);
         window.db = db;
 
+        const _t0Carga = performance.now();
+        const _tickCarga = setInterval(() => {
+            const f = document.getElementById('seg-carga');
+            if (!f) { clearInterval(_tickCarga); return; }
+            f.textContent = Math.round((performance.now() - _t0Carga) / 1000);
+        }, 500);
+
         let todosLosLeads = [];
         let todasLasProvincias = [];
         let todasLasLocalidades = [];
@@ -343,16 +402,10 @@
             }
             const el = (id) => document.getElementById(id);
             try {
-                const todosSnap = await getDocs(collection(db, "leads"));
-                const totalRaw = todosSnap.size;
-                const vipsSnap = await getDocs(query(collection(db, "leads"), where("convertidoVIP", "==", true)));
-                const totalVips = vipsSnap.size;
-                const totalLeads = totalRaw - totalVips;
+                // Los contadores de LEADS y VIP se actualizan desde el onSnapshot de "leads" (sin lecturas extra)
                 const comerciosSnap = await getDocs(collection(db, "comercios"));
                 const totalComercios = comerciosSnap.size;
                 if (el('cont-comercios')) el('cont-comercios').innerText = totalComercios;
-                if (el('cont-leads')) el('cont-leads').innerText = totalLeads;
-                if (el('cont-vips')) el('cont-vips').innerText = totalVips;
                 try {
                     const tutSnap = await getDocs(collection(db, "tutoriales"));
                     if (el('cont-tutoriales')) el('cont-tutoriales').innerText = tutSnap.size;
@@ -408,11 +461,20 @@
         }
         cargarProvincias();
 
-        const q = query(collection(db, "leads"), where("convertidoVIP", "!=", true));
-        onSnapshot(q, (snapshot) => {
+        // Sin where("convertidoVIP","!=",true) en el servidor (lento): se trae la colección y se filtra acá.
+        let _primerSnap = true;
+        onSnapshot(collection(db, "leads"), (snapshot) => {
+            // Con caché vacía (1ª visita) Firestore avisa primero "0 docs desde caché": se sigue mostrando "Cargando..."
+            if (snapshot.metadata.fromCache && snapshot.empty) return;
+            if (_primerSnap) {
+                _primerSnap = false;
+                console.log('[leads] primer snapshot:', snapshot.size, 'docs en', Math.round(performance.now() - _t0Carga), 'ms (desde caché:', snapshot.metadata.fromCache + ')');
+            }
             todosLosLeads = [];
+            let totalVips = 0;
             snapshot.forEach(docSnap => {
                 const data = docSnap.data();
+                if (data.convertidoVIP === true) { totalVips++; return; }   // los VIP no se muestran en esta página
                 let detalleHtml = "<div class='detalle-comercios'>";
                 Object.keys(data).forEach(key => {
                     if (data[key] && typeof data[key] === 'object' && data[key].usos !== undefined) {
@@ -427,8 +489,16 @@
                     detalle_comercios_html: detalleHtml === "<div class='detalle-comercios'></div>" ? "-" : detalleHtml
                 });
             });
+            // Contadores del navbar a partir de este mismo snapshot (sin lecturas extra)
+            const elL = document.getElementById('cont-leads'), elV = document.getElementById('cont-vips');
+            if (elL) elL.innerText = todosLosLeads.length;
+            if (elV) elV.innerText = totalVips;
             aplicarOrdenYRender();
-        }, (error) => { console.error("Error en tiempo real:", error); });
+        }, (error) => {
+            console.error("Error en tiempo real:", error);
+            const lista = document.getElementById('lista-leads');
+            if (lista) lista.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:#ff8a8a;">⚠️ No se pudieron cargar los leads: ' + (error && error.message ? error.message : error) + '</td></tr>';
+        });
 
         function aplicarOrdenYRender() {
             const { campo, asc } = ordenActual;
@@ -462,16 +532,20 @@
             renderizar(filtrados);
         };
 
+        let _renderToken = 0;
         function renderizar(datos) {
             const lista = document.getElementById('lista-leads');
-            lista.innerHTML = "";
             document.getElementById('contador-total').innerText = datos.length;
-            datos.forEach(l => {
+            if (!datos.length) {
+                lista.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:#8892b0;">No hay leads para mostrar.</td></tr>';
+                return;
+            }
+            const construirFila = (l) => {
                 const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
                 const lastSub = (l.lastSubmission || l.fechaRegistro) ? new Date(l.lastSubmission || l.fechaRegistro).toLocaleString() : '---';
                 const suspendido = l.estado === 'suspendido';
                 const nombreFull = `${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}`;
-                lista.innerHTML += `
+                return `
                     <tr style="${suspendido ? 'opacity: 0.5; background: rgba(220,53,69,0.05)' : ''}">
                         <td style="color: #8892b0;">${fechaReg}</td>
                         <td style="color: var(--oro); font-size: 0.9em;">${lastSub}</td>
@@ -496,7 +570,19 @@
                         </td>
                        </tr>
                 `;
-            });
+            };
+            // Las primeras filas aparecen de inmediato; el resto se agrega por tandas sin congelar la pantalla
+            const token = ++_renderToken;
+            const LOTE_INICIAL = 100, LOTE = 400;
+            lista.innerHTML = datos.slice(0, LOTE_INICIAL).map(construirFila).join('');
+            let i = LOTE_INICIAL;
+            const seguir = () => {
+                if (token !== _renderToken || i >= datos.length) return;
+                lista.insertAdjacentHTML('beforeend', datos.slice(i, i + LOTE).map(construirFila).join(''));
+                i += LOTE;
+                setTimeout(seguir, 0);
+            };
+            setTimeout(seguir, 0);
         }
 
         // =============================================
@@ -654,6 +740,8 @@
 
         window.generarReportePDF = async (nivel) => {
             if (!nivel) return;
+            await window.cargarLibsPDF();
+            if (!window.jspdf) { alert("No se pudo cargar la librería de PDF. Revisá tu conexión e intentá de nuevo."); return; }
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF();
 
