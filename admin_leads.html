@@ -352,7 +352,8 @@
                     <th>EMAIL</th>
                     <th>PROVINCIA</th>
                     <th>CIUDAD</th>
-                    <th style="text-align: center;" onclick="ordenar('inscriptos_count')">CANT. ↕</th>
+                    <th style="text-align:center;">N°</th>
+                    <th style="text-align: center;">Cant. Comercios</th>
                     <th style="text-align: center;" onclick="ordenar('usos_count')">CANT. USOS ↕</th>
                     <th class="col-acciones">
                         <div class="acciones-header">ACCIONES</div>
@@ -360,7 +361,7 @@
                     <th class="col-checkbox"><input type="checkbox" id="select-all" onclick="seleccionarTodos(this.checked)"></th>
                    </tr>
             </thead>
-            <tbody id="lista-leads"><tr id="fila-cargando"><td colspan="11" style="text-align:center;padding:40px;color:#8892b0;font-size:1.05em;">⏳ Cargando leads... <span id="seg-carga">0</span> s</td></tr></tbody>
+            <tbody id="lista-leads"><tr id="fila-cargando"><td colspan="12" style="text-align:center;padding:40px;color:#8892b0;font-size:1.05em;">⏳ Cargando leads... <span id="seg-carga">0</span> s</td></tr></tbody>
            </table>
 
            <div class="paginacion" style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:18px;flex-wrap:wrap;background:rgba(255,255,255,0.02);padding:10px 15px;border-radius:10px;border:1px solid rgba(255,193,7,0.25);">
@@ -599,7 +600,7 @@
             actualizarPaginacionLeads(datos.length);
 
             if (!datos.length) {
-                lista.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:#8892b0;">No hay leads para mostrar.</td></tr>';
+                lista.innerHTML = '<tr><td colspan="12" style="text-align:center;padding:40px;color:#8892b0;">No hay leads para mostrar.</td></tr>';
                 return;
             }
 
@@ -607,14 +608,17 @@
             const fin = inicio + POR_PAGINA_LEADS;
             const datosPagina = datos.slice(inicio, fin);
 
-            const construirFila = (l) => {
+            const construirFila = (l, idx) => {
                 const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
                 const lastSub = (l.lastSubmission || l.fechaRegistro) ? new Date(l.lastSubmission || l.fechaRegistro).toLocaleString() : '---';
                 const suspendido = l.estado === 'suspendido';
                 const nombreFull = `${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}`;
                 const inscriptos = l.inscriptos_count || 0;
+                const numeroOrden = inicio + idx + 1;
+                const canjes = l.canjes_por_comercio || {};
                 return `
                     <tr style="${suspendido ? 'opacity: 0.5; background: rgba(220,53,69,0.05)' : ''}">
+                        <td style="text-align:center;color:#8892b0;">${numeroOrden}</td>
                         <td style="color: #8892b0;">${fechaReg}</td>
                         <td style="color: var(--oro); font-size: 0.9em;">${lastSub}</td>
                         <td><b>${nombreFull}</b></td>
@@ -622,7 +626,9 @@
                         <td style="color:#8892b0">${l.email || l.mail || '---'}</td>
                         <td style="color: #8892b0">${pascalCase(l.provincia || '')}</td>
                         <td style="color: #8892b0">${pascalCase(l.localidad || '')}</td>
-                        <td style="text-align:center;font-weight:bold;color:var(--oro);">${inscriptos}</td>
+                        <td style="text-align:center;">
+                            <span onclick="abrirModalComerciosUsados('${l.id}', '${nombreFull.replace(/'/g,"\\'")}')" title="Ver comercios donde usó cupón" style="cursor:pointer;font-weight:bold;color:var(--oro);text-decoration:underline;">${inscriptos}</span>
+                        </td>
                         <td class="col-usos">${l.usos_count || 0}</td>
                         <td class="col-acciones">
                             <div class="acciones-bloque">
@@ -641,7 +647,7 @@
                 `;
             };
 
-            lista.innerHTML = datosPagina.map(construirFila).join('');
+            lista.innerHTML = datosPagina.map((l, idx) => construirFila(l, idx)).join('');
         }
 
         // =============================================
@@ -795,6 +801,114 @@
 
         window.seleccionarTodos = (checked) => {
             document.querySelectorAll('.lead-checkbox').forEach(cb => cb.checked = checked);
+        };
+
+        // Modal comercios usados
+        window.abrirModalComerciosUsados = (id, nombre) => {
+            const lead = todosLosLeads.find(l => l.id === id) || {};
+            const canjes = lead.canjes_por_comercio || {};
+            let items = [];
+            if (typeof canjes === 'object' && canjes !== null) {
+                Object.keys(canjes).forEach(key => {
+                    const val = canjes[key];
+                    if (typeof val === 'object' && val !== null) {
+                        items.push({ id: key, nombre: val.nombre || key, usos: val.usos || 0 });
+                    } else if (typeof val === 'number') {
+                        items.push({ id: key, nombre: key, usos: val });
+                    }
+                });
+            }
+            window.__modalComerciosItems = items;
+            window.__modalComerciosNombre = nombre;
+            window.__modalComerciosPagina = 1;
+            mostrarModalComerciosUsados();
+        };
+
+        window.mostrarModalComerciosUsados = () => {
+            const items = window.__modalComerciosItems || [];
+            const nombre = window.__modalComerciosNombre || '';
+            const pagina = window.__modalComerciosPagina || 1;
+            const porPagina = 5;
+            const total = items.length;
+            const totalPag = Math.max(1, Math.ceil(total / porPagina));
+            if (pagina > totalPag) window.__modalComerciosPagina = totalPag;
+            const inicio = ((window.__modalComerciosPagina || 1) - 1) * porPagina;
+            const fin = inicio + porPagina;
+            const datosPag = items.slice(inicio, fin);
+
+            let html = `
+                <div id="modal-comercios-usados" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:100000;display:flex;align-items:center;justify-content:center;">
+                    <div style="background:var(--azul-medio);border-radius:16px;max-width:650px;width:95%;max-height:90vh;overflow:auto;border:2px solid var(--oro);box-shadow:0 10px 40px rgba(0,0,0,0.6);">
+                        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;border-bottom:1px solid rgba(255,193,7,0.4);">
+                            <div>
+                                <div style="color:var(--oro);font-weight:bold;font-size:1.1em;">Comercios donde usó cupón</div>
+                                <div style="color:white;font-size:0.9em;margin-top:4px;">${nombre}</div>
+                            </div>
+                            <button onclick="cerrarModalComerciosUsados()" style="background:none;border:none;color:white;font-size:28px;cursor:pointer;">&times;</button>
+                        </div>
+                        <div style="padding:16px 20px;">
+            `;
+            if (!items.length) {
+                html += `<div style="text-align:center;color:#8892b0;padding:30px;">No hay comercios registrados.</div>`;
+            } else {
+                html += `<table style="width:100%;border-collapse:collapse;">
+                    <thead><tr style="background:rgba(0,0,0,0.3);">
+                        <th style="text-align:left;padding:10px;color:var(--oro);">Comercio</th>
+                        <th style="text-align:center;padding:10px;color:var(--oro);">Veces usado</th>
+                    </tr></thead><tbody>`;
+                datosPag.forEach(it => {
+                    html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
+                        <td style="padding:10px;color:white;">${it.nombre}</td>
+                        <td style="padding:10px;text-align:center;font-weight:bold;color:var(--oro);">${it.usos}</td>
+                    </tr>`;
+                });
+                html += `</tbody></table>`;
+                html += `<div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:16px;flex-wrap:wrap;">
+                    <button onclick="cambiarPaginaModalComercios(-1)" style="background:var(--azul-oscuro);color:white;border:1px solid var(--celeste-habitat);padding:6px 12px;border-radius:6px;cursor:pointer;">« Anterior</button>
+                    <span style="color:white;">Página <span id="pag-modal-actual">${window.__modalComerciosPagina}</span> / <span id="pag-modal-total">${totalPag}</span></span>
+                    <button onclick="cambiarPaginaModalComercios(1)" style="background:var(--azul-oscuro);color:white;border:1px solid var(--celeste-habitat);padding:6px 12px;border-radius:6px;cursor:pointer;">Siguiente »</button>
+                    <div style="display:flex;align-items:center;gap:6px;">
+                        <span style="color:white;">Ir a:</span>
+                        <input type="number" id="input-ir-pagina-modal" min="1" style="width:60px;padding:5px 6px;border-radius:6px;border:1px solid var(--celeste-habitat);background:var(--azul-oscuro);color:white;text-align:center;">
+                        <button onclick="irAPaginaModalComercios()" style="background:var(--oro);color:black;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-weight:bold;">Ir</button>
+                    </div>
+                </div>`;
+            }
+            html += `</div></div></div>`;
+            const old = document.getElementById('modal-comercios-usados');
+            if (old) old.remove();
+            document.body.insertAdjacentHTML('beforeend', html);
+            const inp = document.getElementById('input-ir-pagina-modal');
+            if (inp) inp.value = window.__modalComerciosPagina;
+        };
+
+        window.cambiarPaginaModalComercios = (delta) => {
+            const items = window.__modalComerciosItems || [];
+            const porPagina = 5;
+            const totalPag = Math.max(1, Math.ceil(items.length / porPagina));
+            let p = (window.__modalComerciosPagina || 1) + delta;
+            if (p < 1) p = 1;
+            if (p > totalPag) p = totalPag;
+            window.__modalComerciosPagina = p;
+            mostrarModalComerciosUsados();
+        };
+
+        window.irAPaginaModalComercios = () => {
+            const items = window.__modalComerciosItems || [];
+            const porPagina = 5;
+            const totalPag = Math.max(1, Math.ceil(items.length / porPagina));
+            const inp = document.getElementById('input-ir-pagina-modal');
+            let p = parseInt(inp.value);
+            if (isNaN(p)) p = 1;
+            if (p < 1) p = 1;
+            if (p > totalPag) p = totalPag;
+            window.__modalComerciosPagina = p;
+            mostrarModalComerciosUsados();
+        };
+
+        window.cerrarModalComerciosUsados = () => {
+            const old = document.getElementById('modal-comercios-usados');
+            if (old) old.remove();
         };
 
         window.generarReportePDF = async (nivel) => {
