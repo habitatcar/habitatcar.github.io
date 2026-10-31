@@ -352,6 +352,7 @@
                     <th>EMAIL</th>
                     <th>PROVINCIA</th>
                     <th>CIUDAD</th>
+                    <th style="text-align: center;" onclick="ordenar('inscriptos_count')">CANT. ↕</th>
                     <th style="text-align: center;" onclick="ordenar('usos_count')">CANT. USOS ↕</th>
                     <th class="col-acciones">
                         <div class="acciones-header">ACCIONES</div>
@@ -359,8 +360,20 @@
                     <th class="col-checkbox"><input type="checkbox" id="select-all" onclick="seleccionarTodos(this.checked)"></th>
                    </tr>
             </thead>
-            <tbody id="lista-leads"><tr id="fila-cargando"><td colspan="10" style="text-align:center;padding:40px;color:#8892b0;font-size:1.05em;">⏳ Cargando leads... <span id="seg-carga">0</span> s</td></tr></tbody>
+            <tbody id="lista-leads"><tr id="fila-cargando"><td colspan="11" style="text-align:center;padding:40px;color:#8892b0;font-size:1.05em;">⏳ Cargando leads... <span id="seg-carga">0</span> s</td></tr></tbody>
            </table>
+
+           <div class="paginacion" style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:18px;flex-wrap:wrap;background:rgba(255,255,255,0.02);padding:10px 15px;border-radius:10px;border:1px solid rgba(255,193,7,0.25);">
+               <button onclick="cambiarPaginaLeads(-1)" style="background:var(--azul-medio);color:white;border:1px solid var(--celeste-habitat);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:bold;">« Anterior</button>
+               <span style="color:white;font-weight:bold;">Página <span id="pag-actual-leads">1</span> / <span id="pag-total-leads">1</span></span>
+               <button onclick="cambiarPaginaLeads(1)" style="background:var(--azul-medio);color:white;border:1px solid var(--celeste-habitat);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:bold;">Siguiente »</button>
+               <div style="display:flex;align-items:center;gap:6px;">
+                   <span style="color:white;">Ir a página:</span>
+                   <input type="number" id="input-ir-pagina-leads" min="1" style="width:70px;padding:6px 8px;border-radius:6px;border:1px solid var(--celeste-habitat);background:var(--azul-oscuro);color:white;text-align:center;">
+                   <button onclick="irAPaginaLeads()" style="background:var(--oro);color:black;border:none;padding:7px 12px;border-radius:6px;cursor:pointer;font-weight:bold;">Ir</button>
+               </div>
+               <span style="color:#8892b0;">Mostrando <span id="pag-mostrando-leads">0</span> de <span id="pag-total-registros-leads">0</span> registros</span>
+           </div>
     </div>
 
     <script type="module">
@@ -391,6 +404,9 @@
         let todasLasProvincias = [];
         let todasLasLocalidades = [];
         let ordenActual = { campo: 'fechaRegistro', asc: false };
+        let leadsFiltradosCache = [];
+        let paginaActualLeads = 1;
+        const POR_PAGINA_LEADS = 50;
 
         // =============================================
         // CONTADORES NAV (mismo que comercios)
@@ -482,11 +498,14 @@
                     }
                 });
                 detalleHtml += "</div>";
+                const canjes = data.canjes_por_comercio || {};
+                const inscriptosCount = (typeof canjes === 'object' && canjes !== null) ? Object.keys(canjes).length : 0;
                 todosLosLeads.push({
                     id: docSnap.id, ...data,
                     provincia_normalized: (data.provincia || '').toLowerCase(),
                     localidad_normalized: (data.localidad || '').toLowerCase(),
-                    detalle_comercios_html: detalleHtml === "<div class='detalle-comercios'></div>" ? "-" : detalleHtml
+                    detalle_comercios_html: detalleHtml === "<div class='detalle-comercios'></div>" ? "-" : detalleHtml,
+                    inscriptos_count: inscriptosCount > 0 ? inscriptosCount : (data.inscriptos_count || 0)
                 });
             });
             // Contadores del navbar a partir de este mismo snapshot (sin lecturas extra)
@@ -529,22 +548,71 @@
             });
             document.getElementById('count-prov').innerText = prov ? todosLosLeads.filter(l => l.provincia_normalized === prov).length : 0;
             document.getElementById('count-loc').innerText = loc ? todosLosLeads.filter(l => l.localidad_normalized === loc).length : 0;
+            paginaActualLeads = 1;
+            leadsFiltradosCache = filtrados;
             renderizar(filtrados);
         };
 
         let _renderToken = 0;
+        function actualizarPaginacionLeads(total) {
+            const totalPag = Math.max(1, Math.ceil(total / POR_PAGINA_LEADS));
+            if (paginaActualLeads > totalPag) paginaActualLeads = totalPag;
+            const inicio = (paginaActualLeads - 1) * POR_PAGINA_LEADS + 1;
+            const fin = Math.min(paginaActualLeads * POR_PAGINA_LEADS, total);
+            const elPag = document.getElementById('pag-actual-leads');
+            const elTotPag = document.getElementById('pag-total-leads');
+            const elMostrando = document.getElementById('pag-mostrando-leads');
+            const elTotReg = document.getElementById('pag-total-registros-leads');
+            const elInput = document.getElementById('input-ir-pagina-leads');
+            if (elPag) elPag.textContent = paginaActualLeads;
+            if (elTotPag) elTotPag.textContent = totalPag;
+            if (elMostrando) elMostrando.textContent = total ? `${inicio}-${fin}` : 0;
+            if (elTotReg) elTotReg.textContent = total;
+            if (elInput) elInput.value = paginaActualLeads;
+        }
+
+        window.cambiarPaginaLeads = (delta) => {
+            const total = leadsFiltradosCache.length;
+            const totalPag = Math.max(1, Math.ceil(total / POR_PAGINA_LEADS));
+            paginaActualLeads += delta;
+            if (paginaActualLeads < 1) paginaActualLeads = 1;
+            if (paginaActualLeads > totalPag) paginaActualLeads = totalPag;
+            renderizar(leadsFiltradosCache);
+        };
+
+        window.irAPaginaLeads = () => {
+            const total = leadsFiltradosCache.length;
+            const totalPag = Math.max(1, Math.ceil(total / POR_PAGINA_LEADS));
+            const elInput = document.getElementById('input-ir-pagina-leads');
+            let val = parseInt(elInput.value);
+            if (isNaN(val)) val = 1;
+            if (val < 1) val = 1;
+            if (val > totalPag) val = totalPag;
+            paginaActualLeads = val;
+            renderizar(leadsFiltradosCache);
+        };
+
         function renderizar(datos) {
             const lista = document.getElementById('lista-leads');
             document.getElementById('contador-total').innerText = datos.length;
+            leadsFiltradosCache = datos;
+            actualizarPaginacionLeads(datos.length);
+
             if (!datos.length) {
-                lista.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:40px;color:#8892b0;">No hay leads para mostrar.</td></tr>';
+                lista.innerHTML = '<tr><td colspan="11" style="text-align:center;padding:40px;color:#8892b0;">No hay leads para mostrar.</td></tr>';
                 return;
             }
+
+            const inicio = (paginaActualLeads - 1) * POR_PAGINA_LEADS;
+            const fin = inicio + POR_PAGINA_LEADS;
+            const datosPagina = datos.slice(inicio, fin);
+
             const construirFila = (l) => {
                 const fechaReg = l.fechaRegistro ? new Date(l.fechaRegistro).toLocaleDateString() : '---';
                 const lastSub = (l.lastSubmission || l.fechaRegistro) ? new Date(l.lastSubmission || l.fechaRegistro).toLocaleString() : '---';
                 const suspendido = l.estado === 'suspendido';
                 const nombreFull = `${(l.apellido || '').toUpperCase()}, ${(l.nombres || '').toUpperCase()}`;
+                const inscriptos = l.inscriptos_count || 0;
                 return `
                     <tr style="${suspendido ? 'opacity: 0.5; background: rgba(220,53,69,0.05)' : ''}">
                         <td style="color: #8892b0;">${fechaReg}</td>
@@ -554,6 +622,7 @@
                         <td style="color:#8892b0">${l.email || l.mail || '---'}</td>
                         <td style="color: #8892b0">${pascalCase(l.provincia || '')}</td>
                         <td style="color: #8892b0">${pascalCase(l.localidad || '')}</td>
+                        <td style="text-align:center;font-weight:bold;color:var(--oro);">${inscriptos}</td>
                         <td class="col-usos">${l.usos_count || 0}</td>
                         <td class="col-acciones">
                             <div class="acciones-bloque">
@@ -571,18 +640,8 @@
                        </tr>
                 `;
             };
-            // Las primeras filas aparecen de inmediato; el resto se agrega por tandas sin congelar la pantalla
-            const token = ++_renderToken;
-            const LOTE_INICIAL = 100, LOTE = 400;
-            lista.innerHTML = datos.slice(0, LOTE_INICIAL).map(construirFila).join('');
-            let i = LOTE_INICIAL;
-            const seguir = () => {
-                if (token !== _renderToken || i >= datos.length) return;
-                lista.insertAdjacentHTML('beforeend', datos.slice(i, i + LOTE).map(construirFila).join(''));
-                i += LOTE;
-                setTimeout(seguir, 0);
-            };
-            setTimeout(seguir, 0);
+
+            lista.innerHTML = datosPagina.map(construirFila).join('');
         }
 
         // =============================================

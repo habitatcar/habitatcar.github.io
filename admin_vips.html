@@ -326,12 +326,25 @@
             <th>PROVINCIA</th>
             <th>CIUDAD</th>
             <th>CONVERTIDO</th>
+            <th style="text-align: center;" onclick="ordenarPorCampo('inscriptos_count')">CANT. <span id="orden-inscriptos_count" class="indicador-orden"></span></th>
             <th style="text-align: center;" onclick="ordenarPorCampo('usos_count')">CANT. USOS <span id="orden-usos_count" class="indicador-orden"></span></th>
             <th style="text-align: center;">ACCIONES</th>
                  </tr>
             </thead>
             <tbody id="lista-vips"></tbody>
          </table>
+
+         <div class="paginacion" style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:18px;flex-wrap:wrap;background:rgba(255,255,255,0.02);padding:10px 15px;border-radius:10px;border:1px solid rgba(212,175,55,0.4);">
+             <button onclick="cambiarPaginaVips(-1)" style="background:var(--azul-medio);color:white;border:1px solid var(--celeste-habitat);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:bold;">« Anterior</button>
+             <span style="color:white;font-weight:bold;">Página <span id="pag-actual-vips">1</span> / <span id="pag-total-vips">1</span></span>
+             <button onclick="cambiarPaginaVips(1)" style="background:var(--azul-medio);color:white;border:1px solid var(--celeste-habitat);padding:8px 14px;border-radius:8px;cursor:pointer;font-weight:bold;">Siguiente »</button>
+             <div style="display:flex;align-items:center;gap:6px;">
+                 <span style="color:white;">Ir a página:</span>
+                 <input type="number" id="input-ir-pagina-vips" min="1" style="width:70px;padding:6px 8px;border-radius:6px;border:1px solid var(--celeste-habitat);background:var(--azul-oscuro);color:white;text-align:center;">
+                 <button onclick="irAPaginaVips()" style="background:var(--oro);color:black;border:none;padding:7px 12px;border-radius:6px;cursor:pointer;font-weight:bold;">Ir</button>
+             </div>
+             <span style="color:#8892b0;">Mostrando <span id="pag-mostrando-vips">0</span> de <span id="pag-total-registros-vips">0</span> registros</span>
+         </div>
     </div>
 
     <script type="module">
@@ -356,6 +369,8 @@
         let todasLasProvincias = [];
         let todasLasLocalidades = [];
         let isLoading = true;
+        let paginaActualVips = 1;
+        const POR_PAGINA_VIPS = 50;
         
         let estadoOrden = {
             campo: 'fechaRegistro',
@@ -482,6 +497,8 @@
                     const nuevosVips = [];
                     snap.forEach(doc => {
                         const data = doc.data();
+                        const canjesV = data.canjes_por_comercio || {};
+                        const inscriptosCountV = (typeof canjesV === 'object' && canjesV !== null) ? Object.keys(canjesV).length : 0;
                         nuevosVips.push({ 
                             id: doc.id, 
                             ...data, 
@@ -489,7 +506,8 @@
                             localidad_normalized: (data.localidad || data.ciudad || '').toLowerCase(),
                             usos_count: data.usos_count || 0,
                             lastSubmission: data.lastSubmission || data.fechaRegistro || null,
-                            fechaRegistro: data.fechaRegistro || null
+                            fechaRegistro: data.fechaRegistro || null,
+                            inscriptos_count: inscriptosCountV > 0 ? inscriptosCountV : (data.inscriptos_count || 0)
                         });
                     });
                     
@@ -523,19 +541,23 @@
             sorted.sort((a, b) => {
                 let valA = a[campo];
                 let valB = b[campo];
-                
+                 
                 if (valA === undefined || valA === null) {
-                    valA = campo === 'lastSubmission' || campo === 'fechaRegistro' ? 0 : '';
+                    if (campo === 'lastSubmission' || campo === 'fechaRegistro') valA = 0;
+                    else if (campo === 'inscriptos_count' || campo === 'usos_count') valA = 0;
+                    else valA = '';
                 }
                 if (valB === undefined || valB === null) {
-                    valB = campo === 'lastSubmission' || campo === 'fechaRegistro' ? 0 : '';
+                    if (campo === 'lastSubmission' || campo === 'fechaRegistro') valB = 0;
+                    else if (campo === 'inscriptos_count' || campo === 'usos_count') valB = 0;
+                    else valB = '';
                 }
-                
-                if (typeof valA === 'string') {
+                 
+                if (typeof valA === 'string' && typeof valB === 'string') {
                     valA = valA.toLowerCase();
                     valB = valB.toLowerCase();
                 }
-                
+                 
                 if (direccion === 'asc') {
                     return valA > valB ? 1 : (valA < valB ? -1 : 0);
                 } else {
@@ -546,7 +568,7 @@
         }
         
         function actualizarIndicadoresOrden(campo, direccion) {
-            const campos = ['fechaRegistro', 'lastSubmission', 'apellido', 'usos_count'];
+            const campos = ['fechaRegistro', 'lastSubmission', 'apellido', 'usos_count', 'inscriptos_count'];
             campos.forEach(c => {
                 const span = document.getElementById(`orden-${c}`);
                 if (span) span.innerHTML = '';
@@ -592,6 +614,7 @@
             document.getElementById('count-prov').innerText = countProv;
             document.getElementById('count-loc').innerText = countLoc;
             
+            paginaActualVips = 1;
             vipsFiltrados = ordenarVips(filtrados, estadoOrden.campo, estadoOrden.direccion);
             renderizar(vipsFiltrados);
         };
