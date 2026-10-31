@@ -596,13 +596,18 @@
             const vip = todosLosVips.find(v => v.id === id) || {};
             const canjes = vip.canjes_por_comercio || {};
             let items = [];
+            const fechaFallback = vip.lastSubmission ? new Date(vip.lastSubmission).toLocaleString() : (vip.fechaRegistro ? new Date(vip.fechaRegistro).toLocaleDateString() : '---');
             if (typeof canjes === 'object' && canjes !== null) {
                 Object.keys(canjes).forEach(key => {
                     const val = canjes[key];
                     if (typeof val === 'object' && val !== null) {
-                        items.push({ id: key, nombre: val.nombre || key, usos: val.usos || 0 });
+                        const nomComercio = val.comercio || val.nombre || key;
+                        const uCount = parseInt(val.cantidad_usos || val.usos || 1, 10);
+                        let fechaStr = (val.fecha || '') + (val.hora ? ' ' + val.hora : '');
+                        if (!fechaStr.trim()) fechaStr = fechaFallback;
+                        items.push({ id: key, nombre: nomComercio, usos: Math.max(1, isNaN(uCount) ? 1 : uCount), ultimoCanje: fechaStr });
                     } else if (typeof val === 'number') {
-                        items.push({ id: key, nombre: key, usos: val });
+                        items.push({ id: key, nombre: key, usos: Math.max(1, val), ultimoCanje: fechaFallback });
                     }
                 });
             }
@@ -622,6 +627,7 @@
             const inicio = ((window.__modalComerciosPagina || 1) - 1) * porPagina;
             const fin = inicio + porPagina;
             const datosPag = items.slice(inicio, fin);
+            const totalCanjesSum = items.reduce((acc, it) => acc + (it.usos || 0), 0);
 
             let html = `
                 <div id="modal-comercios-usados-vip" style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);z-index:100000;display:flex;align-items:center;justify-content:center;">
@@ -639,17 +645,28 @@
                 html += `<div style="text-align:center;color:#8892b0;padding:30px;">No hay comercios registrados.</div>`;
             } else {
                 html += `<table style="width:100%;border-collapse:collapse;">
-                    <thead><tr style="background:rgba(0,0,0,0.3);">
+                    <thead><tr style="background:rgba(0,0,0,0.3);border-bottom:1px solid rgba(255,193,7,0.3);">
                         <th style="text-align:left;padding:10px;color:var(--oro);">Comercio</th>
-                        <th style="text-align:center;padding:10px;color:var(--oro);">Veces usado</th>
-                    </tr></thead><tbody>`;
+                        <th style="text-align:center;padding:10px;color:var(--oro);">Veces Usado</th>
+                        <th style="text-align:center;padding:10px;color:var(--oro);">Último Canje</th>
+                    </tr></thead>
+                    <tbody>`;
                 datosPag.forEach(it => {
                     html += `<tr style="border-bottom:1px solid rgba(255,255,255,0.05);">
                         <td style="padding:10px;color:white;">${it.nombre}</td>
                         <td style="padding:10px;text-align:center;font-weight:bold;color:var(--oro);">${it.usos}</td>
+                        <td style="padding:10px;text-align:center;color:#8892b0;font-size:0.9em;">${it.ultimoCanje}</td>
                     </tr>`;
                 });
-                html += `</tbody></table>`;
+                html += `</tbody>
+                    <tfoot>
+                        <tr style="background:rgba(255,193,7,0.1);border-top:2px solid var(--oro);font-weight:bold;">
+                            <td style="padding:10px;color:white;text-align:left;">TOTAL CANJES</td>
+                            <td style="padding:10px;text-align:center;color:var(--oro);font-size:1.15em;">${totalCanjesSum}</td>
+                            <td></td>
+                        </tr>
+                    </tfoot>
+                </table>`;
                 html += `<div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:16px;flex-wrap:wrap;">
                     <button onclick="cambiarPaginaModalComerciosVip(-1)" style="background:var(--azul-oscuro);color:white;border:1px solid var(--celeste-habitat);padding:6px 12px;border-radius:6px;cursor:pointer;">« Anterior</button>
                     <span style="color:white;">Página <span id="pag-modal-vip-actual">${window.__modalComerciosPagina}</span> / <span id="pag-modal-vip-total">${totalPag}</span></span>
