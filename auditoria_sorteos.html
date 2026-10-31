@@ -975,9 +975,14 @@ let scEntrega = {};
 
 async function cargarComerciosSC(){
   try{
+    const sel = $('sc-comercio');
+    if(!sel) {
+        setTimeout(cargarComerciosSC, 500); // Wait until DOM is ready
+        return;
+    }
     const snap = await getDocs(collection(db,'comercios'));
     scComercios = snap.docs.map(d=>({id:d.id,...d.data()})).filter(c=>c.nombre).sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)));
-    const sel = $('sc-comercio');
+    
     const prev = sel.value;
     sel.innerHTML = scComercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('') || '<option value="">(no hay comercios)</option>';
     if(prev && scComercios.some(c=>c.id===prev)) sel.value=prev;
