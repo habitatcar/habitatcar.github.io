@@ -58,16 +58,6 @@
   .phone .acts{display:grid;grid-template-columns:1fr 1fr;gap:6px}
   .phone .acts .full{grid-column:1 / -1}
   .phone .meta{font-size:.62em;color:var(--muted);margin-top:6px;word-break:break-all}
-  /* Login */
-  #login{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(0,10,22,.9);z-index:50}
-  #login .box{background:#0a1c36;border:1px solid #1d3f6d;border-radius:16px;padding:26px;width:330px}
-  #login h2{color:var(--dorado);margin:0 0 4px;font-size:1.05em}
-  #login p{color:var(--muted);font-size:.75em;margin:0 0 14px}
-  #msg{font-size:.78em;color:#ff9b9b;min-height:16px;margin-top:8px}
-  /* Modal */
-  #modal{position:fixed;inset:0;display:none;align-items:center;justify-content:center;background:rgba(0,8,18,.75);z-index:60;padding:16px}
-  #modal .box{background:#0a1c36;border:1px solid #1d3f6d;border-radius:16px;padding:22px;width:460px;max-width:100%;max-height:92vh;overflow:auto}
-  #modal h3{margin:0 0 10px;color:var(--dorado);font-size:1em}
   .two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
   /* Toasts */
   #toasts{position:fixed;right:16px;bottom:16px;display:flex;flex-direction:column;gap:8px;z-index:80}
@@ -102,7 +92,6 @@
 </head>
 <body>
 
-<!-- Skip auth check for this page - directly show the app -->
 <div class="wrap" id="app" style="display:block">
 
   <header class="top" style="align-items:center;gap:14px;flex-wrap:wrap">
@@ -120,13 +109,10 @@
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
       <span class="pill" id="conn">conectando…</span>
       <span class="pill" id="who"></span>
+      <a href="admin_comercios.html" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:#1b2e4f;border:1px solid #2c4368;color:#eaf2ff;font-weight:700;text-decoration:none">← Panel de comercios</a>
       <a href="index.html" style="display:inline-flex;align-items:center;gap:6px;padding:8px 14px;border-radius:999px;background:linear-gradient(90deg,#d4af37,#f5c96e);color:#1a1200;font-weight:700;text-decoration:none;box-shadow:0 6px 18px rgba(212,175,55,.25);transition:.15s" onmouseover="this.style.filter='brightness(1.08)'" onmouseout="this.style.filter='none'">← Volver al inicio</a>
     </div>
   </header>
-
-  <div class="card" style="display:flex; gap:10px; flex-wrap:wrap; align-items:center;">
-    <button class="dorado" id="tab-comercios">AUDITORÍA DE SORTEOS</button>
-  </div>
 
 
   <!-- ================= PANEL COMERCIOS ================= -->
@@ -277,61 +263,21 @@
   </div>
 </div>
 
-<!-- ================= MODAL EDITAR ================= -->
-<div id="modal">
-  <div class="box">
-    <h3 id="modal-titulo">Editar usuario</h3>
-    <input type="hidden" id="ed-id">
-    <div class="two">
-      <div><label>Nombres</label><input id="ed-nombres"></div>
-      <div><label>Apellido</label><input id="ed-apellido"></div>
-      <div><label>WhatsApp</label><input id="ed-wa"></div>
-      <div><label>Email</label><input id="ed-mail"></div>
-      <div><label>Provincia</label><input id="ed-prov"></div>
-      <div><label>Localidad</label><input id="ed-loc"></div>
-      <div><label>Tipo</label>
-        <select id="ed-tipo"><option value="LEAD">LEAD</option><option value="VIP">VIP</option></select>
-      </div>
-      <div><label>Estado</label>
-        <select id="ed-estado"><option value="activo">activo</option><option value="suspendido">suspendido</option></select>
-      </div>
-      <div><label>Canjes totales (lo que ve el usuario)</label><input id="ed-usos" type="number" min="0"></div>
-      <div><label>Progreso hacia VIP (barra /100 del celular)</label><input id="ed-prog" type="number" min="0"></div>
-    </div>
-    <div class="btns">
-      <button class="verde" id="btn-guardar-ed">💾 Guardar</button>
-      <button class="gris" id="btn-cerrar-ed">Cancelar</button>
-    </div>
-  </div>
-</div>
-
 <div id="toasts"></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-<script>
-/* FAILSAFE (script clásico, independiente del módulo):
-   si el módulo de Firebase no arrancó o no resolvió la sesión, nunca dejar el overlay colgado. */
-window.__hcAuthOK = false;
-window.addEventListener('error', function(e){ console.error('[simulador] error global:', e.message); });
-window.addEventListener('unhandledrejection', function(e){ console.error('[simulador] promesa rechazada:', e.reason); });
-setTimeout(function(){
-  if (window.__hcAuthOK) return;
-  var c = document.getElementById('auth-check'), l = document.getElementById('login');
-  if (c) c.style.display = 'none';
-  if (l) l.style.display = 'flex';
-  var m = document.getElementById('msg');
-  if (m) m.textContent = 'No se pudo verificar la sesión automáticamente. Ingresá con tu cuenta.';
-}, 10000);
-</script>
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
+import { getAuth, onAuthStateChanged }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, onSnapshot,
-  query, where, increment, arrayUnion, writeBatch, deleteField, setDoc }
+import { getFirestore, collection, doc, getDocs, getDoc, onSnapshot,
+  query, where, writeBatch, deleteField, setDoc, updateDoc }
   from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
 // jsPDF se carga como <script> clásico (UMD) -> window.jspdf.jsPDF
 const jsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : null;
+
+window.addEventListener('error', function(e){ console.error('[auditoria] error global:', e.message); });
+window.addEventListener('unhandledrejection', function(e){ console.error('[auditoria] promesa rechazada:', e.reason); });
 
 // ---- Config (misma del sitio) ----
 const firebaseConfig = {
@@ -346,661 +292,120 @@ const fbApp = initializeApp(firebaseConfig);
 const auth  = getAuth(fbApp);
 const db    = getFirestore(fbApp);
 
-// ---- Estado ----
-const S = {
-  user: null,
-  comercios: [],          // {id, nombre, usosLead, usosVip}
-  comercio: null,
-  leads: [],              // simulados
-  loading: false
-};
+// ---- Estado mínimo (S.leads queda vacío: ya no hay simulador de usuarios en esta página) ----
+const S = { user: null, leads: [] };
 
 // ---- Utilidades UI ----
 const $ = (id) => document.getElementById(id);
-function toast(txt, err){ const d=document.createElement('div'); d.className='toast'+(err?' err':''); d.textContent=txt; $('toasts').appendChild(d); setTimeout(()=>d.remove(),4200); }
+function toast(txt, err){ const d=document.createElement('div'); d.className='toast'+(err?' err':''); d.textContent=txt; const box=$('toasts'); if(box) box.appendChild(d); setTimeout(()=>d.remove(),4200); }
 function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-const SUPERADMIN = 'admin@habitatcar.com';
-
-// ---- Datos para generar ----
-const PROVINCIAS = ["Buenos Aires","Ciudad Autónoma de Buenos Aires","Catamarca","Chaco","Chubut","Córdoba","Corrientes","Entre Ríos","Formosa","Jujuy","La Pampa","La Rioja","Mendoza","Misiones","Neuquén","Río Negro","Salta","San Juan","San Luis","Santa Cruz","Santa Fe","Santiago del Estero","Tierra del Fuego","Tucumán"];
-const LOCALIDADES = {
-  "Jujuy":["San Salvador de Jujuy","Palpalá","La Quiaca","Humahuaca","Perico"],
-  "Salta":["Salta Capital","San Ramón de la Nueva Orán","Tartagal"],
-  "Tucumán":["San Miguel de Tucumán","Tafí Viejo","Yerba Buena"],
-  "Córdoba":["Córdoba Capital","Villa María","Río Cuarto","Carlos Paz"],
-  "Santa Fe":["Rosario","Santa Fe Capital","Rafaela"],
-  "Buenos Aires":["La Plata","Mar del Plata","Bahía Blanca","Tandil","Lomas de Zamora"],
-  "Ciudad Autónoma de Buenos Aires":["CABA"],
-  "Mendoza":["Mendoza Capital","Godoy Cruz","San Rafael"],
-  "Misiones":["Posadas","Oberá","Eldorado"],
-  "Entre Ríos":["Paraná","Concordia","Gualeguaychú"]
-};
-const NOMBRES = ["Juan","María","Carlos","Lucía","Pedro","Sofía","Diego","Valentina","Martín","Camila","Jorge","Florencia","Nicolás","Agustina","Federico","Micaela","Gonzalo","Rocío","Ramiro","Julieta","Emanuel","Antonella","Facundo","Milagros"];
-const APELLIDOS = ["Gómez","Fernández","Rodríguez","López","Martínez","Pérez","García","Sánchez","Romero","Díaz","Torres","Ruiz","Ramírez","Flores","Acosta","Benítez","Medina","Herrera","Aguirre","Sosa"];
-
-const rnd  = (a,b)=>Math.floor(Math.random()*(b-a+1))+a;
-const pick = (a)=>a[Math.floor(Math.random()*a.length)];
-const provLoc = (p)=>{ const l=LOCALIDADES[p]; return l?pick(l):pick(["Capital","Centro","Norte","Sur","Este","Oeste"]); };
-const soloDig = (s)=>String(s||'').replace(/\D/g,'');
-
-// ================= AUTENTICACIÓN =================
-$('lg-btn').onclick = async () => {
-  const email=$('lg-email').value.trim(), pass=$('lg-pass').value;
-  if(!email||!pass){ $('msg').textContent='Completá email y contraseña.'; return; }
-  $('msg').textContent=''; $('lg-btn').disabled=true; $('lg-btn').innerHTML='<span class="spin"></span> Ingresando…';
-  try{ await signInWithEmailAndPassword(auth, email, pass); }
-  catch(e){ $('msg').textContent = (e.code==='auth/invalid-credential'||e.code==='auth/wrong-password')?'Email o contraseña incorrectos.':('Error: '+e.message); }
-  finally{ $('lg-btn').disabled=false; $('lg-btn').textContent='INGRESAR'; }
-};
-$('lg-pass').addEventListener('keydown', e=>{ if(e.key==='Enter') $('lg-btn').click(); });
-
-const $chk = $('auth-check');
-const $lg  = $('login');
-const $app = $('app');
-if($lg)  $lg.style.display  = 'none';
-if($app) $app.style.display = 'none';
-
-let yaEntrado = false;
-let _leadsUnsub = null;
-
-function entrar(u){
-  if(!u || yaEntrado) return false;
-  yaEntrado = true;
-  S.user = u;
-  if($lg)  $lg.style.display  = 'none';
-  if($app) $app.style.display = 'block';
-  if($chk) $chk.style.display = 'none';
-  $('who').textContent = u.email || '(sin email)';
-  $('conn').textContent='conectado'; $('conn').classList.add('on');
-  if((u.email||'').toLowerCase()!==SUPERADMIN) toast('⚠️ No sos '+SUPERADMIN+': borrar usuarios requiere rol admin.', true);
-  cargarTodo();
-  return true;
-}
-
-function irLogin(){
-  yaEntrado = false;
-  S.user=null;
-  if(typeof _leadsUnsub==='function'){ try{ _leadsUnsub(); }catch(e){} _leadsUnsub=null; }
-  if($app) $app.style.display = 'none';
-  if($lg)  $lg.style.display  = 'flex';
-  if($chk) $chk.style.display = 'none';
-  $('conn').textContent='desconectado'; $('conn').classList.remove('on'); $('who').textContent='';
-}
-
-// Se muestra el login SOLO si Firebase confirma que no hay sesión.
-// onAuthStateChanged dispara una vez con el estado ya restaurado desde IndexedDB
-// (si hay sesión de otra pestaña, user != null); después sigue escuchando login/logout.
-function resolverAuth(user){
-  window.__hcAuthOK = true;
-  if ($chk) $chk.style.display = 'none';
-  // Forzar entrada aunque no haya sesión activa (usa la sesión actual o entra como invitado)
-  if (user) entrar(user); else entrar({email: 'admin@habitatcar.com', isGuest: true});
-}
-
-try {
-  onAuthStateChanged(auth, (user) => {
-    resolverAuth(user);
-  }, (err) => {
-    console.error('[simulador] onAuthStateChanged error:', err);
-    resolverAuth(auth.currentUser);
-  });
-} catch(e) {
-  console.error('[simulador] no se pudo iniciar auth:', e);
-  resolverAuth(null);
-}
-
-// Red de seguridad extra: si en 6s no hubo respuesta, resolver con lo que haya.
-setTimeout(() => {
-  if (!window.__hcAuthOK) resolverAuth(auth.currentUser);
-}, 6000);
-
-$('btn-logout').onclick = ()=> signOut(auth);
-
-// ================= CARGA =================
-async function cargarTodo(){
-  try {
-    await cargarComerciosSC();
-    iniciarComerciosRT();
-  } catch(e) {
-    console.error('Error en cargarTodo:', e);
-  }
-}
-async function cargarComercios(){
-  try{
-    const snap = await getDocs(collection(db,'comercios'));
-    aplicarListaComercios(snap.docs.map(d=>({ id:d.id, ...d.data() }))
-      .filter(c=>c.nombre)
-      .sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre))));
-  }catch(e){ toast('Error cargando comercios: '+e.message, true); }
-}
-
-// Vuelca la lista de comercios en los dos desplegables, sin perder lo que estaba elegido
-function aplicarListaComercios(lista){
-  S.comercios = lista;
-  const sel=$('sel-comercio');
-  if(sel){
-    const prev=sel.value;
-    sel.innerHTML = S.comercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('') || '<option value="">(no hay comercios)</option>';
-    if(prev && S.comercios.some(c=>c.id===prev)) sel.value=prev;
-    S.comercio = S.comercios.find(c=>c.id===sel.value) || S.comercios[0] || null;
-  }
-  const selSC=$('sc-comercio');
-  if(selSC){
-    const prevSC=selSC.value;
-    scComercios = [...S.comercios];
-    selSC.innerHTML = scComercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('') || '<option value="">(no hay comercios)</option>';
-    if(prevSC && scComercios.some(c=>c.id===prevSC)) selSC.value=prevSC;
-  }
-}
-
-// Escucha la colección de comercios en vivo: si se crea uno nuevo, aparece al instante
-let _comerciosUnsub = null;
-function iniciarComerciosRT(){
-  if(_comerciosUnsub) return;
-  try{
-    _comerciosUnsub = onSnapshot(collection(db,'comercios'), (snap)=>{
-      aplicarListaComercios(snap.docs.map(d=>({ id:d.id, ...d.data() }))
-        .filter(c=>c.nombre)
-        .sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre))));
-    }, (err)=>{ console.error('[simulador] comercios en vivo:', err); });
-  }catch(e){ console.error('[simulador] comercios en vivo:', e); }
-}
-
-$('sel-comercio').onchange = ()=>{ S.comercio = S.comercios.find(c=>c.id===$('sel-comercio').value)||null; };
-async function cargarLeads(){
-  $('grid').innerHTML='<p class="sub">Cargando…</p>';
-  try{
-    const snap = await getDocs( query(collection(db,'leads'), where('origen','==','simulador')) );
-    S.leads = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-    poblarProvincias();
-    render();
-  }catch(e){ toast('Error cargando usuarios: '+e.message, true); $('grid').innerHTML=''; }
-}
-
-// ---- Tiempo real: la grilla se actualiza sola (canjes del celular, etc.) ----
-function iniciarTiempoReal(){
-  if(_leadsUnsub) return;
-  try{
-    _leadsUnsub = onSnapshot( query(collection(db,'leads'), where('origen','==','simulador')), (snap)=>{
-      S.leads = snap.docs.map(d=>({ id:d.id, ...d.data() }));
-      poblarProvincias();
-      render();
-      const c=$('conn'); if(c){ c.textContent='tiempo real'; c.classList.add('on'); }
-    }, (err)=>{ toast('Tiempo real: '+err.message, true); });
-  }catch(e){ toast('Tiempo real: '+e.message, true); }
-}
-
-// ================= RENDER =================
 function tipoDe(l){ return (l.convertidoVIP===true || l.tipo==='VIP') ? 'VIP' : 'LEAD'; }
-function aplicarFiltros(){
-  let arr=[...S.leads];
-  const q=$('buscar').value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  if(q) arr=arr.filter(l=> (`${l.nombres||l.nombre||''} ${l.apellido||''} ${l.whatsapp||''} ${l.email||''}`).toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').includes(q));
-  const ft=$('f-tipo').value; if(ft) arr=arr.filter(l=>tipoDe(l)===ft);
-  const fprov=$('f-prov').value; if(fprov) arr=arr.filter(l=>(l.provincia||'').trim()===fprov);
-  const floc=$('f-loc').value;   if(floc)  arr=arr.filter(l=>(l.localidad||'').trim()===floc);
-  const ord=$('f-orden').value;
-  if(ord==='usos') arr.sort((a,b)=>(b.usos_count||0)-(a.usos_count||0));
-  else if(ord==='vip_meta') arr.sort((a,b)=>(b.usos_para_vip||0)-(a.usos_para_vip||0));
-  else arr.sort((a,b)=>(b.fechaRegistro||0)-(a.fechaRegistro||0));
-  return arr;
-}
-// ---- Paginación: 50 usuarios por página ----
-const POR_PAGINA = 50;
-let paginaActual = 1;
-// Usuarios marcados con la casilla (para reiniciar la recompensa VIP de a uno o por lotes)
-const selVip = new Set();
-function totalPaginas(total){ return Math.max(1, Math.ceil(total / POR_PAGINA)); }
 
-function render(){
-  const arr = aplicarFiltros();
-  $('cnt').textContent = S.leads.length;
-  const vips = S.leads.filter(l=>tipoDe(l)==='VIP').length;
-  $('stats-line').textContent = `Simulados: ${S.leads.length} · VIP: ${vips} · LEAD: ${S.leads.length-vips} · visibles: ${arr.length}`;
-  const conRec = S.leads.filter(l=>l.recompensa_vip_recibida===true).length;
-  const disponibles = S.leads.filter(l=>l.recompensa_vip_recibida!==true && (l.usos_para_vip||0)>=100).length;
-  const res = $('vip-resumen');
-  if(res) res.innerHTML = `🎁 <b>Recompensa VIP</b> — ya recibida: <b style="color:#ffd76a">${conRec}</b> · disponible (lista para mostrarse): <b style="color:#7ff0a8">${disponibles}</b> · marcados con la casilla: <b>${selVip.size}</b>`;
-  renderGrilla(arr);
-}
-
-function tarjetaHTML(l){
-  const tipo=tipoDe(l);
-  const usos=l.usos_count||0, prog=l.usos_para_vip||0;
-  const pct=Math.min(100, prog);
-  const nombre=`${esc(l.apellido?l.apellido+', ':'')}${esc(l.nombres||l.nombre||'(sin nombre)')}`;
-  return `<div class="phone ${tipo==='VIP'?'vip':''} ${selVip.has(l.id)?'sel-on':''}" data-id="${l.id}">
-    <label class="sel" title="Marcar este usuario (para reiniciar su recompensa VIP de a uno o por lotes)"><input type="checkbox" class="chk-sel" data-id="${l.id}" ${selVip.has(l.id)?'checked':''}></label>
-    <span class="badge ${tipo==='VIP'?'vip':'lead'}">${tipo}</span>
-    <div class="nm">${nombre}</div>
-    <div class="wa">📱 ${esc(l.whatsapp||'-')}</div>
-    <div class="loc">📍 ${esc(l.localidad||'')}${l.localidad&&l.provincia?', ':''}${esc(l.provincia||'')}</div>
-    <div class="counters">
-      <div class="cbox"><b>${usos}</b><span>USOS</span></div>
-      <div class="cbox"><b>${prog}</b><span>PROG /100</span></div>
-    </div>
-    <div class="bar"><i style="width:${pct}%"></i></div>
-    ${prog>=100?'<div class="meta" style="color:#ffd76a">👑 Meta VIP alcanzada</div>':''}
-    ${l.recompensa_vip_recibida===true
-      ? '<div class="meta"><span class="vip-ya">🎁 Recompensa VIP YA recibida</span></div>'
-      : (prog>=100 ? '<div class="meta"><span class="vip-listo">🎁 Recompensa VIP DISPONIBLE</span></div>' : '')}
-    <div class="acts">
-      <button class="verde mini" data-act="canje" data-id="${l.id}">🛒 Canjear +1</button>
-      <button class="gris mini" data-act="canje10" data-id="${l.id}">+10</button>
-      <button class="mini" data-act="edit" data-id="${l.id}">✏️ Editar</button>
-      ${tipo==='VIP'?'':`<button class="dorado mini" data-act="vip" data-id="${l.id}">👑 VIP</button>`}
-      <button class="rojo mini full" data-act="del" data-id="${l.id}">🗑 Borrar</button>
-    </div>
-    <div class="meta">ID: ${l.id}<br>${esc(l.email||'')}</div>
-  </div>`;
-}
-
-function actualizarContadorSel(){
-  const el = $('sel-cnt'); if(el) el.textContent = selVip.size;
-}
-
-function renderGrilla(arr){
-  const g=$('grid'), empty=$('empty');
-  actualizarContadorSel();
-  const tp = totalPaginas(arr.length);
-  if(paginaActual>tp) paginaActual=tp;
-  if(paginaActual<1)  paginaActual=1;
-  if(!arr.length){ g.innerHTML=''; empty.style.display='block'; dibujarPager(1,0,0,0); return; }
-  empty.style.display='none';
-  const ini = (paginaActual-1)*POR_PAGINA;
-  const vis = arr.slice(ini, ini+POR_PAGINA);
-  g.innerHTML = vis.map(tarjetaHTML).join('');
-  dibujarPager(tp, arr.length, ini, vis.length);
-}
-
-function dibujarPager(tp, total, ini, mostrados){
-  const pager=$('pager'); if(!pager) return;
-  if(tp<=1){ pager.innerHTML=''; return; }
-  const btn=(n, txt, activo, dis)=>{
-    if(dis) return `<button class="gris mini" disabled style="opacity:.4">${txt}</button>`;
-    return `<button class="${activo?'dorado':'gris'} mini" data-pg="${n}">${txt}</button>`;
-  };
-  const items=[];
-  items.push(btn(paginaActual-1,'◀',false,paginaActual<=1));
-  const desde=Math.max(1,paginaActual-2), hasta=Math.min(tp,paginaActual+2);
-  if(desde>1){ items.push(btn(1,'1',false,false)); if(desde>2) items.push('<span class="pill">…</span>'); }
-  for(let p=desde;p<=hasta;p++) items.push(btn(p,String(p),p===paginaActual,false));
-  if(hasta<tp){ if(hasta<tp-1) items.push('<span class="pill">…</span>'); items.push(btn(tp,String(tp),false,false)); }
-  items.push(btn(paginaActual+1,'▶',false,paginaActual>=tp));
-  items.push(`<span class="pill">Página ${paginaActual} de ${tp} · ${ini+1}-${ini+mostrados} de ${total}</span>`);
-  pager.innerHTML = items.join('');
-  pager.querySelectorAll('button[data-pg]').forEach(b=>{
-    b.onclick=()=>{
-      paginaActual = parseInt(b.getAttribute('data-pg'))||1;
-      renderGrilla(aplicarFiltros());
-      window.scrollTo({top:0,behavior:'smooth'});
-    };
-  });
-}
-function poblarProvincias(){
-  const sel=$('f-prov'); if(!sel) return;
-  const prev=sel.value;
-  const provs=[...new Set(S.leads.map(l=>(l.provincia||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
-  sel.innerHTML='<option value="">Todas</option>'+provs.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
-  sel.value = provs.includes(prev) ? prev : '';
-  poblarLocalidades();
-}
-function poblarLocalidades(){
-  const sel=$('f-loc'); if(!sel) return;
-  const prev=sel.value;
-  const prov=$('f-prov').value;
-  const base= prov ? S.leads.filter(l=>(l.provincia||'').trim()===prov) : S.leads;
-  const locs=[...new Set(base.map(l=>(l.localidad||'').trim()).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'es'));
-  sel.innerHTML='<option value="">Todas</option>'+locs.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
-  sel.value = locs.includes(prev) ? prev : '';
-}
-function filtroCambio(){ paginaActual=1; render(); }
-$('buscar').oninput=()=>{ clearTimeout(window._filtroT); window._filtroT=setTimeout(filtroCambio,180); };
-$('f-tipo').onchange=filtroCambio; $('f-orden').onchange=filtroCambio; $('f-loc').onchange=filtroCambio;
-$('f-prov').onchange=()=>{ paginaActual=1; poblarLocalidades(); render(); };
-
-// Ir a una página por número
-$('pg-ir').onclick=()=>{
-  const arr=aplicarFiltros();
-  const tp=totalPaginas(arr.length);
-  const n=parseInt($('pg-input').value);
-  paginaActual = Math.min(tp, Math.max(1, isNaN(n)?1:n));
-  $('pg-input').value='';
-  renderGrilla(aplicarFiltros());
-  window.scrollTo({top:0,behavior:'smooth'});
-};
-$('pg-input').addEventListener('keydown', e=>{ if(e.key==='Enter') $('pg-ir').click(); });
-
-// Delegación de clicks de las tarjetas
-$('grid').addEventListener('click', async (e)=>{
-  const btn=e.target.closest('button[data-act]'); if(!btn) return;
-  const id=btn.getAttribute('data-id'), act=btn.getAttribute('data-act');
-  const lead=S.leads.find(l=>l.id===id); if(!lead) return;
-  try{
-    if(act==='canje')   await simularCanje(lead, 1);
-    else if(act==='canje10') await simularCanje(lead, 10);
-    else if(act==='vip')     await hacerVIP(lead);
-    else if(act==='edit')    abrirEdicion(lead);
-    else if(act==='del')     await borrarLead(lead);
-  }catch(err){ toast('Error: '+err.message, true); }
-});
-
-// Marcar / desmarcar usuarios con la casilla de cada tarjeta
-$('grid').addEventListener('change', (e)=>{
-  const chk = e.target.closest('input.chk-sel'); if(!chk) return;
-  const id = chk.getAttribute('data-id');
-  if(chk.checked) selVip.add(id); else selVip.delete(id);
-  const card = chk.closest('.phone'); if(card) card.classList.toggle('sel-on', chk.checked);
-  actualizarContadorSel();
-});
-
-// ================= NÚCLEO: SIMULAR CANJE (igual que el sitio real) =================
-async function simularCanje(lead, veces, comArg, silent){
-  const com = comArg || S.comercio;
-  if(!com){ toast('Elegí un comercio primero.', true); return; }
-  const tipo=tipoDe(lead);
-  const ahora=Date.now();
-  const nom=com.nombre;
-  const key=nom.replace(/\s+/g,'_');
-  const fecha=new Date().toLocaleDateString();
-  const hora=new Date().toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'});
-  const codigo=(tipo==='VIP'?'VIP':'LEAD')+Math.random().toString(36).slice(2,8).toUpperCase();
-  const nombreUsuario=`${(lead.apellido||'').toUpperCase()}, ${(lead.nombres||lead.nombre||'').toUpperCase()}`.trim().replace(/^,\s*/,'');
-  const wa=lead.whatsapp||'';
-  const usosTotalesComercio = tipo==='VIP' ? (parseInt(com.usosVip)||0) : (parseInt(com.usosLead)||1);
-  const nuevoUsoLead = (lead._usoLocal||0)+1; // informativo
-
-  // 1) contador del comercio
-  if(tipo==='VIP'){
-    await updateDoc(doc(db,'comercios',com.id), {
-      totalVips: increment(veces), vipsHoy: increment(veces), vipsSemana: increment(veces),
-      vipsMes: increment(veces), vipsAnio: increment(veces), lastSubmission: ahora
-    });
-  } else {
-    await updateDoc(doc(db,'comercios',com.id), { totalUsos: increment(veces), lastSubmission: ahora });
-  }
-
-  // 2) log de actividad (idéntico al sitio)
-  const logBase = tipo==='VIP'
-    ? { timestamp:ahora, tipo:'canje', accion:'CANJE VIP', nombreComercio:nom, idValidacion:codigo,
-        usoNumero:nuevoUsoLead, nombre:nombreUsuario, whatsapp:wa, usuarioId:lead.id, comercioId:com.id, modulo:'VIPS',
-        detalle:`${nombreUsuario}${wa?' · '+wa:''} canjeó beneficio VIP en ${nom} (uso ${nuevoUsoLead}${usosTotalesComercio>0?'/'+usosTotalesComercio:''}) · SIMULADO` }
-    : { timestamp:ahora, tipo:'canje', accion:'CANJE LEADS', nombreComercio:nom, usuarioId:lead.id, idValidacion:codigo,
-        usoNumero:nuevoUsoLead, usosTotales:usosTotalesComercio, nombre:nombreUsuario, whatsapp:wa,
-        detalle:`${nombreUsuario}${wa?' · '+wa:''} canjeó beneficio en ${nom} (uso ${nuevoUsoLead} de ${usosTotalesComercio}) · SIMULADO` };
-  await addDoc(collection(db,'logs_actividad'), logBase);
-  if(tipo==='VIP'){
-    await addDoc(collection(db,'logs_vip'), { comercioId:com.id, nombre:nombreUsuario, whatsapp:wa, tipo:'VIP',
-      beneficio:nom, fecha:ahora, timestamp:ahora });
-  }
-
-  // 3) ficha del usuario
-  const upd = {
-    [`canjes_por_comercio.${key}.comercio`]: nom,
-    [`canjes_por_comercio.${key}.codigo`]: codigo,
-    [`canjes_por_comercio.${key}.fecha`]: fecha,
-    [`canjes_por_comercio.${key}.hora`]: hora,
-    [`canjes_por_comercio.${key}.cantidad_usos`]: increment(veces),
-    usos_count: increment(veces),
-    lastSubmission: ahora
-  };
-  if(tipo!=='VIP'){
-    upd.usos_para_vip = increment(veces);
-    // Igual que el sitio real: al llegar a 100 canjes el usuario ya "vio" su recompensa VIP
-    const progNuevo = (lead.usos_para_vip||0) + veces;
-    if(progNuevo >= 100 && lead.recompensa_vip_recibida !== true){
-      upd.recompensa_vip_recibida = true;
-      upd.fecha_recompensa_vip = ahora;
-    }
-  }
-  upd.cupones_detallados = arrayUnion({ comercio:nom, fecha, hora, codigo, timestamp:ahora, usoNumero:nuevoUsoLead, simulado:true });
-  await updateDoc(doc(db,'leads',lead.id), upd);
-
-  // reflejar localmente
-  lead.usos_count=(lead.usos_count||0)+veces;
-  if(tipo!=='VIP'){
-    lead.usos_para_vip=(lead.usos_para_vip||0)+veces;
-    if(lead.usos_para_vip>=100 && lead.recompensa_vip_recibida!==true) lead.recompensa_vip_recibida=true;
-  }
-  if(!silent){
-    render();
-    toast(`🛒 ${nombreUsuario||'Usuario'} +${veces} en «${nom}» (${tipo})`);
-  }
-}
-
-async function hacerVIP(lead){
-  await updateDoc(doc(db,'leads',lead.id), { convertidoVIP:true, tipo:'VIP', fechaVIP:Date.now() });
-  lead.convertidoVIP=true; lead.tipo='VIP';
-  render(); toast('👑 '+((lead.nombres||'')+' '+(lead.apellido||'')).trim()+' ahora es VIP');
-}
-
-async function borrarLead(lead){
-  const n=((lead.nombres||'')+' '+(lead.apellido||'')).trim();
-  if(!confirm('¿Borrar definitivamente a '+(n||lead.id)+'?')) return;
-  await deleteDoc(doc(db,'leads',lead.id));
-  S.leads=S.leads.filter(l=>l.id!==lead.id);
-  render(); toast('🗑 Borrado: '+(n||lead.id));
-}
-
-// ================= EDITAR =================
-function abrirEdicion(lead){
-  $('modal-titulo').textContent='Editar '+( (lead.nombres||'')+' '+(lead.apellido||'') ).trim();
-  $('ed-id').value=lead.id;
-  $('ed-nombres').value=lead.nombres||lead.nombre||'';
-  $('ed-apellido').value=lead.apellido||'';
-  $('ed-wa').value=lead.whatsapp||'';
-  $('ed-mail').value=lead.email||'';
-  $('ed-prov').value=lead.provincia||'';
-  $('ed-loc').value=lead.localidad||'';
-  $('ed-tipo').value=tipoDe(lead);
-  $('ed-estado').value=lead.estado||'activo';
-  $('ed-usos').value=lead.usos_count||0;
-  $('ed-prog').value=lead.usos_para_vip||0;
-  $('modal').style.display='flex';
-}
-$('btn-cerrar-ed').onclick=()=> $('modal').style.display='none';
-$('modal').addEventListener('click',e=>{ if(e.target===$('modal')) $('modal').style.display='none'; });
-$('btn-guardar-ed').onclick=async()=>{
-  const id=$('ed-id').value;
-  const esVip=$('ed-tipo').value==='VIP';
-  const upd={
-    nombres:$('ed-nombres').value.trim(), apellido:$('ed-apellido').value.trim(),
-    whatsapp:$('ed-wa').value.trim(), email:$('ed-mail').value.trim(),
-    provincia:$('ed-prov').value.trim(), localidad:$('ed-loc').value.trim(),
-    estado:$('ed-estado').value,
-    usos_count: parseInt($('ed-usos').value)||0,
-    usos_para_vip: esVip ? (parseInt($('ed-prog').value)||0) : (parseInt($('ed-usos').value)||0),
-    convertidoVIP: esVip, tipo: esVip?'VIP':'LEAD', lastSubmission: Date.now()
-  };
-  if(esVip) upd.fechaVIP=Date.now();
-  try{
-    await updateDoc(doc(db,'leads',id), upd);
-    const l=S.leads.find(x=>x.id===id); if(l) Object.assign(l,upd);
-    $('modal').style.display='none'; render(); toast('💾 Guardado');
-  }catch(e){ toast('Error guardando: '+e.message, true); }
-};
-
-// ================= GENERADOR =================
-function nuevoUsuario(provFija){
-  const nombres=pick(NOMBRES), apellido=pick(APELLIDOS);
-  const prov = provFija || pick(PROVINCIAS);
-  const loc  = provLoc(prov);
-  const wa   = '388'+rnd(1000000,9999999);
-  const mail = `${soloDig(nombres+nombres.length)}.${soloDig(apellido)}${rnd(10,999)}@simulador.test`
-    .toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  return { nombres, apellido, whatsapp:wa, email:mail, provincia:prov, localidad:loc };
-}
-
-async function generar(n){
-  if(!n||n<1) return;
-  const provFija=$('gen-prov').value||null;
-  const pctVip=Math.max(0,Math.min(100, parseInt($('gen-vip').value)||0));
-  const maxUsos=Math.max(0, parseInt($('gen-usos').value)||0);
-  const btn=$('btn-generar'); btn.disabled=true; const old=btn.textContent; btn.innerHTML='<span class="spin"></span> Generando…';
-  try{
-    const ahora=Date.now();
-    let creados=0;
-    const CH=25;
-    for(let i=0;i<n;i+=CH){
-      const lote=[]; const cnt=Math.min(CH,n-i);
-      for(let j=0;j<cnt;j++){
-        const base=nuevoUsuario(provFija);
-        const esVip=Math.random()*100<pctVip;
-        const usos=maxUsos>0?rnd(0,maxUsos):0;
-        lote.push(addDoc(collection(db,'leads'), {
-          ...base,
-          fechaRegistro: ahora - rnd(0, 1000*60*60*24*120),
-          estado:'activo',
-          convertidoVIP: esVip, tipo: esVip?'VIP':'LEAD',
-          ...(esVip?{fechaVIP: ahora}:{}),
-          origen:'simulador',
-          esSimulacion:true,
-          usos_count: usos,
-          usos_para_vip: esVip?0:usos,
-          recompensa_vip_recibida:false
-        }));
-      }
-      const refs=await Promise.all(lote); creados+=refs.length;
-      toast(`Generados ${creados}/${n}…`);
-    }
-    await cargarLeads();
-    toast(`✅ ${creados} usuarios simulados creados`);
-  }catch(e){ toast('Error generando: '+e.message, true); }
-  finally{ btn.disabled=false; btn.textContent=old; }
-}
-$('btn-generar').onclick=()=> generar(parseInt($('gen-n').value)||0);
-$('btn-generar-100').onclick=()=> generar(100);
-
-$('btn-borrar-todos').onclick=async()=>{
-  if(!S.leads.length){ toast('No hay simulados para borrar.'); return; }
-  if(!confirm(`¿Borrar los ${S.leads.length} usuarios simulados? Esta acción no se puede deshacer.`)) return;
-  try{
-    let borrados=0;
-    for(let i=0;i<S.leads.length;i+=450){
-      const b=writeBatch(db);
-      S.leads.slice(i,i+450).forEach(l=> b.delete(doc(db,'leads',l.id)));
-      await b.commit(); borrados+=Math.min(450,S.leads.length-i);
-    }
-    toast(`🗑 ${borrados} usuarios simulados borrados`);
-    await cargarLeads();
-  }catch(e){ toast('Error borrando: '+e.message, true); }
-};
-
-// ================= ACCIONES MASIVAS =================
-$('btn-canjear-todos').onclick=async()=>{
-  const arr=aplicarFiltros();
-  if(!arr.length||!S.comercio) return;
-  if(!confirm(`¿Simular +1 canje para los ${arr.length} usuarios visibles en «${S.comercio.nombre}»?`)) return;
-  let k=0;
-  for(const l of arr){
-    try{ await simularCanje(l,1); k++; }catch(e){ console.error(e); }
-    if(k%20===0) toast(`Canjeando ${k}/${arr.length}…`);
-  }
-  toast(`⚡ ${k} canjes simulados`);
-};
-$('btn-canjear-aleatorio').onclick=async()=>{
-  if(!S.leads.length||!S.comercio) return;
-  const arr=[...S.leads].sort(()=>Math.random()-.5).slice(0,10);
-  let k=0; for(const l of arr){ try{ await simularCanje(l,1); k++; }catch(e){} }
-  toast(`🎲 ${k} canjes al azar`);
-};
-
-// Simular actividad repartida entre TODOS los comercios (en paralelo por lotes)
-$('btn-simular-todos').onclick=async()=>{
-  if(!S.comercios.length){ toast('No hay comercios cargados.', true); return; }
-  if(!S.leads.length){ toast('Primero generá usuarios simulados.', true); return; }
-  const min=Math.max(0, parseInt($('bulk-min').value)||0);
-  const max=Math.max(1, parseInt($('bulk-max').value)||1);
-  const tasks=[];
-  for(const com of S.comercios){
-    const n=rnd(min,max);
-    for(let i=0;i<n;i++) tasks.push({ com, lead:pick(S.leads) });
-  }
-  if(!tasks.length){ toast('Nada para simular.', true); return; }
-  if(!confirm(`¿Simular ~${tasks.length} canjes repartidos entre los ${S.comercios.length} comercios?`)) return;
-  const btn=$('btn-simular-todos'); btn.disabled=true; const old=btn.textContent; btn.innerHTML='<span class="spin"></span> Simulando…';
-  let done=0, fallos=0;
-  const CH=15;
-  try{
-    for(let i=0;i<tasks.length;i+=CH){
-      const lote=tasks.slice(i,i+CH);
-      const res=await Promise.all(lote.map(t=> simularCanje(t.lead,1,t.com,true).then(()=>1).catch(()=>0)));
-      done += res.reduce((a,b)=>a+b,0); fallos += res.filter(x=>x===0).length;
-      if(done&&done%60<CH) toast(`Simulando… ${done}/${tasks.length}`);
-    }
-    await cargarComercios();
-    render();
-    toast(`✅ ${done} canjes simulados en ${S.comercios.length} comercios${fallos?` (${fallos} fallos)`:''}`);
-  }catch(e){ toast('Error: '+e.message, true); }
-  finally{ btn.disabled=false; btn.textContent=old; }
-};
-
-// ================= CREAR A MANO =================
-$('btn-crear').onclick=async()=>{
-  const nombres=$('cr-nombres').value.trim(), apellido=$('cr-apellido').value.trim();
-  if(!nombres||!apellido){ toast('Poné al menos nombres y apellido.', true); return; }
-  const esVip=$('cr-tipo').value==='VIP';
-  const usos=parseInt($('cr-usos').value)||0;
-  try{
-    await addDoc(collection(db,'leads'), {
-      nombres, apellido,
-      whatsapp:$('cr-wa').value.trim(), email:$('cr-mail').value.trim(),
-      provincia:$('cr-prov').value, localidad:$('cr-loc').value.trim(),
-      fechaRegistro:Date.now(), estado:'activo',
-      convertidoVIP:esVip, tipo:esVip?'VIP':'LEAD',
-      ...(esVip?{fechaVIP:Date.now()}:{}),
-      origen:'simulador', esSimulacion:true,
-      usos_count:usos, usos_para_vip: esVip?0:usos
-    });
-    ['cr-nombres','cr-apellido','cr-wa','cr-mail','cr-loc'].forEach(x=>$(x).value='');
-    $('cr-usos').value=0;
-    await cargarLeads(); toast('✅ Usuario creado');
-  }catch(e){ toast('Error: '+e.message, true); }
-};
-
-// ================= INIT combos =================
-(function initCombos(){
-  const provOpts = PROVINCIAS.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
-  $('gen-prov').innerHTML='<option value="">— mezclar todas —</option>'+provOpts;
-  $('cr-prov').innerHTML='<option value="">—</option>'+provOpts;
-})();
-
-// Init con evento DOMContentLoaded seguro
-window.addEventListener('DOMContentLoaded', () => {
-  cargarComerciosSC();
-});
-
+// ================= COMERCIOS + PARÁMETROS DE URL =================
 let scComercios = [];
 let scSorteos = [];
 let scActual = null;
 let scEntrega = {};
+let _autoAplicado = false;      // los parámetros de la URL se aplican UNA sola vez
+let _comerciosUnsub = null;
+let _firmaLista = '';
 
-async function cargarComerciosSC(){
-  try{
-    const sel = $('sc-comercio');
-    if(!sel) {
-        setTimeout(cargarComerciosSC, 500); // Wait until DOM is ready
-        return;
-    }
-    const snap = await getDocs(collection(db,'comercios'));
-    scComercios = snap.docs.map(d=>({id:d.id,...d.data()})).filter(c=>c.nombre).sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)));
-    
-    const prev = sel.value;
-    sel.innerHTML = scComercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('') || '<option value="">(no hay comercios)</option>';
-    if(prev && scComercios.some(c=>c.id===prev)) sel.value=prev;
-    
-    // Check URL params
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get('id');
-    if(id){
-        sel.value = id;
-        cargarHistorialSC();
-    }
-  }catch(e){ toast('Error cargando comercios: '+e.message,true); }
+// Lee ?id=...&fbId=...&nombre=... (admin_comercios.html los manda)
+function paramsURL(){
+  const p = new URLSearchParams(window.location.search);
+  return { id:(p.get('id')||'').trim(), fbId:(p.get('fbId')||'').trim(), nombre:(p.get('nombre')||'').trim() };
+}
+// El admin manda el idComercio (ej. HC-001) y no el ID del documento de Firestore:
+// se busca por ID de documento, por idComercio y, como último recurso, por nombre.
+function comercioDeLaURL(){
+  const q = paramsURL();
+  const norm = (s)=>String(s||'').trim().toLowerCase();
+  return (q.fbId && scComercios.find(c=>c.id===q.fbId))
+      || (q.id && scComercios.find(c=>c.id===q.id || String(c.idComercio||'')===q.id))
+      || (q.nombre && scComercios.find(c=>norm(c.nombre)===norm(q.nombre)))
+      || null;
 }
 
+// Vuelca la lista en el <select id="sc-comercio"> sin perder lo que estaba elegido
+function aplicarComerciosSC(lista){
+  const sel = $('sc-comercio');
+  if(!sel) return;
+  scComercios = lista.filter(c=>c.nombre).sort((a,b)=>String(a.nombre).localeCompare(String(b.nombre)));
+  const firma = scComercios.map(c=>c.id+'|'+c.nombre).join(';');
+  if(firma !== _firmaLista || !sel.options.length){       // si nada cambió no se toca el desplegable
+    const prev = sel.value;
+    sel.innerHTML = scComercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('')
+      || '<option value="">(no hay comercios)</option>';
+    if(prev && scComercios.some(c=>c.id===prev)) sel.value = prev;
+    _firmaLista = firma;
+  }
+  aplicarParametrosURL();
+}
+
+// Si la URL trae un comercio: lo selecciona y dispara cargarHistorialSC() automáticamente
+async function aplicarParametrosURL(){
+  if(_autoAplicado) return;
+  const q = paramsURL();
+  if(!q.id && !q.fbId && !q.nombre){ _autoAplicado = true; return; }
+  if(!scComercios.length) return;                          // esperar a que llegue la lista
+  _autoAplicado = true;
+  const com = comercioDeLaURL();
+  if(!com){ toast('No encontré el comercio «'+(q.nombre||q.id||q.fbId)+'» en la base.', true); return; }
+  $('sc-comercio').value = com.id;
+  await cargarHistorialSC();
+  try{ $('sc-lista-sorteos').scrollIntoView({behavior:'smooth', block:'start'}); }catch(e){}
+}
+
+async function cargarComerciosSC(){
+  const sel = $('sc-comercio');
+  if(!sel) return;
+  if(!scComercios.length) sel.innerHTML = '<option value="">Cargando comercios…</option>';
+  try{
+    const snap = await getDocs(collection(db,'comercios'));
+    aplicarComerciosSC(snap.docs.map(d=>({ ...d.data(), id:d.id })));
+  }catch(e){
+    console.error('[auditoria] comercios:', e);
+    if(!scComercios.length) sel.innerHTML = '<option value="">(no se pudieron cargar)</option>';
+    toast('Error cargando comercios: '+(e.code==='permission-denied' ? 'sin permiso en las reglas de Firebase.' : e.message), true);
+  }
+}
+
+// Escucha la colección en vivo: si se crea un comercio nuevo aparece solo
+function iniciarComerciosRT(){
+  if(_comerciosUnsub) return;
+  try{
+    _comerciosUnsub = onSnapshot(collection(db,'comercios'),
+      (snap)=>{ aplicarComerciosSC(snap.docs.map(d=>({ ...d.data(), id:d.id }))); },
+      (err)=>{ console.error('[auditoria] comercios en vivo:', err); });
+  }catch(e){ console.error('[auditoria] comercios en vivo:', e); }
+}
+
+// ================= ARRANQUE (Firebase listo -> cargar comercios) =================
+// No hay pantalla de login: se espera UNA vez a que Firebase restaure la sesión guardada
+// (si el admin ya entró en este mismo sitio, las lecturas van autenticadas) y se arranca
+// con o sin sesión. Un temporizador de seguridad evita que la carga quede colgada.
+let _arrancado = false;
+async function arrancar(user){
+  if(_arrancado) return;
+  _arrancado = true;
+  S.user = user || { email:'admin@habitatcar.com', isGuest:true };
+  const who = $('who'), conn = $('conn');
+  if(who) who.textContent = user ? (user.email||'sesión activa') : 'acceso directo';
+  if(conn){ conn.textContent = 'conectado'; conn.classList.add('on'); }
+  await cargarComerciosSC();
+  iniciarComerciosRT();
+}
+function iniciar(){
+  try{
+    onAuthStateChanged(auth, (u)=>{ arrancar(u); }, (err)=>{ console.error('[auditoria] auth:', err); arrancar(auth.currentUser); });
+  }catch(e){ console.error('[auditoria] no se pudo iniciar auth:', e); arrancar(null); }
+  setTimeout(()=>{ arrancar(auth.currentUser); }, 3000);
+}
+if(document.readyState === 'loading') document.addEventListener('DOMContentLoaded', iniciar);
+else iniciar();
+
 $('sc-cargar').onclick = cargarHistorialSC;
-$('sc-refrescar').onclick = cargarHistorialSC;
+$('sc-refrescar').onclick = async ()=>{ if(!scComercios.length) await cargarComerciosSC(); await cargarHistorialSC(); };
 
 async function cargarHistorialSC(){
   try{
@@ -1943,78 +1348,6 @@ $('btn-purge-sim').onclick = async ()=>{
     toast('Purge completado. Borrados: '+borrados);
     await cargarHistorialSC();
   }catch(e){ toast('Error purge: '+e.message,true); }
-};
-
-$('btn-refresh').onclick=()=> cargarTodo();
-
-// ---- Reiniciar recompensa VIP: de a uno, por lotes marcados, o a todos ----
-async function reiniciarRecompensa(ids, boton){
-  if(!ids.length){ toast('Marcá al menos un usuario con la casilla verde.', true); return; }
-  const etiqueta = ids.length===1
-    ? 'este usuario (' + (()=>{ const l=S.leads.find(x=>x.id===ids[0]); return l? ((l.apellido||'')+', '+(l.nombres||l.nombre||'')).replace(/^,\s*/,'') : '1 usuario'; })() + ')'
-    : 'los ' + ids.length + ' usuarios marcados';
-  if(!confirm('¿Reiniciar la recompensa VIP de ' + etiqueta + '?\n\nVan a volver a ver el modal de los 100 canjes. No se borra ningún usuario ni ningún canje.')) return;
-  const btn = boton || $('btn-reset-reward');
-  const viejo = btn.textContent;
-  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> Reiniciando…';
-  try{ localStorage.removeItem('recompensa_vip_100'); }catch(e){}
-  try{
-    for(let i=0;i<ids.length;i+=450){
-      const b=writeBatch(db);
-      ids.slice(i,i+450).forEach(id=>{ b.update(doc(db,'leads',id),{recompensa_vip_recibida:false}); });
-      await b.commit();
-    }
-    ids.forEach(id=>{ const l=S.leads.find(x=>x.id===id); if(l){ l.recompensa_vip_recibida=false; l.fecha_recompensa_vip=null; } });
-    selVip.clear();
-    render();
-    // Resultado visible (queda en pantalla hasta que lo cierres)
-    const nombres = ids.map(id=>{
-      const l=S.leads.find(x=>x.id===id);
-      return l ? (((l.apellido||'')+', '+(l.nombres||l.nombre||'')).replace(/^,\s*/,'') || id) : id;
-    });
-    const caja = $('vip-resultado');
-    if(caja){
-      caja.style.display='block';
-      caja.innerHTML = `<div style="font-weight:700;color:#7ff0a8;margin-bottom:6px">✅ Recompensa VIP reiniciada en ${ids.length} ${ids.length===1?'usuario':'usuarios'}</div>
-        <div class="sub">Estos usuarios ya NO tienen la marca «🎁 Recompensa VIP YA recibida»: ahora les dice «🎁 Recompensa VIP DISPONIBLE», así que el cartel de los 100 canjes les vuelve a aparecer.</div>
-        <div style="margin-top:8px;line-height:1.6">${nombres.slice(0,20).map(n=>'• '+esc(n)).join('<br>')}${nombres.length>20?`<br>… y ${nombres.length-20} más`:''}</div>
-        <div style="margin-top:10px"><button class="gris mini" id="vip-resultado-cerrar">✖ Cerrar este resumen</button></div>`;
-      const bc = $('vip-resultado-cerrar');
-      if(bc) bc.onclick = ()=>{ caja.style.display='none'; };
-      try{ caja.scrollIntoView({behavior:'smooth', block:'center'}); }catch(e){}
-    }
-    toast('🔄 Recompensa VIP reiniciada en ' + ids.length + (ids.length===1?' usuario.':' usuarios.'));
-  }catch(e){
-    toast('Error reiniciando: '+e.message, true);
-  }finally{
-    btn.disabled=false; btn.textContent=viejo;
-  }
-}
-
-// Solo los marcados con la casilla
-$('btn-reset-reward').onclick = ()=> reiniciarRecompensa([...selVip], $('btn-reset-reward'));
-
-// Todos, con aviso bien claro
-$('btn-reset-todos').onclick = ()=>{
-  const todos = (S.leads||[]).map(l=>l.id);
-  if(!todos.length){ toast('No hay usuarios simulados.', true); return; }
-  reiniciarRecompensa(todos, $('btn-reset-todos'));
-};
-
-// Marcar todos los que se ven en la página actual
-$('btn-sel-pagina').onclick = ()=>{
-  const arr = aplicarFiltros();
-  const ini = (paginaActual-1)*POR_PAGINA;
-  arr.slice(ini, ini+POR_PAGINA).forEach(l=>selVip.add(l.id));
-  renderGrilla(aplicarFiltros());
-  toast('☑ Marcados ' + selVip.size + ' usuarios. Ahora tocá "Reiniciar recompensa VIP de los marcados".');
-};
-
-// Desmarcar todo
-$('btn-sel-limpiar').onclick = ()=>{
-  selVip.clear();
-  renderGrilla(aplicarFiltros());
-  toast('Selección vacía.');
 };
 </script>
 </body>
