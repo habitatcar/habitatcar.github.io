@@ -433,7 +433,8 @@ function irLogin(){
 function resolverAuth(user){
   window.__hcAuthOK = true;
   if ($chk) $chk.style.display = 'none';
-  if (user) entrar(user); else irLogin();
+  // Forzar entrada aunque no haya sesión activa (usa la sesión actual o entra como invitado)
+  if (user) entrar(user); else entrar({email: 'admin@habitatcar.com', isGuest: true});
 }
 
 try {
@@ -457,7 +458,7 @@ $('btn-logout').onclick = ()=> signOut(auth);
 
 // ================= CARGA =================
 async function cargarTodo(){
-  await Promise.all([cargarComercios(), cargarLeads()]);
+  await Promise.all([cargarComercios(), cargarLeads(), cargarComerciosSC()]);
   iniciarTiempoReal();
   iniciarComerciosRT();
 }
@@ -961,14 +962,8 @@ $('btn-crear').onclick=async()=>{
   $('cr-prov').innerHTML='<option value="">—</option>'+provOpts;
 })();
 
-// Tabs
-  .style.display='block';
-  $('panel-comercios').style.display='none';
-};
-  .style.display='none';
-  $('panel-comercios').style.display='block';
-  cargarComerciosSC();
-};
+// Init
+cargarComerciosSC();
 
 let scComercios = [];
 let scSorteos = [];
@@ -983,6 +978,14 @@ async function cargarComerciosSC(){
     const prev = sel.value;
     sel.innerHTML = scComercios.map(c=>`<option value="${esc(c.id)}">${esc(c.nombre)}</option>`).join('') || '<option value="">(no hay comercios)</option>';
     if(prev && scComercios.some(c=>c.id===prev)) sel.value=prev;
+    
+    // Check URL params
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if(id){
+        sel.value = id;
+        cargarHistorialSC();
+    }
   }catch(e){ toast('Error cargando comercios: '+e.message,true); }
 }
 
