@@ -491,7 +491,7 @@
             let totalVips = 0;
             snapshot.forEach(docSnap => {
                 const data = docSnap.data();
-                if (data.convertidoVIP === true) { totalVips++; return; }   // los VIP no se muestran en esta página
+                if (data.convertidoVIP === true) { totalVips++; return; }
                 let detalleHtml = "<div class='detalle-comercios'>";
                 Object.keys(data).forEach(key => {
                     if (data[key] && typeof data[key] === 'object' && data[key].usos !== undefined) {
@@ -500,16 +500,18 @@
                 });
                 detalleHtml += "</div>";
                 const canjes = data.canjes_por_comercio || {};
-                const inscriptosCount = (typeof canjes === 'object' && canjes !== null) ? Object.keys(canjes).length : 0;
+                let inscriptosCount = 0;
+                if (typeof canjes === 'object' && canjes !== null) {
+                    inscriptosCount = Object.keys(canjes).length;
+                }
                 todosLosLeads.push({
                     id: docSnap.id, ...data,
                     provincia_normalized: (data.provincia || '').toLowerCase(),
                     localidad_normalized: (data.localidad || '').toLowerCase(),
                     detalle_comercios_html: detalleHtml === "<div class='detalle-comercios'></div>" ? "-" : detalleHtml,
-                    inscriptos_count: inscriptosCount > 0 ? inscriptosCount : (data.inscriptos_count || 0)
+                    inscriptos_count: inscriptosCount
                 });
             });
-            // Contadores del navbar a partir de este mismo snapshot (sin lecturas extra)
             const elL = document.getElementById('cont-leads'), elV = document.getElementById('cont-vips');
             if (elL) elL.innerText = todosLosLeads.length;
             if (elV) elV.innerText = totalVips;
@@ -595,7 +597,8 @@
 
         function renderizar(datos) {
             const lista = document.getElementById('lista-leads');
-            document.getElementById('contador-total').innerText = datos.length;
+            const ct = document.getElementById('contador-total');
+            if (ct) ct.innerText = datos.length;
             leadsFiltradosCache = datos;
             actualizarPaginacionLeads(datos.length);
 
