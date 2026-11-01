@@ -241,9 +241,51 @@
 
   </div><!-- /panel-usuarios -->
 
+  <!-- ================= SIMULADOR COMERCIOS ================= -->
+  <div id="panel-comercios-sim" style="display:block">
+    <!-- Contenido generado dinámicamente por el simulador -->
+  </div>
+
+  <button class="dorado" id="btn-sim-comercios">Generar 115 comercios</button>
+  <button class="gris" id="btn-limpiar-comercios">Limpiar comercios simulados</button>
+
   <!-- ================= PANEL COMERCIOS ================= -->
   <div id="panel-comercios" style="display:none">
-    <!-- Próximamente: Simulador real de comercios -->
+
+    <div class="card">
+      <h2>🏬 Generador Masivo de Comercios Simulados</h2>
+      <p class="sub">Generá comercios de prueba completos con datos ficticios (rubros, redes, ubicación, descuentos, sorteos y promos). Quedan marcados con <code>origen:"simulador"</code> / <code>esSimulacion:true</code> para poder borrarlos cuando termines el proyecto sin afectar la base real.</p>
+      
+      <div class="row">
+        <div>
+          <label>Cantidad a generar</label>
+          <input id="gen-com-cant" type="number" value="115" min="1" max="500">
+        </div>
+        <div>
+          <label>% con Sorteos (0-100)</label>
+          <input id="gen-com-sorteos-pct" type="number" value="40" min="0" max="100">
+        </div>
+        <div>
+          <label>% con Promociones (0-100)</label>
+          <input id="gen-com-promos-pct" type="number" value="50" min="0" max="100">
+        </div>
+      </div>
+
+      <div class="btns" style="margin-top: 15px;">
+        <button class="dorado" id="btn-generar-comercios">🏪 Generar Comercios Simulados</button>
+        <button class="rojo" id="btn-borrar-comercios-sim">🗑 Borrar TODOS los Comercios Simulados</button>
+      </div>
+
+      <div class="warn" style="margin-top: 15px;">
+        ⚠️ Todos los comercios creados tendrán el indicador <code>esSimulacion: true</code>. Al finalizar el proyecto podés presionar "Borrar TODOS los Comercios Simulados" para limpiar la base de datos por completo.
+      </div>
+    </div>
+
+    <div class="card" style="margin-top: 15px;">
+      <h2>📊 Estado de Comercios en Base de Datos</h2>
+      <p class="sub" id="comercios-sim-stats">Cargando estado...</p>
+    </div>
+
   </div><!-- /panel-comercios -->
 
 </div>
@@ -308,7 +350,279 @@
 
 <div id="toasts"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
+// ================= SIMULADOR DE COMERCIOS =================
+const RUBROS_SIM = [
+  "Supermercado", "Farmacia", "Restaurante", "Café", "Panadería",
+  "Veterinaria", "Ferretería", "Electrónica", "Ropa", "Zapatería",
+  "Floristería", "Joyería", "Gimnasio", "Clínica", "Barbería",
+  "Taller Mecánico", "Lavadero de Autos", "Inmobiliaria", "Cotillón", "Heladería"
+];
+
+const PROVINCIAS_SIM = [
+  "Buenos Aires", "CABA", "Catamarca", "Chaco", "Chubut", "Córdoba",
+  "Corrientes", "Entre Ríos", "Formosa", "Jujuy", "La Pampa",
+  "La Rioja", "Mendoza", "Misiones", "Neuquén", "Río Negro",
+  "Salta", "San Juan", "San Luis", "Santa Cruz", "Santa Fe",
+  "Santiago del Estero", "Tierra del Fuego", "Tucumán"
+];
+
+const LOCALIDADES_SIM = {
+  "Jujuy": ["San Salvador de Jujuy", "Palpalá", "San Pedro", "Perico", "Humahuaca", "Tilcara"],
+  "Salta": ["Salta Capital", "San Lorenzo", "Cafayate", "Orán", "Tartagal"],
+  "Tucumán": ["San Miguel de Tucumán", "Yerba Buena", "Tafí del Valle", "Concepción"],
+  "Buenos Aires": ["La Plata", "Mar del Plata", "Bahía Blanca", "Tandil", "Quilmes", "San Isidro"],
+  "CABA": ["Palermo", "Recoleta", "Belgrano", "Caballito", "San Telmo", "Puerto Madero"],
+  "Córdoba": ["Córdoba Capital", "Villa Carlos Paz", "Río Cuarto", "Alta Gracia", "Villa María"],
+  "Santa Fe": ["Rosario", "Santa Fe Capital", "Rafaela", "Venado Tuerto"]
+};
+
+const NOMBRES_FANTASIA_BASE = [
+  "El Sol", "La Estrella", "Don José", "La Esquina", "San Martín",
+  "Central", "Norte", "Express", "Premium", "Los Amigos",
+  "El Puente", "La Unión", "Nacional", "El Ceibo", "Olimpo",
+  "Apolo", "El Roble", "Horizonte", "San Cayetano", "La Fe"
+];
+
+const DESCRIPCIONES_COMERCIO = [
+  "Atención personalizada con más de 15 años de trayectoria en el rubro.",
+  "Especialistas en brindar la mejor calidad y servicio a todos nuestros clientes.",
+  "Ofrecemos amplia variedad de productos y facilidades de pago.",
+  "El mejor comercio de la zona, comprometidos con la excelencia.",
+  "Encontrá todo lo que buscás con promociones exclusivas para clientes registados."
+];
+
+const TITULOS_SORTEO = [
+  "Sorteo Gran Premio del Mes", "Sorteo Kit de Productos Premium", "Sorteo Fin de Semana Todo Pago",
+  "Sorteo Orden de Compra por $50.000", "Sorteo Especial Aniversario", "Sorteo Kit Verano 2026"
+];
+
+const TITULOS_PROMO = [
+  "2x1 en Productos Seleccionados", "15% OFF abonando en efectivo", "Envío a domicilio 100% GRATIS",
+  "Descuento especial del 20% los días martes", "Combo Especial con 30% de Descuento"
+];
+
+function pickSim(arr) {
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
+function randIntSim(min, max) {
+  return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function genIDComercioSim() {
+  return 'COM_' + Math.random().toString(36).substring(2, 8).toUpperCase();
+}
+
+function genTokenQRSim() {
+  return 'QR_' + Math.random().toString(36).substring(2, 10).toUpperCase();
+}
+
+function genCUITSim() {
+  const tipo = pickSim(["20", "27", "30"]);
+  const num = String(randIntSim(10000000, 99999999));
+  const dv = String(randIntSim(0, 9));
+  return tipo + '-' + num + '-' + dv;
+}
+
+function genComercioSimulado(idx) {
+  const prov = pickSim(PROVINCIAS_SIM);
+  const locs = LOCALIDADES_SIM[prov] || ["Central", "Centro", "Norte", "Sur"];
+  const loc = pickSim(locs);
+  const rubro = pickSim(RUBROS_SIM);
+  const baseNombre = pickSim(NOMBRES_FANTASIA_BASE);
+  const nombre = rubro + ' ' + baseNombre + ' #' + (idx + 1);
+  const idComercio = genIDComercioSim();
+  const tokenQR = genTokenQRSim();
+  const slug = nombre.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const cuit = genCUITSim();
+  const waNum = '549' + pickSim(['388', '387', '381', '11', '351']) + randIntSim(1000000, 9999999);
+  const email = 'contacto.' + slug + '@gmail.com';
+
+  const tieneRedes = Math.random() > 0.1;
+  const tieneFb = tieneRedes && Math.random() > 0.3;
+  const tieneIg = tieneRedes && Math.random() > 0.2;
+  const tieneTk = tieneRedes && Math.random() > 0.5;
+  const tieneWeb = tieneRedes && Math.random() > 0.4;
+
+  const descLead = randIntSim(5, 25) + '%';
+  const descVip = randIntSim(30, 50) + '%';
+
+  const com = {
+    idComercio: idComercio,
+    tokenQR: tokenQR,
+    nombre: nombre,
+    rubro: rubro,
+    cuit: cuit,
+    direccion: 'Av. ' + pickSim(['Belgrano', 'San Martín', 'Rivadavia', 'Alvear', 'Mitre']) + ' ' + randIntSim(100, 3500),
+    provincia: prov,
+    ciudad: loc,
+    localidad: loc,
+    telefono: waNum,
+    whatsapp: waNum,
+    emailDueno: email,
+    email: email,
+    passwordDueno: 'Admin' + randIntSim(100, 999) + '!',
+    reporteFrecuencia: pickSim(["diario", "semanal", "quincenal", "mensual"]),
+    
+    descuentolead: descLead,
+    usosLead: randIntSim(1, 3),
+    vigenciaLead: randIntSim(15, 60),
+    detalleLead: 'Válido para consumo mínimo en local. ' + descLead + ' de descuento.',
+    
+    descuentovip: descVip,
+    usosVip: randIntSim(3, 10),
+    vigenciaVip: randIntSim(30, 90),
+    detalleVip: 'Beneficio exclusivo VIP. ' + descVip + ' OFF en todos los productos.',
+
+    facebook: tieneFb ? 'https://facebook.com/' + slug : "",
+    instagram: tieneIg ? 'https://instagram.com/' + slug : "",
+    tiktok: tieneTk ? 'https://tiktok.com/@' + slug : "",
+    sitioWeb: tieneWeb ? 'https://www.' + slug + '.com.ar' : "",
+    mapsUrl: 'https://maps.google.com/?q=' + encodeURIComponent(nombre + ' ' + loc),
+
+    nombre_titular: pickSim(["Carlos", "María", "Juan", "Ana", "Roberto", "Laura", "Gustavo", "Patricia"]),
+    apellido_titular: pickSim(["Gómez", "Rodríguez", "López", "Fernández", "Pérez", "González", "Martínez"]),
+    datos_postulacion: {
+      cuit: cuit,
+      nombre_titular: pickSim(["Carlos", "María", "Juan", "Ana", "Roberto", "Laura", "Gustavo", "Patricia"]),
+      apellido_titular: pickSim(["Gómez", "Rodríguez", "López", "Fernández", "Pérez", "González", "Martínez"]),
+      instagram: tieneIg ? 'https://instagram.com/' + slug : "",
+      facebook: tieneFb ? 'https://facebook.com/' + slug : "",
+      tiktok: tieneTk ? 'https://tiktok.com/@' + slug : "",
+      sitioWeb: tieneWeb ? 'https://www.' + slug + '.com.ar' : "",
+      descripcion_comercio: pickSim(DESCRIPCIONES_COMERCIO),
+      fecha_postulacion: Date.now() - randIntSim(1000000, 50000000)
+    },
+
+    estado: "publicado",
+    publicado: true,
+    activo: true,
+    origen: "simulador",
+    esSimulacion: true,
+    fecha_alta: Date.now() - randIntSim(100000, 10000000)
+  };
+
+  return com;
+}
+
+async function generarComerciosSimuladosMasivo() {
+  const cant = parseInt(document.getElementById('gen-com-cant').value) || 115;
+  const pctSorteos = parseInt(document.getElementById('gen-com-sorteos-pct').value) || 40;
+  const pctPromos = parseInt(document.getElementById('gen-com-promos-pct').value) || 50;
+
+  if(!confirm('¿Generar ' + cant + ' comercios simulados en la base de datos?')) return;
+
+  toast('⏳ Generando ' + cant + ' comercios simulados...');
+
+  try {
+    let creadosCom = 0, creadosSor = 0, creadosPro = 0;
+
+    for (let i = 0; i < cant; i++) {
+      const comData = genComercioSimulado(i);
+      
+      const tieneSorteo = Math.random() * 100 < pctSorteos;
+      const tienePromo = Math.random() * 100 < pctPromos;
+
+      if (tieneSorteo) {
+        comData.titulo_sorteo = pickSim(TITULOS_SORTEO);
+        comData.descripcion_sorteo = '¡Participá en el sorteo exclusivo de ' + comData.nombre + '! Válido para clientes registrados.';
+        comData.cantidad_premios = randIntSim(1, 5);
+        comData.fecha_sorteo = new Date(Date.now() + randIntSim(5, 30) * 86400000).toISOString();
+        creadosSor++;
+      }
+
+      if (tienePromo) {
+        comData.titulo_promo = pickSim(TITULOS_PROMO);
+        comData.descripcion_promo = 'Aprovechá esta promoción especial por tiempo limitado en ' + comData.nombre + '.';
+        comData.promo_vence = new Date(Date.now() + randIntSim(10, 60) * 86400000).toISOString();
+        creadosPro++;
+      }
+
+      await addDoc(collection(db, "comercios"), comData);
+      creadosCom++;
+    }
+
+    toast('✅ Se crearon ' + creadosCom + ' comercios, ' + creadosSor + ' sorteos y ' + creadosPro + ' promociones simuladas.');
+    actualizarStatsComerciosSim();
+
+  } catch(e) {
+    console.error('Error generando comercios:', e);
+    toast('Error generando comercios: ' + e.message, true);
+  }
+}
+
+async function borrarComerciosSimuladosMasivo() {
+  if(!confirm("⚠️ ¿Estás seguro de ELIMINAR TODOS los comercios simulados? (No afectará a los comercios reales).")) return;
+
+  toast("⏳ Eliminando comercios simulados...");
+
+  try {
+    const snap = await getDocs(collection(db, "comercios"));
+    let borrados = 0;
+
+    for (const docSnap of snap.docs) {
+      const data = docSnap.data();
+      if (data.origen === "simulador" || data.esSimulacion === true) {
+        await deleteDoc(doc(db, "comercios", docSnap.id));
+        borrados++;
+      }
+    }
+
+    toast('🗑 Se eliminaron ' + borrados + ' comercios simulados correctamente.');
+    actualizarStatsComerciosSim();
+
+  } catch(e) {
+    console.error('Error borrando comercios simulados:', e);
+    toast('Error al borrar: ' + e.message, true);
+  }
+}
+
+async function actualizarStatsComerciosSim() {
+  const el = document.getElementById('comercios-sim-stats');
+  if(!el) return;
+
+  try {
+    const snap = await getDocs(collection(db, "comercios"));
+    let total = snap.size;
+    let simulados = 0;
+    let reales = 0;
+
+    snap.forEach(d => {
+      const data = d.data();
+      if (data.origen === "simulador" || data.esSimulacion === true) {
+        simulados++;
+      } else {
+        reales++;
+      }
+    });
+
+    el.innerHTML = 'Total comercios en base: <b>' + total + '</b> · Reales: <b style="color:#7ff0a8">' + reales + '</b> · Simulados: <b style="color:#ffd76a">' + simulados + '</b>';
+
+  } catch(e) {
+    el.innerHTML = 'Error obteniendo estadísticas de comercios.';
+  }
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const bGen = document.getElementById('btn-generar-comercios');
+  const bDel = document.getElementById('btn-borrar-comercios-sim');
+  if(bGen) bGen.onclick = generarComerciosSimuladosMasivo;
+  if(bDel) bDel.onclick = borrarComerciosSimuladosMasivo;
+});
+
+const tabComEl = document.getElementById('tab-comercios');
+if(tabComEl) {
+  tabComEl.onclick = () => {
+    document.getElementById('panel-usuarios').style.display = 'none';
+    document.getElementById('panel-comercios').style.display = 'block';
+    document.getElementById('tab-usuarios').className = 'gris';
+    document.getElementById('tab-comercios').className = 'dorado';
+    actualizarStatsComerciosSim();
+  };
+}
+
+</script>
 <script>
 /* FAILSAFE (script clásico, independiente del módulo):
    si el módulo de Firebase no arrancó o no resolvió la sesión, nunca dejar el overlay colgado. */
