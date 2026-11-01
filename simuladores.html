@@ -262,12 +262,16 @@
           <input id="gen-com-cant" type="number" value="115" min="1" max="500">
         </div>
         <div>
-          <label>% con Sorteos (0-100)</label>
+          <label>% con Sorteos</label>
           <input id="gen-com-sorteos-pct" type="number" value="40" min="0" max="100">
         </div>
         <div>
-          <label>% con Promociones (0-100)</label>
+          <label>% con Promociones</label>
           <input id="gen-com-promos-pct" type="number" value="50" min="0" max="100">
+        </div>
+        <div>
+          <label>% con AMBOS</label>
+          <input id="gen-com-ambos-pct" type="number" value="20" min="0" max="100">
         </div>
       </div>
 
@@ -367,15 +371,34 @@ const PROVINCIAS_SIM = [
   "Santiago del Estero", "Tierra del Fuego", "Tucumán"
 ];
 
+
 const LOCALIDADES_SIM = {
+  "Buenos Aires": ["La Plata", "Mar del Plata", "Bahía Blanca", "Tandil", "Quilmes", "San Isidro", "Vicente López", "Junín"],
+  "CABA": ["Palermo", "Recoleta", "Belgrano", "Caballito", "San Telmo", "Puerto Madero", "Flores"],
+  "Catamarca": ["San Fernando del Valle de Catamarca", "Belén", "Tinogasta"],
+  "Chaco": ["Resistencia", "Presidencia Roque Sáenz Peña", "Charata"],
+  "Chubut": ["Rawson", "Comodoro Rivadavia", "Trelew", "Esquel"],
+  "Córdoba": ["Córdoba Capital", "Villa Carlos Paz", "Río Cuarto", "Alta Gracia", "Villa María", "Jesús María"],
+  "Corrientes": ["Corrientes Capital", "Goya", "Paso de los Libres"],
+  "Entre Ríos": ["Paraná", "Concordia", "Gualeguaychú", "Concepción del Uruguay"],
+  "Formosa": ["Formosa Capital", "Clorinda"],
   "Jujuy": ["San Salvador de Jujuy", "Palpalá", "San Pedro", "Perico", "Humahuaca", "Tilcara"],
+  "La Pampa": ["Santa Rosa", "General Pico"],
+  "La Rioja": ["La Rioja Capital", "Chilecito"],
+  "Mendoza": ["Mendoza Capital", "San Rafael", "Godoy Cruz", "Luján de Cuyo"],
+  "Misiones": ["Posadas", "Oberá", "Eldorado", "Puerto Iguazú"],
+  "Neuquén": ["Neuquén Capital", "San Martín de los Andes", "Zapala"],
+  "Río Negro": ["Viedma", "Bariloche", "General Roca", "Cipolletti"],
   "Salta": ["Salta Capital", "San Lorenzo", "Cafayate", "Orán", "Tartagal"],
-  "Tucumán": ["San Miguel de Tucumán", "Yerba Buena", "Tafí del Valle", "Concepción"],
-  "Buenos Aires": ["La Plata", "Mar del Plata", "Bahía Blanca", "Tandil", "Quilmes", "San Isidro"],
-  "CABA": ["Palermo", "Recoleta", "Belgrano", "Caballito", "San Telmo", "Puerto Madero"],
-  "Córdoba": ["Córdoba Capital", "Villa Carlos Paz", "Río Cuarto", "Alta Gracia", "Villa María"],
-  "Santa Fe": ["Rosario", "Santa Fe Capital", "Rafaela", "Venado Tuerto"]
+  "San Juan": ["San Juan Capital", "Rawson", "Rivadavia"],
+  "San Luis": ["San Luis Capital", "Villa Mercedes", "Merlo"],
+  "Santa Cruz": ["Río Gallegos", "Caleta Olivia", "El Calafate"],
+  "Santa Fe": ["Rosario", "Santa Fe Capital", "Rafaela", "Venado Tuerto", "Reconquista"],
+  "Santiago del Estero": ["Santiago del Estero Capital", "La Banda", "Termas de Río Hondo"],
+  "Tierra del Fuego": ["Ushuaia", "Río Grande"],
+  "Tucumán": ["San Miguel de Tucumán", "Yerba Buena", "Tafí del Valle", "Concepción"]
 };
+
 
 const NOMBRES_FANTASIA_BASE = [
   "El Sol", "La Estrella", "Don José", "La Esquina", "San Martín",
@@ -521,8 +544,27 @@ async function generarComerciosSimuladosMasivo() {
     for (let i = 0; i < cant; i++) {
       const comData = genComercioSimulado(i);
       
-      const tieneSorteo = Math.random() * 100 < pctSorteos;
-      const tienePromo = Math.random() * 100 < pctPromos;
+      const pctAmbos = parseInt(document.getElementById('gen-com-ambos-pct').value) || 20;
+      
+      // Decidir lógica:
+      // 1. Ambos (Sorteo + Promo)
+      // 2. Solo Sorteo
+      // 3. Solo Promo
+      // 4. Ninguno
+      
+      let tieneSorteo = false;
+      let tienePromo = false;
+      
+      const rand = Math.random() * 100;
+      
+      if (rand < pctAmbos) {
+          tieneSorteo = true;
+          tienePromo = true;
+      } else if (rand < pctAmbos + pctSorteos) {
+          tieneSorteo = true;
+      } else if (rand < pctAmbos + pctSorteos + pctPromos) {
+          tienePromo = true;
+      }
 
       if (tieneSorteo) {
         comData.titulo_sorteo = pickSim(TITULOS_SORTEO);
