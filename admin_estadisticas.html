@@ -119,7 +119,15 @@ td b{color:#fff;}
 
     .click-num { cursor: pointer; text-decoration: underline; color: #f9c74f; font-weight: bold; }
     .click-num:hover { color: #fff; }
-    .modal-est { display: none; position: fixed; z-index: 10000; left: 0; top: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); align-items: center; justify-content: center; }
+    .modal-est { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 100000; background: rgba(0,0,0,0.92); align-items: center; justify-content: center; }
+    .modal-est.active { display: flex !important; align-items: center !important; justify-content: center !important; }
+
+    /* CENTRADO COLUMNAS SORTEOS (9) Y PROMOS (10) */
+    thead tr th:nth-child(9),
+    thead tr th:nth-child(10) { text-align: center !important; }
+    table tbody tr td:nth-child(9),
+    table tbody tr td:nth-child(10) { text-align: center !important; vertical-align: middle !important; }
+    .tS, .tP, td.tS, td.tP { text-align: center !important; }
     .modal-est-content { background: #0a192f; border: 2px solid #d4af37; border-radius: 15px; width: 90%; max-width: 700px; padding: 25px; box-shadow: 0 0 30px rgba(0,0,0,0.5); color: #fff; max-height: 85vh; overflow-y: auto; }
     .modal-est-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #d4af37; padding-bottom: 10px; }
     .modal-est-close { cursor: pointer; font-size: 24px; color: #d4af37; }
@@ -390,35 +398,167 @@ function iniciarSnapshotLogs() {
 /* ══ ÍNDICES DE SORTEOS Y PROMOS ══
    AJUSTAR: nombres de colección ('sorteos', 'promociones') y campo
    ('comercioId' / 'comercio') según tu estructura real en Firestore. */
-function iniciarSnapshotExtras() {
-  onSnapshot(collection(db,'sorteos'), snap => {
-    idxSorteos = {};
-    snap.forEach(d => {
-      const k = d.data().comercioId || d.data().comercio;
-      if (k) idxSorteos[k] = (idxSorteos[k] || 0) + 1;
+const CLAVES_COM = ['comercioId','idComercio','id_comercio','comercioID','comercio','nombreComercio','comercioNombre','nombre_comercio','id'];
+
+const esc = s => String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+const fmtFecha = v => { const t = normTs(v); return t ? new Date(t).toLocaleDateString('es-AR') : '-'; };
+
+/* Indexa documentos COMPLETOS dentro de arrays, por todas las claves posibles
+   (valor tal cual y nombre normalizado con prefijo __n_) */
+function indexar(snap, tag) {
+  const idx = {};
+  snap.forEach(d => {
+    const docu = { ...d.data(), _docId: d.id };
+    const claves = new Set();
+    CLAVES_COM.forEach(k => {
+      const v = docu[k];
+      if (v == null || typeof v === 'object') return;
+      const s = String(v).trim();
+      if (!s) return;
+      claves.add(s);
+      claves.add('__n_' + norm(s));
     });
+    claves.forEach(k => { (idx[k] = idx[k] || []).push(docu); });
+  });
+  console.log('[DBG] ' + tag + ' cargados:', snap.size, 'claves:', Object.keys(idx).length, idx);
+  return idx;
+}
+
+/* Busca por ids, nombre tal cual, nombre normalizado y coincidencia parcial.
+   Unifica y deduplica por id de documento. */
+function buscarEnIdx(idx, ids, nombre) {
+  const out = new Map();
+  const add = arr => (arr || []).forEach(d => out.set(d._docId, d));
+  (ids || []).forEach(i => { if (i) add(idx[i]); });
+  if (nombre) add(idx[nombre]);
+  const n = norm(nombre);
+  if (n) {
+    add(idx['__n_' + n]);
+    Object.keys(idx).forEach(k => {
+      if (!k.startsWith('__n_')) return;
+      const kn = k.slice(4);
+      if (kn.length >= 4 && (kn.includes(n) || n.includes(kn))) add(idx[k]);
+    });
+  }
+  return [...out.values()];
+}
+
+/* Cantidad de sorteos/promos de un comercio */
+function contarIdx(idx, c) {
+  return buscarEnIdx(idx, [c.id, c.idComercio], c.nombre).length;
+}
+
+async function iniciarSnapshotExtras() {
+  /* Carga inicial inmediata de todo lo existente */
+  try {
+    const [s, p] = await Promise.all([
+      getDocs(collection(db,'sorteos')),
+      getDocs(collection(db,'promociones'))
+    ]);
+    idxSorteos = indexar(s, 'sorteos');
+    idxPromos  = indexar(p, 'promociones');
     renderTabla();
-  }, e => console.error('Sorteos:', e));
+  } catch (e) { console.error('[DBG] carga inicial sorteos/promos:', e); }
+
+  /* Tiempo real */
+  onSnapshot(collection(db,'sorteos'), snap => {
+    idxSorteos = indexar(snap, 'sorteos (snapshot)');
+    renderTabla();
+  }, e => console.error('[DBG] Sorteos snapshot:', e));
 
   onSnapshot(collection(db,'promociones'), snap => {
-    idxPromos = {};
-    snap.forEach(d => {
-      const k = d.data().comercioId || d.data().comercio;
-      if (k) idxPromos[k] = (idxPromos[k] || 0) + 1;
-    });
+    idxPromos = indexar(snap, 'promociones (snapshot)');
     renderTabla();
-  }, e => console.error('Promos:', e));
+  }, e => console.error('[DBG] Promos snapshot:', e));
 }
 
-/* Cuenta sorteos/promos de un comercio (busca por id o por nombre) */
-function contarIdx(idx, c) {
-  const v = idx[c.id] ?? idx[c.nombre];
-  if (v == null) return 0;
-  if (typeof v === 'number') return v;
-  if (Array.isArray(v)) return v.length;
-  if (typeof v === 'object') return v.cantidad ?? v.total ?? 0;
-  return 0;
+/* ══ MODAL ══ */
+function abrirModalEst(titulo, html) {
+  const modal = ge('modalEst');
+  if (!modal) return;
+  const t = ge('modalEstTitle'), b = ge('modalEstBody');
+  if (t) t.textContent = titulo;
+  if (b) b.innerHTML = html;
+  modal.classList.add('active');
+  modal.style.display = 'flex';
 }
+
+window.cerrarModalEst = () => {
+  const modal = ge('modalEst');
+  if (!modal) return;
+  modal.classList.remove('active');
+  modal.style.display = 'none';
+};
+
+window.verSorteos = (cId, nombre, extraId) => {
+  const lista = buscarEnIdx(idxSorteos, [cId, extraId], nombre);
+  console.log('[DBG] verSorteos', cId, nombre, '->', lista.length);
+  let html;
+  if (!lista.length) {
+    html = '<p style="padding:15px;text-align:center;">No hay sorteos registrados para este comercio.</p>';
+  } else {
+    html = '<table class="est-table"><thead><tr><th>Sorteo</th><th>Fecha</th><th>Leads</th><th>VIP</th><th>Total</th></tr></thead><tbody>';
+    let tL = 0, tV = 0, tT = 0;
+    lista.forEach(s => {
+      const part  = Array.isArray(s.participantes) ? s.participantes : [];
+      const vips  = part.filter(p => p && (p.tipo === 'VIP' || p.esVip)).length;
+      const leads = part.length - vips;
+      tL += leads; tV += vips; tT += part.length;
+      html += `<tr>
+        <td>${esc(s.titulo || s.nombre || 'Sin título')}</td>
+        <td>${esc(fmtFecha(s.fechaSorteo || s.fecha || s.fechaCreacion))}</td>
+        <td>${leads}</td>
+        <td>${vips}</td>
+        <td>${part.length}</td>
+      </tr>`;
+    });
+    html += `<tr class="est-total-row">
+      <td colspan="2">TOTAL ACUMULADO</td>
+      <td>${tL}</td><td>${tV}</td><td>${tT}</td>
+    </tr></tbody></table>`;
+  }
+  abrirModalEst('Sorteos: ' + nombre, html);
+};
+
+window.verPromos = (cId, nombre, extraId) => {
+  const lista = buscarEnIdx(idxPromos, [cId, extraId], nombre);
+  console.log('[DBG] verPromos', cId, nombre, '->', lista.length);
+  let html;
+  if (!lista.length) {
+    html = '<p style="padding:15px;text-align:center;">No hay promociones registradas para este comercio.</p>';
+  } else {
+    html = '<table class="est-table"><thead><tr><th>Promoción</th><th>Vence</th><th>Descripción</th></tr></thead><tbody>';
+    lista.forEach(p => {
+      html += `<tr>
+        <td>${esc(p.titulo || p.nombre || 'Sin título')}</td>
+        <td>${esc(fmtFecha(p.vigenciaHasta || p.vence || p.fechaVencimiento))}</td>
+        <td>${esc(p.descripcion || '-')}</td>
+      </tr>`;
+    });
+    html += '</tbody></table>';
+  }
+  abrirModalEst('Promociones: ' + nombre, html);
+};
+
+/* Event delegation: clicks en los números de Sorteos / Promos */
+document.body.addEventListener('click', ev => {
+  const el = ev.target.closest('.click-num');
+  if (!el) return;
+  const tr = el.closest('tr');
+  const nombre = (tr?.querySelector('td b')?.textContent || '').trim();
+  const cid = el.dataset.cid || '';
+  const idDoc = el.dataset.id || '';
+  if (el.dataset.tipo === 'promos') window.verPromos(cid, nombre, idDoc);
+  else window.verSorteos(cid, nombre, idDoc);
+});
+
+/* Cerrar: click en el fondo oscuro o tecla Escape */
+document.getElementById('modalEst')?.addEventListener('click', ev => {
+  if (ev.target.id === 'modalEst') window.cerrarModalEst();
+});
+document.addEventListener('keydown', ev => {
+  if (ev.key === 'Escape') window.cerrarModalEst();
+});
 
 function canjes(nombre, desde) {
   const list = idxCanjes[nombre]||[];
@@ -597,8 +737,8 @@ window.renderTabla = function renderTabla() {
       <td class="t1">${hSe.T}</td>
       <td class="t2">${hMe.T}</td>
       <td class="t3">${hAn.T}</td>
-      <td class="tS">${nSorteos}</td>
-      <td class="tP">${nPromos}</td>
+      <td class="tS"><span class="click-num" data-tipo="sorteos" data-cid="${esc(c.idComercio || c.id || '')}" data-id="${esc(c.id || '')}">${nSorteos}</span></td>
+      <td class="tP"><span class="click-num" data-tipo="promos" data-cid="${esc(c.idComercio || c.id || '')}" data-id="${esc(c.id || '')}">${nPromos}</span></td>
       <td class="tE">${envio}</td>
       <td>
         <select class="mf" onchange="updateFreq('${c.id}',this.value)">
