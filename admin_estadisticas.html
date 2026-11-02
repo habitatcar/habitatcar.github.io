@@ -103,6 +103,8 @@ td b{color:#fff;}
 .t1{color:#74c0fc;}
 .t2{color:#a9c4e8;}
 .t3{color:#8899bb;}
+.tS{color:#ff8a65;font-weight:bold;}
+.tP{color:#c792ea;font-weight:bold;}
 .tE{font-size:.82em;color:#00d4ff;font-weight:bold;}
 .mf{background:#0d1f35;color:#ffc107;border:1px solid #ffc107;padding:5px;border-radius:4px;font-size:.75em;cursor:pointer;width:105px;}
 .bsr{background:linear-gradient(135deg,#004a99,#002d5e);color:#fff;border:1px solid #00c3ff;padding:5px 9px;border-radius:6px;cursor:pointer;font-size:.95em;display:inline-flex;align-items:center;justify-content:center;margin-left:5px;vertical-align:middle;width:32px;height:28px;transition:all .2s;}
@@ -251,7 +253,7 @@ td b{color:#fff;}
 
 </div>
 
-<!-- TABLA -->
+<!-- TABLA (12 columnas) -->
 <div class="tc">
   <table>
     <thead>
@@ -264,7 +266,9 @@ td b{color:#fff;}
         <th>Semana</th>
         <th>Mes</th>
         <th>Año</th>
-        <th>Sorteos</th><th>Promos</th><th>Último Envío</th>
+        <th style="color:#ff8a65">Sorteos</th>
+        <th style="color:#c792ea">Promos</th>
+        <th>Último Envío</th>
         <th>Frecuencia / Acción</th>
       </tr>
     </thead>
@@ -381,6 +385,39 @@ function iniciarSnapshotLogs() {
     reconstruirIdx();
     renderTabla();
   });
+}
+
+/* ══ ÍNDICES DE SORTEOS Y PROMOS ══
+   AJUSTAR: nombres de colección ('sorteos', 'promociones') y campo
+   ('comercioId' / 'comercio') según tu estructura real en Firestore. */
+function iniciarSnapshotExtras() {
+  onSnapshot(collection(db,'sorteos'), snap => {
+    idxSorteos = {};
+    snap.forEach(d => {
+      const k = d.data().comercioId || d.data().comercio;
+      if (k) idxSorteos[k] = (idxSorteos[k] || 0) + 1;
+    });
+    renderTabla();
+  }, e => console.error('Sorteos:', e));
+
+  onSnapshot(collection(db,'promociones'), snap => {
+    idxPromos = {};
+    snap.forEach(d => {
+      const k = d.data().comercioId || d.data().comercio;
+      if (k) idxPromos[k] = (idxPromos[k] || 0) + 1;
+    });
+    renderTabla();
+  }, e => console.error('Promos:', e));
+}
+
+/* Cuenta sorteos/promos de un comercio (busca por id o por nombre) */
+function contarIdx(idx, c) {
+  const v = idx[c.id] ?? idx[c.nombre];
+  if (v == null) return 0;
+  if (typeof v === 'number') return v;
+  if (Array.isArray(v)) return v.length;
+  if (typeof v === 'object') return v.cantidad ?? v.total ?? 0;
+  return 0;
 }
 
 function canjes(nombre, desde) {
@@ -540,6 +577,9 @@ window.renderTabla = function renderTabla() {
 
     fCo++;fH+=hist.T;fHo+=hHo.T;fSe+=hSe.T;fMe+=hMe.T;fAn+=hAn.T;
 
+    const nSorteos = contarIdx(idxSorteos, c);
+    const nPromos  = contarIdx(idxPromos, c);
+
     let envio='---';
     if(c.lastSubmission){
       try{const d=new Date(c.lastSubmission);envio=isNaN(d.getTime())?String(c.lastSubmission):d.toLocaleString('es-AR',{day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
@@ -557,6 +597,8 @@ window.renderTabla = function renderTabla() {
       <td class="t1">${hSe.T}</td>
       <td class="t2">${hMe.T}</td>
       <td class="t3">${hAn.T}</td>
+      <td class="tS">${nSorteos}</td>
+      <td class="tP">${nPromos}</td>
       <td class="tE">${envio}</td>
       <td>
         <select class="mf" onchange="updateFreq('${c.id}',this.value)">
@@ -567,7 +609,7 @@ window.renderTabla = function renderTabla() {
           <option value="mensual"   ${fr==='mensual'  ?'selected':''}>Mensual</option>
         </select>
         <button class="bsr" onclick="enviarReporte('${c.id}')" title="Enviar">✉</button>
-       </td>
+      </td>
     `;
     body.appendChild(row);
   });
@@ -813,6 +855,7 @@ window.envioMasivo = async () => {
 cargarProvs();
 iniciarSnapshotLogs();
 iniciarSnapComercios();
+iniciarSnapshotExtras();
 statsU();
 setInterval(statsU, 60000);
 </script>
