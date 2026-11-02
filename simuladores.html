@@ -354,7 +354,61 @@
 
 <div id="toasts"></div>
 
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+/* FAILSAFE (script clásico, independiente del módulo):
+   si el módulo de Firebase no arrancó o no resolvió la sesión, nunca dejar el overlay colgado. */
+window.__hcAuthOK = false;
+window.addEventListener('error', function(e){ console.error('[simulador] error global:', e.message); });
+window.addEventListener('unhandledrejection', function(e){ console.error('[simulador] promesa rechazada:', e.reason); });
+setTimeout(function(){
+  if (window.__hcAuthOK) return;
+  var c = document.getElementById('auth-check'), l = document.getElementById('login');
+  if (c) c.style.display = 'none';
+  if (l) l.style.display = 'flex';
+  var m = document.getElementById('msg');
+  if (m) m.textContent = 'No se pudo verificar la sesión automáticamente. Ingresá con tu cuenta.';
+}, 10000);
+</script>
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
+  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, onSnapshot,
+  query, where, increment, arrayUnion, writeBatch, deleteField, setDoc }
+  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+// jsPDF se carga como <script> clásico (UMD) -> window.jspdf.jsPDF
+const jsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : null;
+
+// ---- Config (misma del sitio) ----
+const firebaseConfig = {
+  apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
+  authDomain: "habitatcar-pro.firebaseapp.com",
+  projectId: "habitatcar-pro",
+  storageBucket: "habitatcar-pro.firebasestorage.app",
+  messagingSenderId: "311691258694",
+  appId: "1:311691258694:web:17a09051dcea7707af9347"
+};
+const fbApp = initializeApp(firebaseConfig);
+const auth  = getAuth(fbApp);
+const db    = getFirestore(fbApp);
+window.db = db;  // <-- AGREGADO para que el simulador funcione
+
+// ---- Estado ----
+const S = {
+  user: null,
+  comercios: [],          // {id, nombre, usosLead, usosVip}
+  comercio: null,
+  leads: [],              // simulados
+  loading: false
+};
+
+// ---- Utilidades UI ----
+const $ = (id) => document.getElementById(id);
+function toast(txt, err){ const d=document.createElement('div'); d.className='toast'+(err?' err':''); d.textContent=txt; $('toasts').appendChild(d); setTimeout(()=>d.remove(),4200); }
+function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+const SUPERADMIN = 'admin@habitatcar.com';
+
 // ================= SIMULADOR DE COMERCIOS =================
 const RUBROS_SIM = [
   "Supermercado", "Farmacia", "Restaurante", "Café", "Panadería",
@@ -448,102 +502,75 @@ function genCUITSim() {
   return tipo + '-' + num + '-' + dv;
 }
 
-function genComercioSimulado(idx) {
-  const prov = pickSim(PROVINCIAS_SIM);
-  const locs = LOCALIDADES_SIM[prov] || ["Central", "Centro", "Norte", "Sur"];
-  const loc = pickSim(locs);
-  const rubro = pickSim(RUBROS_SIM);
-  const baseNombre = pickSim(NOMBRES_FANTASIA_BASE);
-  const nombre = rubro + ' ' + baseNombre + ' #' + (idx + 1);
-  const idComercio = genIDComercioSim();
-  const tokenQR = genTokenQRSim();
-  const slug = nombre.toLowerCase().replace(/[^a-z0-9]/g, '');
-  const cuit = genCUITSim();
-  const waNum = '549' + pickSim(['388', '387', '381', '11', '351']) + randIntSim(1000000, 9999999);
-  const email = 'contacto.' + slug + '@gmail.com';
 
-  const tieneRedes = Math.random() > 0.1;
-  const tieneFb = tieneRedes && Math.random() > 0.3;
-  const tieneIg = tieneRedes && Math.random() > 0.2;
-  const tieneTk = tieneRedes && Math.random() > 0.5;
-  const tieneWeb = tieneRedes && Math.random() > 0.4;
-
-  const descLead = randIntSim(5, 25) + '%';
-  const descVip = randIntSim(30, 50) + '%';
-
-  const com = {
-    idComercio: idComercio,
-    tokenQR: tokenQR,
-    nombre: nombre,
-    rubro: rubro,
-    cuit: cuit,
-    direccion: 'Av. ' + pickSim(['Belgrano', 'San Martín', 'Rivadavia', 'Alvear', 'Mitre']) + ' ' + randIntSim(100, 3500),
-    provincia: prov,
-    ciudad: loc,
-    localidad: loc,
-    telefono: waNum,
-    whatsapp: waNum,
-    emailDueno: email,
-    email: email,
-    passwordDueno: 'Admin' + randIntSim(100, 999) + '!',
-    reporteFrecuencia: pickSim(["diario", "semanal", "quincenal", "mensual"]),
-    
-    descuentolead: descLead,
-    usosLead: randIntSim(1, 3),
-    vigenciaLead: randIntSim(15, 60),
-    detalleLead: 'Válido para consumo mínimo en local. ' + descLead + ' de descuento.',
-    
-    descuentovip: descVip,
-    usosVip: randIntSim(3, 10),
-    vigenciaVip: randIntSim(30, 90),
-    detalleVip: 'Beneficio exclusivo VIP. ' + descVip + ' OFF en todos los productos.',
-
-    facebook: tieneFb ? 'https://facebook.com/' + slug : "",
-    instagram: tieneIg ? 'https://instagram.com/' + slug : "",
-    tiktok: tieneTk ? 'https://tiktok.com/@' + slug : "",
-    sitioWeb: tieneWeb ? 'https://www.' + slug + '.com.ar' : "",
-    mapsUrl: 'https://maps.google.com/?q=' + encodeURIComponent(nombre + ' ' + loc),
-
-    nombre_titular: pickSim(["Carlos", "María", "Juan", "Ana", "Roberto", "Laura", "Gustavo", "Patricia"]),
-    apellido_titular: pickSim(["Gómez", "Rodríguez", "López", "Fernández", "Pérez", "González", "Martínez"]),
-    datos_postulacion: {
-      cuit: cuit,
-      nombre_titular: pickSim(["Carlos", "María", "Juan", "Ana", "Roberto", "Laura", "Gustavo", "Patricia"]),
-      apellido_titular: pickSim(["Gómez", "Rodríguez", "López", "Fernández", "Pérez", "González", "Martínez"]),
-      instagram: tieneIg ? 'https://instagram.com/' + slug : "",
-      facebook: tieneFb ? 'https://facebook.com/' + slug : "",
-      tiktok: tieneTk ? 'https://tiktok.com/@' + slug : "",
-      sitioWeb: tieneWeb ? 'https://www.' + slug + '.com.ar' : "",
-      descripcion_comercio: pickSim(DESCRIPCIONES_COMERCIO),
-      fecha_postulacion: Date.now() - randIntSim(1000000, 50000000)
-    },
-
-    estado: "publicado",
-    publicado: true,
-    activo: true,
-    origen: "simulador",
-    esSimulacion: true,
-    fecha_alta: Date.now() - randIntSim(100000, 10000000)
-  };
-
-  return com;
+function genID_Real(nombre) {
+    return nombre.toLowerCase().replace(/[^a-z0-9]/g, '');
 }
 
+function genTokenQR_Real(id) {
+    return id + '_' + Math.floor(100000 + Math.random() * 900000);
+}
+
+function genComercioSimulado(idx) {
+    const prov = pickSim(PROVINCIAS_SIM);
+    const locs = LOCALIDADES_SIM[prov] || ["Central", "Centro", "Norte", "Sur"];
+    const loc = pickSim(locs);
+    const rubro = pickSim(RUBROS_SIM);
+    const baseNombre = pickSim(NOMBRES_FANTASIA_BASE);
+    const nombre = baseNombre + ' ' + (idx + 1); // Nombre Fantasía
+    
+    const idSistema = genID_Real(nombre);
+    const tokenQR = genTokenQR_Real(idSistema);
+    
+    const waNum = '549' + pickSim(['388', '387', '381', '11', '351']) + randIntSim(1000000, 9999999);
+    
+    // Beneficios REALISTAS
+    const descLead = randIntSim(5, 20); // Valor numérico
+    const usosLead = randIntSim(1, 3);
+    const vigLead = randIntSim(7, 30);
+    
+    const descVip = randIntSim(25, 50); // Valor numérico
+    const usosVip = randIntSim(2, 6);
+    const vigVip = randIntSim(30, 90);
+
+    return {
+        idComercio: idSistema, // El campo ID del sistema
+        tokenQR: tokenQR,
+        nombre: nombre,
+        rubro: rubro,
+        cuit: genCUITSim(),
+        direccion: 'Av. ' + pickSim(['Belgrano', 'San Martín', 'Rivadavia', 'Alvear', 'Mitre']) + ' ' + randIntSim(100, 3500),
+        provincia: prov,
+        ciudad: loc,
+        telefono: waNum,
+        whatsapp: waNum,
+        emailDueno: 'due.' + idSistema + '@gmail.com',
+        
+        // Campos de beneficios numéricos
+        descLead: descLead,
+        usosLead: usosLead,
+        vigenciaLead: vigLead,
+        detalleLead: 'en ' + rubro.toLowerCase(),
+        
+        descVip: descVip,
+        usosVip: usosVip,
+        vigenciaVip: vigVip,
+        detalleVip: 'en productos seleccionados',
+
+        facebook: 'https://facebook.com/' + idSistema,
+        instagram: 'https://instagram.com/' + idSistema,
+        tiktok: 'https://tiktok.com/@' + idSistema,
+        sitioWeb: 'https://www.' + idSistema + '.com.ar',
+
+        nombre_titular: pickSim(["Carlos", "María", "Juan", "Ana"]),
+        apellido_titular: pickSim(["Gómez", "Rodríguez", "López"]),
+        origen: "simulador",
+        esSimulacion: true
+    };
+}
+
+
 async function generarComerciosSimuladosMasivo() {
-  // Forzar que el panel de comercios esté visible
-  const panelCom = document.getElementById('panel-comercios');
-  if (panelCom) panelCom.style.display = 'block';
-  
-  // Mensaje de diagnóstico inmediato
-  const toastEl = document.getElementById('toasts');
-  if (toastEl) {
-    const d = document.createElement('div');
-    d.className = 'toast';
-    d.textContent = 'Botón presionado - Iniciando generación...';
-    toastEl.appendChild(d);
-    setTimeout(() => d.remove(), 3000);
-  }
-  
   const cant = parseInt(document.getElementById('gen-com-cant').value) || 115;
   const pctSorteos = parseInt(document.getElementById('gen-com-sorteos-pct').value) || 40;
   const pctPromos = parseInt(document.getElementById('gen-com-promos-pct').value) || 50;
@@ -554,6 +581,7 @@ async function generarComerciosSimuladosMasivo() {
 
   try {
     let creadosCom = 0, creadosSor = 0, creadosPro = 0;
+    const pend = [];
 
     for (let i = 0; i < cant; i++) {
       const comData = genComercioSimulado(i);
@@ -595,10 +623,11 @@ async function generarComerciosSimuladosMasivo() {
         creadosPro++;
       }
 
-      await addDoc(collection(db, "comercios"), comData);
-      creadosCom++;
+      pend.push(addDoc(collection(db, "comercios"), comData).then(()=>{ creadosCom++; }));
+      if (pend.length >= 20) { await Promise.all(pend); pend.length = 0; }
     }
 
+    if (pend.length) await Promise.all(pend);
     toast('✅ Se crearon ' + creadosCom + ' comercios, ' + creadosSor + ' sorteos y ' + creadosPro + ' promociones simuladas.');
     actualizarStatsComerciosSim();
 
@@ -660,78 +689,13 @@ async function actualizarStatsComerciosSim() {
   }
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-  const bGen = document.getElementById('btn-generar-comercios');
-  const bDel = document.getElementById('btn-borrar-comercios-sim');
-  if(bGen) bGen.onclick = generarComerciosSimuladosMasivo;
-  if(bDel) bDel.onclick = borrarComerciosSimuladosMasivo;
-});
+function onSafe(id, fn){ const el=document.getElementById(id); if(el) el.onclick=fn; else console.warn('[simulador] no existe #'+id+' (se omite)'); }
+const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; else console.warn('[simulador] no existe #' + id); };
+on('btn-sim-comercios', generarComerciosSimuladosMasivo);
+on('btn-limpiar-comercios', borrarComerciosSimuladosMasivo);
+on('btn-generar-comercios', generarComerciosSimuladosMasivo);
+on('btn-borrar-comercios-sim', borrarComerciosSimuladosMasivo);
 
-const tabComEl = document.getElementById('tab-comercios');
-if(tabComEl) {
-  tabComEl.onclick = () => {
-    document.getElementById('panel-usuarios').style.display = 'none';
-    document.getElementById('panel-comercios').style.display = 'block';
-    document.getElementById('tab-usuarios').className = 'gris';
-    document.getElementById('tab-comercios').className = 'dorado';
-    actualizarStatsComerciosSim();
-  };
-}
-
-</script>
-<script>
-/* FAILSAFE (script clásico, independiente del módulo):
-   si el módulo de Firebase no arrancó o no resolvió la sesión, nunca dejar el overlay colgado. */
-window.__hcAuthOK = false;
-window.addEventListener('error', function(e){ console.error('[simulador] error global:', e.message); });
-window.addEventListener('unhandledrejection', function(e){ console.error('[simulador] promesa rechazada:', e.reason); });
-setTimeout(function(){
-  if (window.__hcAuthOK) return;
-  var c = document.getElementById('auth-check'), l = document.getElementById('login');
-  if (c) c.style.display = 'none';
-  if (l) l.style.display = 'flex';
-  var m = document.getElementById('msg');
-  if (m) m.textContent = 'No se pudo verificar la sesión automáticamente. Ingresá con tu cuenta.';
-}, 10000);
-</script>
-<script type="module">
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword, onAuthStateChanged, signOut }
-  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore, collection, doc, addDoc, updateDoc, deleteDoc, getDocs, getDoc, onSnapshot,
-  query, where, increment, arrayUnion, writeBatch, deleteField, setDoc }
-  from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
-// jsPDF se carga como <script> clásico (UMD) -> window.jspdf.jsPDF
-const jsPDF = (window.jspdf && window.jspdf.jsPDF) ? window.jspdf.jsPDF : null;
-
-// ---- Config (misma del sitio) ----
-const firebaseConfig = {
-  apiKey: "AIzaSyD5M0kPsdU8Hk_YX3uEahfoQ5k9PD8SUXM",
-  authDomain: "habitatcar-pro.firebaseapp.com",
-  projectId: "habitatcar-pro",
-  storageBucket: "habitatcar-pro.firebasestorage.app",
-  messagingSenderId: "311691258694",
-  appId: "1:311691258694:web:17a09051dcea7707af9347"
-};
-const fbApp = initializeApp(firebaseConfig);
-const auth  = getAuth(fbApp);
-const db    = getFirestore(fbApp);
-window.db = db;  // <-- AGREGADO para que el simulador funcione
-
-// ---- Estado ----
-const S = {
-  user: null,
-  comercios: [],          // {id, nombre, usosLead, usosVip}
-  comercio: null,
-  leads: [],              // simulados
-  loading: false
-};
-
-// ---- Utilidades UI ----
-const $ = (id) => document.getElementById(id);
-function toast(txt, err){ const d=document.createElement('div'); d.className='toast'+(err?' err':''); d.textContent=txt; $('toasts').appendChild(d); setTimeout(()=>d.remove(),4200); }
-function esc(s){ return String(s==null?'':s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
-const SUPERADMIN = 'admin@habitatcar.com';
 
 // ---- Datos para generar ----
 const PROVINCIAS = ["Buenos Aires","Ciudad Autónoma de Buenos Aires","Catamarca","Chaco","Chubut","Córdoba","Corrientes","Entre Ríos","Formosa","Jujuy","La Pampa","La Rioja","Mendoza","Misiones","Neuquén","Río Negro","Salta","San Juan","San Luis","Santa Cruz","Santa Fe","Santiago del Estero","Tierra del Fuego","Tucumán"];
@@ -1363,8 +1327,8 @@ async function cargarComerciosSC(){
   }catch(e){ toast('Error cargando comercios: '+e.message,true); }
 }
 
-$('sc-cargar').onclick = cargarHistorialSC;
-$('sc-refrescar').onclick = cargarHistorialSC;
+onSafe('sc-cargar', cargarHistorialSC);
+onSafe('sc-refrescar', cargarHistorialSC);
 
 async function cargarHistorialSC(){
   try{
@@ -1703,7 +1667,7 @@ async function cargarFichasLegales(com){
   if(ee) ee.textContent = em.actualizado ? ('Guardado el ' + new Date(em.actualizado).toLocaleString()) : 'Sin datos guardados todavía.';
 }
 
-$('lg-guardar').onclick = async ()=>{
+onSafe('lg-guardar', async ()=>{
   if(!scActual){ toast('Primero abrí el detalle de un sorteo.', true); return; }
   const btn = $('lg-guardar'); const viejo = btn.textContent;
   btn.disabled = true; btn.textContent = '⏳ Guardando…';
@@ -1727,9 +1691,9 @@ $('lg-guardar').onclick = async ()=>{
     console.error('lg-guardar:', e);
     toast('No se pudieron guardar los datos legales: ' + (e.message||e), true);
   }finally{ btn.disabled = false; btn.textContent = viejo; }
-};
+});
 
-$('em-guardar').onclick = async ()=>{
+onSafe('em-guardar', async ()=>{
   const btn = $('em-guardar'); const viejo = btn.textContent;
   btn.disabled = true; btn.textContent = '⏳ Guardando…';
   try{
@@ -1753,14 +1717,14 @@ $('em-guardar').onclick = async ()=>{
     console.error('em-guardar:', e);
     toast('No se pudieron guardar los datos del emisor: ' + (e.message||e), true);
   }finally{ btn.disabled = false; btn.textContent = viejo; }
-};
+});
 
-$('sc-ver-constancias').onclick = ()=>{
+onSafe('sc-ver-constancias', ()=>{
   if(!scActual){ toast('Primero abrí el detalle de un sorteo.', true); return; }
   const box = $('sc-constancias');
   if(box.style.display === 'block'){ box.style.display = 'none'; return; }
   listarConstancias(scActual.com.id);
-};
+});
 
 // ---- Identidad de Habitat-Car para la constancia (se pueden pisar desde el panel «Datos de Habitat-Car») ----
 const EMISOR_DEFECTO = {
@@ -2120,7 +2084,7 @@ async function generarPDFSorteo(com, s, participantes){
   }
 })();
 
-$('sc-ver-auditoria').onclick = async ()=>{
+onSafe('sc-ver-auditoria', async ()=>{
   const box = $('sc-auditoria');
   if(!scActual){ toast('Primero abrí el detalle de un sorteo.', true); return; }
   const abrir = box.style.display !== 'block';
@@ -2160,7 +2124,7 @@ $('sc-ver-auditoria').onclick = async ()=>{
       <div class="sub">ANTES: ${esc(typeof it.antes==='object'?JSON.stringify(it.antes):it.antes)}</div>
       <div class="sub">DESPUÉS: ${esc(typeof it.despues==='object'?JSON.stringify(it.despues):it.despues)}</div>
     </div>`).join('')+'</div>';
-};
+});
 
 function renderGanadores(s){
   const g = Array.isArray(s.ganadores)? s.ganadores : [];
@@ -2285,7 +2249,7 @@ $('me-comercio').onclick = async ()=> setEntrega('MARCADO_POR_COMERCIO', {marcad
 $('me-reset').onclick = async ()=> setEntrega('PENDIENTE', {marcadoPorGanador: deleteField(), marcadoPorComercio: deleteField(), motivo: deleteField(), quienVacante: deleteField()});
 $('me-vacante').onclick = async ()=> setEntrega('PREMIO_VACANTE', {motivo: $('me-motivo').value, motivoTxt: $('me-motivo-txt').value, quienVacante: S.user?S.user.email:'admin', fechaVacante: Date.now()});
 
-$('btn-purge-sim').onclick = async ()=>{
+onSafe('btn-purge-sim', async ()=>{
   if(!confirm('¿ELIMINAR TODO LO SIMULADO? Esta acción borra únicamente registros marcados como simulador en sorteos/auditoría/entregas/snapshots. NO SE PUEDE DESHACER.')) return;
   try{
     const cols = ['historial_sorteos','admin_participantes_sorteos','participaciones_sorteos','sorteo_auditoria_mods','sorteo_entrega_premios','sorteo_snapshot_participantes','logs_actividad','logs_vip'];
@@ -2307,7 +2271,7 @@ $('btn-purge-sim').onclick = async ()=>{
     toast('Purge completado. Borrados: '+borrados);
     await cargarHistorialSC();
   }catch(e){ toast('Error purge: '+e.message,true); }
-};
+});
 
 $('btn-refresh').onclick=()=> cargarTodo();
 
